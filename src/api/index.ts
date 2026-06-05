@@ -1,0 +1,8 @@
+// src/api/index.ts - 모든 API를 한 곳에서 re-export
+
+export { authApi } from './auth.api'
+export { departmentApi } from './department.api'
+export { memberApi } from './member.api'
+export { tangibleItemApi, tangibleAssetApi, intangibleItemApi, intangibleAssetApi } from './asset.api'
+export { ticketApi, ticketCreateApi } from './ticket.api'
+export { default as apiClient } from './client'

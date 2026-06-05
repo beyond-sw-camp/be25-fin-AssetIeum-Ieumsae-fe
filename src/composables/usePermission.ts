@@ -1,0 +1,55 @@
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores'
+import type { Role } from '@/types'
+
+// =====================================================
+// usePermission - 역할(Role) 기반 권한 제어
+// =====================================================
+
+export function usePermission() {
+  const auth = useAuthStore()
+
+  const role = computed(() => auth.currentRole)
+
+  /** 특정 역할 중 하나에 해당하는지 확인 */
+  function hasRole(...roles: Role[]): boolean {
+    return !!role.value && roles.includes(role.value)
+  }
+
+  /** 최고 관리자 전용 기능 여부 */
+  const canManageSystem = computed(() => hasRole('SUPER_ADMIN'))
+
+  /** 부서 관리 가능 여부 (최고관리자, 부서책임자) */
+  const canManageDepartment = computed(() =>
+    hasRole('SUPER_ADMIN', 'DEPARTMENT_MANAGER')
+  )
+
+  /** 자산 관리 가능 여부 (구매자산팀, 최고관리자) */
+  const canManageAsset = computed(() =>
+    hasRole('SUPER_ADMIN', 'ASSET_TEAM')
+  )
+
+  /** 티켓 승인 가능 여부 (부서책임자, 구매자산팀, 최고관리자) */
+  const canApproveTicket = computed(() =>
+    hasRole('SUPER_ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM')
+  )
+
+  /** 구매 관련 기능 (구매자산팀) */
+  const canPurchase = computed(() =>
+    hasRole('SUPER_ADMIN', 'ASSET_TEAM')
+  )
+
+  /** 예산 관리 (최고관리자) */
+  const canManageBudget = computed(() => hasRole('SUPER_ADMIN'))
+
+  return {
+    role,
+    hasRole,
+    canManageSystem,
+    canManageDepartment,
+    canManageAsset,
+    canApproveTicket,
+    canPurchase,
+    canManageBudget,
+  }
+}
