@@ -2,19 +2,20 @@
   <div class="relative">
     <aside 
       :class="[
-        'flex min-h-[calc(100vh-64px)] flex-col border-r border-gray-200 bg-white transition-all duration-300',
+        'flex min-h-[calc(100vh-64px)] flex-col border-r border-border bg-surface transition-all duration-300',
         collapsed ? 'w-20' : 'w-64'
       ]"
     >
       <!-- 메뉴 목록 -->
       <nav class="flex-1 space-y-1 overflow-y-auto p-4">
         <template v-for="item in navItems" :key="item.name">
+          <!-- 서브 메뉴가 있는 메뉴 그룹 -->
           <div v-if="item.children && item.children.length > 0" class="space-y-1">
             <button
               :class="[   
-                'w-full flex items-center justify-between rounded-xl px-3 py-3 transition hover:bg-orange-50/50 text-gray-700',
+                'w-full flex items-center justify-between rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5',
                 collapsed ? 'justify-center' : '',
-                isParentActive(item.children) && !collapsed ? 'bg-orange-50 text-primary font-semibold' : ''
+                isParentActive(item.children) && !collapsed ? 'bg-primary/10 text-primary! font-semibold' : ''
               ]"
               @click="toggleMenu(item.name)"
             >
@@ -29,6 +30,7 @@
               />
             </button>
 
+            <!-- 서브 메뉴 목록 -->
             <div 
               v-if="isMenuOpen(item.name) && !collapsed" 
               class="pl-4 space-y-1 overflow-hidden transition-all"
@@ -37,22 +39,23 @@
                 v-for="child in item.children"
                 :key="child.name"
                 :to="child.to"
-                class="flex items-center rounded-xl px-4 py-2.5 text-sm text-gray-600 transition hover:bg-orange-50 hover:text-primary"
-                exact-active-class="bg-orange-50 text-primary font-semibold"
+                class="flex items-center rounded-xl px-4 py-2.5 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary"
+                exact-active-class="bg-primary/15! text-primary! font-semibold"
               >
                 {{ child.label }}
               </RouterLink>
             </div>
           </div>
 
+          <!-- 단일 메뉴 (이미지의 서비스 데스크 등) -->
           <RouterLink 
             v-else
             :to="item.to!" 
             :class="[
-              'flex items-center rounded-xl px-3 py-3 transition hover:bg-orange-50 hover:text-primary text-gray-700',
+              'flex items-center rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5',
               collapsed ? 'justify-center' : 'gap-3'
             ]" 
-            exact-active-class="bg-orange-50 text-primary font-semibold" 
+            exact-active-class="bg-primary/15! text-primary! font-semibold" 
           >
             <component :is="item.icon" :size="18" />
             <span v-if="!collapsed">{{ item.label }}</span>
@@ -60,11 +63,12 @@
         </template>
       </nav>
 
-      <div class="border-t border-gray-100 p-4">
+      <!-- 사이드바 하단 - 설정 -->
+      <div class="border-t border-border p-4">
         <RouterLink
           to="/settings"
-          class="flex items-center rounded-xl px-3 py-3 transition hover:bg-orange-50 hover:text-primary text-gray-700"
-          exact-active-class="bg-orange-50 text-primary font-semibold"
+          class="flex items-center rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5"
+          exact-active-class="bg-primary/15! text-primary! font-semibold"
         >
           <Settings :size="18" />
           <span v-if="!collapsed" class="ml-3">설정</span>
@@ -72,14 +76,14 @@
       </div>
     </aside>
     
-    <!-- 사이드바 열고 닫는 버튼 -->
+    <!-- 사이드바 접기/열기 버튼 -->
     <button 
       class="
         absolute top-10 -right-4 z-50
         flex h-8 w-8 items-center justify-center
-        rounded-xl border border-gray-200 bg-white
-        shadow-md transition
-        hover:bg-orange-50 hover:text-primary
+        rounded-xl border border-border bg-surface
+        shadow-md transition-colors text-text-main
+        hover:bg-primary/10
       " 
       @click="collapsed = !collapsed"
     >
@@ -121,7 +125,6 @@ const isMenuOpen = (menuName: string) => {
   return !!openMenus.value[menuName]
 }
 
-// 🌟 현재 주소가 서브 메뉴 중 하나와 일치하는지 확인하여 부모 대메뉴 하이라이트 여부 결정
 const isParentActive = (children: Array<{ to: string }>) => {
   return children.some(child => route.path === child.to)
 }

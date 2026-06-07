@@ -5,11 +5,9 @@
 ===================================================== */
 
 :root {
-
   /* ------------------------------
      Brand
   ------------------------------ */
-
   --color-primary: #f97316;
   --color-primary-hover: #ea580c;
   --color-primary-light: #fff7ed;
@@ -17,7 +15,6 @@
   /* ------------------------------
      Status
   ------------------------------ */
-
   --color-success: #22c55e;
   --color-success-light: #dcfce7;
 
@@ -33,7 +30,6 @@
   /* ------------------------------
      Background
   ------------------------------ */
-
   --color-background: #F2F4F8;
   --color-surface: #ffffff;
   --color-surface-secondary: #f8fafc;
@@ -41,7 +37,6 @@
   /* ------------------------------
      Text
   ------------------------------ */
-
   --color-text-main: #111827;
   --color-text-sub: #6b7280;
   --color-text-muted: #9ca3af;
@@ -49,13 +44,11 @@
   /* ------------------------------
      Border
   ------------------------------ */
-
   --color-border: #e5e7eb;
 
   /* ------------------------------
      Sidebar
   ------------------------------ */
-
   --color-sidebar-bg: #ffffff;
   --color-sidebar-active-bg: #fff7ed;
   --color-sidebar-active-text: #f97316;
@@ -63,25 +56,46 @@
   /* ------------------------------
      Radius
   ------------------------------ */
-
   --radius-card: 16px;
   --radius-input: 12px;
 
   /* ------------------------------
      Shadow
   ------------------------------ */
-
   --shadow-card:
     0 1px 2px rgba(0,0,0,.04),
     0 4px 12px rgba(0,0,0,.04);
 }
 
+/* -----------------------------------------------------
+   🌟 Dark Mode Variables
+----------------------------------------------------- */
+.dark {
+  --color-background: #0f172a;          /* slate-900 */
+  --color-surface: #1e293b;             /* slate-800 */
+  --color-surface-secondary: #334155;   /* slate-700 */
+
+  --color-text-main: #f8fafc;           /* slate-50 */
+  --color-text-sub: #94a3b8;            /* slate-400 */
+  --color-text-muted: #64748b;          /* slate-500 */
+
+  --color-border: #334155;              /* slate-700 지점 */
+
+  --color-success-light: rgba(34, 197, 94, 0.15);
+  --color-warning-light: rgba(250, 204, 21, 0.15);
+  --color-danger-light: rgba(239, 68, 68, 0.15);
+  --color-info-light: rgba(59, 130, 246, 0.15);
+
+  --color-sidebar-bg: #1e293b;
+  --color-sidebar-active-bg: rgba(249, 115, 22, 0.2); 
+
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
 /* =====================================================
-   Tailwind Theme Mapping
+   Tailwind Theme Mapping (v4 문법)
 ===================================================== */
-
 @theme {
-
   --font-sans:
     Pretendard,
     -apple-system,
@@ -100,9 +114,11 @@
 
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
+  --color-surface-secondary: var(--color-surface-secondary);
 
   --color-text-main: var(--color-text-main);
   --color-text-sub: var(--color-text-sub);
+  --color-text-muted: var(--color-text-muted);
 
   --color-border: var(--color-border);
 }
@@ -110,9 +126,7 @@
 /* =====================================================
    Base
 ===================================================== */
-
 @layer base {
-
   html,
   body,
   #app {
@@ -125,6 +139,7 @@
     background: var(--color-background);
     color: var(--color-text-main);
     font-family: var(--font-sans);
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
   }
 
   * {
@@ -147,7 +162,6 @@
   }
 
   /* Scrollbar */
-
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -156,6 +170,10 @@
   ::-webkit-scrollbar-thumb {
     background: #d1d5db;
     border-radius: 999px;
+  }
+  
+  .dark ::-webkit-scrollbar-thumb {
+    background: #475569;
   }
 
   ::-webkit-scrollbar-track {
@@ -166,12 +184,7 @@
 /* =====================================================
    Components
 ===================================================== */
-
 @layer components {
-
-  /* ------------------------------
-     Layout
-  ------------------------------ */
 
   .page-container {
     @apply p-6;
@@ -191,12 +204,9 @@
     color: var(--color-text-sub);
   }
 
-  /* ------------------------------
-     Card
-  ------------------------------ */
-
   .card {
-    @apply rounded-2xl bg-white p-6;
+    @apply rounded-2xl p-6 transition-colors duration-300;
+    background: var(--color-surface);
     box-shadow: var(--shadow-card);
   }
 
@@ -210,12 +220,9 @@
     color: var(--color-text-sub);
   }
 
-  /* ------------------------------
-     Statistics
-  ------------------------------ */
-
   .stat-card {
-    @apply rounded-2xl bg-white p-5;
+    @apply rounded-2xl p-5 transition-colors duration-300;
+    background: var(--color-surface);
     box-shadow: var(--shadow-card);
   }
 
@@ -229,10 +236,6 @@
     color: var(--color-text-main);
   }
 
-  /* ------------------------------
-     Buttons
-  ------------------------------ */
-
   .btn-primary {
     @apply rounded-xl px-4 py-2 text-white font-medium transition;
     background: var(--color-primary);
@@ -245,12 +248,12 @@
   .btn-secondary {
     @apply rounded-xl border px-4 py-2 font-medium transition;
     border-color: var(--color-border);
-    background: white;
+    background: var(--color-surface);
     color: var(--color-text-main);
   }
 
   .btn-secondary:hover {
-    background: #f8fafc;
+    background: var(--color-surface-secondary);
   }
 
   .btn-danger {
@@ -258,14 +261,11 @@
     background: var(--color-danger);
   }
 
-  /* ------------------------------
-     Input
-  ------------------------------ */
-
   .input-custom {
-    @apply w-full rounded-xl border px-4 py-3 text-sm;
+    @apply w-full rounded-xl border px-4 py-3 text-sm transition-colors;
     border-color: var(--color-border);
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-main);
   }
 
   .input-custom:focus {
@@ -273,12 +273,9 @@
     box-shadow: 0 0 0 3px rgba(249,115,22,.15);
   }
 
-  /* ------------------------------
-     Table
-  ------------------------------ */
-
   .table-container {
-    @apply overflow-hidden rounded-2xl bg-white;
+    @apply overflow-hidden rounded-2xl;
+    background: var(--color-surface);
     box-shadow: var(--shadow-card);
   }
 
@@ -287,7 +284,7 @@
   }
 
   .table-custom thead {
-    background: #f8fafc;
+    background: var(--color-surface-secondary);
   }
 
   .table-custom th {
@@ -296,13 +293,10 @@
   }
 
   .table-custom td {
-    @apply border-t px-4 py-3 text-sm;
-    border-color: #f1f5f9;
+    @apply px-4 py-3 text-sm;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-main);
   }
-
-  /* ------------------------------
-     Badge
-  ------------------------------ */
 
   .badge-success {
     @apply inline-flex rounded-full px-3 py-1 text-xs font-semibold;
@@ -314,6 +308,10 @@
     @apply inline-flex rounded-full px-3 py-1 text-xs font-semibold;
     background: var(--color-warning-light);
     color: #ca8a04;
+  }
+  
+  .dark .badge-warning {
+    color: #fde047;
   }
 
   .badge-danger {
@@ -328,23 +326,15 @@
     color: var(--color-info);
   }
 
-  /* ------------------------------
-     Progress
-  ------------------------------ */
-
   .progress {
     @apply h-2 overflow-hidden rounded-full;
-    background: #e5e7eb;
+    background: var(--color-border);
   }
 
   .progress-bar {
     @apply h-full rounded-full;
     background: var(--color-primary);
   }
-
-  /* ------------------------------
-     Sidebar
-  ------------------------------ */
 
   .sidebar-item {
     @apply flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition;
