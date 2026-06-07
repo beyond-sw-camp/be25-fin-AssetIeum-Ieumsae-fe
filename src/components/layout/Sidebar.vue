@@ -40,7 +40,7 @@
                 :key="child.name"
                 :to="child.to"
                 class="flex items-center rounded-xl px-4 py-2.5 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary"
-                exact-active-class="bg-primary/15! text-primary! font-semibold"
+                exact-active-class="bg-primary/10! text-primary! font-semibold"
               >
                 {{ child.label }}
               </RouterLink>
@@ -55,7 +55,7 @@
               'flex items-center rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5',
               collapsed ? 'justify-center' : 'gap-3'
             ]" 
-            exact-active-class="bg-primary/15! text-primary! font-semibold" 
+            exact-active-class="bg-primary/10! text-primary! font-semibold" 
           >
             <component :is="item.icon" :size="18" />
             <span v-if="!collapsed">{{ item.label }}</span>
