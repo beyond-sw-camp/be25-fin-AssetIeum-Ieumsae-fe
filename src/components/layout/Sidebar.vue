@@ -13,9 +13,11 @@
           <div v-if="item.children && item.children.length > 0" class="space-y-1">
             <button
               :class="[   
-                'w-full flex items-center justify-between rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5',
-                collapsed ? 'justify-center' : '',
-                isParentActive(item.children) && !collapsed ? 'bg-primary/10 text-primary! font-semibold' : ''
+                'w-full flex items-center rounded-xl px-3 py-3 transition-colors hover:bg-primary/5',
+                collapsed ? 'justify-center' : 'justify-between',
+                isParentActive(item.children) 
+                  ? 'bg-primary/10 text-primary! font-semibold' 
+                  : 'text-text-main'
               ]"
               @click="toggleMenu(item.name)"
             >
