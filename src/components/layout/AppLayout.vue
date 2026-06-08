@@ -1,72 +1,85 @@
 <template>
-  <div class="flex h-screen bg-gray-100">
-    <!-- 사이드바 -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
-      <div class="p-6 border-b border-gray-100">
-        <h1 class="text-xl font-bold text-blue-600">자산이음</h1>
-        <p class="text-xs text-gray-500 mt-1">{{ auth.user?.departmentName }}</p>
-      </div>
+  <div class="h-screen bg-background text-text-main transition-colors duration-300">
+    <Header />
 
-      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.name"
-          :to="item.to"
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-          active-class="bg-blue-50 text-blue-600 font-medium"
-        >
-          <span>{{ item.icon }}</span>
-          {{ item.label }}
-        </RouterLink>
-      </nav>
+    <div class="flex h-[calc(100vh-64px)] pt-16">
+      <Sidebar 
+        v-model:collapsed="collapsed" 
+        :navItems="navItems" 
+      />
 
-      <!-- 사용자 정보 -->
-      <div class="p-4 border-t border-gray-100">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
-            {{ auth.user?.name?.charAt(0) }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium truncate">{{ auth.user?.name }}</p>
-            <p class="text-xs text-gray-500 truncate">{{ auth.user?.memberNo }}</p>
-          </div>
-          <button class="text-gray-400 hover:text-red-500 text-xs" @click="handleLogout">로그아웃</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- 메인 컨텐츠 -->
-    <main class="flex-1 overflow-auto">
-      <RouterView />
-    </main>
+      <main class="flex-1 overflow-auto bg-background p-4 transition-colors duration-300">
+        <RouterView />
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores'
+import { ref, computed } from 'vue'
 import { usePermission } from '@/composables'
+import Header from '@/components/layout/Header.vue'
+import Sidebar from '@/components/layout/Sidebar.vue'
 
-const auth = useAuthStore()
-const router = useRouter()
+import {
+  LayoutDashboard,
+  Ticket,
+  Laptop,
+  Package,
+  Building2,
+  Users,
+  Search,
+  ShoppingCart,
+  Wallet,
+  FileText
+} from 'lucide-vue-next'
+
+const collapsed = ref(false)
 const { canManageSystem, canManageDepartment, canManageAsset, canPurchase } = usePermission()
 
-async function handleLogout() {
-  await auth.logout()
-  router.push('/login')
-}
+const navItems = computed(() => {
+  const menuConfig = [
+    { name: 'dashboard', to: '/', label: '대시보드', icon: LayoutDashboard, show: true },
+    {
+      name: 'tangible',
+      label: '유형 자산 관리',
+      icon: Laptop,
+      show: true,
+      children: [
+        { name: 'tangible-items', to: '/assets/tangible/items', label: '유형 자산 품목 관리', show: canManageAsset.value },
+        { name: 'tangible-list', to: '/assets/tangible', label: '유형 자산 관리', show: true }
+      ]
+    },
+    {
+      name: 'intangible',
+      label: '무형 자산 관리',
+      icon: Package,
+      show: true,
+      children: [
+        { name: 'intangible-items', to: '/assets/intangible/items', label: '무형 자산 품목 관리', show: canManageAsset.value },
+        { name: 'intangible-list', to: '/assets/intangible', label: '무형 자산 관리', show: true }
+      ]
+    },
+    { name: 'tickets', to: '/tickets', label: '서비스 데스크', icon: Ticket, show: true },
+    { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
+    { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
+    { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
+    { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageSystem.value },
+    { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageSystem.value },
+    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value },
+    { name: 'profile', to: '/profile', label: '프로필', icon: FileText, show: canManageSystem.value }
+  ]
 
-const navItems = computed(() => [
-  { name: 'dashboard', to: '/', label: '대시보드', icon: '📊', show: true },
-  { name: 'tickets', to: '/tickets', label: '티켓', icon: '🎫', show: true },
-  { name: 'tangible', to: '/assets/tangible', label: '유형자산', icon: '💻', show: true },
-  { name: 'intangible', to: '/assets/intangible', label: '무형자산', icon: '📦', show: true },
-  { name: 'organization', to: '/organization', label: '조직도', icon: '🏢', show: canManageDepartment.value },
-  { name: 'members', to: '/members', label: '사원 관리', icon: '👥', show: canManageSystem.value },
-  { name: 'surveys', to: '/surveys', label: '전수조사', icon: '🔍', show: canManageAsset.value },
-  { name: 'purchase', to: '/purchase', label: '구매 관리', icon: '🛒', show: canPurchase.value },
-  { name: 'budget', to: '/budget', label: '예산 관리', icon: '💰', show: canManageSystem.value },
-  { name: 'logs', to: '/logs', label: '로그', icon: '📋', show: canManageSystem.value },
-].filter((item) => item.show))
+  return menuConfig
+    .filter(item => item.show)
+    .map(item => {
+      if (item.children) {
+        return {
+          ...item,
+          children: item.children.filter(child => child.show)
+        }
+      }
+      return item
+    })
+})
 </script>
