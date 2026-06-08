@@ -21,12 +21,12 @@
           <Sun v-if="isDark" :size="18" />
           <Moon v-else :size="18" />
         </button>
-
+        
         <button class="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border hover:bg-surface-secondary text-text-sub transition-colors duration-300">
           <Bell :size="18" />
           <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">5</span>
         </button>
-      </div>
+      </div> 
     </div>
   </header>
 </template>
@@ -37,6 +37,7 @@ import { Moon, Bell, Sun } from 'lucide-vue-next'
 
 const isDark = ref(false)
 
+// 다크 모드 토글 함수
 const toggleDarkMode = () => {
   isDark.value = !isDark.value
   

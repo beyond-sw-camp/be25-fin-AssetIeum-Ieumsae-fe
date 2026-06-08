@@ -66,7 +66,8 @@ const navItems = computed(() => {
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageSystem.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageSystem.value },
-    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value }
+    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value },
+    { name: 'profile', to: '/profile', label: '프로필', icon: FileText, show: canManageSystem.value }
   ]
 
   return menuConfig
