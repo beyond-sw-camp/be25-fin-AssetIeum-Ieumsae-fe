@@ -60,6 +60,8 @@
             v-model="searchParams.categoryName"
             :options="cascadingOptions"
             root-option="전체 품목 보기"
+            menu-align="right"
+            submenu-direction="left"
             class="w-44 text-text-sub"
           >
             <template #icon>

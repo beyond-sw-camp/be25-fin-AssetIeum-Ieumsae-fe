@@ -15,7 +15,10 @@
 
     <div 
       v-if="isOpen" 
-      class="absolute left-0 mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl"
+      :class="[
+        'absolute mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
+        menuAlign === 'right' ? 'right-0' : 'left-0'
+      ]"
     >
       <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
         <li 
@@ -61,7 +64,10 @@
 
           <ul
             v-if="activeGroup === group.mainCategory"
-            class="absolute left-full top-0 ml-1 min-w-40 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60 overflow-y-auto"
+            :class="[
+              'absolute top-0 min-w-40 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60 overflow-y-auto',
+              submenuDirection === 'left' ? 'right-full mr-1' : 'left-full ml-1'
+            ]"
           >
             <li
               v-for="subCategory in group.subCategories"
@@ -94,11 +100,16 @@ const props = defineProps<{
   modelValue: string
   options: string[] | CategoryGroup[]
   rootOption?: string
+  menuAlign?: 'left' | 'right'
+  submenuDirection?: 'left' | 'right'
 }>()
 
 const emit = defineEmits(['update:modelValue'])
 const isOpen = ref(false)
 const activeGroup = ref<string | null>(null)
+
+const menuAlign = computed(() => props.menuAlign ?? 'left')
+const submenuDirection = computed(() => props.submenuDirection ?? 'right')
 
 const isSimpleOptions = computed(() => {
   return props.options.length === 0 || typeof props.options[0] === 'string'
