@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'button',
 })
 
-// 🌟 피그마 시안 기준 변수 매핑
+// 피그마 시안 기준 변수 매핑
 const variantClasses: Record<Variant, string> = {
   // 1. [+ 자산 품목 등록] 스타일 - 쨍한 주황색 채우기
   primary:
