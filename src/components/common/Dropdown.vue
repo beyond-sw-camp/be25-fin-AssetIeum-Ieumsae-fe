@@ -53,13 +53,13 @@
           <button
             type="button"
             :class="[
-              'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
+              'w-full flex items-center justify-start gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
               isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main'
             ]"
             @click.stop="toggleGroup(group.mainCategory)"
           >
+            <ChevronLeft :size="14" class="text-text-muted shrink-0" />
             <span class="truncate">{{ group.mainCategory }}</span>
-            <ChevronRight :size="14" class="text-text-muted shrink-0" />
           </button>
 
           <ul
@@ -89,7 +89,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { ChevronDown, ChevronLeft } from 'lucide-vue-next'
 
 interface CategoryGroup {
   mainCategory: string
