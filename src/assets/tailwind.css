@@ -104,6 +104,14 @@
     "Segoe UI",
     sans-serif;
 
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.25rem;
+  --text-3xl: 1.5rem;
+
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
   --color-primary-light: var(--color-primary-light);
@@ -193,7 +201,7 @@
   }
 
   .page-header {
-    @apply mb-6;
+    @apply mb-4;
   }
 
   .page-title {
@@ -207,7 +215,7 @@
   }
 
   .card {
-    @apply rounded-2xl p-6 transition-colors duration-300;
+    @apply rounded-2xl p-3 mx-3 transition-colors duration-300;
     background: var(--color-surface);
     box-shadow: var(--shadow-card);
   }

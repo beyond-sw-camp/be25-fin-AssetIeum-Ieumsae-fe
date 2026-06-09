@@ -2,7 +2,7 @@
   <div class="relative w-full text-left" :class="$attrs.class">
     <button
       type="button"
-      class="w-full h-11 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      class="w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
       @click="isOpen = !isOpen"
     >
       <div class="flex items-center gap-2 overflow-hidden">

@@ -1,24 +1,24 @@
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
-    
-    <div class="page-header p-6 flex items-center justify-between shrink-0">
+    <!-- 페이지 헤더 -->
+    <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="text-sm text-text-sub mb-1">
+        <p class="page-subtitle mb-1">
           Tangible Asset Item
         </p>
-        <h1 class="text-3xl font-bold text-text-main">
+        <h1 class="page-title">
           유형자산 품목 관리
         </h1>
       </div>
 
-      <div class="flex gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <Button variant="outline">
-          <Upload :size="16" />
+          <Upload :size="15" />
           CSV 파일 등록
         </Button>
 
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
-          <Edit :size="16" />
+          <Edit :size="15" />
           자산 카테고리 수정
         </Button>
         <TangibleItemCategory 
@@ -29,7 +29,7 @@
         />
         
         <Button variant="primary" @click="isRegisterDrawerOpen = true">
-          <Plus :size="16" />
+          <Plus :size="15" />
           자산 품목 등록
         </Button>
         <TangibleItemRegister 
@@ -41,8 +41,9 @@
       </div>
     </div>
 
-    <div class="card mx-5 mb-5 flex-1 min-h-0 flex flex-col bg-surface rounded-2xl border border-border shadow-sm relative z-10">
-      <div class="shrink-0 p-4 border-b border-border flex items-center justify-between gap-4 relative z-30">
+    <!-- 테이블 -->
+    <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
+      <div class="shrink-0 rounded-t-2xl bg-surface border-b border-border px-2 pb-3 flex flex-col gap-3 relative z-30 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex items-center gap-2 text-text-main shrink-0">
           <Dropdown
             v-model="rowsPerPageText"
@@ -78,7 +79,7 @@
         </div>
       </div>
 
-      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1 relative z-10">
+      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
         <Table
           :columns="tableColumns"
           :rows="serverAssetList"
@@ -94,11 +95,11 @@
         </Table>
       </div>
 
-      <div class="shrink-0 border-t border-border bg-surface px-6 py-4 flex items-center justify-center relative z-20">
-        <div class="flex items-center gap-3">
+      <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 pt-3 flex items-center justify-center relative z-20">
+        <div class="flex items-center gap-2">
           <button
             :disabled="searchParams.page === 0"
-            class="p-2 rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             @click="changePage(searchParams.page - 1)"
           >
             <ChevronLeft :size="16" />
@@ -109,7 +110,7 @@
             :key="pageIndex" 
             type="button" 
             :class="[
-              'px-3.5 py-1.5 text-sm font-semibold rounded-lg transition-all',
+              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
               searchParams.page === (pageIndex - 1)
                 ? 'bg-primary text-white shadow-sm shadow-primary/20'
                 : 'text-text-sub hover:bg-surface-secondary'
@@ -121,14 +122,13 @@
 
           <button
             :disabled="searchParams.page >= totalPages - 1"
-            class="p-2 rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             @click="changePage(searchParams.page + 1)"
           >
             <ChevronRight :size="16" />
           </button>
         </div>
       </div>
-
     </div>
   </div>
 </template>
@@ -137,7 +137,6 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
-import Input from '@/components/common/Input.vue'; 
 import Table, { type Column } from '@/components/common/Table.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
 
