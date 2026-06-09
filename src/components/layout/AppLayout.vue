@@ -1,14 +1,16 @@
 <template>
-  <div class="h-screen bg-background text-text-main transition-colors duration-300">
-    <Header />
+  <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
+    
+    <Header class="shrink-0 h-16" />
 
-    <div class="flex h-[calc(100vh-64px)] pt-16">
+    <div class="flex flex-1 mt-16 min-h-0 w-full">
       <Sidebar 
         v-model:collapsed="collapsed" 
         :navItems="navItems" 
+        class="shrink-0"
       />
 
-      <main class="flex-1 overflow-auto bg-background p-4 transition-colors duration-300">
+      <main class="flex-1 flex flex-col min-h-0 bg-background p-4 overflow-hidden transition-colors duration-300">
         <RouterView />
       </main>
     </div>
@@ -46,7 +48,7 @@ const navItems = computed(() => {
       icon: Laptop,
       show: true,
       children: [
-        { name: 'tangible-items', to: '/assets/tangible/items', label: '유형 자산 품목 관리', show: canManageAsset.value },
+        { name: 'tangible-items', to: '/item/tangible', label: '유형 자산 품목 관리', show: canManageAsset.value },
         { name: 'tangible-list', to: '/assets/tangible', label: '유형 자산 관리', show: true }
       ]
     },
@@ -67,7 +69,6 @@ const navItems = computed(() => {
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageSystem.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageSystem.value },
     { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value },
-    { name: 'profile', to: '/profile', label: '프로필', icon: FileText, show: canManageSystem.value }
   ]
 
   return menuConfig

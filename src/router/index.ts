@@ -100,12 +100,6 @@ const router = createRouter({
               meta: { title: '유형자산 목록' },
             },
             {
-              path: 'items',
-              name: 'TangibleItemList',
-              component: () => import('@/views/asset/tangible/TangibleItemListView.vue'),
-              meta: { title: '유형자산 품목 관리', roles: ['SUPER_ADMIN', 'ASSET_TEAM'] },
-            },
-            {
               path: ':assetId',
               name: 'TangibleAssetDetail',
               component: () => import('@/views/asset/tangible/TangibleAssetDetailView.vue'),
@@ -113,7 +107,23 @@ const router = createRouter({
             },
           ],
         },
-
+        {
+          path: 'item/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetItemList',
+              component: () => import('@/views/item/tangible/TangibleItemListView.vue'),
+              meta: {title: '유형자산 품목 목록'}
+            },
+            {
+              path: '',
+              name: 'TangibleAssetItemCategory',
+              component: () => import('@/views/item/tangible/TangibleItemCatergory.vue'),
+              meta: {title: '유형자산 품목 카테고리'}
+            }
+          ]
+        },
         // ─── 무형자산 ────────────────────────────────
         {
           path: 'assets/intangible',

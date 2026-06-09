@@ -128,6 +128,34 @@ let members: Member[] = [
   },
 ]
 
+interface TangibleItem {
+  assetItemId: number
+  assetName: string
+  category: string
+  manufacturer: string
+  modelName: string
+  isStandard: number
+}
+
+let tangibleItems: TangibleItem[] = [
+  { assetItemId: 1, assetName: 'MacBook Pro 14인치 M3 Max', category: '노트북', manufacturer: 'Apple', modelName: 'A2992', isStandard: 1 },
+  { assetItemId: 2, assetName: 'ThinkPad X1 Carbon Gen 12', category: '노트북', manufacturer: 'Lenovo', modelName: '21KC', isStandard: 0 },
+  { assetItemId: 3, assetName: '시디즈 T80 하이엔드 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'TN800HLDA', isStandard: 1 },
+  { assetItemId: 4, assetName: 'MX Keys S 무선 팬터그래프', category: '주변기기', manufacturer: 'Logitech', modelName: 'KX800S', isStandard: 1 },
+  { assetItemId: 5, assetName: '퍼시스 6인용 모듈러 회의 테이블', category: '사무가구', manufacturer: '퍼시스', modelName: 'CRN016', isStandard: 1 },
+  { assetItemId: 6, assetName: 'iPhone 15 Pro Max 512GB', category: '스마트폰', manufacturer: 'Apple', modelName: 'A3106', isStandard: 1 },
+  { assetItemId: 7, assetName: 'Galaxy S24 Ultra 자급제', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-S928N', isStandard: 1 },
+  { assetItemId: 8, assetName: 'iPad Pro 13인치 M4 셀룰러', category: '태블릿', manufacturer: 'Apple', modelName: 'A3007', isStandard: 0 },
+  { assetItemId: 9, assetName: 'MX Master 3S 무소음 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: 'MX-M3S', isStandard: 1 },
+  { assetItemId: 10, assetName: 'LG 27인치 QHD 에르고 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27QN880', isStandard: 1 },
+  { assetItemId: 11, assetName: 'Galaxy Tab S9 Ultra 256GB', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X910', isStandard: 1 },
+  { assetItemId: 12, assetName: '에어론 체어 풀 스펙 B사이즈', category: '사무가구', manufacturer: 'Herman Miller', modelName: 'AERON-B', isStandard: 1 },
+  { assetItemId: 13, assetName: 'Galaxy Book4 Ultra 코어Ultra9', category: '노트북', manufacturer: '삼성전자', modelName: 'NT960XGK', isStandard: 1 },
+  { assetItemId: 14, assetName: '모션데스크 E0 스마트 1600', category: '사무가구', manufacturer: '데스커', modelName: 'DSMD1607', isStandard: 0 },
+  { assetItemId: 15, assetName: '오디세이 OLED G9 게이밍 모니터', category: '모니터', manufacturer: '삼성전자', modelName: 'G95SC', isStandard: 0 },
+  { assetItemId: 16, assetName: '가산 지사 복사기 렌탈 장비', category: '사무기기', manufacturer: 'Sindoh', modelName: 'D450-RENT', isStandard: 0 },
+]
+
 function toLoginResponse(member: Member): LoginResponse {
   return {
     memberId: member.memberId,
@@ -251,6 +279,59 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(member ?? null, '소속 부서가 변경되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/assets/tangible/items`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const categoryName = url.searchParams.get('categoryName') ?? ''
+    const modelName = url.searchParams.get('modelName')?.toLowerCase() ?? ''
+
+    let filteredItems = [...tangibleItems]
+
+    if (categoryName && categoryName !== '전체 품목 보기') {
+      const categoryGroupMap: Record<string, string[]> = {
+        'IT / 전자기기': ['노트북', '모니터', '스마트폰', '태블릿', '주변기기'],
+        '사무용 가구': ['사무가구'],
+        '사무기기 / 가전': ['사무기기'],
+      }
+
+      if (categoryName.endsWith(' - 전체')) {
+        const mainCategory = categoryName.replace(' - 전체', '')
+        const subCategories = categoryGroupMap[mainCategory] ?? []
+        filteredItems = filteredItems.filter((item) => subCategories.includes(item.category))
+      } else {
+        filteredItems = filteredItems.filter((item) => item.category === categoryName)
+      }
+    }
+
+    if (modelName) {
+      filteredItems = filteredItems.filter((item) =>
+        item.modelName.toLowerCase().includes(modelName) ||
+        item.assetName.toLowerCase().includes(modelName)
+      )
+    }
+
+    return HttpResponse.json(ok({
+      content: filteredItems.slice(page * size, page * size + size),
+      page,
+      size,
+      totalElements: filteredItems.length,
+      totalPages: Math.ceil(filteredItems.length / size),
+    }))
+  }),
+
+  http.post(`${API_PREFIX}/assets/tangible/items`, async ({ request }) => {
+    const body = await request.json() as Omit<TangibleItem, 'assetItemId'>
+    const newItem: TangibleItem = {
+      assetItemId: Math.max(...tangibleItems.map((item) => item.assetItemId)) + 1,
+      ...body,
+    }
+
+    tangibleItems = [newItem, ...tangibleItems]
+
+    return HttpResponse.json(ok(newItem, '유형자산 품목이 등록되었습니다.'))
   }),
 
   http.get(`${API_PREFIX}/departments`, ({ request }) => {

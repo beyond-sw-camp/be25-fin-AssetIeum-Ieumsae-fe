@@ -1,19 +1,19 @@
 <template>
-  <div class="relative">
+  <div class="relative h-[calc(100vh-64px)] min-h-0">
     <aside 
       :class="[
-        'flex min-h-[calc(100vh-64px)] flex-col border-r border-border bg-surface transition-all duration-300',
+        'flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
         collapsed ? 'w-20' : 'w-64'
       ]"
     >
       <!-- 메뉴 목록 -->
-      <nav class="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         <template v-for="item in navItems" :key="item.name">
           <!-- 서브 메뉴가 있는 메뉴 목록 -->
           <div v-if="item.children && item.children.length > 0" class="space-y-1">
             <button
               :class="[
-                'w-full flex items-center rounded-xl px-3 py-3 transition-colors hover:bg-primary/5',
+                'w-full flex items-center rounded-xl px-3 py-2 transition-colors hover:bg-primary/5',
                 collapsed ? 'justify-center' : 'justify-between',
                 isParentActive(item.children) 
                   ? 'bg-primary/10 text-primary! font-semibold' 
@@ -41,7 +41,7 @@
                 v-for="child in item.children"
                 :key="child.name"
                 :to="child.to"
-                class="flex items-center rounded-xl px-4 py-2.5 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary"
+                class="flex items-center rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary"
                 exact-active-class="bg-primary/10! text-primary! font-semibold"
               >
                 {{ child.label }}
@@ -54,7 +54,7 @@
             v-else
             :to="item.to!" 
             :class="[
-              'flex items-center rounded-xl px-3 py-3 transition-colors text-text-main hover:bg-primary/5',
+              'flex items-center rounded-xl px-3 py-2 transition-colors text-text-main hover:bg-primary/5',
               collapsed ? 'justify-center' : 'gap-3'
             ]" 
             exact-active-class="bg-primary/10! text-primary! font-semibold" 
@@ -66,7 +66,7 @@
       </nav>
 
       <!-- 사이드바 하단 - 사용자 + 로그아웃 -->
-      <div class="border-t border-border p-4 space-y-3">
+      <div class="shrink-0 border-t border-border bg-surface p-2 space-y-3 shadow-0">
         <!-- 사용자 버튼 (프로필) -->
         <RouterLink 
           v-if="user"
