@@ -1,99 +1,88 @@
 <template>
-  <div ref="dropdownRef" class="relative inline-block text-left">
+  <div class="relative w-full text-left" :class="$attrs.class">
     <button
       type="button"
-      class="
-        inline-flex items-center justify-between gap-2 rounded-xl border border-border 
-        bg-surface px-4 py-2 text-sm font-medium text-text-main 
-        hover:bg-surface-secondary transition-all duration-200 min-w-[150px]
-      "
-      @click="toggleMainDropdown"
+      class="w-full h-11 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      @click="isOpen = !isOpen"
     >
-      <slot name="icon" />
-      <span>{{ modelValue }}</span>
-      <ChevronDown
-        :size="16"
-        :class="['text-text-sub transition-transform duration-200 ml-auto', { 'rotate-180': isOpen }]"
-      />
+      <div class="flex items-center gap-2 overflow-hidden">
+        <slot name="icon" />
+        <span :class="['truncate', selectedTextClass]">{{ modelValue }}</span>
+      </div>
+      
+      <ChevronDown :size="16" class="text-text-muted shrink-0 ml-2" />
     </button>
 
-    <div
-      v-if="isOpen"
-      class="
-        absolute left-0 mt-1.5 min-w-[160px] rounded-xl border border-border 
-        bg-surface p-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-1 duration-100
-      "
+    <div 
+      v-if="isOpen" 
+      class="absolute left-0 mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl"
     >
-      <button
-        v-if="rootOption"
-        type="button"
-        class="w-full flex items-center rounded-lg px-3 py-2 text-sm text-left font-medium text-text-main hover:bg-surface-secondary mb-1"
-        @click="selectOption(rootOption)"
-      >
-        {{ rootOption }}
-      </button>
-
-      <template v-if="isSimpleOptions">
-        <button
-          v-for="option in (options as string[])"
-          :key="option"
-          type="button"
+      <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
+        <li 
+          v-if="rootOption" 
           :class="[
-            'w-full flex items-center rounded-lg px-3 py-2 text-sm text-left transition-colors',
-            modelValue === option ? 'bg-primary/10 text-primary font-semibold' : 'text-text-main hover:bg-surface-secondary'
+            'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
+            modelValue === rootOption ? 'text-primary font-semibold' : 'text-text-main'
+          ]"
+          @click="selectOption(rootOption)" 
+        >
+          {{ rootOption }}
+        </li>
+
+        <li 
+          v-for="option in simpleOptions" 
+          :key="option" 
+          :class="[
+            'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
+            modelValue === option ? 'text-primary font-semibold' : 'text-text-main'
           ]"
           @click="selectOption(option)"
         >
           {{ option }}
-        </button>
-      </template>
+        </li>
 
-      <template v-else>
-        <div
-          v-for="group in (options as CategoryGroup[])"
+        <li
+          v-for="group in groupedOptions"
           :key="group.mainCategory"
           class="relative"
+          @mouseenter="activeGroup = group.mainCategory"
         >
           <button
             type="button"
             :class="[
-              'w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm text-left transition-colors',
-              activeGroup === group.mainCategory ? 'bg-surface-secondary text-primary font-medium' : 'text-text-main hover:bg-surface-secondary'
+              'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
+              isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main'
             ]"
-            @click.stop="toggleSubMenu(group.mainCategory)"
+            @click.stop="toggleGroup(group.mainCategory)"
           >
-            <span>{{ group.mainCategory }}</span>
-            <ChevronRight :size="14" class="text-text-sub" />
+            <span class="truncate">{{ group.mainCategory }}</span>
+            <ChevronRight :size="14" class="text-text-muted shrink-0" />
           </button>
 
-          <div
+          <ul
             v-if="activeGroup === group.mainCategory"
-            class="
-              absolute left-full top-0 ml-1 min-w-[150px] rounded-xl border border-border 
-              bg-surface p-1 shadow-xl z-50 animate-in fade-in slide-in-from-left-1 duration-100
-            "
+            class="absolute left-full top-0 ml-1 min-w-40 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60 overflow-y-auto"
           >
-            <button
-              v-for="subCat in group.subCategories"
-              :key="subCat"
-              type="button"
+            <li
+              v-for="subCategory in group.subCategories"
+              :key="subCategory"
               :class="[
-                'w-full flex items-center rounded-lg px-3 py-1.5 text-sm text-left transition-colors',
-                modelValue === subCat ? 'bg-primary/10 text-primary font-semibold' : 'text-text-main hover:bg-surface-secondary'
+                'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer whitespace-nowrap',
+                modelValue === subCategory ? 'text-primary font-semibold' : 'text-text-main'
               ]"
-              @click="selectOption(subCat)"
+              @click="selectOption(subCategory)"
             >
-              {{ subCat }}
-            </button>
-          </div>
-        </div>
-      </template>
+              {{ subCategory }}
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 
 interface CategoryGroup {
@@ -101,39 +90,40 @@ interface CategoryGroup {
   subCategories: string[]
 }
 
-interface Props {
+const props = defineProps<{
   modelValue: string
   options: string[] | CategoryGroup[]
-  rootOption?: string // 💡 있으면 보여주고, 없으면 안 보여주는 선택적 속성
-}
-
-// 🌟 [수정] 강제로 '전체 품목 보기'를 주입하던 withDefaults 기본값 설정을 제거했습니다.
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  rootOption?: string
 }>()
 
+const emit = defineEmits(['update:modelValue'])
 const isOpen = ref(false)
 const activeGroup = ref<string | null>(null)
-const dropdownRef = ref<HTMLElement | null>(null)
 
 const isSimpleOptions = computed(() => {
-  if (props.options.length === 0) return true
-  return typeof props.options[0] === 'string'
+  return props.options.length === 0 || typeof props.options[0] === 'string'
 })
 
-const toggleMainDropdown = () => {
-  isOpen.value = !isOpen.value
-  if (!isOpen.value) activeGroup.value = null
+const simpleOptions = computed(() => {
+  return isSimpleOptions.value ? props.options as string[] : []
+})
+
+const groupedOptions = computed(() => {
+  return isSimpleOptions.value ? [] : props.options as CategoryGroup[]
+})
+
+const selectedTextClass = computed(() => {
+  return props.rootOption && props.modelValue === props.rootOption
+    ? 'text-text-muted'
+    : 'text-text-main'
+})
+
+const isGroupSelected = (group: CategoryGroup) => {
+  return group.subCategories.includes(props.modelValue)
 }
 
-const toggleSubMenu = (mainCategory: string) => {
-  if (activeGroup.value === mainCategory) {
-    activeGroup.value = null
-  } else {
-    activeGroup.value = mainCategory
-  }
+const toggleGroup = (mainCategory: string) => {
+  activeGroup.value = activeGroup.value === mainCategory ? null : mainCategory
 }
 
 const selectOption = (option: string) => {
@@ -141,14 +131,4 @@ const selectOption = (option: string) => {
   isOpen.value = false
   activeGroup.value = null
 }
-
-const handleClickOutside = (event: MouseEvent) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    isOpen.value = false
-    activeGroup.value = null
-  }
-}
-
-onMounted(() => window.addEventListener('click', handleClickOutside))
-onUnmounted(() => window.removeEventListener('click', handleClickOutside))
 </script>
