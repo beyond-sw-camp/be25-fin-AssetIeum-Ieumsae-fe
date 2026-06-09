@@ -23,7 +23,7 @@
         </Button>
         <TangibleItemCategory 
           :is-open="isCategoryDrawerOpen" 
-          :initial-categories="localCategories"
+          :initial-categories="cascadingOptions"
           @close="isCategoryDrawerOpen = false" 
           @update-categories="handleCategoryUpdate"
         />
@@ -143,7 +143,7 @@ import Table, { type Column } from '@/components/common/Table.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
 import { api } from '@/api/client'
 
-import TangibleItemCategory from './TangibleItemCatergory.vue';
+import TangibleItemCategory from './TangibleItemCategory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
 
 interface Asset {
@@ -209,37 +209,21 @@ const localCategories = computed(() => {
 
 // [에러 해결 및 데이터 동기화 구현] 
 // 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
-const handleCategoryUpdate = (updatedList: { id: string; name: string }[]) => {
-  const updatedNames = updatedList.map(cat => cat.name);
+const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
+  cascadingOptions.value = updatedGroups.map((group) => ({
+    mainCategory: group.mainCategory,
+    subCategories: [...group.subCategories],
+  }));
 
-  cascadingOptions.value = cascadingOptions.value.map(group => {
-    // 1. 기존의 소분류 목록 중 자식 쪽에서 삭제되지 않고 살아남은 값들만 필터링
-    const fixedSubCategories = group.subCategories.filter(sub => {
-      if (sub.endsWith(' - 전체')) return true; // 기본 상단 탭 유지
-      return updatedNames.includes(sub);
-    });
-
-    return {
-      ...group,
-      subCategories: fixedSubCategories
-    };
-  });
-
-  // 2. 만약 자식 화면에서 완전히 새로운 카테고리를 추가했다면, 편의상 첫 번째 대분류('IT / 전자기기') 섹션에 병합
-  const allCurrentSubs = cascadingOptions.value.flatMap(g => g.subCategories);
-  updatedNames.forEach(name => {
-    if (!allCurrentSubs.includes(name)) {
-      cascadingOptions.value[0].subCategories.push(name);
-    }
-  });
-
-  // 3. 현재 선택하여 보고 있던 필터명이 수정 중에 증발했을 때를 대비한 안전 예외 필터링 처리
-  const flatCurrentCategories = cascadingOptions.value.flatMap(g => g.subCategories);
-  if (searchParams.value.categoryName !== '전체 품목 보기' && !flatCurrentCategories.includes(searchParams.value.categoryName)) {
+  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => g.subCategories);
+  if (
+    searchParams.value.categoryName !== '전체 품목 보기' &&
+    !flatCurrentCategories.includes(searchParams.value.categoryName)
+  ) {
     searchParams.value.categoryName = '전체 품목 보기';
   }
 
-  handleSearch(); 
+  handleSearch();
 };
 
 const handleRegisterAsset = async (newAsset: Omit<Asset, 'id'>) => {
