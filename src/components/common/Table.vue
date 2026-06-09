@@ -53,7 +53,7 @@ const alignClass = { left: 'text-left', center: 'text-center', right: 'text-righ
       </svg>
     </div>
 
-    <table class="w-full text-sm text-gray-700">
+    <table class="w-full table-auto text-sm text-gray-700">
       <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
         <tr>
           <th

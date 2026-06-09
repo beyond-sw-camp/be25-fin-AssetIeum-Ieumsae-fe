@@ -33,6 +33,7 @@
   --color-background: #F2F4F8;
   --color-surface: #ffffff;
   --color-surface-secondary: #f8fafc;
+  --color-secondary: #EDF0F5;
 
   /* ------------------------------
      Text
@@ -115,6 +116,7 @@
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
   --color-surface-secondary: var(--color-surface-secondary);
+  --color-secondary: var(--color-secondary);
 
   --color-text-main: var(--color-text-main);
   --color-text-sub: var(--color-text-sub);
