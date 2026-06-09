@@ -104,7 +104,7 @@ const props = defineProps<{
     initialCategories: CategoryItem[]; // 부모에게서 내려받는 카테고리 원본 목록
 }>();
 
-const emit = defineEmits(['close', 'update-categories']);
+const emit = defineEmits(['close', 'update-categories', 'register-asset']);
 
 const dropdownOptions = computed(() => {
     return props.initialCategories.map(cat => cat.name);
@@ -130,7 +130,7 @@ const handleSave = () => {
         return;
     }
 
-    console.log('서버로 보낼 완벽한 데이터:', formData.value);
+    emit('register-asset', { ...formData.value });
     alert('성공적으로 등록되었습니다.');
     emit('close');
 };

@@ -141,6 +141,7 @@ import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import { api } from '@/api/client'
 
 import TangibleItemCategory from './TangibleItemCatergory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
@@ -241,10 +242,14 @@ const handleCategoryUpdate = (updatedList: { id: string; name: string }[]) => {
   handleSearch(); 
 };
 
-// 새 품목 데이터 수신 후 배열 맨 앞에 추가
-const handleRegisterAsset = (newAsset: Omit<Asset, 'id'>) => {
-  mockDatabase.unshift(newAsset as Asset);
-  handleSearch(); 
+const handleRegisterAsset = async (newAsset: Omit<Asset, 'id'>) => {
+  try {
+    await api.post<Asset>('/assets/tangible/items', newAsset)
+    handleSearch()
+  } catch (error) {
+    console.error(error)
+    alert('자산 등록 중 오류가 발생했습니다.')
+  }
 };
 
 const serverAssetList = ref<Asset[]>([]);
@@ -260,65 +265,6 @@ const tableColumns: Column<Asset>[] = [
   { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '15%' }
 ];
 
-const mockDatabase: Asset[] = [
-  { assetName: 'MacBook Pro 16인치 M3 Max', category: '노트북', manufacturer: 'Apple', modelName: 'A2992', isStandard: 1 },
-  { assetName: 'ThinkPad X1 Carbon Gen 12', category: '노트북', manufacturer: 'Lenovo', modelName: '21KC', isStandard: 0 },
-  { assetName: '시디즈 T80 하이엔드 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'TN800HLDA', isStandard: 1 },
-  { assetName: 'MX Keys S 무선 팬터그래프', category: '주변기기', manufacturer: 'Logitech', modelName: 'KX800S', isStandard: 1 },
-  { assetName: '퍼시스 6인용 모듈러 회의 테이블', category: '사무가구', manufacturer: '퍼시스', modelName: 'CRN016', isStandard: 1 },
-  { assetName: 'iPhone 15 Pro Max 512GB', category: '스마트폰', manufacturer: 'Apple', modelName: 'A3106', isStandard: 1 },
-  { assetName: 'Galaxy S24 Ultra 자급제', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-S928N', isStandard: 1 },
-  { assetName: 'iPad Pro 13인치 M4 셀룰러', category: '태블릿', manufacturer: 'Apple', modelName: 'A3007', isStandard: 0 },
-  { assetName: 'MX Master 3S 무소음 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: 'MX-M3S', isStandard: 1 },
-  { assetName: 'LG 27인치 QHD 에르고 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27QN880', isStandard: 1 },
-  { assetName: 'Galaxy Tab S9 Ultra 256GB', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X910', isStandard: 1 },
-  { assetName: '에어론 체어 풀 스펙 B사이즈', category: '사무가구', manufacturer: 'Herman Miller', modelName: 'AERON-B', isStandard: 1 },
-  { assetName: 'Galaxy Book4 Ultra 코어Ultra9', category: '노트북', manufacturer: '삼성전자', modelName: 'NT960XGK', isStandard: 1 },
-  { assetName: '모션데스크 E0 스마트 1600', category: '사무가구', manufacturer: '데스커', modelName: 'DSMD1607', isStandard: 0 },
-  { assetName: '오디세이 OLED G9 게이밍 모니터', category: '모니터', manufacturer: '삼성전자', modelName: 'G95SC', isStandard: 0 },
-  { assetName: '가산 지사 복사기 렌탈 장비', category: '사무기기', manufacturer: 'Sindoh', modelName: 'D450-RENT', isStandard: 0 }
-];
-
-const loadServerData = async () => {
-  isLoading.value = true;
-
-  setTimeout(() => {
-    let filtered = [...mockDatabase];
-    const categoryFilter = searchParams.value.categoryName;
-    const modelFilter = searchParams.value.modelName.trim().toLowerCase();
-
-    // 이중 계층 검색 엔진 필터 조건식 구현
-    if (categoryFilter !== '전체 품목 보기') {
-      if (categoryFilter.endsWith(' - 전체')) {
-        const mainCat = categoryFilter.replace(' - 전체', '');
-        const group = cascadingOptions.value.find(g => g.mainCategory === mainCat);
-        if (group) {
-          filtered = filtered.filter(item => group.subCategories.includes(item.category));
-        }
-      } else {
-        filtered = filtered.filter(item => item.category === categoryFilter);
-      }
-    }
-
-    if (modelFilter) {
-      filtered = filtered.filter(
-        item => 
-          item.modelName.toLowerCase().includes(modelFilter) || 
-          item.assetName.toLowerCase().includes(modelFilter)
-      );
-    }
-
-    const start = searchParams.value.page * searchParams.value.size;
-    const end = start + searchParams.value.size;
-
-    serverAssetList.value = filtered.slice(start, end);
-    totalElements.value = filtered.length;
-    totalPages.value = Math.ceil(totalElements.value / searchParams.value.size);
-
-    isLoading.value = false;
-  }, 120);
-};
-
 const handleSearch = () => {
   searchParams.value.page = 0;
   loadServerData();
@@ -327,6 +273,44 @@ const handleSearch = () => {
 const changePage = (targetPage: number) => {
   searchParams.value.page = targetPage;
   loadServerData();
+};
+
+const loadServerData = async () => {
+  isLoading.value = true;
+
+  try {
+    const params: Record<string, unknown> = {
+      page: searchParams.value.page,
+      size: searchParams.value.size,
+    };
+
+    if (searchParams.value.categoryName && searchParams.value.categoryName !== '전체 품목 보기') {
+      params.categoryName = searchParams.value.categoryName;
+    }
+
+    if (searchParams.value.modelName.trim()) {
+      params.modelName = searchParams.value.modelName.trim();
+    }
+
+    const response = await api.get<{
+      content: Asset[];
+      page: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    }>('/assets/tangible/items', params);
+
+    serverAssetList.value = response.data.content;
+    totalElements.value = response.data.totalElements;
+    totalPages.value = response.data.totalPages;
+  } catch (error) {
+    console.error(error);
+    serverAssetList.value = [];
+    totalElements.value = 0;
+    totalPages.value = 0;
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const itemRangeText = computed(() => {
