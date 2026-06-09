@@ -48,7 +48,7 @@ const navItems = computed(() => {
       icon: Laptop,
       show: true,
       children: [
-        { name: 'tangible-items', to: '/assets/tangible/items', label: '유형 자산 품목 관리', show: canManageAsset.value },
+        { name: 'tangible-items', to: '/item/tangible', label: '유형 자산 품목 관리', show: canManageAsset.value },
         { name: 'tangible-list', to: '/assets/tangible', label: '유형 자산 관리', show: true }
       ]
     },
