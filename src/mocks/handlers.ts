@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Department,
   DepartmentChangeRequest,
+  IntangibleItem,
   LoginRequest,
   LoginResponse,
   Member,
@@ -154,6 +155,26 @@ let tangibleItems: TangibleItem[] = [
   { assetItemId: 14, assetName: '모션데스크 E0 스마트 1600', category: '사무가구', manufacturer: '데스커', modelName: 'DSMD1607', isStandard: 0 },
   { assetItemId: 15, assetName: '오디세이 OLED G9 게이밍 모니터', category: '모니터', manufacturer: '삼성전자', modelName: 'G95SC', isStandard: 0 },
   { assetItemId: 16, assetName: '가산 지사 복사기 렌탈 장비', category: '사무기기', manufacturer: 'Sindoh', modelName: 'D450-RENT', isStandard: 0 },
+]
+
+let intangibleItems: IntangibleItem[] = [
+  { productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 1 },
+  { productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 1 },
+  { productName: 'Figma', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: 1 },
+  { productName: 'Slack', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: 1 },
+  { productName: 'GitHub Enterprise', category: '개발툴', licenseType: '사용자 수 라이선스', vendor: 'GitHub', isStandard: 1 },
+  { productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 1 },
+  { productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 0 },
+  { productName: 'Figma', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: 1 },
+  { productName: 'Slack', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: 1 },
+  { productName: 'GitHub Enterprise', category: '개발툴', licenseType: '사용자 수 라이선스', vendor: 'GitHub', isStandard: 0 },
+  { productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 0 },
+  { productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 1 },
+  { productName: 'Figma', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: 0 },
+  { productName: 'Slack', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: 1 },
+  { productName: 'GitHub Enterprise', category: '개발툴', licenseType: '사용자 수 라이선스', vendor: 'GitHub', isStandard: 1 },
+  { productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 1 },
+  { productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 1 }
 ]
 
 function toLoginResponse(member: Member): LoginResponse {
@@ -332,6 +353,54 @@ export const handlers = [
     tangibleItems = [newItem, ...tangibleItems]
 
     return HttpResponse.json(ok(newItem, '유형자산 품목이 등록되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/assets/intangible/items`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const category = url.searchParams.get('category') ?? ''
+    const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+
+    let filteredItems = [...intangibleItems]
+
+    if (category && category !== '전체 소프트웨어 타입') {
+      filteredItems = filteredItems.filter((item) => item.category === category)
+    }
+
+    if (keyword) {
+      filteredItems = filteredItems.filter((item) =>
+        item.productName.toLowerCase().includes(keyword) ||
+        item.vendor.toLowerCase().includes(keyword) ||
+        item.category.toLowerCase().includes(keyword) ||
+        item.licenseType.toLowerCase().includes(keyword)
+      )
+    }
+
+    return HttpResponse.json(ok({
+      content: filteredItems.slice(page * size, page * size + size),
+      page,
+      size,
+      totalElements: filteredItems.length,
+      totalPages: Math.ceil(filteredItems.length / size),
+    }))
+  }),
+
+  http.post(`${API_PREFIX}/assets/intangible/items`, async ({ request }) => {
+    const body = await request.json() as Omit<IntangibleItem, 'assetItemId'>
+    const newItem: IntangibleItem = {
+      assetItemId: Math.max(...intangibleItems.map((item) => item.assetItemId ?? 0)) + 1,
+      ...body,
+    }
+
+    intangibleItems = [newItem, ...intangibleItems]
+
+    return HttpResponse.json(ok(newItem, '무형자산 품목이 등록되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/assets/intangible/categories`, () => {
+    const types = Array.from(new Set(intangibleItems.map((item) => item.category)))
+    return HttpResponse.json(ok(types))
   }),
 
   http.get(`${API_PREFIX}/departments`, ({ request }) => {
