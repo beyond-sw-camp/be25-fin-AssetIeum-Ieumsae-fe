@@ -13,6 +13,7 @@ import type {
 } from '@/types'
 
 const API_PREFIX = '*/api/v1'
+const MOCK_COMPANY_CODE = 'COMP001'
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
@@ -128,6 +129,10 @@ let members: Member[] = [
   },
 ]
 
+const memberPasswords = new Map(
+  members.map((member) => [member.memberNo, member.memberNo]),
+)
+
 interface TangibleItem {
   assetItemId: number
   assetName: string
@@ -165,6 +170,7 @@ function toLoginResponse(member: Member): LoginResponse {
     departmentId: member.departmentId,
     departmentName: member.departmentName,
     role: member.role,
+    status: member.status,
     accessToken: `mock-access-token-${member.memberNo}`,
     refreshToken: `mock-refresh-token-${member.memberNo}`,
   }
@@ -173,9 +179,22 @@ function toLoginResponse(member: Member): LoginResponse {
 export const handlers = [
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
-    const member = members.find((item) => item.memberNo === credentials.memberNo) ?? members[0]
+    const member = members.find((item) => item.memberNo === credentials.memberNo)
 
-    return HttpResponse.json(ok(toLoginResponse(member), '로그인 되었습니다.'))
+    if (
+      credentials.companyCode !== MOCK_COMPANY_CODE
+      || !member
+      || memberPasswords.get(member.memberNo) !== credentials.password
+    ) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'BAD_REQUEST',
+        message: '회사 코드, 사번 또는 비밀번호가 일치하지 않습니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok(toLoginResponse(member), '로그인에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/auth/logout`, () => {
@@ -190,11 +209,25 @@ export const handlers = [
   }),
 
   http.patch(`${API_PREFIX}/members/me/password`, async ({ request }) => {
-    await request.json() as PasswordChangeRequest
+    const body = await request.json() as PasswordChangeRequest
+    const accessToken = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const memberNo = accessToken?.replace('mock-access-token-', '')
+    const member = members.find((item) => item.memberNo === memberNo)
+
+    if (!member || memberPasswords.get(member.memberNo) !== body.currentPassword) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'BAD_REQUEST',
+        message: '기존 비밀번호가 일치하지 않습니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    memberPasswords.set(member.memberNo, body.newPassword)
 
     return HttpResponse.json(ok({
-      memberId: 1,
-      changedAt: new Date().toISOString(),
+      memberId: member.memberId,
+      updatedAt: new Date().toISOString(),
     }, '비밀번호가 변경되었습니다.'))
   }),
 
