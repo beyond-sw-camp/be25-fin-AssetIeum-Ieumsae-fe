@@ -106,7 +106,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'update-categories']);
 
-// 🌟 공통 Dropdown 컴포넌트가 처리할 수 있는 포맷으로 변환 ('노트북', '모니터' 등 문자열 배열)
 const dropdownOptions = computed(() => {
     return props.initialCategories.map(cat => cat.name);
 });
