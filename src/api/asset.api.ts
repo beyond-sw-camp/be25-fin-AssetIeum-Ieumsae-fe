@@ -5,7 +5,7 @@ import type {
   TangibleAsset,
   TangibleAssetCreateRequest,
   TangibleAssetListFilter,
-  IntangibleAssetItem,
+  IntangibleItem,
   IntangibleAsset,
   IntangibleAssetCreateRequest,
   IntangibleAssetListFilter,
@@ -71,16 +71,20 @@ export const tangibleAssetApi = {
 
 export const intangibleItemApi = {
   /** 무형자산 품목 목록 조회 */
-  getList: (params?: { page?: number; size?: number }) =>
-    api.get<PageResponse<IntangibleAssetItem>>('/assets/intangible/items', params as Record<string, unknown>),
+  getList: (params?: { page?: number; size?: number; category?: string; keyword?: string }) =>
+    api.get<PageResponse<IntangibleItem>>('/assets/intangible/items', params as Record<string, unknown>),
+
+  /** 무형자산 품목 카테고리 목록 조회 */
+  getCategories: () =>
+    api.get<string[]>('/assets/intangible/categories'),
 
   /** 무형자산 품목 상세 조회 */
   getDetail: (assetItemId: number) =>
-    api.get<IntangibleAssetItem>(`/assets/intangible/items/${assetItemId}`),
+    api.get<IntangibleItem>(`/assets/intangible/items/${assetItemId}`),
 
   /** 무형자산 품목 등록 */
-  create: (body: Partial<IntangibleAssetItem>) =>
-    api.post<IntangibleAssetItem>('/assets/intangible/items', body),
+  create: (body: Omit<IntangibleItem, 'assetItemId'>) =>
+    api.post<IntangibleItem>('/assets/intangible/items', body),
 
   /** 무형자산 품목 삭제 */
   delete: (assetItemId: number) =>

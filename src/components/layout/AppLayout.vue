@@ -1,6 +1,5 @@
 <template>
   <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
-    
     <Header class="shrink-0 h-16" />
 
     <div class="flex flex-1 mt-16 min-h-0 w-full">
@@ -44,22 +43,22 @@ const navItems = computed(() => {
     { name: 'dashboard', to: '/', label: '대시보드', icon: LayoutDashboard, show: true },
     {
       name: 'tangible',
-      label: '유형 자산 관리',
+      label: '유형자산',
       icon: Laptop,
       show: true,
       children: [
-        { name: 'tangible-items', to: '/item/tangible', label: '유형 자산 품목 관리', show: canManageAsset.value },
-        { name: 'tangible-list', to: '/assets/tangible', label: '유형 자산 관리', show: true }
+        { name: 'tangible-items', to: '/item/tangible', label: '유형자산 품목 관리', show: canManageAsset.value },
+        { name: 'tangible-list', to: '/assets/tangible', label: '유형자산 관리', show: true }
       ]
     },
     {
       name: 'intangible',
-      label: '무형 자산 관리',
+      label: '무형자산',
       icon: Package,
       show: true,
       children: [
-        { name: 'intangible-items', to: '/assets/intangible/items', label: '무형 자산 품목 관리', show: canManageAsset.value },
-        { name: 'intangible-list', to: '/assets/intangible', label: '무형 자산 관리', show: true }
+        { name: 'intangible-items', to: '/item/intangible', label: '무형자산 품목 관리', show: canManageAsset.value },
+        { name: 'intangible-list', to: '/assets/intangible', label: '무형자산 관리', show: true }
       ]
     },
     { name: 'tickets', to: '/tickets', label: '서비스 데스크', icon: Ticket, show: true },
