@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { authApi } from '@/api' // 💡 주석 해제!
-import type { AuthUser, LoginRequest, Role } from '@/types'
+import { computed, ref } from 'vue'
+
+import { authApi } from '@/api'
+import type { AuthUser, LoginRequest, PasswordChangeRequest, Role } from '@/types'
 
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
@@ -11,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const accessToken = ref<string | null>(localStorage.getItem(ACCESS_TOKEN_KEY))
   const isLoading = ref(false)
+  const isChangingPassword = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value && !!user.value)
   const currentRole = computed<Role | null>(() => user.value?.role ?? null)
@@ -18,13 +20,9 @@ export const useAuthStore = defineStore('auth', () => {
   const isDepartmentManager = computed(() => currentRole.value === 'DEPARTMENT_MANAGER')
   const isAssetTeam = computed(() => currentRole.value === 'ASSET_TEAM')
 
-  /**
-   * 로그인 (이제 Mock 로직은 MSW 핸들러로 이동합니다)
-   */
   async function login(credentials: LoginRequest) {
     isLoading.value = true
     try {
-      // 💡 실제 API를 호출하듯이 작성합니다.
       const res = await authApi.login(credentials)
       const { accessToken: token, refreshToken, ...userInfo } = res.data
 
@@ -46,11 +44,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      await authApi.logout() // 💡 주석 해제!
+      await authApi.logout()
     } catch (error) {
       console.error('로그아웃 API 실패:', error)
     } finally {
       clearAuth()
+    }
+  }
+
+  async function changePassword(body: PasswordChangeRequest) {
+    isChangingPassword.value = true
+    try {
+      await authApi.changePassword(body)
+      clearAuth()
+    } finally {
+      isChangingPassword.value = false
     }
   }
 
@@ -85,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     accessToken,
     isLoading,
+    isChangingPassword,
     isAuthenticated,
     currentRole,
     isSuperAdmin,
@@ -92,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAssetTeam,
     login,
     logout,
+    changePassword,
     clearAuth,
     restoreSession,
   }
