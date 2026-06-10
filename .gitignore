@@ -26,3 +26,4 @@ dist-ssr
 # Local design files are ignored by default.
 files/*
 !files/가이드.md
+AGENTS.md
