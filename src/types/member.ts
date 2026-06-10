@@ -5,11 +5,13 @@ import type { MemberStatus, Role } from './common'
 // =====================================================
 
 export interface LoginRequest {
+  companyCode: string
   memberNo: string
   password: string
 }
 
 export interface LoginResponse {
+  // TODO: API 명세의 UUID string과 기존 프론트 number 모델 중 확정 타입 확인 필요
   memberId: number
   memberNo: string
   name: string
@@ -17,6 +19,7 @@ export interface LoginResponse {
   departmentId: number
   departmentName: string
   role: Role
+  status: MemberStatus
   accessToken: string
   refreshToken: string
 }
@@ -59,6 +62,12 @@ export interface MemberListFilter {
 export interface PasswordChangeRequest {
   currentPassword: string
   newPassword: string
+}
+
+export interface PasswordChangeResponse {
+  // TODO: API 명세의 UUID string과 기존 프론트 number 모델 중 확정 타입 확인 필요
+  memberId: number
+  updatedAt: string
 }
 
 export interface DepartmentChangeRequest {

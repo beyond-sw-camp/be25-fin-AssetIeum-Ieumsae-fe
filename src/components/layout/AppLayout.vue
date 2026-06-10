@@ -1,5 +1,6 @@
 <template>
   <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
+
     <Header class="shrink-0 h-16" />
 
     <div class="flex flex-1 mt-16 min-h-0 w-full">

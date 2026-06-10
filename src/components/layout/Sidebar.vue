@@ -90,6 +90,19 @@
           </RouterLink>
         </div>
 
+        <RouterLink
+          to="/settings"
+          :class="[
+            'flex h-11 items-center rounded-xl px-3 text-sm font-medium text-text-sub transition-colors hover:bg-primary/5 hover:text-primary',
+            collapsed ? 'justify-center' : 'gap-3'
+          ]"
+          active-class="bg-primary/10! text-primary! font-semibold"
+          aria-label="설정"
+        >
+          <Settings :size="18" class="shrink-0" />
+          <span v-if="!collapsed">설정</span>
+        </RouterLink>
+
         <!-- 로그아웃 버튼 -->
         <button
           class="
@@ -126,7 +139,14 @@ import { computed, ref } from 'vue'
 import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
-import { ChevronLeft, ChevronRight, ChevronDown, LogOut, User } from 'lucide-vue-next'
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Settings,
+  User,
+} from 'lucide-vue-next'
 import { ROLE_LABEL } from '@/utils/labels'
 
 interface NavChildItem {

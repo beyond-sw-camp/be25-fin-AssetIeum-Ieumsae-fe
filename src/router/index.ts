@@ -28,7 +28,6 @@ const router = createRouter({
       component: () => import('@/views/auth/LoginView.vue'),
       meta: { requiresAuth: false, title: '로그인' },
     },
-
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
     {
       path: '/',
@@ -202,6 +201,18 @@ const router = createRouter({
           name: 'Profile',
           component: () => import('@/views/profile/ProfileView.vue'),
           meta: { title: '내 정보' },
+        },
+        {
+          path: 'settings',
+          name: 'Settings',
+          component: () => import('@/views/settings/SettingsView.vue'),
+          meta: { title: '설정' },
+        },
+        {
+          path: 'settings/password',
+          name: 'PasswordChange',
+          component: () => import('@/views/auth/PasswordChangeView.vue'),
+          meta: { title: '비밀번호 변경' },
         },
       ],
     },
