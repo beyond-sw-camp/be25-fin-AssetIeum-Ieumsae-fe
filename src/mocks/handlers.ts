@@ -513,6 +513,21 @@ export const handlers = [
     return HttpResponse.json(ok(newItem, '유형자산 품목이 등록되었습니다.'))
   }),
 
+  http.post(`${API_PREFIX}/assets/tangible/items/bulk`, async ({ request }) => {
+    try {
+      await request.formData()
+    } catch {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_FILE',
+        message: '업로드 파일을 처리할 수 없습니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok(null, '유형자산 품목 일괄 업로드가 완료되었습니다.'))
+  }),
+
   http.get(`${API_PREFIX}/assets/intangible/items`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
@@ -559,6 +574,21 @@ export const handlers = [
     intangibleItems = [newItem, ...intangibleItems]
 
     return HttpResponse.json(ok(newItem, '무형자산 품목이 등록되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/assets/intangible/items/bulk`, async ({ request }) => {
+    try {
+      await request.formData()
+    } catch {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_FILE',
+        message: '업로드 파일을 처리할 수 없습니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok(null, '무형자산 품목 일괄 업로드가 완료되었습니다.'))
   }),
 
   http.get(`${API_PREFIX}/assets/intangible/items/:assetItemId`, ({ params }) => {

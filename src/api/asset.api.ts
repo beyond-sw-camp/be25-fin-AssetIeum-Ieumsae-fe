@@ -86,6 +86,13 @@ export const intangibleItemApi = {
   create: (body: Omit<IntangibleItem, 'assetItemId'>) =>
     api.post<IntangibleItem>('/assets/intangible/items', body),
 
+  /** 무형자산 품목 일괄 등록 (CSV/Excel) */
+  bulkCreate: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload('/assets/intangible/items/bulk', formData)
+  },
+
   /** 무형자산 품목 삭제 */
   delete: (assetItemId: number) =>
     api.delete(`/assets/intangible/items/${assetItemId}`),

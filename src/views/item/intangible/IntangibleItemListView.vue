@@ -12,10 +12,17 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline">
+        <Button variant="outline" @click="handleUploadClick">
           <Upload :size="15" />
-          CSV 파일 등록
+          CSV 파일 업로드
         </Button>
+        <input
+          ref="uploadInputRef"
+          type="file"
+          accept=".csv,.xlsx"
+          class="hidden"
+          @change="handleUploadFile"
+        />
 
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
           <Edit :size="15" />
@@ -186,6 +193,7 @@ const isRegisterDrawerOpen = ref(false)
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
+const uploadInputRef = ref<HTMLInputElement | null>(null)
 
 const searchParams = ref({
   category: '전체 품목 타입',
@@ -246,6 +254,27 @@ const handleRegisterAsset = async (newAsset: Omit<IntangibleItem, 'assetItemId'>
   } catch (error) {
     console.error(error)
     alert('자산 등록 중 오류가 발생했습니다.')
+  }
+}
+
+const handleUploadClick = () => {
+  uploadInputRef.value?.click()
+}
+
+const handleUploadFile = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    await intangibleItemApi.bulkCreate(file)
+    alert('업로드가 완료되었습니다.')
+    handleSearch()
+  } catch (error) {
+    console.error(error)
+    alert('업로드 중 오류가 발생했습니다.')
+  } finally {
+    target.value = ''
   }
 }
 
