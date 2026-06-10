@@ -174,7 +174,10 @@
             </Button>
           </div>
 
-          <div v-else class="min-h-0 flex-1 overflow-y-auto">
+          <div
+            v-else
+            class="min-h-0 flex-1 overflow-y-auto pb-2 pr-2 [scrollbar-gutter:stable]"
+          >
             <Table
               :columns="memberColumns"
               :rows="members"
