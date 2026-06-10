@@ -1,6 +1,6 @@
 <template>
   <BaseDrawer :is-open="isOpen" title="유형자산 품목 등록" submit-text="등록" @close="emit('close')" @submit="handleSave">
-    <div class="space-y-5 py-2">
+    <div class="space-y-5">
       <!-- 제품명 -->
       <div>
         <label for="productName" class="text-sm font-semibold text-text-main mb-3 block">
