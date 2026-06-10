@@ -49,7 +49,7 @@ let departments: Department[] = [
     departmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentId: null,
     name: '이음테크',
-    memberCount: 8,
+    memberCount: 0,
     createdAt: '2026-01-02T09:00:00',
   },
   {
@@ -57,7 +57,7 @@ let departments: Department[] = [
     parentDepartmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentName: '이음테크',
     name: '구매자산팀',
-    memberCount: 3,
+    memberCount: 2,
     createdAt: '2026-01-02T09:00:00',
   },
   {
@@ -65,7 +65,7 @@ let departments: Department[] = [
     parentDepartmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentName: '이음테크',
     name: '플랫폼개발본부',
-    memberCount: 4,
+    memberCount: 1,
     createdAt: '2026-01-02T09:00:00',
   },
   {
@@ -139,6 +139,15 @@ let members: Member[] = [
 const memberPasswords = new Map(
   members.map((member) => [member.memberNo, member.memberNo]),
 )
+
+function withCurrentMemberCount(department: Department): Department {
+  return {
+    ...department,
+    memberCount: members.filter(
+      (member) => member.departmentId === department.departmentId,
+    ).length,
+  }
+}
 
 interface TangibleItem {
   assetItemId: number
@@ -447,7 +456,11 @@ export const handlers = [
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
 
-    return HttpResponse.json(ok(pageOf(departments, page, size)))
+    return HttpResponse.json(ok(pageOf(
+      departments.map(withCurrentMemberCount),
+      page,
+      size,
+    )))
   }),
 
   http.get(`${API_PREFIX}/departments/:departmentId`, ({ params }) => {
@@ -463,7 +476,7 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    return HttpResponse.json(ok(department))
+    return HttpResponse.json(ok(withCurrentMemberCount(department)))
   }),
 
   http.post(`${API_PREFIX}/departments`, async ({ request }) => {
@@ -508,7 +521,7 @@ export const handlers = [
       status: 201,
       errorCode: null,
       message: '부서가 등록되었습니다.',
-      data: department,
+      data: withCurrentMemberCount(department),
     }, { status: 201 })
   }),
 
@@ -557,7 +570,10 @@ export const handlers = [
 
     departments[index] = updated
 
-    return HttpResponse.json(ok(updated, '부서 정보가 수정되었습니다.'))
+    return HttpResponse.json(ok(
+      withCurrentMemberCount(updated),
+      '부서 정보가 수정되었습니다.',
+    ))
   }),
 
   http.delete(`${API_PREFIX}/departments/:departmentId`, ({ params }) => {
