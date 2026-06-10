@@ -31,7 +31,7 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'
 // outline: 흰색 배경 + 검은색 글씨
 // danger: 빨간색 배경 + 흰색 글씨
 // ghost: 회색 배경 + 더 진한 회색 글씨
-type Size = 'sm' | 'md' | 'lg'
+type Size = 'sm' | 'md' | 'm' | 'lg'
 
 interface Props {
   variant?: Variant
@@ -75,7 +75,10 @@ const sizeClasses: Record<Size, string> = {
   // 테이블 내 '삭제' 버튼처럼 아담한 사이즈
   sm: 'px-2 py-1 text-xs rounded-lg h-6', 
   // 상단 필터 및 일반적인 버튼 규격
-  md: 'px-3 py-1.5 text-xs rounded-lg h-11',    
+  md: 'px-3 py-1.5 text-xs rounded-lg h-9',    
+  
+  m: 'px-3 py-1.5 text-xs rounded-lg h-11',    
+
   // 큰 액션 버튼용
   lg: 'px-5 py-2.5 text-base rounded-xl h-15', 
 }

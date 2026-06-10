@@ -56,7 +56,7 @@
 
       <Button
         type="submit"
-        size="md"
+        size="m"
         class="w-full mt-5"
         :loading="auth.isLoading"
       >
