@@ -144,7 +144,6 @@ const addCategory = () => {
       alert('이미 존재하는 대분류명입니다.');
       return;
     }
-    // 필터 연동용 ' - 전체' 포함하여 복사본 유지
     localGroups.value.push({
       mainCategory: trimmedName,
       subCategories: [`${trimmedName} - 전체`],
