@@ -90,6 +90,7 @@ export interface IntangibleItem {
   licenseType: string
   vendor: string
   isStandard: number
+  assetCount?: number
 }
 
 // =====================================================

@@ -56,18 +56,30 @@
         </div>
 
         <div class="flex items-center gap-2 text-text-main">
-          <Dropdown
-            v-model="searchParams.categoryName"
-            :options="cascadingOptions"
-            root-option="전체 품목 보기"
-            menu-align="right"
-            submenu-direction="left"
-            class="w-44 text-text-sub"
-          >
-            <template #icon>
-              <Layers :size="16" />
-            </template>
-          </Dropdown>
+          <div class="min-w-40">
+            <Dropdown
+              v-model="searchParams.categoryName"
+              :options="cascadingOptions"
+              root-option="전체 품목 보기"
+              menu-align="right"
+              submenu-direction="left"
+              class="w-44 text-text-sub"
+            >
+              <template #icon>
+                <Layers :size="16" />
+              </template>
+            </Dropdown>
+          </div>
+
+          <div>
+            <Input
+              id="keyword"
+              v-model="searchParams.keyword"
+              placeholder="제품명, 제공사 등으로 검색"
+              autocomplete="off"
+              @keyup.enter="handleSearch"
+            />
+          </div>
 
           <Button
             variant="primary"
@@ -86,13 +98,24 @@
           :columns="tableColumns"
           :rows="serverAssetList"
           :is-loading="isLoading"
-          row-key="assetName"
+          row-key="assetItemId"
           class="min-w-full" 
         >
           <template #cell-isStandard="{ value }">
             <span>
               {{ value === 1 ? '표준 자산' : '비표준 자산' }}
             </span>
+          </template>
+          <template #cell-action="{ row }">
+            <Button
+              variant="danger"
+              size="sm"
+              :disabled="!canDeleteRow(row)"
+              @click.stop="handleDeleteAsset(row)"
+            >
+              <Trash2 :size="14" />
+              삭제
+            </Button>
           </template>
         </Table>
       </div>
@@ -140,19 +163,25 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { api } from '@/api/client'
+import { tangibleItemApi } from '@/api/asset.api'
 
 import TangibleItemCategory from './TangibleItemCategory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
+import Input from '@/components/common/Input.vue';
 
 interface Asset {
   [key: string]: unknown
+  assetItemId?: number
   assetName: string
   category: string
   manufacturer: string
   modelName: string
   isStandard: number
+  stockCount?: number
+  availableCount?: number
+  assetCount?: number
 }
 
 interface CategoryGroup {
@@ -171,6 +200,7 @@ const searchParams = ref({
   companyId: '1',
   categoryName: '전체 품목 보기',
   categoryId: '',
+  keyword: '',
   modelName: '',
   isStandard: 1,
   page: 0,
@@ -236,17 +266,42 @@ const handleRegisterAsset = async (newAsset: Omit<Asset, 'id'>) => {
   }
 };
 
+const canDeleteRow = (row: Asset) => {
+  return (row.assetCount ?? 0) === 0
+};
+
+const handleDeleteAsset = async (row: Asset) => {
+  if (!row.assetItemId) {
+    alert('삭제할 품목 정보를 찾을 수 없습니다.')
+    return
+  }
+
+  if (!confirm('선택한 품목을 삭제하시겠습니까?')) {
+    return
+  }
+
+  try {
+    await tangibleItemApi.delete(row.assetItemId)
+    handleSearch()
+  } catch (error) {
+    console.error(error)
+    alert('자산 삭제 중 오류가 발생했습니다.')
+  }
+};
+
 const serverAssetList = ref<Asset[]>([]);
 const totalElements = ref(0);
 const totalPages = ref(0);
 const isLoading = ref(false);
 
 const tableColumns: Column<Asset>[] = [
-  { key: 'assetName', label: '제품명', align: 'center', width: '35%' },
-  { key: 'category', label: '카테고리', align: 'center', width: '15%' },
-  { key: 'manufacturer', label: '제조사', align: 'center', width: '15%' },
-  { key: 'modelName', label: '모델명', align: 'center', width: '20%' },
-  { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '15%' }
+  { key: 'assetName', label: '제품명', align: 'center', width: '25%' },
+  { key: 'category', label: '카테고리', align: 'center', width: '14%' },
+  { key: 'manufacturer', label: '제조사', align: 'center', width: '14%' },
+  { key: 'modelName', label: '모델명', align: 'center', width: '18%' },
+  { key: 'assetCount', label: '자산 수', align: 'center', width: '8%' },
+  { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '10%' },
+  { key: 'action', label: '삭제', align: 'center', width: '10%' }
 ];
 
 const handleSearch = () => {
@@ -272,8 +327,8 @@ const loadServerData = async () => {
       params.categoryName = searchParams.value.categoryName;
     }
 
-    if (searchParams.value.modelName.trim()) {
-      params.modelName = searchParams.value.modelName.trim();
+    if (searchParams.value.keyword.trim()) {
+      params.keyword = searchParams.value.keyword.trim().toLowerCase();
     }
 
     const response = await api.get<{
