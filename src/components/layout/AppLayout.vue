@@ -1,22 +1,42 @@
+<template>
+  <div class="flex h-screen w-screen flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
+    <Header class="h-16 shrink-0" />
+    <ToastContainer />
+
+    <div class="mt-16 flex min-h-0 w-full flex-1">
+      <Sidebar
+        v-model:collapsed="collapsed"
+        :nav-items="navItems"
+        class="shrink-0"
+      />
+
+      <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
+        <RouterView />
+      </main>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { usePermission } from '@/composables'
+import { computed, ref } from 'vue'
+import {
+  Building2,
+  FileText,
+  Laptop,
+  LayoutDashboard,
+  Package,
+  Search,
+  SettingsIcon,
+  ShoppingCart,
+  Ticket,
+  Users,
+  Wallet,
+} from 'lucide-vue-next'
+
+import ToastContainer from '@/components/common/ToastContainer.vue'
 import Header from '@/components/layout/Header.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
-import ToastContainer from '@/components/common/ToastContainer.vue'
-
-import {
-  LayoutDashboard,
-  Ticket,
-  Laptop,
-  Package,
-  Building2,
-  Users,
-  Search,
-  ShoppingCart,
-  Wallet,
-  FileText
-} from 'lucide-vue-next'
+import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
 const { canManageCompany, canManageDepartment, canManageAsset, canPurchase } = usePermission()
@@ -31,8 +51,8 @@ const navItems = computed(() => {
       show: true,
       children: [
         { name: 'tangible-items', to: '/item/tangible', label: '유형자산 품목 관리', show: canManageAsset.value },
-        { name: 'tangible-list', to: '/assets/tangible', label: '유형자산 관리', show: true }
-      ]
+        { name: 'tangible-list', to: '/assets/tangible', label: '유형자산 관리', show: true },
+      ],
     },
     {
       name: 'intangible',
@@ -41,8 +61,8 @@ const navItems = computed(() => {
       show: true,
       children: [
         { name: 'intangible-items', to: '/item/intangible', label: '무형자산 품목 관리', show: canManageAsset.value },
-        { name: 'intangible-list', to: '/assets/intangible', label: '무형자산 관리', show: true }
-      ]
+        { name: 'intangible-list', to: '/assets/intangible', label: '무형자산 관리', show: true },
+      ],
     },
     { name: 'tickets', to: '/tickets', label: '서비스 데스크', icon: Ticket, show: true },
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
@@ -51,38 +71,19 @@ const navItems = computed(() => {
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
     { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageCompany.value },
+    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
   ]
 
   return menuConfig
-    .filter(item => item.show)
-    .map(item => {
+    .filter((item) => item.show)
+    .map((item) => {
       if (item.children) {
         return {
           ...item,
-          children: item.children.filter(child => child.show)
+          children: item.children.filter((child) => child.show),
         }
       }
       return item
     })
 })
 </script>
-
-<template>
-  <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
-
-    <Header class="shrink-0 h-16" />
-    <ToastContainer />
-
-    <div class="flex flex-1 mt-16 min-h-0 w-full">
-      <Sidebar
-        v-model:collapsed="collapsed"
-        :navItems="navItems"
-        class="shrink-0"
-      />
-
-      <main class="flex-1 flex flex-col min-h-0 bg-background p-4 overflow-hidden transition-colors duration-300">
-        <RouterView />
-      </main>
-    </div>
-  </div>
-</template>
