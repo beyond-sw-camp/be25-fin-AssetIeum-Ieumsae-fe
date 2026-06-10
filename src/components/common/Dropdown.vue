@@ -9,32 +9,32 @@
         <slot name="icon" />
         <span :class="['truncate', selectedTextClass]">{{ modelValue }}</span>
       </div>
-      
+
       <ChevronDown :size="16" class="text-text-muted shrink-0 ml-2" />
     </button>
 
-    <div 
-      v-if="isOpen" 
+    <div
+      v-if="isOpen"
       :class="[
         'absolute mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
         menuAlign === 'right' ? 'right-0' : 'left-0'
       ]"
     >
       <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
-        <li 
-          v-if="rootOption" 
+        <li
+          v-if="rootOption"
           :class="[
             'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
             modelValue === rootOption ? 'text-primary font-semibold' : 'text-text-main'
           ]"
-          @click="selectOption(rootOption)" 
+          @click="selectOption(rootOption)"
         >
           {{ rootOption }}
         </li>
 
-        <li 
-          v-for="option in simpleOptions" 
-          :key="option" 
+        <li
+          v-for="option in simpleOptions"
+          :key="option"
           :class="[
             'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
             modelValue === option ? 'text-primary font-semibold' : 'text-text-main'

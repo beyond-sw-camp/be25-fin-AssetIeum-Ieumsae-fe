@@ -1,12 +1,3 @@
-<script setup lang="ts">
-import { KeyRound } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
-
-import Button from '@/components/common/Button.vue'
-
-const router = useRouter()
-</script>
-
 <template>
   <div class="page-container h-full overflow-y-auto">
     <div class="page-header">
@@ -43,3 +34,12 @@ const router = useRouter()
     </section>
   </div>
 </template>
+
+<script setup lang="ts">
+import { KeyRound } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+
+import Button from '@/components/common/Button.vue'
+
+const router = useRouter()
+</script>

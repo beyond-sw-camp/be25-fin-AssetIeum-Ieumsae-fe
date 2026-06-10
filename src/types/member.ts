@@ -11,12 +11,11 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  // TODO: API 명세의 UUID string과 기존 프론트 number 모델 중 확정 타입 확인 필요
   memberId: number
   memberNo: string
   name: string
   email: string
-  departmentId: number
+  departmentId: string
   departmentName: string
   role: Role
   status: MemberStatus
@@ -35,7 +34,7 @@ export interface Member {
   memberNo: string
   name: string
   email: string | null
-  departmentId: number
+  departmentId: string
   departmentName: string
   role: Role
   status: MemberStatus
@@ -47,14 +46,14 @@ export interface MemberRegisterRequest {
   password: string
   name: string
   email?: string
-  departmentId: number
+  departmentId: string
   role: Role
 }
 
 export interface MemberListFilter {
   page?: number
   size?: number
-  departmentId?: number
+  departmentId?: string
   role?: Role
   status?: MemberStatus
 }
@@ -71,5 +70,5 @@ export interface PasswordChangeResponse {
 }
 
 export interface DepartmentChangeRequest {
-  departmentId: number
+  departmentId: string
 }

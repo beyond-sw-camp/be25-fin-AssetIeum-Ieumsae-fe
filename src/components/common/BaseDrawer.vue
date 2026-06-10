@@ -1,7 +1,7 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-[10000] flex justify-end">
-    <div 
-      class="fixed inset-0 bg-black/40 transition-opacity" 
+    <div
+      class="fixed inset-0 bg-black/40 transition-opacity"
       @click="emit('close')"
     >
     </div>
@@ -11,9 +11,9 @@
         <slot name="header">
           <h2 class="text-xl font-bold text-text-main">{{ title }}</h2>
         </slot>
-        <button 
-          type="button" 
-          class="p-1 hover:bg-surface-secondary rounded-lg text-text-sub transition-colors" 
+        <button
+          type="button"
+          class="p-1 hover:bg-surface-secondary rounded-lg text-text-sub transition-colors"
           @click="emit('close')"
         >
           <X :size="20" />

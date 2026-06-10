@@ -47,7 +47,7 @@ const router = createRouter({
           path: 'organization',
           name: 'Organization',
           component: () => import('@/views/organization/OrganizationView.vue'),
-          meta: { title: '조직도', roles: ['SUPER_ADMIN', 'DEPARTMENT_MANAGER'] },
+          meta: { title: '조직도', roles: ['ADMIN'] },
         },
 
         // ─── 사원 관리 ───────────────────────────────
@@ -58,7 +58,7 @@ const router = createRouter({
               path: '',
               name: 'MemberList',
               component: () => import('@/views/member/MemberListView.vue'),
-              meta: { title: '사원 목록', roles: ['SUPER_ADMIN'] },
+              meta: { title: '사원 목록', roles: ['ADMIN'] },
             },
           ],
         },
@@ -160,7 +160,7 @@ const router = createRouter({
               path: '',
               name: 'SurveyList',
               component: () => import('@/views/survey/SurveyListView.vue'),
-              meta: { title: '전수조사', roles: ['SUPER_ADMIN', 'ASSET_TEAM'] },
+              meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM'] },
             },
             {
               path: ':surveyId',
@@ -176,7 +176,7 @@ const router = createRouter({
           path: 'budget',
           name: 'Budget',
           component: () => import('@/views/budget/BudgetView.vue'),
-          meta: { title: '예산 관리', roles: ['SUPER_ADMIN'] },
+          meta: { title: '예산 관리', roles: ['ADMIN'] },
         },
 
         // ─── 구매 관리 ───────────────────────────────
@@ -184,7 +184,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 관리', roles: ['SUPER_ADMIN', 'ASSET_TEAM'] },
+          meta: { title: '구매 관리', roles: ['ADMIN', 'ASSET_TEAM'] },
         },
 
         // ─── 로그 ─────────────────────────────────────
@@ -192,7 +192,7 @@ const router = createRouter({
           path: 'logs',
           name: 'Logs',
           component: () => import('@/views/log/LogView.vue'),
-          meta: { title: '감사/활동 로그', roles: ['SUPER_ADMIN'] },
+          meta: { title: '감사/활동 로그', roles: ['ADMIN'] },
         },
 
         // ─── 내 정보 ─────────────────────────────────

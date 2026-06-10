@@ -5,6 +5,7 @@
     <!-- TODO: 티켓 상세 정보, 승인/반려 액션, 댓글 -->
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'

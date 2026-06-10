@@ -5,6 +5,7 @@
     <p class="text-gray-400">티켓 목록 구현 예정</p>
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { ticketApi } from '@/api'

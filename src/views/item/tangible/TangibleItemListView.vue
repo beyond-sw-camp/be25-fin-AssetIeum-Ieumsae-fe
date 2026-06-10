@@ -28,21 +28,21 @@
           <Edit :size="15" />
           자산 카테고리 수정
         </Button>
-        <TangibleItemCategory 
-          :is-open="isCategoryDrawerOpen" 
+        <TangibleItemCategory
+          :is-open="isCategoryDrawerOpen"
           :initial-categories="cascadingOptions"
-          @close="isCategoryDrawerOpen = false" 
+          @close="isCategoryDrawerOpen = false"
           @update-categories="handleCategoryUpdate"
         />
-        
+
         <Button variant="primary" @click="isRegisterDrawerOpen = true">
           <Plus :size="15" />
           자산 품목 등록
         </Button>
-        <TangibleItemRegister 
-          :is-open="isRegisterDrawerOpen" 
+        <TangibleItemRegister
+          :is-open="isRegisterDrawerOpen"
           :initial-categories="localCategories"
-          @close="isRegisterDrawerOpen = false" 
+          @close="isRegisterDrawerOpen = false"
           @register-asset="handleRegisterAsset"
         />
       </div>
@@ -138,16 +138,16 @@
             <ChevronLeft :size="16" />
           </button>
 
-          <button 
-            v-for="pageIndex in totalPages" 
-            :key="pageIndex" 
-            type="button" 
+          <button
+            v-for="pageIndex in totalPages"
+            :key="pageIndex"
+            type="button"
             :class="[
               'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
               searchParams.page === (pageIndex - 1)
                 ? 'bg-primary text-white shadow-sm shadow-primary/20'
                 : 'text-text-sub hover:bg-surface-secondary'
-            ]" 
+            ]"
             @click="changePage(pageIndex - 1)"
           >
             {{ pageIndex }}
@@ -246,7 +246,7 @@ const localCategories = computed(() => {
   return list;
 });
 
-// [에러 해결 및 데이터 동기화 구현] 
+// [에러 해결 및 데이터 동기화 구현]
 // 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
 const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
   cascadingOptions.value = updatedGroups.map((group) => ({

@@ -5,6 +5,7 @@
     <p class="text-gray-500">역할: {{ auth.user?.role }}</p>
   </div>
 </template>
+
 <script setup lang="ts">
 import { useAuthStore } from '@/stores'
 const auth = useAuthStore()

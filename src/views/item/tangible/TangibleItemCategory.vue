@@ -120,7 +120,7 @@ interface CategoryGroup {
   subCategories: string[];
 }
 
-const props = defineProps<{ 
+const props = defineProps<{
   isOpen: boolean;
   initialCategories: CategoryGroup[];
 }>();
@@ -177,7 +177,7 @@ const deleteMainCategory = (mainCategory: string) => {
   }
 
   localGroups.value = localGroups.value.filter((group) => group.mainCategory !== mainCategory);
-  
+
   if (selectedMainCategory.value === mainCategory) {
     selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
   }

@@ -40,7 +40,7 @@ export interface TangibleAsset {
   status: TangibleAssetStatus
   assignedMemberId: number | null
   assignedMemberName: string | null
-  departmentId: number | null
+  departmentId: string | null
   departmentName: string | null
   purchaseDate: string
   warrantyExpiredAt: string | null
@@ -62,7 +62,7 @@ export interface TangibleAssetListFilter {
   page?: number
   size?: number
   status?: TangibleAssetStatus
-  departmentId?: number
+  departmentId?: string
   memberId?: number
   assetItemId?: number
   keyword?: string
@@ -109,7 +109,7 @@ export interface IntangibleAsset {
   status: IntangibleAssetStatus
   assignedMemberId: number | null
   assignedMemberName: string | null
-  departmentId: number | null
+  departmentId: string | null
   departmentName: string | null
   startedAt: string | null
   expiredAt: string | null
@@ -131,7 +131,7 @@ export interface IntangibleAssetListFilter {
   page?: number
   size?: number
   status?: IntangibleAssetStatus
-  departmentId?: number
+  departmentId?: string
   memberId?: number
   assetItemId?: number
 }
