@@ -1,8 +1,6 @@
 <template>
   <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
-
     <Header class="shrink-0 h-16" />
-
     <div class="flex flex-1 mt-16 min-h-0 w-full">
       <Sidebar 
         v-model:collapsed="collapsed" 
@@ -33,7 +31,8 @@ import {
   Search,
   ShoppingCart,
   Wallet,
-  FileText
+  FileText,
+  SettingsIcon
 } from 'lucide-vue-next'
 
 const collapsed = ref(false)
@@ -69,6 +68,7 @@ const navItems = computed(() => {
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageSystem.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageSystem.value },
     { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value },
+    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageSystem.value },
   ]
 
   return menuConfig

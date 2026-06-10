@@ -201,7 +201,7 @@
   }
 
   .page-header {
-    @apply mb-4;
+    @apply mb-4 px-3 pt-3;
   }
 
   .page-title {
