@@ -65,6 +65,13 @@ export const tangibleAssetApi = {
   /** QR 코드 조회 */
   getQrCode: (assetId: number) =>
     api.get<{ assetId: number; qrCodeUrl: string }>(`/assets/tangible/${assetId}/qr`),
+
+  /** 유형자산 품목 일괄 등록 (CSV/Excel) */
+  bulkCreate: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload('/assets/tangible/bulk', formData)
+  },
 }
 
 // ─── 무형자산 품목 API ───────────────────────────────────────────────────────
@@ -116,4 +123,11 @@ export const intangibleAssetApi = {
   /** 무형자산 해지 처리 */
   terminate: (assetId: number) =>
     api.patch(`/assets/intangible/${assetId}/terminate`),
+
+  /** 무형자산 일괄 등록 (CSV/Excel) */
+  bulkCreate: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload('/assets/intangible/bulk', formData)
+  },
 }
