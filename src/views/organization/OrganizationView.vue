@@ -57,10 +57,8 @@
 
       <div class="flex min-h-0 min-w-0 flex-col gap-5 overflow-hidden">
         <section class="card mx-0 shrink-0 border border-border p-5">
-          <div class="mb-5 flex items-start gap-3">
-            <span class="rounded-xl bg-primary/15 p-2 text-primary">
-              <Building2 :size="22" />
-            </span>
+          <div class="mb-5 flex items-start gap-2">
+            <Building2 :size="20" class="mt-0.5 shrink-0 text-text-sub" />
             <div>
               <h2 class="text-lg font-bold text-text-main">부서 상세 정보</h2>
               <p class="mt-1 text-sm text-text-sub">
