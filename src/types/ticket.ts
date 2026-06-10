@@ -11,7 +11,7 @@ export interface TicketListItem {
   status: TicketStatus
   requesterId: number
   requesterName: string
-  departmentId: number
+  departmentId: string
   departmentName: string
   createdAt: string
 }
@@ -23,7 +23,7 @@ export interface TicketDetail {
   status: TicketStatus
   requesterId: number
   requesterName: string
-  departmentId: number
+  departmentId: string
   departmentName: string
   approverId: number | null
   approverName: string | null
@@ -55,7 +55,7 @@ export interface TicketListFilter {
   ticketType?: TicketType
   status?: TicketStatus
   requesterId?: number
-  departmentId?: number
+  departmentId?: string
 }
 
 // =====================================================

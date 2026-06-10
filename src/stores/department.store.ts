@@ -15,10 +15,10 @@ export const useDepartmentStore = defineStore('department', () => {
   const departments = ref<Department[]>([])
   const isLoading = ref(false)
   const errorMessage = ref('')
-  const selectedDepartmentId = ref<number | null>(null)
+  const selectedDepartmentId = ref<string | null>(null)
 
   const departmentTree = computed<DepartmentTreeNode[]>(() => {
-    const map = new Map<number, DepartmentTreeNode>()
+    const map = new Map<string, DepartmentTreeNode>()
     const roots: DepartmentTreeNode[] = []
 
     departments.value.forEach((department) => {
@@ -72,7 +72,7 @@ export const useDepartmentStore = defineStore('department', () => {
     }
   }
 
-  function selectDepartment(id: number | null) {
+  function selectDepartment(id: string | null) {
     selectedDepartmentId.value = id
   }
 

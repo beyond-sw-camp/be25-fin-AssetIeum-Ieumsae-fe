@@ -17,6 +17,10 @@ import type {
 
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_CODE = 'COMP001'
+const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
+const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
+const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
+const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
@@ -42,31 +46,31 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
 
 let departments: Department[] = [
   {
-    departmentId: 1,
+    departmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentId: null,
     name: '이음테크',
     memberCount: 8,
     createdAt: '2026-01-02T09:00:00',
   },
   {
-    departmentId: 2,
-    parentDepartmentId: 1,
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
+    parentDepartmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentName: '이음테크',
     name: '구매자산팀',
     memberCount: 3,
     createdAt: '2026-01-02T09:00:00',
   },
   {
-    departmentId: 3,
-    parentDepartmentId: 1,
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    parentDepartmentId: ROOT_DEPARTMENT_ID,
     parentDepartmentName: '이음테크',
     name: '플랫폼개발본부',
     memberCount: 4,
     createdAt: '2026-01-02T09:00:00',
   },
   {
-    departmentId: 4,
-    parentDepartmentId: 3,
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    parentDepartmentId: PLATFORM_DEPARTMENT_ID,
     parentDepartmentName: '플랫폼개발본부',
     name: '프론트엔드팀',
     memberCount: 2,
@@ -80,9 +84,9 @@ let members: Member[] = [
     memberNo: 'EMP0001',
     name: '김관리',
     email: 'admin@ieumtech.com',
-    departmentId: 2,
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
     departmentName: '구매자산팀',
-    role: 'SUPER_ADMIN',
+    role: 'ADMIN',
     status: 'ACTIVE',
     createdAt: '2026-01-05T09:00:00',
   },
@@ -91,7 +95,7 @@ let members: Member[] = [
     memberNo: 'EMP0002',
     name: '박자산',
     email: 'asset@ieumtech.com',
-    departmentId: 2,
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
     departmentName: '구매자산팀',
     role: 'ASSET_TEAM',
     status: 'ACTIVE',
@@ -102,7 +106,7 @@ let members: Member[] = [
     memberNo: 'EMP0003',
     name: '이부장',
     email: 'manager@ieumtech.com',
-    departmentId: 3,
+    departmentId: PLATFORM_DEPARTMENT_ID,
     departmentName: '플랫폼개발본부',
     role: 'DEPARTMENT_MANAGER',
     status: 'ACTIVE',
@@ -113,7 +117,7 @@ let members: Member[] = [
     memberNo: 'EMP0004',
     name: '최휴직',
     email: 'leave@ieumtech.com',
-    departmentId: 4,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     role: 'EMPLOYEE',
     status: 'ON_LEAVE',
@@ -124,7 +128,7 @@ let members: Member[] = [
     memberNo: 'EMP0005',
     name: '정사원',
     email: 'member@ieumtech.com',
-    departmentId: 4,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     role: 'EMPLOYEE',
     status: 'ACTIVE',
@@ -260,8 +264,7 @@ export const handlers = [
       page: Number(url.searchParams.get('page') ?? 0),
       size: Number(url.searchParams.get('size') ?? 10),
       departmentId: url.searchParams.get('departmentId')
-        ? Number(url.searchParams.get('departmentId'))
-        : undefined,
+        ?? undefined,
       role: (url.searchParams.get('role') as MemberListFilter['role']) ?? undefined,
       status: (url.searchParams.get('status') as MemberListFilter['status']) ?? undefined,
     }
@@ -448,20 +451,49 @@ export const handlers = [
   }),
 
   http.get(`${API_PREFIX}/departments/:departmentId`, ({ params }) => {
-    const departmentId = Number(params.departmentId)
+    const departmentId = String(params.departmentId)
     const department = departments.find((item) => item.departmentId === departmentId)
 
-    return HttpResponse.json(ok(department ?? null))
+    if (!department) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'DEPARTMENT_NOT_FOUND',
+        message: '부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    return HttpResponse.json(ok(department))
   }),
 
   http.post(`${API_PREFIX}/departments`, async ({ request }) => {
     const body = await request.json() as DepartmentCreateRequest
+
+    if (!body.parentDepartmentId) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'PARENT_DEPARTMENT_REQUIRED',
+        message: '상위 부서를 선택해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
     const parent = body.parentDepartmentId
       ? departments.find((item) => item.departmentId === body.parentDepartmentId)
       : null
+
+    if (!parent) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PARENT_DEPARTMENT_NOT_FOUND',
+        message: '상위 부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
     const now = new Date().toISOString()
     const department: Department = {
-      departmentId: Math.max(0, ...departments.map((item) => item.departmentId)) + 1,
+      departmentId: crypto.randomUUID(),
       parentDepartmentId: body.parentDepartmentId ?? null,
       parentDepartmentName: parent?.name,
       name: body.name,
@@ -472,11 +504,16 @@ export const handlers = [
 
     departments = [...departments, department]
 
-    return HttpResponse.json(ok(department, '부서가 등록되었습니다.'), { status: 201 })
+    return HttpResponse.json({
+      status: 201,
+      errorCode: null,
+      message: '부서가 등록되었습니다.',
+      data: department,
+    }, { status: 201 })
   }),
 
   http.patch(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
-    const departmentId = Number(params.departmentId)
+    const departmentId = String(params.departmentId)
     const body = await request.json() as DepartmentUpdateRequest
     const index = departments.findIndex((item) => item.departmentId === departmentId)
 
@@ -493,6 +530,19 @@ export const handlers = [
       ? departments.find((item) => item.departmentId === body.parentDepartmentId)
       : null
     const current = departments[index]
+
+    if (
+      current.parentDepartmentId !== null
+      && body.parentDepartmentId === null
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'ROOT_DEPARTMENT_ALREADY_EXISTS',
+        message: '최상위 회사 부서는 추가할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
     const updated: Department = {
       ...current,
       name: body.name ?? current.name,
@@ -511,7 +561,7 @@ export const handlers = [
   }),
 
   http.delete(`${API_PREFIX}/departments/:departmentId`, ({ params }) => {
-    const departmentId = Number(params.departmentId)
+    const departmentId = String(params.departmentId)
     const department = departments.find((item) => item.departmentId === departmentId)
 
     if (!department) {
@@ -537,11 +587,20 @@ export const handlers = [
     )
     const hasMembers = members.some((member) => member.departmentId === departmentId)
 
-    if (hasChildren || hasMembers) {
+    if (hasMembers) {
       return HttpResponse.json({
         status: 409,
-        errorCode: 'DEPARTMENT_NOT_EMPTY',
-        message: '하위 부서 또는 소속 부서원이 있는 부서는 삭제할 수 없습니다.',
+        errorCode: 'DEPARTMENT_HAS_MEMBERS',
+        message: '소속 부서원이 있는 부서는 삭제할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (hasChildren) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'DEPARTMENT_HAS_CHILDREN',
+        message: '하위 부서가 있는 부서는 삭제할 수 없습니다.',
         data: null,
       }, { status: 409 })
     }

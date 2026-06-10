@@ -3,8 +3,8 @@
 // =====================================================
 
 export interface Department {
-  departmentId: number
-  parentDepartmentId: number | null
+  departmentId: string
+  parentDepartmentId: string | null
   parentDepartmentName?: string
   name: string
   memberCount: number
@@ -14,12 +14,12 @@ export interface Department {
 }
 
 export interface DepartmentCreateRequest {
-  parentDepartmentId?: number | null
+  parentDepartmentId?: string | null
   name: string
 }
 
 export interface DepartmentUpdateRequest {
-  parentDepartmentId?: number | null
+  parentDepartmentId?: string | null
   name?: string
 }
 
