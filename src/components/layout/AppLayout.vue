@@ -2,6 +2,7 @@
   <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
 
     <Header class="shrink-0 h-16" />
+    <ToastContainer />
 
     <div class="flex flex-1 mt-16 min-h-0 w-full">
       <Sidebar 
@@ -22,6 +23,7 @@ import { ref, computed } from 'vue'
 import { usePermission } from '@/composables'
 import Header from '@/components/layout/Header.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
+import ToastContainer from '@/components/common/ToastContainer.vue'
 
 import {
   LayoutDashboard,
@@ -37,7 +39,7 @@ import {
 } from 'lucide-vue-next'
 
 const collapsed = ref(false)
-const { canManageSystem, canManageDepartment, canManageAsset, canPurchase } = usePermission()
+const { canManageCompany, canManageDepartment, canManageAsset, canPurchase } = usePermission()
 
 const navItems = computed(() => {
   const menuConfig = [
@@ -66,9 +68,9 @@ const navItems = computed(() => {
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
-    { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageSystem.value },
-    { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageSystem.value },
-    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageSystem.value },
+    { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
+    { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
+    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageCompany.value },
   ]
 
   return menuConfig
