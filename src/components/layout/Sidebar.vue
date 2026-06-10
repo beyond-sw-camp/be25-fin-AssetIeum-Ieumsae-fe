@@ -1,6 +1,87 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { Component } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores'
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Settings,
+  User,
+} from 'lucide-vue-next'
+import { ROLE_LABEL } from '@/utils/labels'
+
+interface NavChildItem {
+  name: string
+  to: string
+  label: string
+}
+
+interface NavItem {
+  name: string
+  to?: string
+  label: string
+  icon: Component
+  children?: NavChildItem[]
+}
+
+const collapsed = defineModel<boolean>('collapsed', { required: true })
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+const user = computed(() => authStore.user)
+const roleLabel = computed(() => user.value ? ROLE_LABEL[user.value.role] : '')
+
+defineProps<{
+  navItems: NavItem[]
+}>()
+
+const openMenus = ref<Record<string, boolean>>({
+  tangible: true,
+  intangible: false
+})
+
+const handleParentClick = (item: NavItem) => {
+  if (!item.children || item.children.length === 0) return
+
+  if (collapsed.value) {
+    openMenus.value[item.name] = true
+    router.push(item.children[0].to)
+    return
+  }
+
+  const isCurrentlyOpen = !!openMenus.value[item.name]
+  openMenus.value[item.name] = !isCurrentlyOpen
+
+  if (!isCurrentlyOpen) {
+    router.push(item.children[0].to)
+  }
+}
+
+const isMenuOpen = (menuName: string) => {
+  return !!openMenus.value[menuName]
+}
+
+const isParentActive = (children: Array<{ to: string }>) => {
+  return children.some(child => route.path === child.to)
+}
+
+const handleLogout = async () => {
+  try {
+    await authStore.logout()
+    router.push('/login')
+  } catch (error) {
+    console.error('로그아웃 중 오류 발생:', error)
+  }
+}
+</script>
+
 <template>
   <div class="relative h-[calc(100vh-64px)] min-h-0">
-    <aside 
+    <aside
       :class="[
         'flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
         collapsed ? 'w-20' : 'w-64'
@@ -15,8 +96,8 @@
               :class="[
                 'w-full flex items-center rounded-xl px-3 py-2 transition-colors hover:bg-primary/5',
                 collapsed ? 'justify-center' : 'justify-between',
-                isParentActive(item.children) 
-                  ? 'bg-primary/10 text-primary! font-semibold' 
+                isParentActive(item.children)
+                  ? 'bg-primary/10 text-primary! font-semibold'
                   : 'text-text-main'
               ]"
               @click="handleParentClick(item)"
@@ -25,16 +106,16 @@
                 <component :is="item.icon" :size="18" />
                 <span v-if="!collapsed">{{ item.label }}</span>
               </div>
-              <ChevronDown 
-                v-if="!collapsed" 
-                :size="16" 
-                :class="['transition-transform duration-200', { 'rotate-180': isMenuOpen(item.name) }]" 
+              <ChevronDown
+                v-if="!collapsed"
+                :size="16"
+                :class="['transition-transform duration-200', { 'rotate-180': isMenuOpen(item.name) }]"
               />
             </button>
 
             <!-- 서브 메뉴 목록 -->
-            <div 
-              v-if="isMenuOpen(item.name) && !collapsed" 
+            <div
+              v-if="isMenuOpen(item.name) && !collapsed"
               class="pl-4 space-y-1 overflow-hidden transition-all"
             >
               <RouterLink
@@ -50,14 +131,14 @@
           </div>
 
           <!-- 단일 메뉴 목록 -->
-          <RouterLink 
+          <RouterLink
             v-else
-            :to="item.to!" 
+            :to="item.to!"
             :class="[
               'flex items-center rounded-xl px-3 py-2 transition-colors text-text-main hover:bg-primary/5',
               collapsed ? 'justify-center' : 'gap-3'
-            ]" 
-            exact-active-class="bg-primary/10! text-primary! font-semibold" 
+            ]"
+            exact-active-class="bg-primary/10! text-primary! font-semibold"
           >
             <component :is="item.icon" :size="18" />
             <span v-if="!collapsed">{{ item.label }}</span>
@@ -69,9 +150,9 @@
       <div class="shrink-0 flex justify-between border-t border-border bg-surface p-2 space-y-3 shadow-0">
         <!-- 사용자 버튼 (프로필) -->
         <div class="">
-          <RouterLink 
+          <RouterLink
             v-if="user"
-            to="/profile" 
+            to="/profile"
             :class="[
               'flex items-center rounded-xl px-3 py-2 bg-surface-secondary/50 hover:bg-primary/5 transition-colors group',
               collapsed ? 'justify-center' : 'gap-3'
@@ -117,15 +198,15 @@
         </button>
       </div>
     </aside>
-    
+
     <!-- 사이드바 접기/열기 버튼 -->
-    <button 
+    <button
       class="
         absolute top-10 -right-4 z-50
         flex h-8 w-8 items-center justify-center
         rounded-xl border border-border bg-surface
         shadow-md transition-colors text-text-main
-      " 
+      "
       @click="collapsed = !collapsed"
     >
       <ChevronLeft v-if="!collapsed" :size="16" />
@@ -133,84 +214,3 @@
     </button>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { Component } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores'
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Settings,
-  User,
-} from 'lucide-vue-next'
-import { ROLE_LABEL } from '@/utils/labels'
-
-interface NavChildItem {
-  name: string
-  to: string
-  label: string
-}
-
-interface NavItem {
-  name: string
-  to?: string
-  label: string
-  icon: Component
-  children?: NavChildItem[]
-}
-
-const collapsed = defineModel<boolean>('collapsed', { required: true })
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-
-const user = computed(() => authStore.user)
-const roleLabel = computed(() => user.value ? ROLE_LABEL[user.value.role] : '')
-
-defineProps<{
-  navItems: NavItem[]
-}>()
-
-const openMenus = ref<Record<string, boolean>>({
-  tangible: true,   
-  intangible: false 
-})
-
-const handleParentClick = (item: NavItem) => {
-  if (!item.children || item.children.length === 0) return
-
-  if (collapsed.value) {
-    openMenus.value[item.name] = true
-    router.push(item.children[0].to)
-    return
-  }
-
-  const isCurrentlyOpen = !!openMenus.value[item.name]
-  openMenus.value[item.name] = !isCurrentlyOpen
-  
-  if (!isCurrentlyOpen) {
-    router.push(item.children[0].to)
-  }
-}
-
-const isMenuOpen = (menuName: string) => {
-  return !!openMenus.value[menuName]
-}
-
-const isParentActive = (children: Array<{ to: string }>) => {
-  return children.some(child => route.path === child.to)
-}
-
-const handleLogout = async () => {
-  try {
-    await authStore.logout()
-    router.push('/login') 
-  } catch (error) {
-    console.error('로그아웃 중 오류 발생:', error)
-  }
-}
-</script>

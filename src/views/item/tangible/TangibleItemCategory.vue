@@ -1,3 +1,111 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import BaseDrawer from '@/components/common/BaseDrawer.vue';
+import Button from '@/components/common/Button.vue';
+import { Minus } from 'lucide-vue-next';
+
+interface CategoryGroup {
+  mainCategory: string;
+  subCategories: string[];
+}
+
+const props = defineProps<{
+  isOpen: boolean;
+  initialCategories: CategoryGroup[];
+}>();
+
+const emit = defineEmits(['close', 'update-categories']);
+
+const localGroups = ref<CategoryGroup[]>([]);
+const addMode = ref<'main' | 'sub'>('sub');
+const selectedMainCategory = ref('');
+const newCategoryName = ref('');
+
+const addCategory = () => {
+  const trimmedName = newCategoryName.value.trim();
+  if (!trimmedName) {
+    alert('카테고리 이름을 입력해주세요.');
+    return;
+  }
+
+  if (addMode.value === 'main') {
+    if (localGroups.value.some((group) => group.mainCategory === trimmedName)) {
+      alert('이미 존재하는 대분류명입니다.');
+      return;
+    }
+    // 필터 연동용 ' - 전체' 포함하여 복사본 유지
+    localGroups.value.push({
+      mainCategory: trimmedName,
+      subCategories: [`${trimmedName} - 전체`],
+    });
+    selectedMainCategory.value = trimmedName;
+  } else {
+    if (trimmedName.endsWith(' - 전체')) {
+      alert('" - 전체"로 끝나는 이름은 중분류로 사용할 수 없습니다.');
+      return;
+    }
+
+    const group = localGroups.value.find((item) => item.mainCategory === selectedMainCategory.value);
+    if (!group) {
+      alert('선택된 대분류를 찾을 수 없습니다.');
+      return;
+    }
+    if (group.subCategories.includes(trimmedName)) {
+      alert('해당 대분류 내에 이미 존재하는 중분류명입니다.');
+      return;
+    }
+    group.subCategories.push(trimmedName);
+  }
+
+  newCategoryName.value = '';
+};
+
+const deleteMainCategory = (mainCategory: string) => {
+  if (!confirm(`"${mainCategory}" 대분류를 삭제하시겠습니까?\n하위 중분류 목록도 함께 삭제됩니다.`)) {
+    return;
+  }
+
+  localGroups.value = localGroups.value.filter((group) => group.mainCategory !== mainCategory);
+
+  if (selectedMainCategory.value === mainCategory) {
+    selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
+  }
+
+  if (localGroups.value.length === 0) {
+    addMode.value = 'main';
+  }
+};
+
+const deleteSubCategory = (mainCategory: string, subCategory: string) => {
+  const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
+  if (!group) return;
+  group.subCategories = group.subCategories.filter((item) => item !== subCategory);
+};
+
+const handleSave = () => {
+  emit('update-categories', localGroups.value.map((group) => ({
+    mainCategory: group.mainCategory,
+    subCategories: [...group.subCategories],
+  })));
+  emit('close');
+};
+
+watch(
+  () => props.isOpen,
+  (newVal) => {
+    if (newVal) {
+      localGroups.value = props.initialCategories.map((group) => ({
+        mainCategory: group.mainCategory,
+        subCategories: [...group.subCategories],
+      }));
+      selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
+      newCategoryName.value = '';
+      addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
+    }
+  }
+);
+</script>
+
 <template>
   <BaseDrawer
     :is-open="isOpen"
@@ -108,111 +216,3 @@
     </div>
   </BaseDrawer>
 </template>
-
-<script setup lang="ts">
-import { ref, watch } from 'vue';
-import BaseDrawer from '@/components/common/BaseDrawer.vue';
-import Button from '@/components/common/Button.vue';
-import { Minus } from 'lucide-vue-next';
-
-interface CategoryGroup {
-  mainCategory: string;
-  subCategories: string[];
-}
-
-const props = defineProps<{ 
-  isOpen: boolean;
-  initialCategories: CategoryGroup[];
-}>();
-
-const emit = defineEmits(['close', 'update-categories']);
-
-const localGroups = ref<CategoryGroup[]>([]);
-const addMode = ref<'main' | 'sub'>('sub');
-const selectedMainCategory = ref('');
-const newCategoryName = ref('');
-
-const addCategory = () => {
-  const trimmedName = newCategoryName.value.trim();
-  if (!trimmedName) {
-    alert('카테고리 이름을 입력해주세요.');
-    return;
-  }
-
-  if (addMode.value === 'main') {
-    if (localGroups.value.some((group) => group.mainCategory === trimmedName)) {
-      alert('이미 존재하는 대분류명입니다.');
-      return;
-    }
-    // 필터 연동용 ' - 전체' 포함하여 복사본 유지
-    localGroups.value.push({
-      mainCategory: trimmedName,
-      subCategories: [`${trimmedName} - 전체`],
-    });
-    selectedMainCategory.value = trimmedName;
-  } else {
-    if (trimmedName.endsWith(' - 전체')) {
-      alert('" - 전체"로 끝나는 이름은 중분류로 사용할 수 없습니다.');
-      return;
-    }
-
-    const group = localGroups.value.find((item) => item.mainCategory === selectedMainCategory.value);
-    if (!group) {
-      alert('선택된 대분류를 찾을 수 없습니다.');
-      return;
-    }
-    if (group.subCategories.includes(trimmedName)) {
-      alert('해당 대분류 내에 이미 존재하는 중분류명입니다.');
-      return;
-    }
-    group.subCategories.push(trimmedName);
-  }
-
-  newCategoryName.value = '';
-};
-
-const deleteMainCategory = (mainCategory: string) => {
-  if (!confirm(`"${mainCategory}" 대분류를 삭제하시겠습니까?\n하위 중분류 목록도 함께 삭제됩니다.`)) {
-    return;
-  }
-
-  localGroups.value = localGroups.value.filter((group) => group.mainCategory !== mainCategory);
-  
-  if (selectedMainCategory.value === mainCategory) {
-    selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
-  }
-
-  if (localGroups.value.length === 0) {
-    addMode.value = 'main';
-  }
-};
-
-const deleteSubCategory = (mainCategory: string, subCategory: string) => {
-  const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
-  if (!group) return;
-  group.subCategories = group.subCategories.filter((item) => item !== subCategory);
-};
-
-const handleSave = () => {
-  emit('update-categories', localGroups.value.map((group) => ({
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-  })));
-  emit('close');
-};
-
-watch(
-  () => props.isOpen,
-  (newVal) => {
-    if (newVal) {
-      localGroups.value = props.initialCategories.map((group) => ({
-        mainCategory: group.mainCategory,
-        subCategories: [...group.subCategories],
-      }));
-      selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
-      newCategoryName.value = '';
-      addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
-    }
-  }
-);
-</script>

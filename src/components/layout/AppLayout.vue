@@ -1,23 +1,3 @@
-<template>
-  <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
-
-    <Header class="shrink-0 h-16" />
-    <ToastContainer />
-
-    <div class="flex flex-1 mt-16 min-h-0 w-full">
-      <Sidebar 
-        v-model:collapsed="collapsed" 
-        :navItems="navItems" 
-        class="shrink-0"
-      />
-
-      <main class="flex-1 flex flex-col min-h-0 bg-background p-4 overflow-hidden transition-colors duration-300">
-        <RouterView />
-      </main>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { usePermission } from '@/composables'
@@ -86,3 +66,23 @@ const navItems = computed(() => {
     })
 })
 </script>
+
+<template>
+  <div class="w-screen h-screen bg-background text-text-main flex flex-col overflow-hidden transition-colors duration-300">
+
+    <Header class="shrink-0 h-16" />
+    <ToastContainer />
+
+    <div class="flex flex-1 mt-16 min-h-0 w-full">
+      <Sidebar
+        v-model:collapsed="collapsed"
+        :navItems="navItems"
+        class="shrink-0"
+      />
+
+      <main class="flex-1 flex flex-col min-h-0 bg-background p-4 overflow-hidden transition-colors duration-300">
+        <RouterView />
+      </main>
+    </div>
+  </div>
+</template>

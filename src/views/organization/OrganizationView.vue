@@ -174,7 +174,10 @@ async function loadOrganization() {
     await departmentStore.fetchAll()
     const selectedDepartment = departmentStore.selectedDepartment
 
-    if (selectedDepartment?.parentDepartmentId !== null) {
+    if (
+      selectedDepartment
+      && selectedDepartment.parentDepartmentId !== null
+    ) {
       await handleSelectDepartment(selectedDepartment.departmentId)
     } else {
       departmentStore.selectDepartment(null)
