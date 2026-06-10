@@ -11,7 +11,7 @@ export interface InventorySurvey {
   surveyName: string
   assetType: 'TANGIBLE' | 'INTANGIBLE'
   targetType: SurveyTarget
-  targetDepartmentId?: number
+  targetDepartmentId?: string
   targetAssetItemId?: number
   startDate: string
   endDate: string
@@ -29,7 +29,7 @@ export interface SurveyCreateRequest {
   surveyName: string
   assetType: 'TANGIBLE' | 'INTANGIBLE'
   targetType: SurveyTarget
-  targetDepartmentId?: number
+  targetDepartmentId?: string
   targetAssetItemId?: number
   startDate: string
   endDate: string

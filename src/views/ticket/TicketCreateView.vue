@@ -12,6 +12,7 @@
     </select>
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { TicketType } from '@/types'

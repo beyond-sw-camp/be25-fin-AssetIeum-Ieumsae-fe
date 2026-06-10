@@ -5,6 +5,7 @@
     <p class="text-gray-400">사원 목록 구현 예정</p>
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { memberApi } from '@/api'

@@ -21,21 +21,21 @@
           <Edit :size="15" />
           자산 카테고리 수정
         </Button>
-        <IntangibleItemCategory 
-          :is-open="isCategoryDrawerOpen" 
+        <IntangibleItemCategory
+          :is-open="isCategoryDrawerOpen"
           :initial-categories="localCategories"
-          @close="isCategoryDrawerOpen = false" 
+          @close="isCategoryDrawerOpen = false"
           @update-categories="handleCategoryUpdate"
         />
-        
+
         <Button variant="primary" @click="isRegisterDrawerOpen = true">
           <Plus :size="15" />
           자산 품목 등록
         </Button>
-        <IntangibleItemRegister 
-          :is-open="isRegisterDrawerOpen" 
+        <IntangibleItemRegister
+          :is-open="isRegisterDrawerOpen"
           :initial-categories="localCategories"
-          @close="isRegisterDrawerOpen = false" 
+          @close="isRegisterDrawerOpen = false"
           @register-asset="handleRegisterAsset"
         />
       </div>
@@ -107,16 +107,16 @@
             <ChevronLeft :size="16" />
           </button>
 
-          <button 
-            v-for="pageIndex in totalPages" 
-            :key="pageIndex" 
-            type="button" 
+          <button
+            v-for="pageIndex in totalPages"
+            :key="pageIndex"
+            type="button"
             :class="[
               'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
               searchParams.page === (pageIndex - 1)
                 ? 'bg-primary text-white shadow-sm shadow-primary/20'
                 : 'text-text-sub hover:bg-surface-secondary'
-            ]" 
+            ]"
             @click="changePage(pageIndex - 1)"
           >
             {{ pageIndex }}

@@ -1,46 +1,3 @@
-<script setup lang="ts" generic="T extends Record<string, unknown>">
-// 범용 데이터 테이블 컴포넌트 (다크모드 지원 및 스크립트 통합 버전)
-
-export interface Column<T> {
-  key: keyof T | string
-  label: string
-  width?: string
-  align?: 'left' | 'center' | 'right'
-  sortable?: boolean
-}
-
-interface Props {
-  columns: Column<T>[]
-  rows: T[]
-  loading?: boolean
-  emptyText?: string
-  rowKey?: keyof T
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-  emptyText: '데이터가 없습니다.',
-  rowKey: 'id' as keyof T,
-})
-
-const emit = defineEmits<{
-  'row-click': [row: T]
-  'sort': [key: string]
-}>()
-
-function getCellValue(row: T, key: string): unknown {
-  return key.split('.').reduce((obj: unknown, k) => {
-    if (obj && typeof obj === 'object') {
-      return (obj as Record<string, unknown>)[k]
-    }
-    return undefined
-  }, row)
-}
-
-// 테마 변수를 타는 텍스트 정렬 매핑
-const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' }
-</script>
-
 <template>
   <div class="relative overflow-x-auto rounded-xl border border-border bg-surface transition-colors duration-300">
     
@@ -105,3 +62,46 @@ const alignClass = { left: 'text-left', center: 'text-center', right: 'text-righ
     </table>
   </div>
 </template>
+
+<script setup lang="ts" generic="T extends Record<string, unknown>">
+// 범용 데이터 테이블 컴포넌트 (다크모드 지원 및 스크립트 통합 버전)
+
+export interface Column<T> {
+  key: keyof T | string
+  label: string
+  width?: string
+  align?: 'left' | 'center' | 'right'
+  sortable?: boolean
+}
+
+interface Props {
+  columns: Column<T>[]
+  rows: T[]
+  loading?: boolean
+  emptyText?: string
+  rowKey?: keyof T
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  emptyText: '데이터가 없습니다.',
+  rowKey: 'id' as keyof T,
+})
+
+const emit = defineEmits<{
+  'row-click': [row: T]
+  'sort': [key: string]
+}>()
+
+function getCellValue(row: T, key: string): unknown {
+  return key.split('.').reduce((obj: unknown, k) => {
+    if (obj && typeof obj === 'object') {
+      return (obj as Record<string, unknown>)[k]
+    }
+    return undefined
+  }, row)
+}
+
+// 테마 변수를 타는 텍스트 정렬 매핑
+const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' }
+</script>

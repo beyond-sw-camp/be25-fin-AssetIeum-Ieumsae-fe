@@ -1,3 +1,71 @@
+<template>
+  <AuthLayout title="로그인">
+    <form class="space-y-4" novalidate @submit.prevent="handleLogin">
+      <p
+        v-if="successMessage"
+        class="rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success"
+        role="status"
+      >
+        {{ successMessage }}
+      </p>
+
+      <Input
+        id="company-code"
+        v-model="form.companyCode"
+        label="회사 코드"
+        placeholder="회사 코드를 입력하세요"
+        autocomplete="organization"
+        required
+        :disabled="auth.isLoading"
+        :error="Boolean(errors.companyCode)"
+        :error-message="errors.companyCode"
+      />
+
+      <Input
+        id="member-no"
+        v-model="form.memberNo"
+        label="사번"
+        placeholder="사번을 입력하세요"
+        autocomplete="username"
+        required
+        :disabled="auth.isLoading"
+        :error="Boolean(errors.memberNo)"
+        :error-message="errors.memberNo"
+      />
+
+      <Input
+        id="password"
+        v-model="form.password"
+        type="password"
+        label="비밀번호"
+        placeholder="비밀번호를 입력하세요"
+        autocomplete="current-password"
+        required
+        :disabled="auth.isLoading"
+        :error="Boolean(errors.password)"
+        :error-message="errors.password"
+      />
+
+      <p
+        v-if="errorMessage"
+        class="rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger"
+        role="alert"
+      >
+        {{ errorMessage }}
+      </p>
+
+      <Button
+        type="submit"
+        size="m"
+        class="w-full mt-5"
+        :loading="auth.isLoading"
+      >
+        {{ auth.isLoading ? '로그인 중...' : '로그인' }}
+      </Button>
+    </form>
+  </AuthLayout>
+</template>
+
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -69,71 +137,3 @@ async function handleLogin() {
   }
 }
 </script>
-
-<template>
-  <AuthLayout title="로그인">
-    <form class="space-y-6" novalidate @submit.prevent="handleLogin">
-      <p
-        v-if="successMessage"
-        class="rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success"
-        role="status"
-      >
-        {{ successMessage }}
-      </p>
-
-      <Input
-        id="company-code"
-        v-model="form.companyCode"
-        label="회사 코드"
-        placeholder="회사 코드를 입력하세요"
-        autocomplete="organization"
-        required
-        :disabled="auth.isLoading"
-        :error="Boolean(errors.companyCode)"
-        :error-message="errors.companyCode"
-      />
-
-      <Input
-        id="member-no"
-        v-model="form.memberNo"
-        label="사번"
-        placeholder="사번을 입력하세요"
-        autocomplete="username"
-        required
-        :disabled="auth.isLoading"
-        :error="Boolean(errors.memberNo)"
-        :error-message="errors.memberNo"
-      />
-
-      <Input
-        id="password"
-        v-model="form.password"
-        type="password"
-        label="비밀번호"
-        placeholder="비밀번호를 입력하세요"
-        autocomplete="current-password"
-        required
-        :disabled="auth.isLoading"
-        :error="Boolean(errors.password)"
-        :error-message="errors.password"
-      />
-
-      <p
-        v-if="errorMessage"
-        class="rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger"
-        role="alert"
-      >
-        {{ errorMessage }}
-      </p>
-
-      <Button
-        type="submit"
-        size="lg"
-        class="w-full"
-        :loading="auth.isLoading"
-      >
-        {{ auth.isLoading ? '로그인 중...' : '로그인' }}
-      </Button>
-    </form>
-  </AuthLayout>
-</template>

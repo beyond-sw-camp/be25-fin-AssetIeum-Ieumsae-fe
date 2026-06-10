@@ -1,9 +1,3 @@
-<script setup lang="ts">
-defineProps<{
-  title: string
-}>()
-</script>
-
 <template>
   <main class="min-h-screen bg-background lg:grid lg:grid-cols-[1fr_minmax(480px,46%)]">
     <section
@@ -18,10 +12,10 @@ defineProps<{
 
     <section class="flex min-h-screen items-center justify-center p-5 sm:p-10 lg:p-14">
       <div
-        class="w-full max-w-[560px] rounded-[2rem] bg-surface px-6 py-12 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:px-14 sm:py-16"
+        class="w-full max-w-[560px] rounded-[2rem] bg-surface px-6 py-12 shadow-[0_24px_70px_rgba(15,23,42,0.13)] sm:px-14 sm:py-10"
       >
-        <div class="mb-10 text-center">
-          <p class="mb-4 font-semibold tracking-[0.28em] text-primary lg:hidden">ASSETIEUM</p>
+        <div class="mt-5 mb-10 text-center">
+          <p class="mb-10 font-semibold tracking-[0.28em] text-primary lg:hidden">ASSETIEUM</p>
           <h1 class="text-3xl font-bold text-text-main">{{ title }}</h1>
         </div>
 
@@ -30,6 +24,12 @@ defineProps<{
     </section>
   </main>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  title: string
+}>()
+</script>
 
 <style scoped>
 .barcode-logo {

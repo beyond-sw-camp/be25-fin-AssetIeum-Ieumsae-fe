@@ -4,7 +4,7 @@
 
 export interface DepartmentBudget {
   budgetId: number
-  departmentId: number
+  departmentId: string
   departmentName: string
   totalBudget: number
   usedBudget: number
@@ -16,14 +16,14 @@ export interface DepartmentBudget {
 }
 
 export interface BudgetSetRequest {
-  departmentId: number
+  departmentId: string
   totalBudget: number
   fiscalYear: number
 }
 
 export interface BudgetTransferRequest {
-  fromDepartmentId: number
-  toDepartmentId: number
+  fromDepartmentId: string
+  toDepartmentId: string
   amount: number
   reason?: string
 }
@@ -66,7 +66,7 @@ export interface DemandForecastItem {
 }
 
 export interface DepartmentOperationScore {
-  departmentId: number
+  departmentId: string
   departmentName: string
   score: number
   grade: 'EXCELLENT' | 'CAUTION' | 'NEEDS_IMPROVEMENT' | 'DANGER'
