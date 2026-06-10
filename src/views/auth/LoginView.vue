@@ -72,7 +72,7 @@ async function handleLogin() {
 
 <template>
   <AuthLayout title="로그인">
-    <form class="space-y-6" novalidate @submit.prevent="handleLogin">
+    <form class="space-y-4" novalidate @submit.prevent="handleLogin">
       <p
         v-if="successMessage"
         class="rounded-xl bg-success/10 px-4 py-3 text-sm font-medium text-success"
@@ -128,8 +128,8 @@ async function handleLogin() {
 
       <Button
         type="submit"
-        size="lg"
-        class="w-full"
+        size="md"
+        class="w-full mt-5"
         :loading="auth.isLoading"
       >
         {{ auth.isLoading ? '로그인 중...' : '로그인' }}
