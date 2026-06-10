@@ -3,6 +3,8 @@ import type {
   ApiResponse,
   Department,
   DepartmentChangeRequest,
+  DepartmentCreateRequest,
+  DepartmentUpdateRequest,
   IntangibleItem,
   LoginRequest,
   LoginResponse,
@@ -38,7 +40,7 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
   }
 }
 
-const departments: Department[] = [
+let departments: Department[] = [
   {
     departmentId: 1,
     parentDepartmentId: null,
@@ -450,5 +452,105 @@ export const handlers = [
     const department = departments.find((item) => item.departmentId === departmentId)
 
     return HttpResponse.json(ok(department ?? null))
+  }),
+
+  http.post(`${API_PREFIX}/departments`, async ({ request }) => {
+    const body = await request.json() as DepartmentCreateRequest
+    const parent = body.parentDepartmentId
+      ? departments.find((item) => item.departmentId === body.parentDepartmentId)
+      : null
+    const now = new Date().toISOString()
+    const department: Department = {
+      departmentId: Math.max(0, ...departments.map((item) => item.departmentId)) + 1,
+      parentDepartmentId: body.parentDepartmentId ?? null,
+      parentDepartmentName: parent?.name,
+      name: body.name,
+      memberCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    departments = [...departments, department]
+
+    return HttpResponse.json(ok(department, '부서가 등록되었습니다.'), { status: 201 })
+  }),
+
+  http.patch(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
+    const departmentId = Number(params.departmentId)
+    const body = await request.json() as DepartmentUpdateRequest
+    const index = departments.findIndex((item) => item.departmentId === departmentId)
+
+    if (index < 0) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'DEPARTMENT_NOT_FOUND',
+        message: '부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const parent = body.parentDepartmentId
+      ? departments.find((item) => item.departmentId === body.parentDepartmentId)
+      : null
+    const current = departments[index]
+    const updated: Department = {
+      ...current,
+      name: body.name ?? current.name,
+      parentDepartmentId: body.parentDepartmentId === undefined
+        ? current.parentDepartmentId
+        : body.parentDepartmentId,
+      parentDepartmentName: body.parentDepartmentId === undefined
+        ? current.parentDepartmentName
+        : parent?.name,
+      updatedAt: new Date().toISOString(),
+    }
+
+    departments[index] = updated
+
+    return HttpResponse.json(ok(updated, '부서 정보가 수정되었습니다.'))
+  }),
+
+  http.delete(`${API_PREFIX}/departments/:departmentId`, ({ params }) => {
+    const departmentId = Number(params.departmentId)
+    const department = departments.find((item) => item.departmentId === departmentId)
+
+    if (!department) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'DEPARTMENT_NOT_FOUND',
+        message: '부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (department.parentDepartmentId === null) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'ROOT_DEPARTMENT_CANNOT_BE_DELETED',
+        message: '최상위 회사 부서는 삭제할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const hasChildren = departments.some(
+      ({ parentDepartmentId }) => parentDepartmentId === departmentId,
+    )
+    const hasMembers = members.some((member) => member.departmentId === departmentId)
+
+    if (hasChildren || hasMembers) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'DEPARTMENT_NOT_EMPTY',
+        message: '하위 부서 또는 소속 부서원이 있는 부서는 삭제할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    departments = departments.filter((item) => item.departmentId !== departmentId)
+
+    return HttpResponse.json(ok({
+      departmentId,
+      deletedAt: new Date().toISOString(),
+    }, '부서가 삭제되었습니다.'))
   }),
 ]

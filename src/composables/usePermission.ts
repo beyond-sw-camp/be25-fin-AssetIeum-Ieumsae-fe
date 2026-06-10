@@ -24,6 +24,9 @@ export function usePermission() {
     hasRole('SUPER_ADMIN', 'DEPARTMENT_MANAGER')
   )
 
+  /** 조직도 부서 생성/수정/삭제 가능 여부 */
+  const canEditOrganization = computed(() => hasRole('SUPER_ADMIN'))
+
   /** 자산 관리 가능 여부 (구매자산팀, 최고관리자) */
   const canManageAsset = computed(() =>
     hasRole('SUPER_ADMIN', 'ASSET_TEAM')
@@ -47,6 +50,7 @@ export function usePermission() {
     hasRole,
     canManageSystem,
     canManageDepartment,
+    canEditOrganization,
     canManageAsset,
     canApproveTicket,
     canPurchase,

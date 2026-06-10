@@ -10,6 +10,7 @@ export interface Department {
   memberCount: number
   createdAt: string
   updatedAt?: string
+  children?: Department[]
 }
 
 export interface DepartmentCreateRequest {
@@ -25,6 +26,4 @@ export interface DepartmentUpdateRequest {
 // 트리 구조 렌더링을 위한 타입 (FE 전용)
 export interface DepartmentTreeNode extends Department {
   children: DepartmentTreeNode[]
-  isExpanded?: boolean
-  isSelected?: boolean
 }
