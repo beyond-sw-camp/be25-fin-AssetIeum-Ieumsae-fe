@@ -166,8 +166,8 @@ const searchParams = ref({
 
 const cascadingOptions = ref<SoftwareTypeGroup[]>([
   {
-    mainCategory: '소프트웨어 타입',
-    subCategories: ['전체 소프트웨어 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
+    mainCategory: '전체 품목 타입',
+    subCategories: ['전체 품목 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
   },
 ])
 
