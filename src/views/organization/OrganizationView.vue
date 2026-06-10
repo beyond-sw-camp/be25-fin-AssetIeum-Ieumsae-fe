@@ -35,15 +35,17 @@ const detailError = ref('')
 const membersError = ref('')
 const isCreateDrawerOpen = ref(false)
 const departmentToDelete = ref<DepartmentTreeNode | null>(null)
+let detailRequestId = 0
+let membersRequestId = 0
 
 const editForm = reactive({
   name: '',
-  parentDepartmentId: null as number | null,
+  parentDepartmentId: null as string | null,
 })
 
 const createForm = reactive({
   name: '',
-  parentDepartmentId: null as number | null,
+  parentDepartmentId: null as string | null,
 })
 
 const editNameError = computed(() =>
@@ -52,14 +54,17 @@ const editNameError = computed(() =>
 const createNameError = computed(() =>
   createForm.name.trim() ? '' : '부서명을 입력해주세요.',
 )
+const createParentError = computed(() =>
+  createForm.parentDepartmentId ? '' : '상위 부서를 선택해주세요.',
+)
 
 const descendantIds = computed(() => {
   const selectedId = departmentStore.selectedDepartmentId
-  const ids = new Set<number>()
+  const ids = new Set<string>()
 
   if (selectedId === null) return ids
 
-  function collect(parentId: number) {
+  function collect(parentId: string) {
     departmentStore.departments
       .filter(({ parentDepartmentId }) => parentDepartmentId === parentId)
       .forEach(({ departmentId }) => {
@@ -85,6 +90,7 @@ const isEditDirty = computed(() => {
   return editForm.name.trim() !== selectedDetail.value.name
     || editForm.parentDepartmentId !== selectedDetail.value.parentDepartmentId
 })
+const isSelectedRoot = computed(() => selectedDetail.value?.parentDepartmentId === null)
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -103,38 +109,57 @@ function resetCreateForm() {
   createForm.parentDepartmentId = departmentStore.selectedDepartmentId
 }
 
-async function fetchDepartmentDetail(departmentId: number) {
+async function fetchDepartmentDetail(departmentId: string) {
+  const requestId = ++detailRequestId
   isDetailLoading.value = true
   detailError.value = ''
 
   try {
     const response = await departmentApi.getDetail(departmentId)
+    if (requestId !== detailRequestId) return
+
     selectedDetail.value = response.data
     resetEditForm()
   } catch (error) {
+    if (requestId !== detailRequestId) return
+
     selectedDetail.value = departmentStore.selectedDepartment
     detailError.value = getErrorMessage(error, '부서 상세 정보를 불러오지 못했습니다.')
     resetEditForm()
   } finally {
-    isDetailLoading.value = false
+    if (requestId === detailRequestId) {
+      isDetailLoading.value = false
+    }
   }
 }
 
-async function fetchDepartmentMembers(departmentId: number) {
+async function fetchDepartmentMembers(departmentId: string) {
+  const requestId = ++membersRequestId
   isMembersLoading.value = true
   membersError.value = ''
 
   try {
     const response = await memberApi.getList({ departmentId, size: 999 })
+    if (requestId !== membersRequestId) return
+
     members.value = response.data.content
   } catch (error) {
+    if (requestId !== membersRequestId) return
+
     membersError.value = getErrorMessage(error, '부서원 목록을 불러오지 못했습니다.')
   } finally {
-    isMembersLoading.value = false
+    if (requestId === membersRequestId) {
+      isMembersLoading.value = false
+    }
   }
 }
 
-async function handleSelectDepartment(departmentId: number) {
+async function handleSelectDepartment(departmentId: string) {
+  const department = departmentStore.departments.find(
+    (item) => item.departmentId === departmentId,
+  )
+  if (!department || department.parentDepartmentId === null) return
+
   departmentStore.selectDepartment(departmentId)
   members.value = []
 
@@ -147,11 +172,14 @@ async function handleSelectDepartment(departmentId: number) {
 async function loadOrganization() {
   try {
     await departmentStore.fetchAll()
-    const selectedId = departmentStore.selectedDepartmentId
-      ?? departmentStore.departmentTree[0]?.departmentId
+    const selectedDepartment = departmentStore.selectedDepartment
 
-    if (selectedId !== undefined) {
-      await handleSelectDepartment(selectedId)
+    if (selectedDepartment?.parentDepartmentId !== null) {
+      await handleSelectDepartment(selectedDepartment.departmentId)
+    } else {
+      departmentStore.selectDepartment(null)
+      selectedDetail.value = null
+      members.value = []
     }
   } catch {
     // 목록 오류는 store의 errorMessage로 표시한다.
@@ -164,7 +192,7 @@ function openCreateDrawer() {
 }
 
 async function handleCreateDepartment() {
-  if (createNameError.value) return
+  if (createNameError.value || createParentError.value) return
 
   isCreating.value = true
 
@@ -233,6 +261,13 @@ function requestDeleteDepartment(department: DepartmentTreeNode) {
 async function handleDeleteDepartment() {
   const target = departmentToDelete.value
   if (!target) return
+
+  if (target.memberCount > 0) {
+    departmentToDelete.value = null
+    notificationStore.warning('소속 부서원이 있는 부서는 삭제할 수 없습니다.')
+    return
+  }
+
   if (target.parentDepartmentId === null) {
     departmentToDelete.value = null
     notificationStore.warning('최상위 회사 부서는 삭제할 수 없습니다.')
@@ -244,12 +279,16 @@ async function handleDeleteDepartment() {
   try {
     await departmentApi.delete(target.departmentId)
     departmentToDelete.value = null
-    departmentStore.selectDepartment(target.parentDepartmentId)
     await departmentStore.fetchAll()
 
-    if (target.parentDepartmentId !== null) {
+    const parentDepartment = departmentStore.departments.find(
+      ({ departmentId }) => departmentId === target.parentDepartmentId,
+    )
+
+    if (parentDepartment?.parentDepartmentId !== null) {
       await handleSelectDepartment(target.parentDepartmentId)
     } else {
+      departmentStore.selectDepartment(null)
       selectedDetail.value = null
       members.value = []
     }
@@ -374,9 +413,9 @@ onMounted(loadOrganization)
                   id="parent-department"
                   v-model="editForm.parentDepartmentId"
                   class="input-custom h-11 py-2.5"
-                  :disabled="!canEditOrganization || isSaving"
+                  :disabled="!canEditOrganization || isSaving || isSelectedRoot"
                 >
-                  <option :value="null">최상위 부서</option>
+                  <option v-if="isSelectedRoot" :value="null">최상위 부서</option>
                   <option
                     v-for="department in editParentOptions"
                     :key="department.departmentId"
@@ -517,7 +556,6 @@ onMounted(loadOrganization)
             class="input-custom h-11 py-2.5"
             :disabled="isCreating"
           >
-            <option :value="null">최상위 부서</option>
             <option
               v-for="department in departmentStore.departments"
               :key="department.departmentId"
@@ -529,6 +567,9 @@ onMounted(loadOrganization)
           <p class="text-xs text-text-sub">
             선택한 부서 아래에 새 하위 부서가 생성됩니다.
           </p>
+          <p v-if="createParentError" class="text-xs font-medium text-danger" role="alert">
+            {{ createParentError }}
+          </p>
         </div>
       </form>
 
@@ -539,7 +580,7 @@ onMounted(loadOrganization)
           </Button>
           <Button
             :loading="isCreating"
-            :disabled="Boolean(createNameError)"
+            :disabled="Boolean(createNameError || createParentError)"
             @click="handleCreateDepartment"
           >
             등록하기
