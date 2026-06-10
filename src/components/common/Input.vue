@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 const inputClasses = computed(() => {
   return [
-    'w-full rounded-xl border px-4 py-2.5 text-sm bg-surface text-text-main placeholder-text-muted transition-all duration-200 outline-none h-11',
+    'w-full rounded-xl border px-4 py-2.5 text-sm bg-surface text-text-main placeholder-text-muted transition-all duration-200 outline-none h-9',
     props.error
       ? 'border-danger focus:border-danger focus:ring-2 focus:ring-danger/20'
       : 'border-border focus:border-primary focus:ring-2 focus:ring-primary/20',

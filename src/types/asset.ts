@@ -83,6 +83,15 @@ export interface IntangibleAssetItem {
   createdAt: string
 }
 
+export interface IntangibleItem {
+  assetItemId?: number
+  productName: string
+  category: string
+  licenseType: string
+  vendor: string
+  isStandard: number
+}
+
 // =====================================================
 // 무형자산(IntangibleAsset) 타입
 // =====================================================

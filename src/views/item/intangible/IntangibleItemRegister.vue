@@ -1,15 +1,13 @@
 <template>
-  <BaseDrawer :is-open="isOpen" title="유형자산 품목 등록" submit-text="등록" @close="emit('close')" @submit="handleSave">
-    <div class="space-y-5">
-      <!-- 제품명 -->
+  <BaseDrawer :is-open="isOpen" title="무형자산 품목 등록" submit-text="등록" @close="emit('close')" @submit="handleSave">
+    <div class="space-y-5 py-2">
       <div>
         <label for="productName" class="text-sm font-semibold text-text-main mb-3 block">
           제품명 <span class="text-primary font-bold">*</span>
         </label>
-        <Input id="productName" v-model="formData.assetName" placeholder="예: MacBook Pro 16인치" />
+        <Input id="productName" v-model="formData.productName" placeholder="예: Adobe Creative Cloud" />
       </div>
 
-      <!-- 카테고리 -->
       <div>
         <label for="category" class="text-sm font-semibold text-text-main mb-3 block">
           카테고리 <span class="text-primary font-bold">*</span>
@@ -17,20 +15,18 @@
         <Dropdown v-model="formData.category" :options="dropdownOptions" root-option="카테고리 선택" />
       </div>
 
-      <!-- 제조사 -->
       <div>
-        <label for="manufacturer" class="text-sm font-semibold text-text-main mb-3 block">
-          제조사 <span class="text-primary font-bold">*</span>
+        <label for="licenseType" class="text-sm font-semibold text-text-main mb-3 block">
+          라이선스 유형 <span class="text-primary font-bold">*</span>
         </label>
-        <Input id="manufacturer" v-model="formData.manufacturer" placeholder="예: Apple, 삼성전자" />
+        <Dropdown v-model="formData.licenseType" :options="licenseTypeOptions" root-option="라이선스 유형 선택" />
       </div>
 
-      <!-- 모델명 -->
       <div>
-        <label for="modelName" class="text-sm font-semibold text-text-main mb-3 block">
-          모델명 <span class="text-primary font-bold">*</span>
+        <label for="vendor" class="text-sm font-semibold text-text-main mb-3 block">
+          제공사 <span class="text-primary font-bold">*</span>
         </label>
-        <Input id="modelName" v-model="formData.modelName" placeholder="예: A2992, SM-S928N" />
+        <Input id="vendor" v-model="formData.vendor" placeholder="예: Adobe, Microsoft" />
       </div>
 
       <!-- 표준 품목 여부 -->
@@ -81,70 +77,86 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import BaseDrawer from '@/components/common/BaseDrawer.vue';
-import Input from '@/components/common/Input.vue';
-import Dropdown from '@/components/common/Dropdown.vue';
+import { ref, watch, computed } from 'vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import Input from '@/components/common/Input.vue'
+import Dropdown from '@/components/common/Dropdown.vue'
+import type { IntangibleItem } from '@/types'
 
-interface CategoryItem {
-    id: string;
-    name: string;
+interface CategoryGroup {
+  mainCategory: string
+  subCategories: string[]
 }
 
 interface RegisterForm {
-    assetName: string
-    category: string
-    manufacturer: string
-    modelName: string
-    isStandard: number
+  productName: string
+  category: string
+  licenseType: string
+  vendor: string
+  isStandard: number
 }
 
 const props = defineProps<{
-    isOpen: boolean;
-    initialCategories: CategoryItem[]; // 부모에게서 내려받는 카테고리 원본 목록
-}>();
+  isOpen: boolean
+  initialCategories: CategoryGroup[]
+}>()
 
-const emit = defineEmits(['close', 'update-categories', 'register-asset']);
+const emit = defineEmits(['close', 'register-asset'])
 
 const dropdownOptions = computed(() => {
-    return props.initialCategories.map(cat => cat.name);
-});
+  return props.initialCategories
+    .flatMap((group) => group.subCategories)
+    .filter((category) => !category.startsWith('전체'))
+})
 
-// 등록할 폼 데이터 객체
+const licenseTypeOptions = ['구독형 (SaaS)', '사용자 수 라이선스', '영구 라이선스', '볼륨 라이선스']
+
 const formData = ref<RegisterForm>({
-    assetName: '',
-    category: '카테고리 선택', // 기본값 매칭
-    manufacturer: '',
-    modelName: '',
-    isStandard: 1
-});
+  productName: '',
+  category: '카테고리 선택',
+  licenseType: '라이선스 유형 선택',
+  vendor: '',
+  isStandard: 1,
+})
 
 const handleSave = () => {
-    // 카테고리 유효성 검사 추가
-    if (formData.value.category === '카테고리 선택') {
-        alert('카테고리를 선택해주세요.');
-        return;
-    }
-    if (!formData.value.assetName.trim() || !formData.value.modelName.trim()) {
-        alert('필수 항목을 입력해주세요.');
-        return;
-    }
+  if (!formData.value.productName.trim()) {
+    alert('제품명을 입력해주세요.')
+    return
+  }
 
-    emit('register-asset', { ...formData.value });
-    alert('성공적으로 등록되었습니다.');
-    emit('close');
-};
+  if (!formData.value.vendor.trim()) {
+    alert('제공사를 입력해주세요.')
+    return
+  }
 
-// 창이 열릴 때마다 기존 입력값 리셋
-watch(() => props.isOpen, (newVal) => {
+  if (formData.value.category === '카테고리 선택') {
+    alert('카테고리를 선택해주세요.')
+    return
+  }
+
+  if (formData.value.licenseType === '라이선스 유형 선택') {
+    alert('라이선스 유형을 선택해주세요.')
+    return
+  }
+
+  emit('register-asset', { ...formData.value } as Omit<IntangibleItem, 'assetItemId'>)
+  alert('성공적으로 등록되었습니다.')
+  emit('close')
+}
+
+watch(
+  () => props.isOpen,
+  (newVal) => {
     if (newVal) {
-        formData.value = {
-            assetName: '',
-            category: '카테고리 선택',
-            manufacturer: '',
-            modelName: '',
-            isStandard: 1
-        };
+      formData.value = {
+        productName: '',
+        category: '카테고리 선택',
+        licenseType: '라이선스 유형 선택',
+        vendor: '',
+        isStandard: 1,
+      }
     }
-});
+  }
+)
 </script>

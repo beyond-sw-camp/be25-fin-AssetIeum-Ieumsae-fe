@@ -4,10 +4,10 @@
     <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          Tangible Asset Item
+          Intangible Asset Item
         </p>
         <h1 class="page-title">
-          유형자산 품목 관리
+          무형자산 품목 관리
         </h1>
       </div>
 
@@ -21,9 +21,9 @@
           <Edit :size="15" />
           자산 카테고리 수정
         </Button>
-        <TangibleItemCategory 
+        <IntangibleItemCategory 
           :is-open="isCategoryDrawerOpen" 
-          :initial-categories="cascadingOptions"
+          :initial-categories="localCategories"
           @close="isCategoryDrawerOpen = false" 
           @update-categories="handleCategoryUpdate"
         />
@@ -32,7 +32,7 @@
           <Plus :size="15" />
           자산 품목 등록
         </Button>
-        <TangibleItemRegister 
+        <IntangibleItemRegister 
           :is-open="isRegisterDrawerOpen" 
           :initial-categories="localCategories"
           @close="isRegisterDrawerOpen = false" 
@@ -57,7 +57,7 @@
 
         <div class="flex items-center gap-2 text-text-main">
           <Dropdown
-            v-model="searchParams.categoryName"
+            v-model="searchParams.category"
             :options="cascadingOptions"
             root-option="전체 품목 보기"
             menu-align="right"
@@ -86,8 +86,8 @@
           :columns="tableColumns"
           :rows="serverAssetList"
           :is-loading="isLoading"
-          row-key="assetName"
-          class="min-w-full" 
+          row-key="productName"
+          class="min-w-full"
         >
           <template #cell-isStandard="{ value }">
             <span>
@@ -136,182 +136,172 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
-import Button from '@/components/common/Button.vue';
-import Dropdown from '@/components/common/Dropdown.vue';
-import Table, { type Column } from '@/components/common/Table.vue';
-import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
-import { api } from '@/api/client'
+import { ref, computed, watch, onMounted } from 'vue'
+import Button from '@/components/common/Button.vue'
+import Dropdown from '@/components/common/Dropdown.vue'
+import Table, { type Column } from '@/components/common/Table.vue'
+import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { intangibleItemApi } from '@/api/asset.api'
+import type { IntangibleItem } from '@/types'
 
-import TangibleItemCategory from './TangibleItemCategory.vue';
-import TangibleItemRegister from './TangibleItemRegister.vue';
+import IntangibleItemCategory from './IntangibleItemCategory.vue'
+import IntangibleItemRegister from './IntangibleItemRegister.vue'
 
-interface Asset {
-  [key: string]: unknown
-  assetName: string
-  category: string
-  manufacturer: string
-  modelName: string
-  isStandard: number
-}
-
-interface CategoryGroup {
+interface SoftwareTypeGroup {
   mainCategory: string
   subCategories: string[]
 }
 
-// 드로어 열림/닫힘 상태 플래그
-const isCategoryDrawerOpen = ref(false);
-const isRegisterDrawerOpen = ref(false);
+const isCategoryDrawerOpen = ref(false)
+const isRegisterDrawerOpen = ref(false)
 
-const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
-const rowsPerPageText = ref('20개씩 보기');
+const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기']
+const rowsPerPageText = ref('20개씩 보기')
 
 const searchParams = ref({
-  companyId: '1',
-  categoryName: '전체 품목 보기',
-  categoryId: '',
-  modelName: '',
-  isStandard: 1,
+  category: '전체 소프트웨어 타입',
   page: 0,
-  size: 20
-});
+  size: 20,
+})
 
-// 이중 드롭다운 레이아웃용 대분류-소분류 원본 상태 구조
-const cascadingOptions = ref<CategoryGroup[]>([
+const cascadingOptions = ref<SoftwareTypeGroup[]>([
   {
-    mainCategory: 'IT / 전자기기',
-    subCategories: ['IT / 전자기기 - 전체', '노트북', '모니터', '스마트폰', '태블릿', '주변기기']
+    mainCategory: '전체 품목 타입',
+    subCategories: ['전체 품목 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
   },
-  {
-    mainCategory: '사무용 가구',
-    subCategories: ['사무용 가구 - 전체', '사무가구']
-  },
-  {
-    mainCategory: '사무기기 / 가전',
-    subCategories: ['사무기기 / 가전 - 전체', '사무기기']
-  }
-]);
+])
 
-// 자식 드로어(단일 1차원 리스트 규격)에 내려보내 주기 위한 computed 바인딩 데이터
 const localCategories = computed(() => {
-  const list: { id: string; name: string }[] = [];
-  let index = 1;
-  cascadingOptions.value.forEach(group => {
-    group.subCategories.forEach(sub => {
-      if (!sub.endsWith(' - 전체')) {
-        list.push({ id: String(index++), name: sub });
-      }
-    });
-  });
-  return list;
-});
-
-// [에러 해결 및 데이터 동기화 구현] 
-// 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
-const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
-  cascadingOptions.value = updatedGroups.map((group) => ({
+  return cascadingOptions.value.map((group) => ({
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
-  }));
+  }))
+})
 
-  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => g.subCategories);
+const handleCategoryUpdate = (updatedGroups: SoftwareTypeGroup[]) => {
+  cascadingOptions.value = updatedGroups.map((group, index) => {
+    const normalizedSubCategories = group.subCategories
+      .map((sub) => sub.trim())
+      .filter((sub) => sub)
+
+    if (index === 0 && !normalizedSubCategories.some((sub) => sub.startsWith('전체'))) {
+      return {
+        ...group,
+        subCategories: ['전체 소프트웨어 타입', ...normalizedSubCategories.filter((sub) => sub !== '전체 소프트웨어 타입')],
+      }
+    }
+
+    return {
+      ...group,
+      subCategories: normalizedSubCategories,
+    }
+  })
+
+  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => g.subCategories)
   if (
-    searchParams.value.categoryName !== '전체 품목 보기' &&
-    !flatCurrentCategories.includes(searchParams.value.categoryName)
+    searchParams.value.category &&
+    searchParams.value.category !== '전체 소프트웨어 타입' &&
+    !flatCurrentCategories.includes(searchParams.value.category)
   ) {
-    searchParams.value.categoryName = '전체 품목 보기';
+    searchParams.value.category = '전체 소프트웨어 타입'
   }
 
-  handleSearch();
-};
+  handleSearch()
+}
 
-const handleRegisterAsset = async (newAsset: Omit<Asset, 'id'>) => {
+const handleRegisterAsset = async (newAsset: Omit<IntangibleItem, 'assetItemId'>) => {
   try {
-    await api.post<Asset>('/assets/tangible/items', newAsset)
+    await intangibleItemApi.create(newAsset)
     handleSearch()
   } catch (error) {
     console.error(error)
     alert('자산 등록 중 오류가 발생했습니다.')
   }
-};
+}
 
-const serverAssetList = ref<Asset[]>([]);
-const totalElements = ref(0);
-const totalPages = ref(0);
-const isLoading = ref(false);
+const serverAssetList = ref<IntangibleItem[]>([])
+const totalElements = ref(0)
+const totalPages = ref(0)
+const isLoading = ref(false)
 
-const tableColumns: Column<Asset>[] = [
-  { key: 'assetName', label: '제품명', align: 'center', width: '35%' },
+const tableColumns: Column<IntangibleItem>[] = [
+  { key: 'productName', label: '제품명', align: 'center', width: '35%' },
   { key: 'category', label: '카테고리', align: 'center', width: '15%' },
-  { key: 'manufacturer', label: '제조사', align: 'center', width: '15%' },
-  { key: 'modelName', label: '모델명', align: 'center', width: '20%' },
+  { key: 'licenseType', label: '라이선스 유형', align: 'center', width: '15%' },
+  { key: 'vendor', label: '제공사', align: 'center', width: '20%' },
   { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '15%' }
-];
+]
 
 const handleSearch = () => {
-  searchParams.value.page = 0;
-  loadServerData();
-};
+  searchParams.value.page = 0
+  loadServerData()
+}
 
 const changePage = (targetPage: number) => {
-  searchParams.value.page = targetPage;
-  loadServerData();
-};
+  searchParams.value.page = targetPage
+  loadServerData()
+}
+
+const loadCategories = async () => {
+  try {
+    const response = await intangibleItemApi.getCategories()
+    const types = response.data
+
+    cascadingOptions.value = [
+      {
+        mainCategory: '소프트웨어 타입',
+        subCategories: ['전체 소프트웨어 타입', ...types],
+      },
+    ]
+  } catch (error) {
+    console.error(error)
+  }
+}
 
 const loadServerData = async () => {
-  isLoading.value = true;
+  isLoading.value = true
 
   try {
     const params: Record<string, unknown> = {
       page: searchParams.value.page,
       size: searchParams.value.size,
-    };
-
-    if (searchParams.value.categoryName && searchParams.value.categoryName !== '전체 품목 보기') {
-      params.categoryName = searchParams.value.categoryName;
     }
 
-    if (searchParams.value.modelName.trim()) {
-      params.modelName = searchParams.value.modelName.trim();
+    if (searchParams.value.category && searchParams.value.category !== '전체 소프트웨어 타입') {
+      params.category = searchParams.value.category
     }
 
-    const response = await api.get<{
-      content: Asset[];
-      page: number;
-      size: number;
-      totalElements: number;
-      totalPages: number;
-    }>('/assets/tangible/items', params);
-
-    serverAssetList.value = response.data.content;
-    totalElements.value = response.data.totalElements;
-    totalPages.value = response.data.totalPages;
+    const response = await intangibleItemApi.getList(params)
+    const pageData = response.data
+    serverAssetList.value = pageData.content
+    totalElements.value = pageData.totalElements
+    totalPages.value = pageData.totalPages
   } catch (error) {
-    console.error(error);
-    serverAssetList.value = [];
-    totalElements.value = 0;
-    totalPages.value = 0;
+    console.error(error)
+    serverAssetList.value = []
+    totalElements.value = 0
+    totalPages.value = 0
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-};
+}
 
 const itemRangeText = computed(() => {
-  if (totalElements.value === 0) return '0-0';
-  const start = searchParams.value.page * searchParams.value.size + 1;
-  const end = Math.min(start + searchParams.value.size, totalElements.value);
-  return `${start}-${end}`;
-});
+  if (totalElements.value === 0) return '0-0'
+  const start = searchParams.value.page * searchParams.value.size + 1
+  const end = Math.min(start + searchParams.value.size, totalElements.value)
+  return `${start}-${end}`
+})
 
 watch(rowsPerPageText, (newVal) => {
-  const matches = newVal.match(/\d+/);
-  searchParams.value.size = matches ? parseInt(matches[0], 10) : 10;
-  searchParams.value.page = 0;
-  loadServerData();
-});
+  const matches = newVal.match(/\d+/)
+  searchParams.value.size = matches ? parseInt(matches[0], 10) : 10
+  searchParams.value.page = 0
+  loadServerData()
+})
 
 onMounted(() => {
-  loadServerData();
-});
+  loadCategories()
+  loadServerData()
+})
 </script>

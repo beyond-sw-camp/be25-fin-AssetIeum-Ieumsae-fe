@@ -66,29 +66,29 @@
       </nav>
 
       <!-- 사이드바 하단 - 사용자 + 로그아웃 -->
-      <div class="shrink-0 border-t border-border bg-surface p-2 space-y-3 shadow-0">
+      <div class="shrink-0 flex justify-between border-t border-border bg-surface p-2 space-y-3 shadow-0">
         <!-- 사용자 버튼 (프로필) -->
-        <RouterLink 
-          v-if="user"
-          to="/profile" 
-          :class="[
-            'flex items-center rounded-xl px-3 py-2 bg-surface-secondary/50 hover:bg-primary/5 transition-colors group',
-            collapsed ? 'justify-center' : 'gap-3'
-          ]"
-        >
-          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-            <User :size="18" />
-          </div>
-          <div v-if="!collapsed" class="flex-1 min-w-0 leading-tight">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-text-main truncate">{{ user.name }}</span>
-              <span class="rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-sub shrink-0">
-                {{ roleLabel }}
-              </span>
+        <div class="">
+          <RouterLink 
+            v-if="user"
+            to="/profile" 
+            :class="[
+              'flex items-center rounded-xl px-3 py-2 bg-surface-secondary/50 hover:bg-primary/5 transition-colors group',
+              collapsed ? 'justify-center' : 'gap-3'
+            ]"
+          >
+            <div v-if="!collapsed" class="flex-1 min-w-0 leading-tight">
+              <div class="flex items-center gap-2">
+                <User :size="14" />
+                <span class="text-sm font-semibold text-text-main truncate">{{ user.name }}</span>
+                <span class="rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-sub shrink-0">
+                  {{ roleLabel }}
+                </span>
+              </div>
+              <p class="text-xs text-text-sub truncate">{{ user.departmentName }}</p>
             </div>
-            <p class="text-xs text-text-sub truncate">{{ user.departmentName }}</p>
-          </div>
-        </RouterLink>
+          </RouterLink>
+        </div>
 
         <RouterLink
           to="/settings"
@@ -106,7 +106,7 @@
         <!-- 로그아웃 버튼 -->
         <button
           class="
-          w-full flex h-11 items-center gap-3 rounded-xl px-3
+          w-hug flex h-11 items-center gap-1 rounded-xl px-3
           text-sm font-medium text-text-sub hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30
           transition-colors duration-200"
           :class="collapsed ? 'justify-center' : ''"
@@ -177,7 +177,7 @@ defineProps<{
 
 const openMenus = ref<Record<string, boolean>>({
   tangible: true,   
-  intangible: false // 기존 코드에 indigo라고 오타난 부분 intangible로 바로잡았습니다.
+  intangible: false 
 })
 
 const handleParentClick = (item: NavItem) => {

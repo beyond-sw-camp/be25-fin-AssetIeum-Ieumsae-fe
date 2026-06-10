@@ -88,6 +88,19 @@ const router = createRouter({
           ],
         },
 
+        // ─── 유형자산 품목 ────────────────────────────────
+        {
+          path: 'item/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetItemList',
+              component: () => import('@/views/item/tangible/TangibleItemListView.vue'),
+              meta: {title: '유형자산 품목 목록'}
+            }
+          ]
+        }, 
+
         // ─── 유형자산 ────────────────────────────────
         {
           path: 'assets/tangible',
@@ -106,23 +119,20 @@ const router = createRouter({
             },
           ],
         },
+
+        // ─── 무형자산 품목 ────────────────────────────────
         {
-          path: 'item/tangible',
+          path: 'item/intangible',
           children: [
             {
               path: '',
-              name: 'TangibleAssetItemList',
-              component: () => import('@/views/item/tangible/TangibleItemListView.vue'),
-              meta: {title: '유형자산 품목 목록'}
-            },
-            {
-              path: '',
-              name: 'TangibleAssetItemCategory',
-              component: () => import('@/views/item/tangible/TangibleItemCatergory.vue'),
-              meta: {title: '유형자산 품목 카테고리'}
+              name: 'IntangibleItemList',
+              component: () => import('@/views/item/intangible/IntangibleItemListView.vue'),
+              meta: {title: '무형자산 품목 목록'}
             }
           ]
         },
+
         // ─── 무형자산 ────────────────────────────────
         {
           path: 'assets/intangible',
@@ -132,12 +142,6 @@ const router = createRouter({
               name: 'IntangibleAssetList',
               component: () => import('@/views/asset/intangible/IntangibleAssetListView.vue'),
               meta: { title: '무형자산 목록' },
-            },
-            {
-              path: 'items',
-              name: 'IntangibleItemList',
-              component: () => import('@/views/asset/intangible/IntangibleItemListView.vue'),
-              meta: { title: '무형자산 품목 관리', roles: ['SUPER_ADMIN', 'ASSET_TEAM'] },
             },
             {
               path: ':assetId',
