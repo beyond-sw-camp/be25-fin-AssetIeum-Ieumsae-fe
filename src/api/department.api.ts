@@ -26,17 +26,4 @@ export const departmentApi = {
   /** 부서 삭제 */
   delete: (departmentId: number) =>
     api.delete<{ departmentId: number; deletedAt: string }>(`/departments/${departmentId}`),
-
-  /** 부서 소속 사원 추가 */
-  addMember: (departmentId: number, memberId: number) =>
-    api.post<{ departmentId: number; memberId: number }>(
-      `/departments/${departmentId}/members`,
-      { memberId }
-    ),
-
-  /** 부서 소속 사원 삭제 */
-  removeMember: (departmentId: number, memberId: number) =>
-    api.delete<{ departmentId: number; memberId: number }>(
-      `/departments/${departmentId}/members/${memberId}`
-    ),
 }
