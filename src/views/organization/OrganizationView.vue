@@ -11,10 +11,13 @@
       </Button>
     </header>
 
-    <div class="mx-3 mb-4 grid min-h-[680px] flex-1 gap-5 xl:min-h-0 xl:grid-cols-[minmax(320px,0.9fr)_minmax(520px,1.3fr)]">
+    <div class="mx-3 mb-4 grid min-h-[680px] flex-1 gap-5 xl:min-h-0 xl:grid-cols-[minmax(380px,1.15fr)_minmax(500px,1fr)]">
       <section class="card mx-0 flex min-h-0 flex-col overflow-hidden border border-border p-0">
         <div class="border-b border-border px-5 py-4">
-          <h2 class="text-lg font-bold text-text-main">부서 계층도</h2>
+          <div class="flex items-center gap-2">
+            <Network :size="20" class="shrink-0 text-text-sub" />
+            <h2 class="text-lg font-bold text-text-main">부서 계층도</h2>
+          </div>
         </div>
 
         <div class="min-h-0 flex-1 overflow-auto p-4">
@@ -57,13 +60,37 @@
 
       <div class="flex min-h-0 min-w-0 flex-col gap-5 overflow-hidden">
         <section class="card mx-0 shrink-0 border border-border p-5">
-          <div class="mb-5 flex items-start gap-2">
-            <Building2 :size="20" class="mt-0.5 shrink-0 text-text-sub" />
-            <div>
-              <h2 class="text-lg font-bold text-text-main">부서 상세 정보</h2>
-              <p class="mt-1 text-sm text-text-sub">
-                선택된 부서의 정보를 수정하고 관리합니다.
-              </p>
+          <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div class="flex items-start gap-2">
+              <Building2 :size="20" class="mt-0.5 shrink-0 text-text-sub" />
+              <div>
+                <h2 class="text-lg font-bold text-text-main">부서 상세 정보</h2>
+                <p class="mt-1 text-sm text-text-sub">
+                  선택된 부서의 정보를 수정하고 관리합니다.
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="canEditOrganization && selectedDetail && !isDetailLoading"
+              class="flex shrink-0 gap-2"
+            >
+              <Button
+                variant="outline"
+                :disabled="!isEditDirty || isSaving"
+                @click="resetEditForm"
+              >
+                <RotateCcw :size="16" />
+                초기화
+              </Button>
+              <Button
+                :loading="isSaving"
+                :disabled="Boolean(editNameError) || !isEditDirty"
+                @click="handleUpdateDepartment"
+              >
+                <Save :size="16" />
+                저장하기
+              </Button>
             </div>
           </div>
 
@@ -119,25 +146,6 @@
             <p v-if="detailError" class="text-sm text-danger" role="alert">
               {{ detailError }}
             </p>
-
-            <div v-if="canEditOrganization" class="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                :disabled="!isEditDirty || isSaving"
-                @click="resetEditForm"
-              >
-                <RotateCcw :size="16" />
-                초기화
-              </Button>
-              <Button
-                type="submit"
-                :loading="isSaving"
-                :disabled="Boolean(editNameError) || !isEditDirty"
-              >
-                <Save :size="16" />
-                저장하기
-              </Button>
-            </div>
           </form>
         </section>
 
@@ -152,65 +160,53 @@
             </h2>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border">
-            <table class="w-full min-w-[620px] text-sm">
-              <thead class="bg-surface-secondary text-left text-xs text-text-sub">
-                <tr>
-                  <th class="px-4 py-3 font-semibold">성명</th>
-                  <th class="px-4 py-3 font-semibold">권한</th>
-                  <th class="px-4 py-3 font-semibold">사번</th>
-                  <th class="px-4 py-3 font-semibold">상태</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <tr v-if="isMembersLoading">
-                  <td colspan="4" class="px-4 py-12 text-center text-text-sub">
-                    <RefreshCw class="mr-2 inline animate-spin" :size="18" />
-                    부서원을 불러오는 중입니다.
-                  </td>
-                </tr>
-                <tr v-else-if="membersError">
-                  <td colspan="4" class="px-4 py-10 text-center">
-                    <p class="mb-3 text-danger">{{ membersError }}</p>
-                    <Button
-                      v-if="departmentStore.selectedDepartmentId !== null"
-                      variant="outline"
-                      @click="fetchDepartmentMembers(departmentStore.selectedDepartmentId)"
-                    >
-                      다시 시도
-                    </Button>
-                  </td>
-                </tr>
-                <tr v-else-if="departmentStore.selectedDepartmentId === null">
-                  <td colspan="4" class="px-4 py-12 text-center text-text-muted">
-                    부서를 선택하면 부서원 목록이 표시됩니다.
-                  </td>
-                </tr>
-                <tr v-else-if="members.length === 0">
-                  <td colspan="4" class="px-4 py-12 text-center text-text-muted">
-                    소속 부서원이 없습니다.
-                  </td>
-                </tr>
-                <template v-else>
-                  <tr v-for="member in members" :key="member.memberId">
-                    <td class="px-4 py-3 font-semibold text-text-main">{{ member.name }}</td>
-                    <td class="px-4 py-3 text-text-sub">{{ ROLE_LABEL[member.role] }}</td>
-                    <td class="px-4 py-3 text-text-sub">{{ member.memberNo }}</td>
-                    <td class="px-4 py-3">
-                      <span
-                        :class="member.status === 'ACTIVE'
-                          ? 'badge-success'
-                          : member.status === 'ON_LEAVE'
-                            ? 'badge-warning'
-                            : 'badge-danger'"
-                      >
-                        {{ MEMBER_STATUS_LABEL[member.status] }}
-                      </span>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+          <div
+            v-if="membersError"
+            class="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl border border-border px-4 py-10 text-center"
+          >
+            <p class="mb-3 text-danger">{{ membersError }}</p>
+            <Button
+              v-if="departmentStore.selectedDepartmentId !== null"
+              variant="outline"
+              @click="fetchDepartmentMembers(departmentStore.selectedDepartmentId)"
+            >
+              다시 시도
+            </Button>
+          </div>
+
+          <div v-else class="min-h-0 flex-1 overflow-y-auto">
+            <Table
+              :columns="memberColumns"
+              :rows="members"
+              :loading="isMembersLoading"
+              :empty-text="memberEmptyText"
+              row-key="memberId"
+              class="min-w-full"
+            >
+              <template #cell-name="{ value }">
+                <span class="font-semibold text-text-main">{{ value }}</span>
+              </template>
+
+              <template #cell-role="{ row }">
+                <span class="text-text-sub">{{ ROLE_LABEL[row.role] }}</span>
+              </template>
+
+              <template #cell-memberNo="{ value }">
+                <span class="text-text-sub">{{ value }}</span>
+              </template>
+
+              <template #cell-status="{ row }">
+                <span
+                  :class="row.status === 'ACTIVE'
+                    ? 'badge-success'
+                    : row.status === 'ON_LEAVE'
+                      ? 'badge-warning'
+                      : 'badge-danger'"
+                >
+                  {{ MEMBER_STATUS_LABEL[row.status] }}
+                </span>
+              </template>
+            </Table>
           </div>
         </section>
       </div>
@@ -293,6 +289,7 @@
 <script setup lang="ts">
 import {
   Building2,
+  Network,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -306,6 +303,8 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Input from '@/components/common/Input.vue'
+import Table from '@/components/common/Table.vue'
+import type { Column } from '@/components/common/Table.vue'
 import OrganizationTreeNode from '@/components/organization/OrganizationTreeNode.vue'
 import { usePermission } from '@/composables'
 import { useDepartmentStore, useNotificationStore } from '@/stores'
@@ -349,6 +348,17 @@ const createNameError = computed(() =>
 const createParentError = computed(() =>
   createForm.parentDepartmentId ? '' : '상위 부서를 선택해주세요.',
 )
+const memberEmptyText = computed(() =>
+  departmentStore.selectedDepartmentId === null
+    ? '부서를 선택하면 부서원 목록이 표시됩니다.'
+    : '소속 부서원이 없습니다.',
+)
+const memberColumns: Column<Member>[] = [
+  { key: 'name', label: '성명', width: '24%' },
+  { key: 'role', label: '권한', width: '31%' },
+  { key: 'memberNo', label: '사번', width: '25%' },
+  { key: 'status', label: '상태', width: '20%', align: 'center' },
+]
 
 const descendantIds = computed(() => {
   const selectedId = departmentStore.selectedDepartmentId
