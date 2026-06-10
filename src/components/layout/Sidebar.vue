@@ -172,14 +172,14 @@ const handleParentClick = (item: NavItem) => {
   if (!item.children || item.children.length === 0) return
 
   if (collapsed.value) {
-    openMenus.value[item.name] = true
+    openMenus.value = { [item.name]: true }
     router.push(item.children[0].to)
     return
   }
 
   const isCurrentlyOpen = !!openMenus.value[item.name]
-  openMenus.value[item.name] = !isCurrentlyOpen
-  
+  openMenus.value = isCurrentlyOpen ? {} : { [item.name]: true }
+
   if (!isCurrentlyOpen) {
     router.push(item.children[0].to)
   }
