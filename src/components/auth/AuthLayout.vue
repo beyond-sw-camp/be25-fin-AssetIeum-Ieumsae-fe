@@ -1,9 +1,3 @@
-<script setup lang="ts">
-defineProps<{
-  title: string
-}>()
-</script>
-
 <template>
   <main class="min-h-screen bg-background lg:grid lg:grid-cols-[1fr_minmax(480px,46%)]">
     <section
@@ -30,6 +24,12 @@ defineProps<{
     </section>
   </main>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  title: string
+}>()
+</script>
 
 <style scoped>
 .barcode-logo {

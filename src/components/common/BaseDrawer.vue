@@ -1,17 +1,3 @@
-<script setup lang="ts">
-import { X } from 'lucide-vue-next';
-import Button from './Button.vue';
-
-// 공통으로 제어할 Props 정의
-defineProps({
-  isOpen: { type: Boolean, required: true },
-  title: { type: String, default: '타이틀' },
-  submitText: { type: String, default: '저장하기' }
-});
-
-const emit = defineEmits(['close', 'submit']);
-</script>
-
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-[10000] flex justify-end">
     <div
@@ -51,3 +37,17 @@ const emit = defineEmits(['close', 'submit']);
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { X } from 'lucide-vue-next';
+import Button from './Button.vue';
+
+// 공통으로 제어할 Props 정의
+defineProps({
+  isOpen: { type: Boolean, required: true },
+  title: { type: String, default: '타이틀' },
+  submitText: { type: String, default: '저장하기' }
+});
+
+const emit = defineEmits(['close', 'submit']);
+</script>

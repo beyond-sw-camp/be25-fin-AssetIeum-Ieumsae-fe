@@ -1,8 +1,3 @@
-<script setup lang="ts">
-import { useAuthStore } from '@/stores'
-const auth = useAuthStore()
-</script>
-
 <template>
   <div class="p-6">
     <h2 class="text-2xl font-bold mb-6">대시보드</h2>
@@ -10,3 +5,8 @@ const auth = useAuthStore()
     <p class="text-gray-500">역할: {{ auth.user?.role }}</p>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useAuthStore } from '@/stores'
+const auth = useAuthStore()
+</script>

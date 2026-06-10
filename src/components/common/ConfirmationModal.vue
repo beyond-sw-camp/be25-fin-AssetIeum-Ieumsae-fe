@@ -1,29 +1,3 @@
-<script setup lang="ts">
-import { AlertTriangle, X } from 'lucide-vue-next'
-
-import Button from './Button.vue'
-
-interface Props {
-  isOpen: boolean
-  title: string
-  message: string
-  confirmText?: string
-  cancelText?: string
-  loading?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  confirmText: '확인',
-  cancelText: '취소',
-  loading: false,
-})
-
-const emit = defineEmits<{
-  cancel: []
-  confirm: []
-}>()
-</script>
-
 <template>
   <div
     v-if="props.isOpen"
@@ -67,3 +41,29 @@ const emit = defineEmits<{
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { AlertTriangle, X } from 'lucide-vue-next'
+
+import Button from './Button.vue'
+
+interface Props {
+  isOpen: boolean
+  title: string
+  message: string
+  confirmText?: string
+  cancelText?: string
+  loading?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  confirmText: '확인',
+  cancelText: '취소',
+  loading: false,
+})
+
+const emit = defineEmits<{
+  cancel: []
+  confirm: []
+}>()
+</script>

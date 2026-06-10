@@ -1,3 +1,140 @@
+<template>
+  <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
+    <!-- 페이지 헤더 -->
+    <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="page-subtitle mb-1">
+          Intangible Asset Item
+        </p>
+        <h1 class="page-title">
+          무형자산 품목 관리
+        </h1>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <Button variant="outline">
+          <Upload :size="15" />
+          CSV 파일 등록
+        </Button>
+
+        <Button variant="primary" @click="isCategoryDrawerOpen = true">
+          <Edit :size="15" />
+          자산 카테고리 수정
+        </Button>
+        <IntangibleItemCategory
+          :is-open="isCategoryDrawerOpen"
+          :initial-categories="localCategories"
+          @close="isCategoryDrawerOpen = false"
+          @update-categories="handleCategoryUpdate"
+        />
+
+        <Button variant="primary" @click="isRegisterDrawerOpen = true">
+          <Plus :size="15" />
+          자산 품목 등록
+        </Button>
+        <IntangibleItemRegister
+          :is-open="isRegisterDrawerOpen"
+          :initial-categories="localCategories"
+          @close="isRegisterDrawerOpen = false"
+          @register-asset="handleRegisterAsset"
+        />
+      </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
+      <div class="shrink-0 rounded-t-2xl bg-surface border-b border-border px-2 pb-3 flex flex-col gap-3 relative z-30 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-2 text-text-main shrink-0">
+          <Dropdown
+            v-model="rowsPerPageText"
+            :options="rowsPerPageOptions"
+            class="w-36"
+          />
+          <span class="text-xs text-text-sub whitespace-nowrap">
+            총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2 text-text-main">
+          <Dropdown
+            v-model="searchParams.category"
+            :options="cascadingOptions"
+            root-option="전체 품목 보기"
+            menu-align="right"
+            submenu-direction="left"
+            class="w-44 text-text-sub"
+          >
+            <template #icon>
+              <Layers :size="16" />
+            </template>
+          </Dropdown>
+
+          <Button
+            variant="primary"
+            size="md"
+            class="shrink-0"
+            @click="handleSearch"
+          >
+            <Search :size="14" />
+            조회하기
+          </Button>
+        </div>
+      </div>
+
+      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
+        <Table
+          :columns="tableColumns"
+          :rows="serverAssetList"
+          :is-loading="isLoading"
+          row-key="productName"
+          class="min-w-full"
+        >
+          <template #cell-isStandard="{ value }">
+            <span>
+              {{ value === 1 ? '표준 자산' : '비표준 자산' }}
+            </span>
+          </template>
+        </Table>
+      </div>
+
+      <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 pt-3 flex items-center justify-center relative z-20">
+        <div class="flex items-center gap-2">
+          <button
+            :disabled="searchParams.page === 0"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            @click="changePage(searchParams.page - 1)"
+          >
+            <ChevronLeft :size="16" />
+          </button>
+
+          <button
+            v-for="pageIndex in totalPages"
+            :key="pageIndex"
+            type="button"
+            :class="[
+              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
+              searchParams.page === (pageIndex - 1)
+                ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                : 'text-text-sub hover:bg-surface-secondary'
+            ]"
+            @click="changePage(pageIndex - 1)"
+          >
+            {{ pageIndex }}
+          </button>
+
+          <button
+            :disabled="searchParams.page >= totalPages - 1"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            @click="changePage(searchParams.page + 1)"
+          >
+            <ChevronRight :size="16" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
@@ -168,140 +305,3 @@ onMounted(() => {
   loadServerData()
 })
 </script>
-
-<template>
-  <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
-    <!-- 페이지 헤더 -->
-    <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="page-subtitle mb-1">
-          Intangible Asset Item
-        </p>
-        <h1 class="page-title">
-          무형자산 품목 관리
-        </h1>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline">
-          <Upload :size="15" />
-          CSV 파일 등록
-        </Button>
-
-        <Button variant="primary" @click="isCategoryDrawerOpen = true">
-          <Edit :size="15" />
-          자산 카테고리 수정
-        </Button>
-        <IntangibleItemCategory
-          :is-open="isCategoryDrawerOpen"
-          :initial-categories="localCategories"
-          @close="isCategoryDrawerOpen = false"
-          @update-categories="handleCategoryUpdate"
-        />
-
-        <Button variant="primary" @click="isRegisterDrawerOpen = true">
-          <Plus :size="15" />
-          자산 품목 등록
-        </Button>
-        <IntangibleItemRegister
-          :is-open="isRegisterDrawerOpen"
-          :initial-categories="localCategories"
-          @close="isRegisterDrawerOpen = false"
-          @register-asset="handleRegisterAsset"
-        />
-      </div>
-    </div>
-
-    <!-- 테이블 -->
-    <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
-      <div class="shrink-0 rounded-t-2xl bg-surface border-b border-border px-2 pb-3 flex flex-col gap-3 relative z-30 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex items-center gap-2 text-text-main shrink-0">
-          <Dropdown
-            v-model="rowsPerPageText"
-            :options="rowsPerPageOptions"
-            class="w-36"
-          />
-          <span class="text-xs text-text-sub whitespace-nowrap">
-            총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
-          </span>
-        </div>
-
-        <div class="flex items-center gap-2 text-text-main">
-          <Dropdown
-            v-model="searchParams.category"
-            :options="cascadingOptions"
-            root-option="전체 품목 보기"
-            menu-align="right"
-            submenu-direction="left"
-            class="w-44 text-text-sub"
-          >
-            <template #icon>
-              <Layers :size="16" />
-            </template>
-          </Dropdown>
-
-          <Button
-            variant="primary"
-            size="md"
-            class="shrink-0"
-            @click="handleSearch"
-          >
-            <Search :size="14" />
-            조회하기
-          </Button>
-        </div>
-      </div>
-
-      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
-        <Table
-          :columns="tableColumns"
-          :rows="serverAssetList"
-          :is-loading="isLoading"
-          row-key="productName"
-          class="min-w-full"
-        >
-          <template #cell-isStandard="{ value }">
-            <span>
-              {{ value === 1 ? '표준 자산' : '비표준 자산' }}
-            </span>
-          </template>
-        </Table>
-      </div>
-
-      <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 pt-3 flex items-center justify-center relative z-20">
-        <div class="flex items-center gap-2">
-          <button
-            :disabled="searchParams.page === 0"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(searchParams.page - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-
-          <button
-            v-for="pageIndex in totalPages"
-            :key="pageIndex"
-            type="button"
-            :class="[
-              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
-              searchParams.page === (pageIndex - 1)
-                ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                : 'text-text-sub hover:bg-surface-secondary'
-            ]"
-            @click="changePage(pageIndex - 1)"
-          >
-            {{ pageIndex }}
-          </button>
-
-          <button
-            :disabled="searchParams.page >= totalPages - 1"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(searchParams.page + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>

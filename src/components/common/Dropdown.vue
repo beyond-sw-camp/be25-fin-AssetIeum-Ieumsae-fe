@@ -1,60 +1,3 @@
-<script setup lang="ts">
-import { computed, ref } from 'vue'
-import { ChevronDown, ChevronLeft } from 'lucide-vue-next'
-
-interface CategoryGroup {
-  mainCategory: string
-  subCategories: string[]
-}
-
-const props = defineProps<{
-  modelValue: string
-  options: string[] | CategoryGroup[]
-  rootOption?: string
-  menuAlign?: 'left' | 'right'
-  submenuDirection?: 'left' | 'right'
-}>()
-
-const emit = defineEmits(['update:modelValue'])
-const isOpen = ref(false)
-const activeGroup = ref<string | null>(null)
-
-const menuAlign = computed(() => props.menuAlign ?? 'left')
-const submenuDirection = computed(() => props.submenuDirection ?? 'right')
-
-const isSimpleOptions = computed(() => {
-  return props.options.length === 0 || typeof props.options[0] === 'string'
-})
-
-const simpleOptions = computed(() => {
-  return isSimpleOptions.value ? props.options as string[] : []
-})
-
-const groupedOptions = computed(() => {
-  return isSimpleOptions.value ? [] : props.options as CategoryGroup[]
-})
-
-const selectedTextClass = computed(() => {
-  return props.rootOption && props.modelValue === props.rootOption
-    ? 'text-text-muted'
-    : 'text-text-main'
-})
-
-const isGroupSelected = (group: CategoryGroup) => {
-  return group.subCategories.includes(props.modelValue)
-}
-
-const toggleGroup = (mainCategory: string) => {
-  activeGroup.value = activeGroup.value === mainCategory ? null : mainCategory
-}
-
-const selectOption = (option: string) => {
-  emit('update:modelValue', option)
-  isOpen.value = false
-  activeGroup.value = null
-}
-</script>
-
 <template>
   <div class="relative w-full text-left" :class="$attrs.class">
     <button
@@ -143,3 +86,60 @@ const selectOption = (option: string) => {
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { ChevronDown, ChevronLeft } from 'lucide-vue-next'
+
+interface CategoryGroup {
+  mainCategory: string
+  subCategories: string[]
+}
+
+const props = defineProps<{
+  modelValue: string
+  options: string[] | CategoryGroup[]
+  rootOption?: string
+  menuAlign?: 'left' | 'right'
+  submenuDirection?: 'left' | 'right'
+}>()
+
+const emit = defineEmits(['update:modelValue'])
+const isOpen = ref(false)
+const activeGroup = ref<string | null>(null)
+
+const menuAlign = computed(() => props.menuAlign ?? 'left')
+const submenuDirection = computed(() => props.submenuDirection ?? 'right')
+
+const isSimpleOptions = computed(() => {
+  return props.options.length === 0 || typeof props.options[0] === 'string'
+})
+
+const simpleOptions = computed(() => {
+  return isSimpleOptions.value ? props.options as string[] : []
+})
+
+const groupedOptions = computed(() => {
+  return isSimpleOptions.value ? [] : props.options as CategoryGroup[]
+})
+
+const selectedTextClass = computed(() => {
+  return props.rootOption && props.modelValue === props.rootOption
+    ? 'text-text-muted'
+    : 'text-text-main'
+})
+
+const isGroupSelected = (group: CategoryGroup) => {
+  return group.subCategories.includes(props.modelValue)
+}
+
+const toggleGroup = (mainCategory: string) => {
+  activeGroup.value = activeGroup.value === mainCategory ? null : mainCategory
+}
+
+const selectOption = (option: string) => {
+  emit('update:modelValue', option)
+  isOpen.value = false
+  activeGroup.value = null
+}
+</script>

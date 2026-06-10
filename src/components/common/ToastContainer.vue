@@ -1,38 +1,3 @@
-<script setup lang="ts">
-import {
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-  X,
-} from 'lucide-vue-next'
-
-import { useNotificationStore } from '@/stores'
-
-const notificationStore = useNotificationStore()
-
-const iconByType = {
-  success: CheckCircle2,
-  error: AlertCircle,
-  warning: AlertTriangle,
-  info: Info,
-}
-
-const colorByType = {
-  success: 'border-success/30 text-success',
-  error: 'border-danger/30 text-danger',
-  warning: 'border-warning/40 text-warning',
-  info: 'border-info/30 text-info',
-}
-
-const progressColorByType = {
-  success: 'bg-success',
-  error: 'bg-danger',
-  warning: 'bg-warning',
-  info: 'bg-info',
-}
-</script>
-
 <template>
   <div
     class="pointer-events-none fixed right-5 top-20 z-[11000] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-3"
@@ -75,6 +40,41 @@ const progressColorByType = {
     </TransitionGroup>
   </div>
 </template>
+
+<script setup lang="ts">
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  X,
+} from 'lucide-vue-next'
+
+import { useNotificationStore } from '@/stores'
+
+const notificationStore = useNotificationStore()
+
+const iconByType = {
+  success: CheckCircle2,
+  error: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
+}
+
+const colorByType = {
+  success: 'border-success/30 text-success',
+  error: 'border-danger/30 text-danger',
+  warning: 'border-warning/40 text-warning',
+  info: 'border-info/30 text-info',
+}
+
+const progressColorByType = {
+  success: 'bg-success',
+  error: 'bg-danger',
+  warning: 'bg-warning',
+  info: 'bg-info',
+}
+</script>
 
 <style scoped>
 .toast-enter-active,

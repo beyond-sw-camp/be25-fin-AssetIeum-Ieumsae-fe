@@ -1,30 +1,3 @@
-<script setup lang="ts">
-import { ChevronRight, Folder, FolderOpen, Trash2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
-
-import type { DepartmentTreeNode } from '@/types'
-
-defineOptions({ name: 'OrganizationTreeNode' })
-
-interface Props {
-  node: DepartmentTreeNode
-  selectedDepartmentId: string | null
-  canDelete?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  canDelete: false,
-})
-
-const emit = defineEmits<{
-  select: [departmentId: string]
-  delete: [department: DepartmentTreeNode]
-}>()
-
-const isExpanded = ref(true)
-const isRoot = computed(() => props.node.parentDepartmentId === null)
-</script>
-
 <template>
   <li>
     <div
@@ -96,3 +69,30 @@ const isRoot = computed(() => props.node.parentDepartmentId === null)
     </ul>
   </li>
 </template>
+
+<script setup lang="ts">
+import { ChevronRight, Folder, FolderOpen, Trash2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+
+import type { DepartmentTreeNode } from '@/types'
+
+defineOptions({ name: 'OrganizationTreeNode' })
+
+interface Props {
+  node: DepartmentTreeNode
+  selectedDepartmentId: string | null
+  canDelete?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  canDelete: false,
+})
+
+const emit = defineEmits<{
+  select: [departmentId: string]
+  delete: [department: DepartmentTreeNode]
+}>()
+
+const isExpanded = ref(true)
+const isRoot = computed(() => props.node.parentDepartmentId === null)
+</script>

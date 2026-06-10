@@ -1,72 +1,3 @@
-<script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import BaseDrawer from '@/components/common/BaseDrawer.vue';
-import Input from '@/components/common/Input.vue';
-import Dropdown from '@/components/common/Dropdown.vue';
-
-interface CategoryItem {
-    id: string;
-    name: string;
-}
-
-interface RegisterForm {
-    assetName: string
-    category: string
-    manufacturer: string
-    modelName: string
-    isStandard: number
-}
-
-const props = defineProps<{
-    isOpen: boolean;
-    initialCategories: CategoryItem[]; // 부모에게서 내려받는 카테고리 원본 목록
-}>();
-
-const emit = defineEmits(['close', 'update-categories', 'register-asset']);
-
-const dropdownOptions = computed(() => {
-    return props.initialCategories.map(cat => cat.name);
-});
-
-// 등록할 폼 데이터 객체
-const formData = ref<RegisterForm>({
-    assetName: '',
-    category: '카테고리 선택', // 기본값 매칭
-    manufacturer: '',
-    modelName: '',
-    isStandard: 1
-});
-
-const handleSave = () => {
-    // 카테고리 유효성 검사 추가
-    if (formData.value.category === '카테고리 선택') {
-        alert('카테고리를 선택해주세요.');
-        return;
-    }
-    if (!formData.value.assetName.trim() || !formData.value.modelName.trim()) {
-        alert('필수 항목을 입력해주세요.');
-        return;
-    }
-
-    emit('register-asset', { ...formData.value });
-    alert('성공적으로 등록되었습니다.');
-    emit('close');
-};
-
-// 창이 열릴 때마다 기존 입력값 리셋
-watch(() => props.isOpen, (newVal) => {
-    if (newVal) {
-        formData.value = {
-            assetName: '',
-            category: '카테고리 선택',
-            manufacturer: '',
-            modelName: '',
-            isStandard: 1
-        };
-    }
-});
-</script>
-
 <template>
   <BaseDrawer :is-open="isOpen" title="유형자산 품목 등록" submit-text="등록" @close="emit('close')" @submit="handleSave">
     <div class="space-y-5">
@@ -148,3 +79,72 @@ watch(() => props.isOpen, (newVal) => {
     </div>
   </BaseDrawer>
 </template>
+
+<script setup lang="ts">
+import { ref, watch, computed } from 'vue';
+import BaseDrawer from '@/components/common/BaseDrawer.vue';
+import Input from '@/components/common/Input.vue';
+import Dropdown from '@/components/common/Dropdown.vue';
+
+interface CategoryItem {
+    id: string;
+    name: string;
+}
+
+interface RegisterForm {
+    assetName: string
+    category: string
+    manufacturer: string
+    modelName: string
+    isStandard: number
+}
+
+const props = defineProps<{
+    isOpen: boolean;
+    initialCategories: CategoryItem[]; // 부모에게서 내려받는 카테고리 원본 목록
+}>();
+
+const emit = defineEmits(['close', 'update-categories', 'register-asset']);
+
+const dropdownOptions = computed(() => {
+    return props.initialCategories.map(cat => cat.name);
+});
+
+// 등록할 폼 데이터 객체
+const formData = ref<RegisterForm>({
+    assetName: '',
+    category: '카테고리 선택', // 기본값 매칭
+    manufacturer: '',
+    modelName: '',
+    isStandard: 1
+});
+
+const handleSave = () => {
+    // 카테고리 유효성 검사 추가
+    if (formData.value.category === '카테고리 선택') {
+        alert('카테고리를 선택해주세요.');
+        return;
+    }
+    if (!formData.value.assetName.trim() || !formData.value.modelName.trim()) {
+        alert('필수 항목을 입력해주세요.');
+        return;
+    }
+
+    emit('register-asset', { ...formData.value });
+    alert('성공적으로 등록되었습니다.');
+    emit('close');
+};
+
+// 창이 열릴 때마다 기존 입력값 리셋
+watch(() => props.isOpen, (newVal) => {
+    if (newVal) {
+        formData.value = {
+            assetName: '',
+            category: '카테고리 선택',
+            manufacturer: '',
+            modelName: '',
+            isStandard: 1
+        };
+    }
+});
+</script>

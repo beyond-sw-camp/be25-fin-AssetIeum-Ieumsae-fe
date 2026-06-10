@@ -1,9 +1,3 @@
-<script setup lang="ts">
-import { ref } from 'vue'
-import type { TicketType } from '@/types'
-const selectedType = ref<TicketType | null>(null)
-</script>
-
 <template>
   <div class="p-6">
     <h2 class="text-2xl font-bold mb-4">티켓 생성</h2>
@@ -18,3 +12,9 @@ const selectedType = ref<TicketType | null>(null)
     </select>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import type { TicketType } from '@/types'
+const selectedType = ref<TicketType | null>(null)
+</script>

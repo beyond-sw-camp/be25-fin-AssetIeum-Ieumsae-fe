@@ -1,36 +1,3 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Moon, Bell, Sun } from 'lucide-vue-next'
-
-const isDark = ref(false)
-
-// 다크 모드 토글 함수
-const toggleDarkMode = () => {
-  isDark.value = !isDark.value
-
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('theme', 'dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-    localStorage.setItem('theme', 'light')
-  }
-}
-
-onMounted(() => {
-  const savedTheme = localStorage.getItem('theme')
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-
-  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  } else {
-    isDark.value = false
-    document.documentElement.classList.remove('dark')
-  }
-})
-</script>
-
 <template>
   <header
     class="
@@ -63,3 +30,36 @@ onMounted(() => {
     </div>
   </header>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { Moon, Bell, Sun } from 'lucide-vue-next'
+
+const isDark = ref(false)
+
+// 다크 모드 토글 함수
+const toggleDarkMode = () => {
+  isDark.value = !isDark.value
+
+  if (isDark.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('theme', 'light')
+  }
+}
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('theme')
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    isDark.value = true
+    document.documentElement.classList.add('dark')
+  } else {
+    isDark.value = false
+    document.documentElement.classList.remove('dark')
+  }
+})
+</script>

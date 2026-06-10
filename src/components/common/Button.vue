@@ -1,3 +1,28 @@
+<template>
+  <button
+    :type="props.type"
+    :disabled="props.disabled || props.loading"
+    :class="[
+      'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900',
+      variantClasses[props.variant],
+      sizeClasses[props.size],
+      (props.disabled || props.loading) && 'cursor-not-allowed opacity-50',
+    ]"
+  >
+    <svg
+      v-if="props.loading"
+      class="h-4 w-4 animate-spin"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+
+    <slot />
+  </button>
+</template>
+
 <script setup lang="ts">
 // 버튼 컴포넌트 - 유형자산 품목 관리 피그마 시안 기준 variant 확장
 type Variant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'
@@ -55,29 +80,3 @@ const sizeClasses: Record<Size, string> = {
   lg: 'px-5 py-2.5 text-base rounded-xl h-15', 
 }
 </script>
-
-<template>
-  <button
-    :type="props.type"
-    :disabled="props.disabled || props.loading"
-    :class="[
-      'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
-      (props.disabled || props.loading) && 'cursor-not-allowed opacity-50',
-    ]"
-  >
-    <svg
-      v-if="props.loading"
-      class="h-4 w-4 animate-spin"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-    
-    <slot />
-  </button>
-</template>
-
