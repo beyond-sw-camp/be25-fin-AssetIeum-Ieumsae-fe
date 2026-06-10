@@ -113,11 +113,12 @@
             <Button
               variant="danger"
               size="sm"
+              class="whitespace-nowrap gap-1"
               :disabled="!canDeleteRow(row)"
               @click.stop="handleDeleteAsset(row)"
             >
               <Trash2 :size="14" />
-              삭제
+              <span class="hidden md:inline">삭제</span>
             </Button>
           </template>
         </Table>
