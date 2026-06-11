@@ -2,7 +2,7 @@
   <BaseDrawer
     :is-open="isOpen"
     title="자산 등록"
-    @close="emit('close')"
+    @close="handleClose"
   >
     <div class="space-y-8">
       <section>
@@ -19,7 +19,10 @@
           </FormField>
 
           <Input
-            id="register-assetCode" model-value="자산 코드 입력" label="자산 코드" required
+            id="register-assetCode"
+            model-value="자동 생성"
+            label="자산 코드"
+            disabled
           />
 
           <FormField label="자산 상태">
@@ -136,7 +139,8 @@
       <Button
         class="w-full"
         size="m"
-        :disabled="!isRegisterReady"
+        :disabled="!isRegisterReady || isSaving"
+        :loading="isSaving"
         @click="handleSave"
       >
         등록
@@ -151,12 +155,14 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
   Member,
   TangibleAssetCreateRequest,
   TangibleAssetStatus,
+  TangibleAssetUsageType,
 } from '@/types'
 
 interface AssetItemOption {
@@ -190,7 +196,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  'register-asset': [asset: TangibleAssetCreateRequest]
+  registered: []
 }>()
 
 const FormField = defineComponent({
@@ -242,6 +248,7 @@ const createInitialForm = (): RegisterForm => ({
 const selectedAssetItemName = ref('제품명 선택')
 const selectedStatusLabel = ref(TANGIBLE_STATUS_LABEL.AVAILABLE)
 const formData = ref<RegisterForm>(createInitialForm())
+const isSaving = ref(false)
 
 const assetItemNames = computed(() => props.initialItems.map((item) => item.name))
 const departmentOptions = computed(() => props.departments.map((department) => department.name))
@@ -262,7 +269,11 @@ const selectedMember = computed(() => (
 const isRegisterReady = computed(() => (
   Boolean(selectedAssetItem.value) &&
   Boolean(formData.value.serialNo.trim()) &&
-  formData.value.assetUsageType !== ''
+  assetUsageTypeOptions.includes(formData.value.assetUsageType) &&
+  Boolean(formData.value.purchaseDate.trim()) &&
+  Boolean(formData.value.purchasePrice.replaceAll(',', '').trim()) &&
+  Boolean(formData.value.vendor.trim()) &&
+  Boolean(formData.value.warrantyExpiredAt.trim())
 ))
 
 const nullableText = (value: string) => {
@@ -277,23 +288,43 @@ const optionalDate = (value: string) => {
 
 const parsePrice = (value: string) => {
   const normalized = value.replaceAll(',', '').trim()
-  return normalized ? Number(normalized) : undefined
+  if (!normalized) return undefined
+
+  const price = Number(normalized)
+  return Number.isFinite(price) ? price : undefined
 }
 
-const handleSave = () => {
-  if (!isRegisterReady.value || !selectedAssetItem.value) return
+const selectedUsageType = (): TangibleAssetUsageType | undefined => {
+  if (formData.value.usageType === '정식 배정') return 'PERMANENT'
+  return undefined
+}
+
+const handleClose = () => {
+  if (isSaving.value) return
+  emit('close')
+}
+
+const handleSave = async () => {
+  if (!isRegisterReady.value || !selectedAssetItem.value || isSaving.value) return
 
   const department = selectedDepartment.value
   const member = selectedMember.value
   const purchaseDate = formData.value.purchaseDate.trim()
+  const purchasePrice = parsePrice(formData.value.purchasePrice)
 
-  emit('register-asset', {
+  if (purchasePrice === undefined) {
+    alert('구매 금액을 숫자로 입력해주세요.')
+    return
+  }
+
+  const payload: TangibleAssetCreateRequest = {
     assetItemId: selectedAssetItem.value.id,
     serialNo: formData.value.serialNo.trim(),
-    purchaseDate: purchaseDate || new Date().toISOString().slice(0, 10),
+    purchaseDate,
     status: statusByLabel[selectedStatusLabel.value] ?? 'AVAILABLE',
-    vendor: formData.value.vendor.trim() || undefined,
-    purchasePrice: parsePrice(formData.value.purchasePrice),
+    usageType: selectedUsageType(),
+    vendor: formData.value.vendor.trim(),
+    purchasePrice,
     departmentId: department?.departmentId ?? null,
     departmentName: department?.name ?? null,
     assignedMemberId: member?.memberId ?? null,
@@ -302,12 +333,24 @@ const handleSave = () => {
     returnDueDate: optionalDate(formData.value.returnDueDate),
     warrantyExpiredAt: optionalDate(formData.value.warrantyExpiredAt),
     location: nullableText(formData.value.location),
-  })
+  }
 
-  emit('close')
+  isSaving.value = true
+
+  try {
+    await tangibleAssetApi.create(payload)
+    emit('registered')
+    emit('close')
+  } catch (error) {
+    console.error(error)
+    alert('자산 등록 중 오류가 발생했습니다.')
+  } finally {
+    isSaving.value = false
+  }
 }
 
 watch(() => props.isOpen, (isOpen) => {
+  if (isSaving.value) return
   formData.value = createInitialForm()
   selectedAssetItemName.value = '제품명 선택'
   selectedStatusLabel.value = TANGIBLE_STATUS_LABEL.AVAILABLE

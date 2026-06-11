@@ -84,12 +84,12 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
-import type { Department, Member, TangibleAsset, TangibleAssetStatus } from '@/types'
+import type { Department, Member, TangibleAsset, TangibleAssetStatus, TangibleAssetUsageType } from '@/types'
 
 interface TangibleAssetDetail extends TangibleAsset {
   productName: string
   assetUsageType?: string
-  usageType?: string
+  usageType?: TangibleAssetUsageType | null
 }
 
 interface AssetEditForm {
@@ -146,7 +146,7 @@ const statusByLabel = Object.entries(TANGIBLE_STATUS_LABEL).reduce(
   },
   {} as Record<string, TangibleAssetStatus>,
 )
-const usageTypeOptions = ['미배정', '정식 배정', '공용자산']
+const usageTypeOptions = ['미배정', '정식 배정', '임시 대여', '공용자산']
 
 const createEmptyAssetEditForm = (): AssetEditForm => ({
   productName: '',
@@ -196,10 +196,17 @@ const statusLabel = (status: string | null | undefined) => {
 }
 
 const usageTypeLabel = (asset: TangibleAssetDetail) => {
-  if (asset.usageType) return asset.usageType
+  if (asset.usageType === 'PERMANENT') return '정식 배정'
+  if (asset.usageType === 'TEMPORARY') return '임시 대여'
   if (asset.status === 'AVAILABLE') return '미배정'
   if (asset.assignedMemberName) return '정식 배정'
   return '공용자산'
+}
+
+const usageTypeValue = (): TangibleAssetUsageType | null => {
+  if (assetEditForm.value.usageType === '정식 배정') return 'PERMANENT'
+  if (assetEditForm.value.usageType === '임시 대여') return 'TEMPORARY'
+  return null
 }
 
 const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
@@ -265,22 +272,14 @@ const handleUpdateAsset = async () => {
 
   try {
     await tangibleAssetApi.update(props.asset.assetId, {
-      assetCode: assetEditForm.value.assetCode.trim(),
-      assetItemName: assetEditForm.value.productName.trim(),
-      serialNo: assetEditForm.value.serialNo.trim(),
       status: statusByLabel[assetEditForm.value.statusLabel] ?? props.asset.status,
       assignedMemberId: isAssigned ? member?.memberId ?? null : null,
       assignedMemberName: isAssigned ? member?.name ?? null : null,
       departmentId: isAssigned ? member?.departmentId ?? null : isShared ? department?.departmentId ?? null : null,
       departmentName: isAssigned ? member?.departmentName ?? null : isShared ? department?.name ?? null : null,
+      usageType: usageTypeValue(),
       startedAt: assetEditForm.value.startedAt.trim() || null,
       returnDueDate: assetEditForm.value.returnDueDate.trim() || null,
-      purchaseDate: assetEditForm.value.purchaseDate.trim(),
-      purchasePrice: assetEditForm.value.purchasePrice.trim()
-        ? Number(assetEditForm.value.purchasePrice.replaceAll(',', ''))
-        : null,
-      vendor: assetEditForm.value.vendor.trim() || undefined,
-      warrantyExpiredAt: assetEditForm.value.warrantyExpiredAt.trim() || null,
       location: assetEditForm.value.location.trim() || null,
     })
 

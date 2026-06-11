@@ -209,6 +209,9 @@ const props = withDefaults(defineProps<{
   submenuDirection?: 'left' | 'right'
   disabled?: boolean
 }>(), {
+  rootOption: '',
+  menuAlign: 'left',
+  submenuDirection: 'right',
   disabled: false,
 })
 

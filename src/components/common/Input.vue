@@ -42,12 +42,12 @@
           >
             <ChevronLeft :size="16" />
           </button>
-          
+
           <div class="flex justify-between items-center gap-3">
             <p class="text-sm font-semibold text-text-main">
               {{ calendarYear }}년 {{ calendarMonth + 1 }}월
             </p>
-            
+
             <button
               type="button"
               class="w-hug rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-background transition-colors hover:text-primary"
@@ -56,7 +56,7 @@
               오늘
             </button>
           </div>
-          
+
           <button
             type="button"
             class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary"

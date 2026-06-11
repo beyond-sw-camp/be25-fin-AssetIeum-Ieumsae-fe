@@ -1,5 +1,7 @@
 import type { TangibleAssetStatus, IntangibleAssetStatus } from './common'
 
+export type TangibleAssetUsageType = 'TEMPORARY' | 'PERMANENT'
+
 // =====================================================
 // 유형자산 품목(TangibleAssetItem) 타입
 // =====================================================
@@ -67,8 +69,7 @@ export interface TangibleAsset {
   purchaseDate: string
   vendor?: string
   purchasePrice?: number
-  assetUsageType?: string
-  usageType?: string
+  usageType?: TangibleAssetUsageType | null
   warrantyExpiredAt: string | null
   location?: string | null
   startedAt: string | null
@@ -83,8 +84,7 @@ export interface TangibleAssetCreateRequest {
   vendor?: string
   purchasePrice?: number
   status?: TangibleAssetStatus
-  assetUsageType?: string
-  usageType?: string
+  usageType?: TangibleAssetUsageType | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
   departmentId?: string | null
@@ -111,6 +111,7 @@ export interface TangibleAssetUpdateRequest {
   purchasePrice?: number | null
   warrantyExpiredAt?: string | null
   location?: string | null
+  usageType?: TangibleAssetUsageType | null
 }
 
 export interface TangibleAssetListFilter {

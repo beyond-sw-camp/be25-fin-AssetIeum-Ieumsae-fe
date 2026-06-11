@@ -11,18 +11,6 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline" @click="handleUploadClick">
-          <Upload :size="15" />
-          <span class="hidden sm:inline">CSV 파일 업로드</span>
-        </Button>
-        <input
-          ref="uploadInputRef"
-          type="file"
-          accept=".csv,.xlsx"
-          class="hidden"
-          @change="handleUploadFile"
-        />
-
         <Button variant="primary" @click="isRegisterDrawerOpen = true">
           <Plus :size="15" />
           자산 등록
@@ -33,7 +21,7 @@
           :departments="departments"
           :members="members"
           @close="isRegisterDrawerOpen = false"
-          @register-asset="handleRegisterAsset"
+          @registered="handleAssetRegistered"
         />
       </div>
     </div>
@@ -98,13 +86,23 @@
         </div>
       </div>
 
+      <div
+        v-if="listError"
+        class="mx-3 mt-3 flex flex-col gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
+      >
+        <span>{{ listError }}</span>
+        <Button variant="outline" size="sm" :loading="isLoading" @click="loadServerData">
+          다시 시도
+        </Button>
+      </div>
+
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
         <Table
           :columns="tableColumns"
           :rows="serverAssetList"
           :loading="isLoading"
           row-key="assetId"
-          class="min-w-full" 
+          class="min-w-full"
           @row-click="openAssetDetail"
         >
           <template #cell-status="{ value }">
@@ -156,7 +154,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Plus, Upload, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
@@ -165,7 +163,6 @@ import type {
   Department,
   Member,
   TangibleAsset,
-  TangibleAssetCreateRequest,
   TangibleAssetItem,
   TangibleCategoryGroup,
 } from '@/types'
@@ -197,7 +194,6 @@ const selectedAsset = ref<TangibleAssetRow | null>(null);
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
-const uploadInputRef = ref<HTMLInputElement | null>(null);
 
 const searchParams = ref({
   categoryName: '전체 품목 보기',
@@ -287,40 +283,20 @@ const assetItemMap = computed(() => (
   new Map(assetItemOptions.value.map((item) => [item.id, item]))
 ));
 
-const handleRegisterAsset = async (newAsset: TangibleAssetCreateRequest) => {
-  try {
-    await tangibleAssetApi.create(newAsset)
-    handleSearch()
-  } catch (error) {
-    console.error(error)
-    alert('자산 등록 중 오류가 발생했습니다.')
-  }
+const handleAssetRegistered = () => {
+  handleSearch()
 };
 
-const handleUploadClick = () => {
-  uploadInputRef.value?.click()
-};
-
-const handleUploadFile = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  try {
-    await tangibleAssetApi.bulkCreate(file);
-    alert('업로드가 완료되었습니다.')
-    handleSearch();
-  } catch (error) {
-    console.error(error);
-    alert('업로드 중 오류가 발생했습니다.')
-  } finally {
-    target.value = '';
-  }
-};
-
-const openAssetDetail = (row: TangibleAssetRow) => {
+const openAssetDetail = async (row: TangibleAssetRow) => {
   selectedAsset.value = row
   isDetailDrawerOpen.value = true
+
+  try {
+    const response = await tangibleAssetApi.getDetail(row.assetId)
+    selectedAsset.value = toAssetRow(response.data)
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 const closeAssetDetail = () => {
@@ -336,6 +312,7 @@ const serverAssetList = ref<TangibleAssetRow[]>([]);
 const totalElements = ref(0);
 const totalPages = ref(0);
 const isLoading = ref(false);
+const listError = ref('');
 
 const tableColumns: Column<TangibleAssetRow>[] = [
   { key: 'productName', label: '제품명', align: 'center', width: '25%' },
@@ -349,6 +326,10 @@ const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
   return TANGIBLE_STATUS_LABEL[status as keyof typeof TANGIBLE_STATUS_LABEL] ?? status
 }
+
+const getErrorMessage = (error: unknown) => (
+  error instanceof Error ? error.message : '유형자산 목록을 불러오지 못했습니다.'
+)
 
 const getSelectableSubCategories = (group: FilterGroup) => (
   group.subCategories.filter((category) => !category.endsWith(' - 전체'))
@@ -480,6 +461,7 @@ const loadServerData = async () => {
     const response = await tangibleAssetApi.getList(params);
 
     const rows = response.data.content.map(toAssetRow);
+    listError.value = '';
 
     if (shouldFilterClientSide) {
       const filteredRows = rows.filter((row) => categoryFilterNames.includes(row.category));
@@ -496,10 +478,7 @@ const loadServerData = async () => {
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {
-    console.error(error);
-    serverAssetList.value = [];
-    totalElements.value = 0;
-    totalPages.value = 0;
+    listError.value = getErrorMessage(error);
   } finally {
     isLoading.value = false;
   }

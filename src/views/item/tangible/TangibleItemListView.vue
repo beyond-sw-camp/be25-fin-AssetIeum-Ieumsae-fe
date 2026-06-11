@@ -170,13 +170,23 @@
         </div>
       </div>
 
+      <div
+        v-if="listError"
+        class="mx-3 mt-3 flex flex-col gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
+      >
+        <span>{{ listError }}</span>
+        <Button variant="outline" size="sm" :loading="isLoading" @click="loadServerData">
+          다시 시도
+        </Button>
+      </div>
+
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
         <Table
           :columns="tableColumns"
           :rows="serverAssetList"
           :loading="isLoading"
           row-key="assetItemId"
-          class="min-w-full" 
+          class="min-w-full"
           @row-click="openItemEdit"
         >
           <template #cell-isStandard="{ value }">
@@ -538,6 +548,7 @@ const serverAssetList = ref<Asset[]>([]);
 const totalElements = ref(0);
 const totalPages = ref(0);
 const isLoading = ref(false);
+const listError = ref('');
 
 const tableColumns: Column<Asset>[] = [
   { key: 'assetName', label: '제품명', align: 'center', width: '25%' },
@@ -548,6 +559,10 @@ const tableColumns: Column<Asset>[] = [
   { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '10%' },
   { key: 'action', label: '삭제', align: 'center', width: '10%' }
 ];
+
+const getErrorMessage = (error: unknown) => (
+  error instanceof Error ? error.message : '유형자산 품목 목록을 불러오지 못했습니다.'
+)
 
 const handleSearch = () => {
   searchParams.value.page = 0;
@@ -593,6 +608,7 @@ const loadServerData = async () => {
     const response = await tangibleItemApi.getList(params);
 
     const rows = response.data.content.map((item) => toAssetRow(item));
+    listError.value = '';
 
     if (shouldFilterClientSide) {
       const filteredRows = rows.filter((row) => categoryFilterNames.includes(row.category));
@@ -609,10 +625,7 @@ const loadServerData = async () => {
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {
-    console.error(error);
-    serverAssetList.value = [];
-    totalElements.value = 0;
-    totalPages.value = 0;
+    listError.value = getErrorMessage(error);
   } finally {
     isLoading.value = false;
   }

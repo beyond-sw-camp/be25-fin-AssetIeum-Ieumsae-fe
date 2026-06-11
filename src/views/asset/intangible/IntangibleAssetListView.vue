@@ -65,6 +65,16 @@
         </div>
       </div>
 
+      <div
+        v-if="listError"
+        class="mx-3 mt-3 flex flex-col gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
+      >
+        <span>{{ listError }}</span>
+        <Button variant="outline" size="sm" :loading="isLoading" @click="loadServerData">
+          다시 시도
+        </Button>
+      </div>
+
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
         <Table
           :columns="tableColumns"
@@ -142,6 +152,7 @@ const serverAssetList = ref<IntangibleAsset[]>([])
 const totalElements = ref(0)
 const totalPages = ref(0)
 const isLoading = ref(false)
+const listError = ref('')
 
 const tableColumns: Column<IntangibleAsset>[] = [
   { key: 'assetCode', label: '자산 코드', align: 'center', width: '13%' },
@@ -159,6 +170,10 @@ const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
   return INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status
 }
+
+const getErrorMessage = (error: unknown) => (
+  error instanceof Error ? error.message : '무형자산 목록을 불러오지 못했습니다.'
+)
 
 const handleSearch = () => {
   searchParams.value.page = 0
@@ -186,14 +201,12 @@ const loadServerData = async () => {
 
     const response = await intangibleAssetApi.getList(params)
 
+    listError.value = ''
     serverAssetList.value = response.data.content
     totalElements.value = response.data.totalElements
     totalPages.value = response.data.totalPages
   } catch (error) {
-    console.error(error)
-    serverAssetList.value = []
-    totalElements.value = 0
-    totalPages.value = 0
+    listError.value = getErrorMessage(error)
   } finally {
     isLoading.value = false
   }

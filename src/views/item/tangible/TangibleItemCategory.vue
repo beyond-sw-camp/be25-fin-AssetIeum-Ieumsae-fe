@@ -391,6 +391,3 @@ watch(selectedMainCategory, () => {
   selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
 });
 </script>
-
-
-<!-- TODO: 분류에 소분류 추가 -->

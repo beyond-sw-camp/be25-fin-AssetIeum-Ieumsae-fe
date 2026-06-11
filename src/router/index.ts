@@ -111,12 +111,6 @@ const router = createRouter({
               component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
               meta: { title: '유형자산 목록' },
             },
-            {
-              path: ':assetId',
-              name: 'TangibleAssetDetail',
-              component: () => import('@/views/asset/tangible/TangibleAssetDetailView.vue'),
-              meta: { title: '유형자산 상세' },
-            },
           ],
         },
 

@@ -167,7 +167,7 @@ let members: Member[] = [
     name: '한지민',
     email: 'dev3@ieumtech.com',
     departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론特엔드팀',
+    departmentName: '프론트엔드팀',
     role: 'EMPLOYEE',
     status: 'ACTIVE',
     createdAt: '2026-01-12T09:00:00',
@@ -374,7 +374,7 @@ let tangibleAssets: TangibleAsset[] = [
   { assetId: '8', assetCode: 'TNG-0008', serialNo: 'SN-TNG-MXK-01', assetItemId: '4', assetItemName: 'MX Keys S 무선 팬터그래프', status: 'IN_USE', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', purchaseDate: '2025-07-22', warrantyExpiredAt: '2027-07-22', startedAt: '2025-08-01', returnDueDate: null, createdAt: '2025-07-22T15:00:00' },
   { assetId: '9', assetCode: 'TNG-0009', serialNo: 'SN-TNG-MXK-02', assetItemId: '4', assetItemName: 'MX Keys S 무선 팬터그래프', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-07-22', warrantyExpiredAt: '2027-07-22', startedAt: '2025-07-25', returnDueDate: null, createdAt: '2025-07-22T15:05:00' },
   { assetId: '10', assetCode: 'TNG-0010', serialNo: 'SN-TNG-FUR-01', assetItemId: '4', assetItemName: 'MX Keys S 무선 팬터그래프', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-07-22', warrantyExpiredAt: '2027-07-22', startedAt: '2025-07-15', returnDueDate: null, createdAt: '2025-07-22T15:05:00' },
-  { assetId: '11', assetCode: 'TNG-0011', serialNo: 'SN-TNG-IPH-01', assetItemId: '6', assetItemName: 'iPhone 15 Pro Max 512GB', status: 'RENTING', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-06-30', warrantyExpiredAt: '2027-06-30', startedAt: '2025-07-03', returnDueDate: '2026-07-02', createdAt: '2025-06-30T11:00:00' },
+  { assetId: '11', assetCode: 'TNG-0011', serialNo: 'SN-TNG-IPH-01', assetItemId: '6', assetItemName: 'iPhone 15 Pro Max 512GB', status: 'IN_USE', usageType: 'TEMPORARY', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-06-30', warrantyExpiredAt: '2027-06-30', startedAt: '2025-07-03', returnDueDate: '2026-07-02', createdAt: '2025-06-30T11:00:00' },
   { assetId: '12', assetCode: 'TNG-0012', serialNo: 'SN-TNG-GAL-01', assetItemId: '7', assetItemName: 'Galaxy S24 Ultra 자급제', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-05-12', warrantyExpiredAt: '2027-05-12', startedAt: '2025-05-15', returnDueDate: null, createdAt: '2025-05-12T08:20:00' },
   { assetId: '13', assetCode: 'TNG-0013', serialNo: 'SN-TNG-IPAD-01', assetItemId: '8', assetItemName: 'iPad Pro 13인치 M4 셀룰러', status: 'REPAIR_REQUESTED', assignedMemberId: null, assignedMemberName: null, departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2024-10-08', warrantyExpiredAt: '2026-10-08', startedAt: null, returnDueDate: null, createdAt: '2024-10-08T13:50:00' },
   { assetId: '14', assetCode: 'TNG-0014', serialNo: 'SN-TNG-MXM-01', assetItemId: '9', assetItemName: 'MX Master 3S 무소음 마우스', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-04-18', warrantyExpiredAt: '2027-04-18', startedAt: null, returnDueDate: null, createdAt: '2025-04-18T10:00:00' },
@@ -384,7 +384,7 @@ let tangibleAssets: TangibleAsset[] = [
   { assetId: '18', assetCode: 'TNG-0018', serialNo: 'SN-TNG-TAB-01', assetItemId: '11', assetItemName: 'Galaxy Tab S9 Ultra 256GB', status: 'RETURN_REQUESTED', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', purchaseDate: '2025-01-17', warrantyExpiredAt: '2027-01-17', startedAt: '2025-01-20', returnDueDate: '2026-01-19', createdAt: '2025-01-17T09:30:00' },
   { assetId: '19', assetCode: 'TNG-0019', serialNo: 'SN-TNG-HERM-01', assetItemId: '12', assetItemName: '에어론 체어 풀 스펙 B사이즈', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2024-08-25', warrantyExpiredAt: '2026-08-25', startedAt: null, returnDueDate: null, createdAt: '2024-08-25T11:10:00' },
   { assetId: '20', assetCode: 'TNG-0020', serialNo: 'SN-TNG-GB-01', assetItemId: '13', assetItemName: 'Galaxy Book4 Ultra 코어Ultra9', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-02-10', warrantyExpiredAt: '2027-02-10', startedAt: '2025-02-12', returnDueDate: null, createdAt: '2025-02-10T12:00:00' },
-  { assetId: '21', assetCode: 'TNG-0021', serialNo: 'SN-TNG-DESK-01', assetItemId: '14', assetItemName: '모션데스크 E0 스마트 1600', status: 'DISCARDED', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2023-11-01', warrantyExpiredAt: '2025-11-01', startedAt: null, returnDueDate: null, createdAt: '2023-11-01T08:45:00' },
+  { assetId: '21', assetCode: 'TNG-0021', serialNo: 'SN-TNG-DESK-01', assetItemId: '14', assetItemName: '모션데스크 E0 스마트 1600', status: 'DISPOSED', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2023-11-01', warrantyExpiredAt: '2025-11-01', startedAt: null, returnDueDate: null, createdAt: '2023-11-01T08:45:00' },
   { assetId: '22', assetCode: 'TNG-0022', serialNo: 'SN-TNG-DESK-02', assetItemId: '14', assetItemName: '모션데스크 E0 스마트 1600', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2024-06-15', warrantyExpiredAt: '2026-06-15', startedAt: '2024-06-18', returnDueDate: null, createdAt: '2024-06-15T09:30:00' },
   { assetId: '23', assetCode: 'TNG-0023', serialNo: 'SN-TNG-OLED-01', assetItemId: '15', assetItemName: '오디세이 OLED G9 게이밍 모니터', status: 'REPAIRING', assignedMemberId: null, assignedMemberName: null, departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2024-12-07', warrantyExpiredAt: '2026-12-07', startedAt: null, returnDueDate: null, createdAt: '2024-12-07T13:30:00' },
   { assetId: '24', assetCode: 'TNG-0024', serialNo: 'SN-TNG-RENT-01', assetItemId: '16', assetItemName: '가산 지사 복사기 렌탈 장비', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-09-05', warrantyExpiredAt: '2027-09-05', startedAt: null, returnDueDate: null, createdAt: '2025-09-05T10:30:00' },
@@ -624,11 +624,11 @@ export const handlers = [
     return HttpResponse.json(ok(member ?? null, '소속 부서가 변경되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/assets/tangible/categories`, () => {
+  http.get(`${API_PREFIX}/tangible-asset/categories`, () => {
     return HttpResponse.json(ok(tangibleCategoryGroups))
   }),
 
-  http.get(`${API_PREFIX}/assets/tangible/items`, ({ request }) => {
+  http.get(`${API_PREFIX}/tangible-asset/items`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
@@ -682,7 +682,41 @@ export const handlers = [
     }))
   }),
 
-  http.post(`${API_PREFIX}/assets/tangible/items`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tangible-asset/items/:itemId`, ({ params }) => {
+    const itemId = String(params.itemId)
+    const item = tangibleItems.find((entry) => entry.assetItemId === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ITEM_NOT_FOUND',
+        message: '품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const totalAssets = tangibleAssets.filter((asset) => asset.assetItemId === item.assetItemId)
+    const stockCount = totalAssets.length
+
+    return HttpResponse.json(ok({
+      assetItemId: item.assetItemId,
+      itemNo: `ITEM-${item.assetItemId.padStart(4, '0')}`,
+      assetName: item.assetName,
+      name: item.assetName,
+      category: item.category,
+      manufacturer: item.manufacturer,
+      modelName: item.modelName,
+      vendor: '공식 공급처',
+      purchasePrice: 1500000,
+      assetCount: stockCount,
+      stockCount,
+      availableCount: totalAssets.filter((asset) => asset.status === 'AVAILABLE').length,
+      isStandard: item.isStandard,
+      createdAt: '2025-01-01T09:00:00',
+    }))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/items`, async ({ request }) => {
     const body = await request.json() as Partial<Omit<TangibleItem, 'assetItemId'>> & {
       name?: string
     }
@@ -700,8 +734,8 @@ export const handlers = [
     return HttpResponse.json(ok(newItem, '유형자산 품목이 등록되었습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/assets/tangible/items/:assetItemId`, async ({ params, request }) => {
-    const assetItemId = String(params.assetItemId)
+  http.patch(`${API_PREFIX}/tangible-asset/items/:itemId`, async ({ params, request }) => {
+    const assetItemId = String(params.itemId)
     const body = await request.json() as TangibleAssetItemUpdateRequest
     const item = tangibleItems.find((entry) => entry.assetItemId === assetItemId)
 
@@ -743,7 +777,7 @@ export const handlers = [
     }, '유형자산 품목이 수정되었습니다.'))
   }),
 
-  http.post(`${API_PREFIX}/assets/tangible/items/bulk`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tangible-asset/items/bulk`, async ({ request }) => {
     try {
       await request.formData()
     } catch {
@@ -839,8 +873,8 @@ export const handlers = [
     return HttpResponse.json(ok(null, '무형자산 품목이 삭제되었습니다.'))
   }),
 
-  http.delete(`${API_PREFIX}/assets/tangible/items/:assetItemId`, ({ params }) => {
-    const assetItemId = String(params.assetItemId)
+  http.delete(`${API_PREFIX}/tangible-asset/items/:itemId`, ({ params }) => {
+    const assetItemId = String(params.itemId)
     const existingItem = tangibleItems.find((item) => item.assetItemId === assetItemId)
 
     if (!existingItem) {
@@ -866,7 +900,7 @@ export const handlers = [
     return HttpResponse.json(ok(null, '유형자산 품목이 삭제되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/assets/tangible`, ({ request }) => {
+  http.get(`${API_PREFIX}/tangible-asset/assets`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
@@ -928,7 +962,31 @@ export const handlers = [
     }))
   }),
 
-  http.post(`${API_PREFIX}/assets/tangible`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tangible-asset/assets/:assetId`, ({ params }) => {
+    const assetId = String(params.assetId)
+    const asset = tangibleAssets.find((entry) => entry.assetId === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '유형자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = tangibleItems.find((entry) => entry.assetItemId === asset.assetItemId)
+
+    return HttpResponse.json(ok({
+      ...asset,
+      productName: item?.assetName ?? asset.assetItemName,
+      category: item?.category ?? '',
+      manufacturer: item?.manufacturer ?? '',
+      modelName: item?.modelName ?? '',
+    }, '유형자산 상세 조회에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/assets`, async ({ request }) => {
     const body = await request.json() as TangibleAssetCreateRequest
     const item = tangibleItems.find((t) => t.assetItemId === body.assetItemId)
 
@@ -947,7 +1005,6 @@ export const handlers = [
       purchaseDate: body.purchaseDate,
       vendor: body.vendor,
       purchasePrice: body.purchasePrice,
-      assetUsageType: body.assetUsageType,
       usageType: body.usageType,
       warrantyExpiredAt: body.warrantyExpiredAt ?? new Date(new Date(body.purchaseDate).setFullYear(new Date(body.purchaseDate).getFullYear() + 2)).toISOString().split('T')[0],
       location: body.location ?? null,
@@ -960,7 +1017,7 @@ export const handlers = [
     return HttpResponse.json(ok(newAsset, '유형자산이 등록되었습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/assets/tangible/:assetId`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tangible-asset/assets/:assetId`, async ({ params, request }) => {
     const assetId = String(params.assetId)
     const body = await request.json() as TangibleAssetUpdateRequest
     const asset = tangibleAssets.find((item) => item.assetId === assetId)
@@ -993,50 +1050,6 @@ export const handlers = [
     })
 
     return HttpResponse.json(ok(updatedAsset, '유형자산이 수정되었습니다.'))
-  }),
-
-  http.patch(`${API_PREFIX}/assets/tangible/:assetId/status`, async ({ params, request }) => {
-    const assetId = String(params.assetId)
-    const body = await request.json() as { status: string }
-    const asset = tangibleAssets.find((item) => item.assetId === assetId)
-
-    if (!asset) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'ASSET_NOT_FOUND',
-        message: '유형자산을 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-
-    asset.status = body.status as TangibleAsset['status']
-    return HttpResponse.json(ok(asset, '유형자산 상태가 변경되었습니다.'))
-  }),
-
-  http.patch(`${API_PREFIX}/assets/tangible/:assetId/discard`, ({ params }) => {
-    const assetId = String(params.assetId)
-    const asset = tangibleAssets.find((item) => item.assetId === assetId)
-
-    if (!asset) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'ASSET_NOT_FOUND',
-        message: '유형자산을 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-
-    asset.status = 'DISCARDED'
-    return HttpResponse.json(ok(asset, '유형자산 폐기 처리가 완료되었습니다.'))
-  }),
-
-  http.get(`${API_PREFIX}/assets/tangible/:assetId/qr`, ({ params }) => {
-    const assetId = String(params.assetId)
-    const asset = tangibleAssets.find((item) => item.assetId === assetId)
-    return HttpResponse.json(ok({
-      assetId,
-      qrCodeUrl: asset ? `https://example.com/qr/tangible/${assetId}` : '',
-    }))
   }),
 
   http.get(`${API_PREFIX}/assets/intangible`, ({ request }) => {
