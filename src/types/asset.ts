@@ -8,20 +8,30 @@ export type TangibleAssetUsageType = 'TEMPORARY' | 'PERMANENT'
 
 export interface TangibleAssetItem {
   assetItemId: string
+  tangibleAssetItemId?: string
+  itemId?: string
   itemNo: string        // 품목번호
+  itemCode?: string
+  productName?: string
   name: string          // 제품명
   category?: string     // 카테고리
+  categoryId?: string
+  categoryName?: string
   manufacturer: string  // 제조사
   modelName: string     // 모델명
   vendor: string        // 구매처
   purchasePrice: number // 구매금액
   stockCount: number    // 재고수량
   availableCount: number
-  isStandard?: number
+  isStandard?: number | boolean
   createdAt: string
 }
 
 export interface TangibleAssetItemCreateRequest {
+  companyId?: string
+  categoryId?: string
+  productName?: string
+  itemCode?: string
   itemNo?: string
   name?: string
   assetName?: string
@@ -31,10 +41,13 @@ export interface TangibleAssetItemCreateRequest {
   vendor?: string
   purchasePrice?: number
   stockCount?: number
-  isStandard?: number
+  isStandard?: number | boolean
 }
 
 export interface TangibleAssetItemUpdateRequest {
+  categoryId?: string
+  productName?: string
+  itemCode?: string
   name?: string
   assetName?: string
   category?: string
@@ -42,13 +55,35 @@ export interface TangibleAssetItemUpdateRequest {
   modelName?: string
   vendor?: string
   purchasePrice?: number
-  isStandard?: number
+  isStandard?: number | boolean
 }
 
 export interface TangibleCategoryGroup {
+  categoryId?: string
   mainCategory: string
   subCategories: string[]
   childCategories?: Record<string, string[]>
+  subCategoryIds?: Record<string, string>
+  childCategoryIds?: Record<string, string>
+}
+
+export interface TangibleAssetCategoryCreateRequest {
+  companyId: string
+  name: string
+  parentId?: string | null
+}
+
+export interface TangibleAssetCategoryResponse {
+  categoryId?: string
+  tangibleAssetCategoryId?: string
+  name: string
+  parentId?: string | null
+}
+
+export interface TangibleAssetCategoryDeleteResponse {
+  categoryId?: string
+  tangibleAssetCategoryId?: string
+  deletedAt?: string
 }
 
 // =====================================================

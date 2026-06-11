@@ -12,27 +12,16 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline" @click="handleUploadClick">
-          <Upload :size="15" />
-          CSV 파일 업로드
-        </Button>
-        <input
-          ref="uploadInputRef"
-          type="file"
-          accept=".csv,.xlsx"
-          class="hidden"
-          @change="handleUploadFile"
-        />
-
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
           <Edit :size="15" />
-          자산 카테고리 수정
+          자산 카테고리 관리
         </Button>
         <TangibleItemCategory
           :is-open="isCategoryDrawerOpen"
           :initial-categories="cascadingOptions"
+          :company-id="companyId"
           @close="isCategoryDrawerOpen = false"
-          @update-categories="handleCategoryUpdate"
+          @changed="handleCategoryChanged"
         />
 
         <Button variant="primary" @click="isRegisterDrawerOpen = true">
@@ -42,8 +31,9 @@
         <TangibleItemRegister
           :is-open="isRegisterDrawerOpen"
           :initial-categories="cascadingOptions"
+          :company-id="companyId"
           @close="isRegisterDrawerOpen = false"
-          @register-asset="handleRegisterAsset"
+          @registered="handleItemRegistered"
         />
       </div>
     </div>
@@ -191,7 +181,7 @@
         >
           <template #cell-isStandard="{ value }">
             <span>
-              {{ value === 1 ? '표준 자산' : '비표준 자산' }}
+              {{ value === true || value === 1 ? '표준 자산' : '비표준 자산' }}
             </span>
           </template>
           <template #cell-action="{ row }">
@@ -253,9 +243,10 @@ import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
-import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
+import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api'
-import type { TangibleAssetItem, TangibleAssetItemCreateRequest, TangibleCategoryGroup } from '@/types'
+import { useAuthStore } from '@/stores'
+import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
 import TangibleItemCategory from './TangibleItemCategory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
@@ -263,11 +254,14 @@ import Input from '@/components/common/Input.vue';
 
 interface Asset {
   assetItemId?: string
+  categoryId?: string
+  itemCode?: string
+  productName?: string
   assetName: string
   category: string
   manufacturer: string
   modelName: string
-  isStandard: number
+  isStandard: number | boolean
   stockCount?: number
   availableCount?: number
   assetCount?: number
@@ -276,6 +270,7 @@ interface Asset {
 interface ItemEditForm {
   assetName: string
   category: string
+  categoryId: string
   modelName: string
   manufacturer: string
   isStandard: number
@@ -284,16 +279,43 @@ interface ItemEditForm {
 const createEmptyItemEditForm = (): ItemEditForm => ({
   assetName: '',
   category: '카테고리 선택',
+  categoryId: '',
   modelName: '',
   manufacturer: '',
   isStandard: 1
 })
 
 type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
+  id?: string
   categoryName?: string
+  categoryPath?: string
+  mainCategoryName?: string
+  subCategoryName?: string
+  childCategoryName?: string
+  tangibleAssetCategoryName?: string
+  tangibleAssetCategoryId?: string
+  tangibleAssetItemId?: string
+  itemId?: string
+  itemCode?: string
+  productName?: string
+  tangibleAssetCategory?: {
+    id?: string
+    categoryId?: string
+    tangibleAssetCategoryId?: string
+    name?: string
+    categoryName?: string
+  }
 }
 
 type CategoryGroup = TangibleCategoryGroup
+const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
+const authStore = useAuthStore()
+const companyId = computed(() => authStore.user?.companyId ?? '')
+
+const toRadioValue = (value: number | boolean | undefined) => {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return value ?? 1
+}
 
 // 드로어 열림/닫힘 상태 플래그
 const isCategoryDrawerOpen = ref(false);
@@ -305,7 +327,6 @@ const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
-const uploadInputRef = ref<HTMLInputElement | null>(null);
 
 const searchParams = ref({
   companyId: '1',
@@ -356,6 +377,7 @@ const DEFAULT_CASCADING_OPTIONS: CategoryGroup[] = [
 
 const cloneCategoryGroups = (groups: CategoryGroup[]): CategoryGroup[] => (
   groups.map((group) => ({
+    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
     ...(group.childCategories
@@ -365,10 +387,18 @@ const cloneCategoryGroups = (groups: CategoryGroup[]): CategoryGroup[] => (
           ),
         }
       : {}),
+    ...(group.subCategoryIds
+      ? { subCategoryIds: { ...group.subCategoryIds } }
+      : {}),
+    ...(group.childCategoryIds
+      ? { childCategoryIds: { ...group.childCategoryIds } }
+      : {}),
   }))
 );
 
-const cascadingOptions = ref<CategoryGroup[]>(cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS));
+const cascadingOptions = ref<CategoryGroup[]>(
+  useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [],
+);
 
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
 
@@ -398,47 +428,60 @@ const getCategoryFilterNames = () => {
   return [selectedCategory];
 };
 
-// [에러 해결 및 데이터 동기화 구현]
-// 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
-const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
-  cascadingOptions.value = updatedGroups.map((group) => ({
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-    childCategories: Object.fromEntries(
-      Object.entries(group.childCategories ?? {}).map(([key, values]) => [key, [...values]]),
-    ),
-  }));
+const categoryIdByName = (categoryName: string) => {
+  if (!categoryName || categoryName === '카테고리 선택' || categoryName === '전체 품목 보기') return '';
 
-  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => [
-    g.mainCategory,
-    ...g.subCategories,
-  ]);
-  if (
-    searchParams.value.categoryName !== '전체 품목 보기' &&
-    !flatCurrentCategories.includes(searchParams.value.categoryName)
-  ) {
-    searchParams.value.categoryName = '전체 품목 보기';
+  for (const group of cascadingOptions.value) {
+    if (categoryName === group.mainCategory || categoryName === `${group.mainCategory} - 전체`) {
+      return group.categoryId ?? '';
+    }
+
+    if (group.subCategoryIds?.[categoryName]) {
+      return group.subCategoryIds[categoryName];
+    }
+
+    if (group.childCategoryIds?.[categoryName]) {
+      return group.childCategoryIds[categoryName];
+    }
   }
 
+  return '';
+};
+
+const categoryNameById = (categoryId?: string) => {
+  if (!categoryId) return '';
+
+  for (const group of cascadingOptions.value) {
+    if (group.categoryId === categoryId) return group.mainCategory;
+
+    const subCategoryName = Object.entries(group.subCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0];
+    if (subCategoryName) return subCategoryName;
+
+    const childCategoryName = Object.entries(group.childCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0];
+    if (childCategoryName) return childCategoryName;
+  }
+
+  return '';
+};
+
+const handleCategoryChanged = async () => {
+  await loadCategories();
   handleSearch();
 };
 
-const handleRegisterAsset = async (newAsset: TangibleAssetItemCreateRequest) => {
-  try {
-    await tangibleItemApi.create(newAsset)
-    handleSearch()
-  } catch (error) {
-    console.error(error)
-    alert('품목 등록 중 오류가 발생했습니다.')
-  }
+const handleItemRegistered = () => {
+  handleSearch()
 };
 
 const toItemEditForm = (row: Asset): ItemEditForm => ({
   assetName: row.assetName,
   category: row.category || '카테고리 선택',
+  categoryId: row.categoryId || categoryIdByName(row.category),
   modelName: row.modelName,
   manufacturer: row.manufacturer,
-  isStandard: row.isStandard,
+  isStandard: toRadioValue(row.isStandard),
 });
 
 const openItemEdit = (row: Asset) => {
@@ -458,9 +501,17 @@ const closeItemEdit = () => {
 };
 
 const handleUpdateItem = async () => {
-  if (!selectedItem.value?.assetItemId || isSavingItem.value) return
+  if (isSavingItem.value) return
 
-  if (itemEditForm.value.category === '카테고리 선택') {
+  const itemId = selectedItem.value?.assetItemId
+  if (!itemId) {
+    alert('수정할 품목 정보를 찾을 수 없습니다.')
+    return
+  }
+
+  const categoryId = itemEditForm.value.categoryId || categoryIdByName(itemEditForm.value.category)
+
+  if (itemEditForm.value.category === '카테고리 선택' || !categoryId) {
     alert('카테고리를 선택해주세요.')
     return
   }
@@ -477,42 +528,28 @@ const handleUpdateItem = async () => {
   isSavingItem.value = true
 
   try {
-    await tangibleItemApi.update(selectedItem.value.assetItemId, {
-      assetName: itemEditForm.value.assetName.trim(),
-      name: itemEditForm.value.assetName.trim(),
-      category: itemEditForm.value.category,
-      manufacturer: itemEditForm.value.manufacturer.trim(),
-      modelName: itemEditForm.value.modelName.trim(),
-      isStandard: itemEditForm.value.isStandard,
+    const initialForm = initialItemEditForm.value
+    const trimmedProductName = itemEditForm.value.assetName.trim()
+    const trimmedManufacturer = itemEditForm.value.manufacturer.trim()
+    const trimmedModelName = itemEditForm.value.modelName.trim()
+    const updatePayload = {
+      ...(categoryId !== initialForm.categoryId ? { categoryId } : {}),
+      ...(trimmedProductName !== initialForm.assetName.trim() ? { productName: trimmedProductName } : {}),
+      ...(trimmedManufacturer !== initialForm.manufacturer.trim() ? { manufacturer: trimmedManufacturer } : {}),
+      ...(trimmedModelName !== initialForm.modelName.trim() ? { modelName: trimmedModelName } : {}),
+      ...(itemEditForm.value.isStandard !== initialForm.isStandard ? { isStandard: itemEditForm.value.isStandard } : {}),
+    }
+
+    await tangibleItemApi.update(itemId, {
+      ...updatePayload,
     })
     await loadServerData()
     closeItemEdit()
   } catch (error) {
     console.error(error)
-    alert('품목 수정 중 오류가 발생했습니다.')
+    alert(getErrorMessage(error))
   } finally {
     isSavingItem.value = false
-  }
-};
-
-const handleUploadClick = () => {
-  uploadInputRef.value?.click()
-};
-
-const handleUploadFile = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  try {
-    await tangibleItemApi.bulkCreate(file);
-    alert('업로드가 완료되었습니다.')
-    handleSearch();
-  } catch (error) {
-    console.error(error);
-    alert('업로드 중 오류가 발생했습니다.')
-  } finally {
-    target.value = '';
   }
 };
 
@@ -574,30 +611,151 @@ const changePage = (targetPage: number) => {
   loadServerData();
 };
 
-const toAssetRow = (item: TangibleItemResponse): Asset => ({
-  ...item,
-  assetName: item.assetName ?? item.name ?? '',
-  category: item.category ?? item.categoryName ?? '',
-  manufacturer: item.manufacturer ?? '',
-  modelName: item.modelName ?? '',
-  isStandard: item.isStandard ?? 1,
-  assetCount: item.assetCount ?? item.stockCount ?? 0,
-  stockCount: item.stockCount ?? item.assetCount ?? 0,
-  availableCount: item.availableCount,
-});
+type CategoryTreeNode = {
+  categoryId?: string
+  tangibleAssetCategoryId?: string
+  id?: string
+  name?: string
+  categoryName?: string
+  children?: CategoryTreeNode[]
+  subCategories?: CategoryTreeNode[]
+}
+
+const categoryIdOf = (category: CategoryTreeNode) => (
+  category.categoryId ?? category.tangibleAssetCategoryId ?? category.id ?? ''
+)
+
+const categoryNameOf = (category: CategoryTreeNode) => (
+  category.name ?? category.categoryName ?? ''
+)
+
+const categoryChildrenOf = (category: CategoryTreeNode) => (
+  category.children ?? category.subCategories ?? []
+)
+
+const toCategoryGroups = (categories: CategoryTreeNode[]): CategoryGroup[] => (
+  categories
+    .map((category) => {
+      const mainCategory = categoryNameOf(category)
+      const middleCategories = categoryChildrenOf(category)
+      const childCategories: Record<string, string[]> = {}
+      const subCategoryIds: Record<string, string> = {}
+      const childCategoryIds: Record<string, string> = {}
+      const subCategories: string[] = []
+
+      for (const middleCategory of middleCategories) {
+        const middleName = categoryNameOf(middleCategory)
+        if (!middleName) continue
+
+        subCategories.push(middleName)
+        subCategoryIds[middleName] = categoryIdOf(middleCategory)
+
+        const smallCategories = categoryChildrenOf(middleCategory)
+          .map((smallCategory) => {
+            const smallName = categoryNameOf(smallCategory)
+            if (smallName) childCategoryIds[smallName] = categoryIdOf(smallCategory)
+            return smallName
+          })
+          .filter((smallName) => smallName)
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories
+          subCategories.push(...smallCategories)
+        }
+      }
+
+      return {
+        categoryId: categoryIdOf(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      }
+    })
+    .filter((category) => category.mainCategory)
+)
+
+const loadCategories = async () => {
+  if (!companyId.value) {
+    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
+    return
+  }
+
+  try {
+    const response = await tangibleItemApi.getCategories(companyId.value)
+    cascadingOptions.value = toCategoryGroups(response.data as CategoryTreeNode[])
+  } catch {
+    if (useMockData) return
+    cascadingOptions.value = []
+  }
+}
+
+const toAssetRow = (item: TangibleItemResponse): Asset => {
+  const categoryId = item.categoryId
+    ?? item.tangibleAssetCategoryId
+    ?? item.tangibleAssetCategory?.categoryId
+    ?? item.tangibleAssetCategory?.tangibleAssetCategoryId
+    ?? item.tangibleAssetCategory?.id
+
+  return {
+    ...item,
+    assetItemId: item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? item.id,
+    categoryId,
+    itemCode: item.itemCode,
+    productName: item.productName,
+    assetName: item.productName ?? item.assetName ?? item.name ?? item.itemCode ?? item.itemNo ?? '',
+    category: item.category
+    ?? item.categoryName
+    ?? item.childCategoryName
+    ?? item.subCategoryName
+    ?? item.mainCategoryName
+    ?? item.categoryPath
+    ?? item.tangibleAssetCategoryName
+    ?? item.tangibleAssetCategory?.name
+    ?? item.tangibleAssetCategory?.categoryName
+    ?? categoryNameById(categoryId)
+    ?? '',
+    manufacturer: item.manufacturer ?? '',
+    modelName: item.modelName ?? '',
+    isStandard: item.isStandard ?? true,
+    assetCount: item.assetCount ?? item.stockCount ?? 0,
+    stockCount: item.stockCount ?? item.assetCount ?? 0,
+    availableCount: item.availableCount,
+  }
+};
 
 const loadServerData = async () => {
+  if (!companyId.value) {
+    serverAssetList.value = []
+    totalElements.value = 0
+    totalPages.value = 0
+    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
+    return
+  }
+
   isLoading.value = true;
 
   try {
     const categoryFilterNames = getCategoryFilterNames();
     const shouldFilterClientSide = categoryFilterNames.length > 1;
-    const params: { page: number; size: number; categoryName?: string; keyword?: string } = {
+    const selectedCategoryId = categoryIdByName(searchParams.value.categoryName);
+    const params: {
+      companyId: string
+      page: number
+      size: number
+      categoryId?: string
+      categoryName?: string
+      keyword?: string
+    } = {
+      companyId: companyId.value,
       page: shouldFilterClientSide ? 0 : searchParams.value.page,
       size: shouldFilterClientSide ? 999 : searchParams.value.size,
     };
 
-    if (categoryFilterNames.length === 1) {
+    if (!shouldFilterClientSide && selectedCategoryId) {
+      params.categoryId = selectedCategoryId;
+    } else if (categoryFilterNames.length === 1) {
       params.categoryName = categoryFilterNames[0];
     }
 
@@ -649,7 +807,15 @@ watch(rowsPerPageText, (newVal) => {
   loadServerData();
 });
 
-onMounted(() => {
+watch(
+  () => itemEditForm.value.category,
+  (category) => {
+    itemEditForm.value.categoryId = categoryIdByName(category)
+  },
+)
+
+onMounted(async () => {
+  await loadCategories();
   loadServerData();
 });
 </script>

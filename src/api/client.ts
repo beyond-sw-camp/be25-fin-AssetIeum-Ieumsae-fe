@@ -15,7 +15,6 @@ interface RetryRequestConfig extends InternalAxiosRequestConfig {
 
 interface RefreshResponse {
   accessToken: string
-  refreshToken?: string
 }
 
 export class ApiError extends Error {
@@ -39,6 +38,7 @@ export class ApiError extends Error {
 export const httpClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15_000,
+  withCredentials: true,
   headers: {
     Accept: 'application/json',
   },
@@ -57,22 +57,14 @@ httpClient.interceptors.request.use((config) => {
 let refreshPromise: Promise<string> | null = null
 
 async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-  if (!refreshToken) {
-    throw new ApiError('로그인이 만료되었습니다.', { status: 401 })
-  }
-
   const response = await axios.post<ApiResponse<RefreshResponse>>(
-    `${API_BASE_URL}/auth/refresh`,
-    { refreshToken },
+    `${API_BASE_URL}/auth/reissue`,
+    null,
+    { withCredentials: true },
   )
 
   const tokens = response.data.data
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
-
-  if (tokens.refreshToken) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
-  }
 
   return tokens.accessToken
 }

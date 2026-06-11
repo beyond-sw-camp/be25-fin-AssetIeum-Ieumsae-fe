@@ -21,6 +21,7 @@ import type {
 } from '@/types'
 
 const API_PREFIX = '*/api/v1'
+const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const MOCK_COMPANY_CODE = 'COMP001'
 const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
@@ -251,6 +252,18 @@ interface TangibleItem {
   isStandard: number
 }
 
+type TangibleItemRequestBody = Partial<Omit<TangibleItem, 'assetItemId' | 'isStandard'>> & {
+  itemCode?: string
+  name?: string
+  productName?: string
+  isStandard?: number | boolean
+}
+
+const toMockStandardValue = (value: number | boolean | undefined, fallback = 1) => {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return value ?? fallback
+}
+
 interface IntangibleItem {
   assetItemId: string
   productName: string
@@ -295,8 +308,9 @@ let tangibleItems: TangibleItem[] = [
   { assetItemId: '31', assetName: 'ABC 노트북 커버', category: '노트북 커버', manufacturer: '삼성전자', modelName: 'SM-46N', isStandard: 1 },
 ]
 
-const tangibleCategoryGroups: TangibleCategoryGroup[] = [
+let tangibleCategoryGroups: TangibleCategoryGroup[] = [
   {
+    categoryId: 'c0000000-0000-0000-0000-000000000001',
     mainCategory: 'IT / 전자기기',
     subCategories: [
       '노트북',
@@ -310,19 +324,50 @@ const tangibleCategoryGroups: TangibleCategoryGroup[] = [
       노트북: ['노트북 커버'],
       주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
     },
+    subCategoryIds: {
+      노트북: 'c0000000-0000-0000-0000-000000000011',
+      주변기기: 'c0000000-0000-0000-0000-000000000012',
+      모니터: 'c0000000-0000-0000-0000-000000000013',
+      스마트폰: 'c0000000-0000-0000-0000-000000000014',
+      태블릿: 'c0000000-0000-0000-0000-000000000015',
+    },
+    childCategoryIds: {
+      '노트북 커버': 'c0000000-0000-0000-0000-000000000021',
+      키보드: 'c0000000-0000-0000-0000-000000000022',
+      마우스: 'c0000000-0000-0000-0000-000000000023',
+      웹캠: 'c0000000-0000-0000-0000-000000000024',
+      '외장 저장장치': 'c0000000-0000-0000-0000-000000000025',
+    },
   },
   {
+    categoryId: 'c0000000-0000-0000-0000-000000000002',
     mainCategory: '사무용 가구',
     subCategories: ['사무가구'],
     childCategories: {
       사무가구: ['의자', '책상', '회의 테이블'],
     },
+    subCategoryIds: {
+      사무가구: 'c0000000-0000-0000-0000-000000000031',
+    },
+    childCategoryIds: {
+      의자: 'c0000000-0000-0000-0000-000000000032',
+      책상: 'c0000000-0000-0000-0000-000000000033',
+      '회의 테이블': 'c0000000-0000-0000-0000-000000000034',
+    },
   },
   {
+    categoryId: 'c0000000-0000-0000-0000-000000000003',
     mainCategory: '사무기기 / 가전',
     subCategories: ['사무기기'],
     childCategories: {
       사무기기: ['복합기', '라벨프린터'],
+    },
+    subCategoryIds: {
+      사무기기: 'c0000000-0000-0000-0000-000000000041',
+    },
+    childCategoryIds: {
+      복합기: 'c0000000-0000-0000-0000-000000000042',
+      라벨프린터: 'c0000000-0000-0000-0000-000000000043',
     },
   },
 ]
@@ -440,6 +485,7 @@ let intangibleAssets: IntangibleAsset[] = [
 
 function toLoginResponse(member: Member): LoginResponse {
   return {
+    companyId: MOCK_COMPANY_ID,
     memberId: member.memberId,
     memberNo: member.memberNo,
     name: member.name,
@@ -628,6 +674,126 @@ export const handlers = [
     return HttpResponse.json(ok(tangibleCategoryGroups))
   }),
 
+  http.post(`${API_PREFIX}/tangible-asset/categories`, async ({ request }) => {
+    const body = await request.json() as { name?: string; parentId?: string | null }
+    const categoryId = crypto.randomUUID()
+    const name = body.name?.trim() ?? ''
+
+    if (!name) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_CATEGORY_NAME',
+        message: '카테고리명을 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    if (!body.parentId) {
+      tangibleCategoryGroups.push({
+        categoryId,
+        mainCategory: name,
+        subCategories: [],
+        childCategories: {},
+        subCategoryIds: {},
+        childCategoryIds: {},
+      })
+    } else {
+      const parentGroup = tangibleCategoryGroups.find((group) => group.categoryId === body.parentId)
+      const parentMiddleGroup = tangibleCategoryGroups.find((group) =>
+        Object.values(group.subCategoryIds ?? {}).includes(body.parentId ?? ''),
+      )
+
+      if (parentGroup) {
+        parentGroup.subCategories.push(name)
+        parentGroup.childCategories = {
+          ...(parentGroup.childCategories ?? {}),
+          [name]: [],
+        }
+        parentGroup.subCategoryIds = {
+          ...(parentGroup.subCategoryIds ?? {}),
+          [name]: categoryId,
+        }
+      } else if (parentMiddleGroup) {
+        const parentMiddleName = Object.entries(parentMiddleGroup.subCategoryIds ?? {})
+          .find(([, id]) => id === body.parentId)?.[0]
+
+        if (parentMiddleName) {
+          parentMiddleGroup.subCategories.push(name)
+          parentMiddleGroup.childCategories = {
+            ...(parentMiddleGroup.childCategories ?? {}),
+            [parentMiddleName]: [
+              ...(parentMiddleGroup.childCategories?.[parentMiddleName] ?? []),
+              name,
+            ],
+          }
+          parentMiddleGroup.childCategoryIds = {
+            ...(parentMiddleGroup.childCategoryIds ?? {}),
+            [name]: categoryId,
+          }
+        }
+      }
+    }
+
+    return HttpResponse.json(ok({
+      categoryId,
+      name,
+      parentId: body.parentId ?? null,
+    }, '유형자산 카테고리가 등록되었습니다.'))
+  }),
+
+  http.delete(`${API_PREFIX}/tangible-asset/categories/:categoryId`, ({ params }) => {
+    const categoryId = String(params.categoryId)
+
+    tangibleCategoryGroups = tangibleCategoryGroups
+      .filter((group) => group.categoryId !== categoryId)
+      .map((group) => {
+        const middleName = Object.entries(group.subCategoryIds ?? {})
+          .find(([, id]) => id === categoryId)?.[0]
+        const smallName = Object.entries(group.childCategoryIds ?? {})
+          .find(([, id]) => id === categoryId)?.[0]
+
+        if (middleName) {
+          const smallCategories = group.childCategories?.[middleName] ?? []
+          return {
+            ...group,
+            subCategories: group.subCategories.filter((name) => name !== middleName && !smallCategories.includes(name)),
+            childCategories: Object.fromEntries(
+              Object.entries(group.childCategories ?? {}).filter(([name]) => name !== middleName),
+            ),
+            subCategoryIds: Object.fromEntries(
+              Object.entries(group.subCategoryIds ?? {}).filter(([name]) => name !== middleName),
+            ),
+            childCategoryIds: Object.fromEntries(
+              Object.entries(group.childCategoryIds ?? {}).filter(([name]) => !smallCategories.includes(name)),
+            ),
+          }
+        }
+
+        if (smallName) {
+          return {
+            ...group,
+            subCategories: group.subCategories.filter((name) => name !== smallName),
+            childCategories: Object.fromEntries(
+              Object.entries(group.childCategories ?? {}).map(([name, values]) => [
+                name,
+                values.filter((value) => value !== smallName),
+              ]),
+            ),
+            childCategoryIds: Object.fromEntries(
+              Object.entries(group.childCategoryIds ?? {}).filter(([name]) => name !== smallName),
+            ),
+          }
+        }
+
+        return group
+      })
+
+    return HttpResponse.json(ok({
+      categoryId,
+      deletedAt: new Date().toISOString(),
+    }, '유형자산 카테고리가 삭제되었습니다.'))
+  }),
+
   http.get(`${API_PREFIX}/tangible-asset/items`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
@@ -658,6 +824,7 @@ export const handlers = [
       return {
         assetItemId: item.assetItemId,
         itemNo: `ITEM-${item.assetItemId.padStart(4, '0')}`,
+        productName: item.assetName,
         assetName: item.assetName,
         name: item.assetName,
         category: item.category,
@@ -701,6 +868,7 @@ export const handlers = [
     return HttpResponse.json(ok({
       assetItemId: item.assetItemId,
       itemNo: `ITEM-${item.assetItemId.padStart(4, '0')}`,
+      productName: item.assetName,
       assetName: item.assetName,
       name: item.assetName,
       category: item.category,
@@ -717,17 +885,16 @@ export const handlers = [
   }),
 
   http.post(`${API_PREFIX}/tangible-asset/items`, async ({ request }) => {
-    const body = await request.json() as Partial<Omit<TangibleItem, 'assetItemId'>> & {
-      name?: string
-    }
+    const body = await request.json() as TangibleItemRequestBody
     const nextId = String(Math.max(...tangibleItems.map((item) => Number(item.assetItemId))) + 1)
+    const itemName = body.productName ?? body.assetName ?? body.name ?? body.itemCode ?? ''
     const newItem: TangibleItem = {
       assetItemId: nextId,
-      assetName: body.assetName ?? body.name ?? '',
+      assetName: itemName,
       category: body.category ?? '미분류',
       manufacturer: body.manufacturer ?? '',
       modelName: body.modelName ?? '',
-      isStandard: body.isStandard ?? 1,
+      isStandard: toMockStandardValue(body.isStandard),
     }
 
     tangibleItems = [newItem, ...tangibleItems]
@@ -748,11 +915,11 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    item.assetName = body.assetName ?? body.name ?? item.assetName
+    item.assetName = body.productName ?? body.assetName ?? body.name ?? item.assetName
     item.category = body.category ?? item.category
     item.manufacturer = body.manufacturer ?? item.manufacturer
     item.modelName = body.modelName ?? item.modelName
-    item.isStandard = body.isStandard ?? item.isStandard
+    item.isStandard = toMockStandardValue(body.isStandard, item.isStandard)
 
     tangibleAssets.forEach((asset) => {
       if (asset.assetItemId === assetItemId) {
@@ -763,6 +930,7 @@ export const handlers = [
     return HttpResponse.json(ok({
       assetItemId: item.assetItemId,
       itemNo: `ITEM-${item.assetItemId.padStart(4, '0')}`,
+      productName: item.assetName,
       assetName: item.assetName,
       name: item.assetName,
       category: item.category,

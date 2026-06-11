@@ -24,6 +24,7 @@
           <button
             type="button"
             class="text-text-muted hover:text-danger p-2 rounded-lg hover:bg-surface transition-colors"
+            :disabled="isSaving"
             @click="deleteMainCategory(group.mainCategory)"
           >
             <Minus :size="16" />
@@ -40,6 +41,7 @@
               <button
                 type="button"
                 class="text-text-muted hover:text-danger p-1 rounded-lg hover:bg-surface transition-colors"
+                :disabled="isSaving"
                 @click="deleteSubCategory(group.mainCategory, subCategory)"
               >
                 <Minus :size="16" />
@@ -56,6 +58,7 @@
                 <button
                   type="button"
                   class="text-text-muted hover:text-danger p-1 rounded-lg hover:bg-surface transition-colors"
+                  :disabled="isSaving"
                   @click="deleteSmallCategory(group.mainCategory, subCategory, smallCategory)"
                 >
                   <Minus :size="14" />
@@ -137,6 +140,8 @@
           variant="outline"
           size="md"
           class="w-full"
+          :disabled="isSaving"
+          :loading="isSaving"
           @click="addCategory"
         >
           추가하기
@@ -146,20 +151,8 @@
 
     <template #footer>
       <div class="flex gap-2">
-        <Button
-          variant="outline"
-          class="flex-1"
-          :disabled="!isCategoryDirty"
-          @click="resetCategories"
-        >
-          초기화
-        </Button>
-        <Button
-          class="flex-1"
-          :disabled="!isCategoryDirty"
-          @click="handleSave"
-        >
-          저장하기
+        <Button class="flex-1" :disabled="isSaving" @click="emit('close')">
+          닫기
         </Button>
       </div>
     </template>
@@ -171,19 +164,24 @@ import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Button from '@/components/common/Button.vue';
 import { Minus } from 'lucide-vue-next';
+import { tangibleItemApi } from '@/api/asset.api'
 
 interface CategoryGroup {
+  categoryId?: string;
   mainCategory: string;
   subCategories: string[];
   childCategories?: Record<string, string[]>;
+  subCategoryIds?: Record<string, string>;
+  childCategoryIds?: Record<string, string>;
 }
 
 const props = defineProps<{
   isOpen: boolean;
   initialCategories: CategoryGroup[];
+  companyId: string;
 }>();
 
-const emit = defineEmits(['close', 'update-categories']);
+const emit = defineEmits(['close', 'changed']);
 
 const localGroups = ref<CategoryGroup[]>([]);
 const initialGroups = ref<CategoryGroup[]>([]);
@@ -191,14 +189,18 @@ const addMode = ref<'main' | 'sub' | 'small'>('sub');
 const selectedMainCategory = ref('');
 const selectedMiddleCategory = ref('');
 const newCategoryName = ref('');
+const isSaving = ref(false);
 
 const cloneGroups = (groups: CategoryGroup[]) => (
   groups.map((group) => ({
+    categoryId: group.categoryId,
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
     childCategories: Object.fromEntries(
       Object.entries(group.childCategories ?? {}).map(([key, values]) => [key, [...values]]),
     ),
+    subCategoryIds: { ...(group.subCategoryIds ?? {}) },
+    childCategoryIds: { ...(group.childCategoryIds ?? {}) },
   }))
 );
 
@@ -208,10 +210,6 @@ const resetAddControls = () => {
   newCategoryName.value = '';
   addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
 };
-
-const isCategoryDirty = computed(() => (
-  JSON.stringify(localGroups.value) !== JSON.stringify(initialGroups.value)
-));
 
 const selectedGroup = computed(() => (
   localGroups.value.find((group) => group.mainCategory === selectedMainCategory.value)
@@ -246,22 +244,62 @@ const getSmallCategories = (group: CategoryGroup, middleCategory: string) => (
   group.childCategories?.[middleCategory] ?? []
 );
 
-const addCategory = () => {
+const categoryResponseId = (response: { categoryId?: string; tangibleAssetCategoryId?: string }) => (
+  response.categoryId ?? response.tangibleAssetCategoryId ?? ''
+);
+
+const createCategory = async (name: string, parentId: string | null) => {
+  if (!props.companyId) {
+    alert('회사 정보를 찾을 수 없어 카테고리를 등록할 수 없습니다.');
+    return null;
+  }
+
+  const response = await tangibleItemApi.createCategory({
+    companyId: props.companyId,
+    name,
+    parentId,
+  });
+
+  return categoryResponseId(response.data);
+};
+
+const deleteCategory = async (categoryId: string) => {
+  if (!categoryId) {
+    alert('카테고리 ID를 찾을 수 없어 삭제할 수 없습니다.');
+    return false;
+  }
+
+  await tangibleItemApi.deleteCategory(categoryId);
+  return true;
+};
+
+const addCategory = async () => {
+  if (isSaving.value) return;
+
   const trimmedName = newCategoryName.value.trim();
   if (!trimmedName) {
     alert('카테고리 이름을 입력해주세요.');
     return;
   }
 
-  if (addMode.value === 'main') {
+  isSaving.value = true;
+
+  try {
+    if (addMode.value === 'main') {
     if (localGroups.value.some((group) => group.mainCategory === trimmedName)) {
       alert('이미 존재하는 대분류명입니다.');
       return;
     }
+    const categoryId = await createCategory(trimmedName, null);
+    if (!categoryId) return;
+
     localGroups.value.push({
+      categoryId,
       mainCategory: trimmedName,
       subCategories: [],
       childCategories: {},
+      subCategoryIds: {},
+      childCategoryIds: {},
     });
     selectedMainCategory.value = trimmedName;
   } else if (addMode.value === 'sub') {
@@ -279,10 +317,17 @@ const addCategory = () => {
       alert('해당 대분류 내에 이미 존재하는 중분류명입니다.');
       return;
     }
+    const categoryId = await createCategory(trimmedName, group.categoryId ?? null);
+    if (!categoryId) return;
+
     group.subCategories.push(trimmedName);
     group.childCategories = {
       ...(group.childCategories ?? {}),
       [trimmedName]: group.childCategories?.[trimmedName] ?? [],
+    };
+    group.subCategoryIds = {
+      ...(group.subCategoryIds ?? {}),
+      [trimmedName]: categoryId,
     };
     selectedMiddleCategory.value = trimmedName;
   } else {
@@ -304,6 +349,9 @@ const addCategory = () => {
       alert('해당 대분류 내에 이미 존재하는 카테고리명입니다.');
       return;
     }
+    const parentId = group.subCategoryIds?.[selectedMiddleCategory.value] ?? '';
+    const categoryId = await createCategory(trimmedName, parentId);
+    if (!categoryId) return;
 
     group.childCategories = {
       ...(group.childCategories ?? {}),
@@ -312,16 +360,38 @@ const addCategory = () => {
         trimmedName,
       ],
     };
+    group.childCategoryIds = {
+      ...(group.childCategoryIds ?? {}),
+      [trimmedName]: categoryId,
+    };
     group.subCategories.push(trimmedName);
   }
 
   newCategoryName.value = '';
+  initialGroups.value = cloneGroups(localGroups.value);
+  emit('changed');
+  } catch (error) {
+    console.error(error);
+    alert('카테고리 등록 중 오류가 발생했습니다.');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
-const deleteMainCategory = (mainCategory: string) => {
+const deleteMainCategory = async (mainCategory: string) => {
+  if (isSaving.value) return;
+
   if (!confirm(`"${mainCategory}" 대분류를 삭제하시겠습니까?\n하위 중분류 목록도 함께 삭제됩니다.`)) {
     return;
   }
+
+  const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
+  if (!group) return;
+
+  isSaving.value = true;
+
+  try {
+    if (!(await deleteCategory(group.categoryId ?? ''))) return;
 
   localGroups.value = localGroups.value.filter((group) => group.mainCategory !== mainCategory);
 
@@ -333,42 +403,76 @@ const deleteMainCategory = (mainCategory: string) => {
     addMode.value = 'main';
   }
   selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
+  initialGroups.value = cloneGroups(localGroups.value);
+  emit('changed');
+  } catch (error) {
+    console.error(error);
+    alert('카테고리 삭제 중 오류가 발생했습니다.');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
-const deleteSubCategory = (mainCategory: string, subCategory: string) => {
+const deleteSubCategory = async (mainCategory: string, subCategory: string) => {
+  if (isSaving.value) return;
+
   const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
   if (!group) return;
+
+  isSaving.value = true;
+
+  try {
+  if (!(await deleteCategory(group.subCategoryIds?.[subCategory] ?? ''))) return;
+
   const smallCategories = group.childCategories?.[subCategory] ?? [];
   group.subCategories = group.subCategories.filter((item) => item !== subCategory && !smallCategories.includes(item));
   if (group.childCategories) {
     delete group.childCategories[subCategory];
   }
+  if (group.subCategoryIds) {
+    delete group.subCategoryIds[subCategory];
+  }
+  for (const smallCategory of smallCategories) {
+    if (group.childCategoryIds) delete group.childCategoryIds[smallCategory];
+  }
   selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
+  initialGroups.value = cloneGroups(localGroups.value);
+  emit('changed');
+  } catch (error) {
+    console.error(error);
+    alert('카테고리 삭제 중 오류가 발생했습니다.');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
-const deleteSmallCategory = (mainCategory: string, middleCategory: string, smallCategory: string) => {
+const deleteSmallCategory = async (mainCategory: string, middleCategory: string, smallCategory: string) => {
+  if (isSaving.value) return;
+
   const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
   if (!group) return;
+
+  isSaving.value = true;
+
+  try {
+  if (!(await deleteCategory(group.childCategoryIds?.[smallCategory] ?? ''))) return;
 
   group.childCategories = {
     ...(group.childCategories ?? {}),
     [middleCategory]: (group.childCategories?.[middleCategory] ?? []).filter((item) => item !== smallCategory),
   };
   group.subCategories = group.subCategories.filter((item) => item !== smallCategory);
-};
-
-const handleSave = () => {
-  if (!isCategoryDirty.value) return;
-
-  emit('update-categories', cloneGroups(localGroups.value));
-  emit('close');
-};
-
-const resetCategories = () => {
-  if (!isCategoryDirty.value) return;
-
-  localGroups.value = cloneGroups(initialGroups.value);
-  resetAddControls();
+  if (group.childCategoryIds) {
+    delete group.childCategoryIds[smallCategory];
+  }
+  initialGroups.value = cloneGroups(localGroups.value);
+  emit('changed');
+  } catch (error) {
+    console.error(error);
+    alert('카테고리 삭제 중 오류가 발생했습니다.');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 watch(

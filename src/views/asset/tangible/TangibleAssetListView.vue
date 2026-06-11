@@ -188,6 +188,7 @@ interface TangibleAssetRow extends TangibleAsset {
   modelName: string
 }
 
+const useMockData = import.meta.env.VITE_USE_MOCKS === 'true';
 const isRegisterDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
@@ -276,8 +277,9 @@ const normalizeCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
   })
 );
 
-// API 조회 전/실패 시 사용할 기본값. 정상 흐름에서는 서버 카테고리로 교체됩니다.
-const cascadingOptions = ref<FilterGroup[]>(cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS));
+const cascadingOptions = ref<FilterGroup[]>(
+  useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [],
+);
 
 const assetItemMap = computed(() => (
   new Map(assetItemOptions.value.map((item) => [item.id, item]))
@@ -389,7 +391,7 @@ const toAssetRow = (asset: TangibleAsset): TangibleAssetRow => {
 }
 
 const buildCategoryGroupsFromItems = (items: AssetItemOption[]) => {
-  const groups = cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS);
+  const groups = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [];
   const knownCategories = new Set(
     groups.flatMap((group) => group.subCategories.filter((category) => !category.endsWith(' - 전체'))),
   );

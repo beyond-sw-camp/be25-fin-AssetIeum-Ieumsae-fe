@@ -198,6 +198,7 @@ interface SoftwareTypeGroup {
   subCategories: string[]
 }
 
+const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
 const isCategoryDrawerOpen = ref(false)
 const isRegisterDrawerOpen = ref(false)
 
@@ -212,12 +213,16 @@ const searchParams = ref({
   size: 20,
 })
 
-const cascadingOptions = ref<SoftwareTypeGroup[]>([
-  {
-    mainCategory: '전체 품목 타입',
-    subCategories: ['전체 품목 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
-  },
-])
+const cascadingOptions = ref<SoftwareTypeGroup[]>(
+  useMockData
+    ? [
+        {
+          mainCategory: '전체 품목 타입',
+          subCategories: ['전체 품목 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
+        },
+      ]
+    : [],
+)
 
 const localCategories = computed(() => {
   return cascadingOptions.value.map((group) => ({
