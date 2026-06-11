@@ -4,7 +4,7 @@
     <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          Intangible Asset Item
+          무형자산 > 무형자산 품목 관리
         </p>
         <h1 class="page-title">
           무형자산 품목 관리
