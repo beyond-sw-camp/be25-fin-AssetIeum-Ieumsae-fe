@@ -11,7 +11,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  memberId: number
+  memberId: string
   memberNo: string
   name: string
   email: string
@@ -30,7 +30,7 @@ export type AuthUser = Omit<LoginResponse, 'accessToken' | 'refreshToken'>
 // =====================================================
 
 export interface Member {
-  memberId: number
+  memberId: string
   memberNo: string
   name: string
   email: string | null
@@ -43,7 +43,6 @@ export interface Member {
 
 export interface MemberRegisterRequest {
   memberNo: string
-  password: string
   name: string
   email?: string
   departmentId: string
@@ -54,7 +53,7 @@ export interface MemberListFilter {
   page?: number
   size?: number
   departmentId?: string
-  role?: Role
+  keyword?: string
   status?: MemberStatus
 }
 
@@ -64,11 +63,31 @@ export interface PasswordChangeRequest {
 }
 
 export interface PasswordChangeResponse {
-  // TODO: API 명세의 UUID string과 기존 프론트 number 모델 중 확정 타입 확인 필요
-  memberId: number
+  memberId: string
   updatedAt: string
 }
 
 export interface DepartmentChangeRequest {
   departmentId: string
+}
+
+export interface MemberResignResponse {
+  memberId: string
+  memberNo: string
+  name: string
+  status: 'RESIGNED'
+  returnedTangibleAssetCount: number
+  returnedIntangibleAssetCount: number
+  resignedAt: string
+}
+
+export interface DepartmentChangeResponse {
+  memberId: string
+  memberNo: string
+  name: string
+  previousDepartmentId: string
+  previousDepartmentName: string
+  currentDepartmentId: string
+  currentDepartmentName: string
+  updatedAt: string
 }

@@ -22,6 +22,9 @@ export function usePermission() {
   // 회사 최고 관리자 전용 기능 여부
   const canManageCompany = computed(() => hasRole('ADMIN'))
 
+  // 사원 등록, 부서 변경, 퇴사 처리 권한
+  const canManageMembers = computed(() => hasRole('ADMIN'))
+
   // 조직도 조회 가능 여부
   const canManageDepartment = computed(() => hasRole('ADMIN'))
 
@@ -51,6 +54,7 @@ export function usePermission() {
     hasRole,
     canManagePlatform,
     canManageCompany,
+    canManageMembers,
     canManageDepartment,
     canEditOrganization,
     canManageAsset,

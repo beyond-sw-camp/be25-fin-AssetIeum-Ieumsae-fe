@@ -38,7 +38,7 @@ export interface TangibleAsset {
   assetItemId: number
   assetItemName: string
   status: TangibleAssetStatus
-  assignedMemberId: number | null
+  assignedMemberId: string | null
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
@@ -63,7 +63,7 @@ export interface TangibleAssetListFilter {
   size?: number
   status?: TangibleAssetStatus
   departmentId?: string
-  memberId?: number
+  memberId?: string
   assetItemId?: number
   keyword?: string
 }
@@ -106,7 +106,7 @@ export interface IntangibleAsset {
   licenseType: LicenseType
   licenseKey?: string
   status: IntangibleAssetStatus
-  assignedMemberId: number | null
+  assignedMemberId: string | null
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
@@ -131,6 +131,6 @@ export interface IntangibleAssetListFilter {
   size?: number
   status?: IntangibleAssetStatus
   departmentId?: string
-  memberId?: number
+  memberId?: string
   assetItemId?: number
 }

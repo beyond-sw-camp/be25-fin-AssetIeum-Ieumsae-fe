@@ -45,7 +45,7 @@ import { computed } from 'vue'
 interface Props {
   id?: string
   modelValue: string | number
-  type?: 'text' | 'password' | 'number' | 'tel'
+  type?: 'text' | 'password' | 'number' | 'tel' | 'email'
   label?: string
   required?: boolean
   placeholder?: string
