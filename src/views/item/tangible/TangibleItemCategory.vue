@@ -2,9 +2,7 @@
   <BaseDrawer
     :is-open="isOpen"
     title="유형자산 카테고리"
-    submit-text="저장"
     @close="emit('close')"
-    @submit="handleSave"
   >
     <p class="text-sm font-semibold text-text-sub mb-4">카테고리 목록</p>
 
@@ -106,11 +104,31 @@
         </Button>
       </div>
     </div>
+
+    <template #footer>
+      <div class="flex gap-2">
+        <Button
+          variant="outline"
+          class="flex-1"
+          :disabled="!isCategoryDirty"
+          @click="resetCategories"
+        >
+          초기화
+        </Button>
+        <Button
+          class="flex-1"
+          :disabled="!isCategoryDirty"
+          @click="handleSave"
+        >
+          저장하기
+        </Button>
+      </div>
+    </template>
   </BaseDrawer>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Button from '@/components/common/Button.vue';
 import { Minus } from 'lucide-vue-next';
@@ -128,9 +146,27 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'update-categories']);
 
 const localGroups = ref<CategoryGroup[]>([]);
+const initialGroups = ref<CategoryGroup[]>([]);
 const addMode = ref<'main' | 'sub'>('sub');
 const selectedMainCategory = ref('');
 const newCategoryName = ref('');
+
+const cloneGroups = (groups: CategoryGroup[]) => (
+  groups.map((group) => ({
+    mainCategory: group.mainCategory,
+    subCategories: [...group.subCategories],
+  }))
+);
+
+const resetAddControls = () => {
+  selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
+  newCategoryName.value = '';
+  addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
+};
+
+const isCategoryDirty = computed(() => (
+  JSON.stringify(localGroups.value) !== JSON.stringify(initialGroups.value)
+));
 
 const addCategory = () => {
   const trimmedName = newCategoryName.value.trim();
@@ -194,25 +230,35 @@ const deleteSubCategory = (mainCategory: string, subCategory: string) => {
 };
 
 const handleSave = () => {
-  emit('update-categories', localGroups.value.map((group) => ({
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-  })));
+  if (!isCategoryDirty.value) return;
+
+  emit('update-categories', cloneGroups(localGroups.value));
   emit('close');
+};
+
+const resetCategories = () => {
+  if (!isCategoryDirty.value) return;
+
+  localGroups.value = cloneGroups(initialGroups.value);
+  resetAddControls();
 };
 
 watch(
   () => props.isOpen,
   (newVal) => {
     if (newVal) {
-      localGroups.value = props.initialCategories.map((group) => ({
-        mainCategory: group.mainCategory,
-        subCategories: [...group.subCategories],
-      }));
-      selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
-      newCategoryName.value = '';
-      addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
+      localGroups.value = cloneGroups(props.initialCategories);
+      initialGroups.value = cloneGroups(props.initialCategories);
+      resetAddControls();
+      return;
     }
+
+    localGroups.value = [];
+    initialGroups.value = [];
+    resetAddControls();
   }
 );
 </script>
+
+
+<!-- TODO: 분류에 소분류 추가 -->

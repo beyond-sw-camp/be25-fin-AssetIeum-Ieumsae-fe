@@ -1,9 +1,13 @@
 <template>
-  <BaseDrawer :is-open="isOpen" title="유형자산 품목 등록" submit-text="등록" @close="emit('close')" @submit="handleSave">
+  <BaseDrawer
+    :is-open="isOpen"
+    title="유형자산 품목 등록"
+    @close="emit('close')"
+  >
     <div class="space-y-5">
       <!-- 제품명 -->
       <div>
-        <label for="productName" class="text-sm font-semibold text-text-main mb-3 block">
+        <label for="productName" class="text-sm font-semibold text-text-main mb-2 block">
           제품명 <span class="text-primary font-bold">*</span>
         </label>
         <Input id="productName" v-model="formData.assetName" placeholder="예: MacBook Pro 16인치" />
@@ -19,7 +23,7 @@
 
       <!-- 제조사 -->
       <div>
-        <label for="manufacturer" class="text-sm font-semibold text-text-main mb-3 block">
+        <label for="manufacturer" class="text-sm font-semibold text-text-main mb-2 block">
           제조사 <span class="text-primary font-bold">*</span>
         </label>
         <Input id="manufacturer" v-model="formData.manufacturer" placeholder="예: Apple, 삼성전자" />
@@ -27,7 +31,7 @@
 
       <!-- 모델명 -->
       <div>
-        <label for="modelName" class="text-sm font-semibold text-text-main mb-3 block">
+        <label for="modelName" class="text-sm font-semibold text-text-main mb-2 block">
           모델명 <span class="text-primary font-bold">*</span>
         </label>
         <Input id="modelName" v-model="formData.modelName" placeholder="예: A2992, SM-S928N" />
@@ -35,7 +39,7 @@
 
       <!-- 표준 품목 여부 -->
       <div>
-        <label class="text-sm font-semibold text-text-main mb-3 block">
+        <label class="text-sm font-semibold text-text-main mb-2 block">
           표준 품목 여부 <span class="text-primary font-bold">*</span>
         </label>
         <div class="flex gap-8 mt-2">
@@ -77,6 +81,16 @@
         </div>
       </div>
     </div>
+
+    <template #footer>
+      <Button
+        class="w-full"
+        :disabled="!isRegisterReady"
+        @click="handleSave"
+      >
+        등록
+      </Button>
+    </template>
   </BaseDrawer>
 </template>
 
@@ -85,6 +99,7 @@ import { ref, watch, computed } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Input from '@/components/common/Input.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
+import Button from '@/components/common/Button.vue';
 
 interface CategoryItem {
     id: string;
@@ -110,8 +125,7 @@ const dropdownOptions = computed(() => {
     return props.initialCategories.map(cat => cat.name);
 });
 
-// 등록할 폼 데이터 객체
-const formData = ref<RegisterForm>({
+const createInitialForm = (): RegisterForm => ({
     assetName: '',
     category: '카테고리 선택', // 기본값 매칭
     manufacturer: '',
@@ -119,7 +133,19 @@ const formData = ref<RegisterForm>({
     isStandard: 1
 });
 
+// 등록할 폼 데이터 객체
+const formData = ref<RegisterForm>(createInitialForm());
+
+const isRegisterReady = computed(() => (
+    formData.value.category !== '카테고리 선택' &&
+    Boolean(formData.value.assetName.trim()) &&
+    Boolean(formData.value.manufacturer.trim()) &&
+    Boolean(formData.value.modelName.trim())
+));
+
 const handleSave = () => {
+    if (!isRegisterReady.value) return;
+
     // 카테고리 유효성 검사 추가
     if (formData.value.category === '카테고리 선택') {
         alert('카테고리를 선택해주세요.');
@@ -138,13 +164,10 @@ const handleSave = () => {
 // 창이 열릴 때마다 기존 입력값 리셋
 watch(() => props.isOpen, (newVal) => {
     if (newVal) {
-        formData.value = {
-            assetName: '',
-            category: '카테고리 선택',
-            manufacturer: '',
-            modelName: '',
-            isStandard: 1
-        };
+        formData.value = createInitialForm();
+        return;
     }
+
+    formData.value = createInitialForm();
 });
 </script>

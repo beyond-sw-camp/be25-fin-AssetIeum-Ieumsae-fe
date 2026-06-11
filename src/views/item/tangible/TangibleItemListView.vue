@@ -48,6 +48,72 @@
       </div>
     </div>
 
+    <BaseDrawer
+      :is-open="isEditDrawerOpen"
+      title="유형자산 품목 수정"
+      @close="closeItemEdit"
+    >
+      <div v-if="selectedItem" class="space-y-5">
+        <Input id="edit-assetName" v-model="itemEditForm.assetName" label="제품명" required placeholder="예: MacBook Pro 16인치" />
+
+        <div>
+          <label for="edit-category" class="text-sm font-semibold text-text-main mb-2 block">
+            카테고리 <span class="text-primary font-bold">*</span>
+          </label>
+          <Dropdown v-model="itemEditForm.category" :options="categoryOptions" root-option="카테고리 선택" />
+        </div>
+
+        <Input id="edit-manufacturer" v-model="itemEditForm.manufacturer" label="제조사" required placeholder="예: Apple, 삼성전자" />
+        <Input id="edit-modelName" v-model="itemEditForm.modelName" label="모델명" required placeholder="예: A2992, SM-S928N" />
+
+        <!-- 표준 품목 여부 -->
+        <div>
+          <label class="text-sm font-semibold text-text-main mb-3 block">
+            표준 품목 여부 <span class="text-primary font-bold">*</span>
+          </label>
+          <div class="flex gap-8 mt-2">
+            <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
+              <div class="relative flex items-center justify-center">
+                <input v-model="itemEditForm.isStandard" type="radio" :value="1" class="sr-only peer" />
+                <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
+                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+              </div>
+              <span>표준 자산</span>
+            </label>
+
+            <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
+              <div class="relative flex items-center justify-center">
+                <input v-model="itemEditForm.isStandard" type="radio" :value="0" class="sr-only peer" />
+                <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
+                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+              </div>
+              <span>비표준 자산</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex gap-2">
+          <Button
+            variant="outline"
+            class="flex-1"
+            :disabled="!isItemEditDirty || isSavingItem"
+            @click="resetItemEditForm"
+          >
+            초기화
+          </Button>
+          <Button
+            class="flex-1"
+            :disabled="!isItemEditDirty || isSavingItem"
+            :loading="isSavingItem"
+            @click="handleUpdateItem"
+          >
+            저장하기
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <!-- 테이블 -->
     <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
       <div class="shrink-0 rounded-t-2xl bg-surface border-b border-border px-2 pb-3 flex flex-col gap-3 relative z-30 lg:flex-row lg:items-center lg:justify-between">
@@ -82,7 +148,7 @@
             <Input
               id="keyword"
               v-model="searchParams.keyword"
-              placeholder="제품명, 제공사 등으로 검색"
+              placeholder="제품명, 제조사 등으로 검색"
               autocomplete="off"
               @keyup.enter="handleSearch"
             />
@@ -104,9 +170,10 @@
         <Table
           :columns="tableColumns"
           :rows="serverAssetList"
-          :is-loading="isLoading"
+          :loading="isLoading"
           row-key="assetItemId"
           class="min-w-full" 
+          @row-click="openItemEdit"
         >
           <template #cell-isStandard="{ value }">
             <span>
@@ -171,17 +238,17 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
+import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
-import { api } from '@/api/client'
 import { tangibleItemApi } from '@/api/asset.api'
+import type { TangibleAssetItem, TangibleAssetItemCreateRequest } from '@/types'
 
 import TangibleItemCategory from './TangibleItemCategory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
 import Input from '@/components/common/Input.vue';
 
 interface Asset {
-  [key: string]: unknown
-  assetItemId?: number
+  assetItemId?: string
   assetName: string
   category: string
   manufacturer: string
@@ -192,6 +259,26 @@ interface Asset {
   assetCount?: number
 }
 
+interface ItemEditForm {
+  assetName: string
+  category: string
+  modelName: string
+  manufacturer: string
+  isStandard: number
+}
+
+const createEmptyItemEditForm = (): ItemEditForm => ({
+  assetName: '',
+  category: '카테고리 선택',
+  modelName: '',
+  manufacturer: '',
+  isStandard: 1
+})
+
+type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
+  categoryName?: string
+}
+
 interface CategoryGroup {
   mainCategory: string
   subCategories: string[]
@@ -200,6 +287,10 @@ interface CategoryGroup {
 // 드로어 열림/닫힘 상태 플래그
 const isCategoryDrawerOpen = ref(false);
 const isRegisterDrawerOpen = ref(false);
+const isEditDrawerOpen = ref(false);
+const isSavingItem = ref(false);
+const selectedItem = ref<Asset | null>(null);
+const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
@@ -246,6 +337,10 @@ const localCategories = computed(() => {
   return list;
 });
 
+const categoryOptions = computed(() => localCategories.value.map((category) => category.name));
+
+const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
+
 // [에러 해결 및 데이터 동기화 구현]
 // 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
 const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
@@ -265,13 +360,75 @@ const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
   handleSearch();
 };
 
-const handleRegisterAsset = async (newAsset: Omit<Asset, 'id'>) => {
+const handleRegisterAsset = async (newAsset: TangibleAssetItemCreateRequest) => {
   try {
-    await api.post<Asset>('/assets/tangible/items', newAsset)
+    await tangibleItemApi.create(newAsset)
     handleSearch()
   } catch (error) {
     console.error(error)
-    alert('자산 등록 중 오류가 발생했습니다.')
+    alert('품목 등록 중 오류가 발생했습니다.')
+  }
+};
+
+const toItemEditForm = (row: Asset): ItemEditForm => ({
+  assetName: row.assetName,
+  category: row.category || '카테고리 선택',
+  modelName: row.modelName,
+  manufacturer: row.manufacturer,
+  isStandard: row.isStandard,
+});
+
+const openItemEdit = (row: Asset) => {
+  const form = toItemEditForm(row)
+
+  selectedItem.value = row
+  itemEditForm.value = { ...form }
+  initialItemEditForm.value = { ...form }
+  isEditDrawerOpen.value = true
+};
+
+const closeItemEdit = () => {
+  isEditDrawerOpen.value = false
+  selectedItem.value = null
+  itemEditForm.value = createEmptyItemEditForm()
+  initialItemEditForm.value = createEmptyItemEditForm()
+};
+
+const handleUpdateItem = async () => {
+  if (!selectedItem.value?.assetItemId || isSavingItem.value) return
+
+  if (itemEditForm.value.category === '카테고리 선택') {
+    alert('카테고리를 선택해주세요.')
+    return
+  }
+
+  if (
+    !itemEditForm.value.assetName.trim() ||
+    !itemEditForm.value.manufacturer.trim() ||
+    !itemEditForm.value.modelName.trim()
+  ) {
+    alert('필수 항목을 입력해주세요.')
+    return
+  }
+
+  isSavingItem.value = true
+
+  try {
+    await tangibleItemApi.update(selectedItem.value.assetItemId, {
+      assetName: itemEditForm.value.assetName.trim(),
+      name: itemEditForm.value.assetName.trim(),
+      category: itemEditForm.value.category,
+      manufacturer: itemEditForm.value.manufacturer.trim(),
+      modelName: itemEditForm.value.modelName.trim(),
+      isStandard: itemEditForm.value.isStandard,
+    })
+    await loadServerData()
+    closeItemEdit()
+  } catch (error) {
+    console.error(error)
+    alert('품목 수정 중 오류가 발생했습니다.')
+  } finally {
+    isSavingItem.value = false
   }
 };
 
@@ -300,6 +457,11 @@ const canDeleteRow = (row: Asset) => {
   return (row.assetCount ?? 0) === 0
 };
 
+const resetItemEditForm = () => {
+  if (!isItemEditDirty.value || isSavingItem.value) return
+  itemEditForm.value = { ...initialItemEditForm.value }
+}
+
 const handleDeleteAsset = async (row: Asset) => {
   if (!row.assetItemId) {
     alert('삭제할 품목 정보를 찾을 수 없습니다.')
@@ -315,7 +477,7 @@ const handleDeleteAsset = async (row: Asset) => {
     handleSearch()
   } catch (error) {
     console.error(error)
-    alert('자산 삭제 중 오류가 발생했습니다.')
+    alert('품목 삭제 중 오류가 발생했습니다.')
   }
 };
 
@@ -329,7 +491,7 @@ const tableColumns: Column<Asset>[] = [
   { key: 'category', label: '카테고리', align: 'center', width: '14%' },
   { key: 'manufacturer', label: '제조사', align: 'center', width: '14%' },
   { key: 'modelName', label: '모델명', align: 'center', width: '18%' },
-  { key: 'assetCount', label: '자산 수', align: 'center', width: '8%' },
+  { key: 'assetCount', label: '자산 수', align: 'center', width: '10%' },
   { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '10%' },
   { key: 'action', label: '삭제', align: 'center', width: '10%' }
 ];
@@ -344,11 +506,23 @@ const changePage = (targetPage: number) => {
   loadServerData();
 };
 
+const toAssetRow = (item: TangibleItemResponse): Asset => ({
+  ...item,
+  assetName: item.assetName ?? item.name ?? '',
+  category: item.category ?? item.categoryName ?? '',
+  manufacturer: item.manufacturer ?? '',
+  modelName: item.modelName ?? '',
+  isStandard: item.isStandard ?? 1,
+  assetCount: item.assetCount ?? item.stockCount ?? 0,
+  stockCount: item.stockCount ?? item.assetCount ?? 0,
+  availableCount: item.availableCount,
+});
+
 const loadServerData = async () => {
   isLoading.value = true;
 
   try {
-    const params: Record<string, unknown> = {
+    const params: { page: number; size: number; categoryName?: string; keyword?: string } = {
       page: searchParams.value.page,
       size: searchParams.value.size,
     };
@@ -361,15 +535,9 @@ const loadServerData = async () => {
       params.keyword = searchParams.value.keyword.trim().toLowerCase();
     }
 
-    const response = await api.get<{
-      content: Asset[];
-      page: number;
-      size: number;
-      totalElements: number;
-      totalPages: number;
-    }>('/assets/tangible/items', params);
+    const response = await tangibleItemApi.getList(params);
 
-    serverAssetList.value = response.data.content;
+    serverAssetList.value = response.data.content.map((item) => toAssetRow(item));
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {
@@ -381,6 +549,10 @@ const loadServerData = async () => {
     isLoading.value = false;
   }
 };
+
+const isItemEditDirty = computed(() => (
+  JSON.stringify(itemEditForm.value) !== JSON.stringify(initialItemEditForm.value)
+))
 
 const itemRangeText = computed(() => {
   if (totalElements.value === 0) return '0-0';
