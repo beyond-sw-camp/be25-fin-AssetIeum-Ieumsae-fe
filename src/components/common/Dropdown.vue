@@ -2,8 +2,12 @@
   <div class="relative w-full text-left" :class="$attrs.class">
     <button
       type="button"
-      class="w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
-      @click="isOpen = !isOpen"
+      :disabled="props.disabled"
+      :class="[
+        'w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20',
+        props.disabled && 'cursor-not-allowed bg-surface-secondary text-text-muted opacity-60 hover:bg-surface-secondary focus:ring-0'
+      ]"
+      @click="toggleOpen"
     >
       <div class="flex items-center gap-2 overflow-hidden">
         <slot name="icon" />
@@ -88,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ChevronDown, ChevronLeft } from 'lucide-vue-next'
 
 interface CategoryGroup {
@@ -96,13 +100,16 @@ interface CategoryGroup {
   subCategories: string[]
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: string
   options: string[] | CategoryGroup[]
   rootOption?: string
   menuAlign?: 'left' | 'right'
   submenuDirection?: 'left' | 'right'
-}>()
+  disabled?: boolean
+}>(), {
+  disabled: false,
+})
 
 const emit = defineEmits(['update:modelValue'])
 const isOpen = ref(false)
@@ -133,13 +140,26 @@ const isGroupSelected = (group: CategoryGroup) => {
   return group.subCategories.includes(props.modelValue)
 }
 
+const toggleOpen = () => {
+  if (props.disabled) return
+  isOpen.value = !isOpen.value
+}
+
 const toggleGroup = (mainCategory: string) => {
+  if (props.disabled) return
   activeGroup.value = activeGroup.value === mainCategory ? null : mainCategory
 }
 
 const selectOption = (option: string) => {
+  if (props.disabled) return
   emit('update:modelValue', option)
   isOpen.value = false
   activeGroup.value = null
 }
+
+watch(() => props.disabled, (disabled) => {
+  if (!disabled) return
+  isOpen.value = false
+  activeGroup.value = null
+})
 </script>
