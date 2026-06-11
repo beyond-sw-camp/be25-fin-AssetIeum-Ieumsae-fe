@@ -15,6 +15,7 @@ import type {
   PasswordChangeRequest,
   TangibleAsset,
   TangibleAssetCreateRequest,
+  TangibleCategoryGroup,
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
 } from '@/types'
@@ -291,6 +292,39 @@ let tangibleItems: TangibleItem[] = [
   { assetItemId: '28', assetName: 'Canon imageCLASS 복합기', category: '사무기기', manufacturer: 'Canon', modelName: 'MF746Cdw', isStandard: 1 },
   { assetItemId: '29', assetName: 'Brother 라벨프린터 QL-820NWB', category: '사무기기', manufacturer: 'Brother', modelName: 'QL-820NWB', isStandard: 0 },
   { assetItemId: '30', assetName: 'Samsung Galaxy Z Fold 5', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-F946N', isStandard: 1 },
+  { assetItemId: '31', assetName: 'ABC 노트북 커버', category: '노트북 커버', manufacturer: '삼성전자', modelName: 'SM-46N', isStandard: 1 },
+]
+
+const tangibleCategoryGroups: TangibleCategoryGroup[] = [
+  {
+    mainCategory: 'IT / 전자기기',
+    subCategories: [
+      '노트북',
+      '노트북 커버',
+      '모니터',
+      '스마트폰',
+      '태블릿',
+      '주변기기'
+    ],
+    childCategories: {
+      노트북: ['노트북 커버'],
+      주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
+    },
+  },
+  {
+    mainCategory: '사무용 가구',
+    subCategories: ['사무가구'],
+    childCategories: {
+      사무가구: ['의자', '책상', '회의 테이블'],
+    },
+  },
+  {
+    mainCategory: '사무기기 / 가전',
+    subCategories: ['사무기기'],
+    childCategories: {
+      사무기기: ['복합기', '라벨프린터'],
+    },
+  },
 ]
 
 // 무형자산 품목 마스터 데이터 (31개) - ID를 string으로 변경
@@ -330,7 +364,7 @@ let intangibleItems: IntangibleItem[] = [
 
 // 유형자산 실물 데이터 (35개) - 모든 ID 필드를 string으로 정렬
 let tangibleAssets: TangibleAsset[] = [
-  { assetId: '1', assetCode: 'TNG-0001', serialNo: 'SN-TNG-M3-01', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: '2025-01-25', returnDueDate: null, createdAt: '2025-01-20T09:00:00' },
+  { assetId: '1', assetCode: 'NBC-0001', serialNo: 'NB-C-01', assetItemId: '31', assetItemName: 'ABC 노트북 커버', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: '2025-01-25', returnDueDate: null, createdAt: '2025-01-20T09:00:00' },
   { assetId: '2', assetCode: 'TNG-0002', serialNo: 'SN-TNG-M3-02', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: null, returnDueDate: null, createdAt: '2025-01-20T09:10:00' },
   { assetId: '3', assetCode: 'TNG-0003', serialNo: 'SN-TNG-M3-03', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', purchaseDate: '2025-03-10', warrantyExpiredAt: '2027-03-10', startedAt: '2025-03-12', returnDueDate: null, createdAt: '2025-03-10T11:00:00' },
   { assetId: '4', assetCode: 'TNG-0004', serialNo: 'SN-TNG-THINK-01', assetItemId: '2', assetItemName: 'ThinkPad X1 Carbon Gen 12', status: 'IN_USE', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', purchaseDate: '2025-03-05', warrantyExpiredAt: '2027-03-05', startedAt: '2025-03-15', returnDueDate: null, createdAt: '2025-03-05T10:30:00' },
@@ -588,6 +622,10 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(member ?? null, '소속 부서가 변경되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/assets/tangible/categories`, () => {
+    return HttpResponse.json(ok(tangibleCategoryGroups))
   }),
 
   http.get(`${API_PREFIX}/assets/tangible/items`, ({ request }) => {
@@ -902,17 +940,17 @@ export const handlers = [
       assetItemId: body.assetItemId,
       assetItemName: item?.assetName ?? '알 수 없는 품목',
       status: body.status ?? 'AVAILABLE',
-      assignedMemberId: null,
-      assignedMemberName: null,
-      departmentId: null,
-      departmentName: null,
+      assignedMemberId: body.assignedMemberId ?? null,
+      assignedMemberName: body.assignedMemberName ?? null,
+      departmentId: body.departmentId ?? null,
+      departmentName: body.departmentName ?? null,
       purchaseDate: body.purchaseDate,
       vendor: body.vendor,
       purchasePrice: body.purchasePrice,
-      warrantyExpiredAt: new Date(new Date(body.purchaseDate).setFullYear(new Date(body.purchaseDate).getFullYear() + 2)).toISOString().split('T')[0],
-      location: null,
-      startedAt: null,
-      returnDueDate: null,
+      warrantyExpiredAt: body.warrantyExpiredAt ?? new Date(new Date(body.purchaseDate).setFullYear(new Date(body.purchaseDate).getFullYear() + 2)).toISOString().split('T')[0],
+      location: body.location ?? null,
+      startedAt: body.startedAt ?? null,
+      returnDueDate: body.returnDueDate ?? null,
       createdAt: new Date().toISOString(),
     }
 

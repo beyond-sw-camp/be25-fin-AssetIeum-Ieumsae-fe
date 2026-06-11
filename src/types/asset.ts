@@ -43,6 +43,12 @@ export interface TangibleAssetItemUpdateRequest {
   isStandard?: number
 }
 
+export interface TangibleCategoryGroup {
+  mainCategory: string
+  subCategories: string[]
+  childCategories?: Record<string, string[]>
+}
+
 // =====================================================
 // 유형자산(TangibleAsset) 타입
 // =====================================================
@@ -75,6 +81,14 @@ export interface TangibleAssetCreateRequest {
   vendor?: string
   purchasePrice?: number
   status?: TangibleAssetStatus
+  assignedMemberId?: string | null
+  assignedMemberName?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
+  startedAt?: string | null
+  returnDueDate?: string | null
+  warrantyExpiredAt?: string | null
+  location?: string | null
 }
 
 export interface TangibleAssetUpdateRequest {

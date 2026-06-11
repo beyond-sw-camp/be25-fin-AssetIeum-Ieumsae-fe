@@ -1,5 +1,5 @@
 <template>
-  <div class="relative w-full text-left" :class="$attrs.class">
+  <div ref="rootRef" class="relative w-full text-left" :class="$attrs.class">
     <button
       type="button"
       :disabled="props.disabled"
@@ -13,15 +13,19 @@
         <slot name="icon" />
         <span :class="['truncate', selectedTextClass]">{{ modelValue }}</span>
       </div>
-
-      <ChevronDown :size="16" class="text-text-muted shrink-0 ml-2" />
+      <ChevronDown
+        :size="16"
+        class="text-text-muted shrink-0 ml-2 transition-transform"
+        :class="isOpen && 'rotate-180'"
+      />
     </button>
 
     <div
       v-if="isOpen"
       :class="[
         'absolute mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
-        menuAlign === 'right' ? 'right-0' : 'left-0'
+        menuAlign === 'right' ? 'right-0' : 'left-0',
+        isPanelDropdown && !isSimpleOptions ? 'max-h-72 overflow-y-auto' : ''
       ]"
     >
       <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
@@ -49,10 +53,80 @@
         </li>
 
         <li
+          v-for="group in panelGroupedOptions"
+          :key="`panel-${group.mainCategory}`"
+        >
+          <button
+            type="button"
+            :class="[
+              'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
+              isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main'
+            ]"
+            @click.stop="selectPanelGroup(group.mainCategory)"
+          >
+            <span class="truncate">{{ group.mainCategory }}</span>
+            <ChevronDown
+              v-if="getMiddleCategories(group).length"
+              :size="15"
+              class="shrink-0 text-text-muted transition-transform"
+              :class="activeGroup === group.mainCategory && 'rotate-180'"
+            />
+          </button>
+
+          <ul
+            v-if="activeGroup === group.mainCategory"
+            class="border-l border-border/70 ml-4 pl-2"
+          >
+            <li
+              v-for="subCategory in getMiddleCategories(group)"
+              :key="`${group.mainCategory}-${subCategory}`"
+            >
+              <button
+                type="button"
+                :class="[
+                  'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-surface-secondary transition-colors',
+                  modelValue === subCategory || isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main'
+                ]"
+                @click.stop="selectPanelSubCategory(group, subCategory)"
+              >
+                <span class="truncate">{{ subCategory }}</span>
+                <ChevronDown
+                  v-if="getSmallCategories(group, subCategory).length"
+                  :size="15"
+                  class="shrink-0 text-text-muted transition-transform"
+                  :class="activeSubCategory === subCategory && 'rotate-180'"
+                />
+              </button>
+
+              <ul
+                v-if="activeSubCategory === subCategory && getSmallCategories(group, subCategory).length"
+                class="border-l border-border/60 ml-4 pl-2"
+              >
+                <li
+                  v-for="smallCategory in getSmallCategories(group, subCategory)"
+                  :key="`${group.mainCategory}-${subCategory}-${smallCategory}`"
+                >
+                  <button
+                    type="button"
+                    :class="[
+                      'w-full flex items-center px-3 py-2 text-sm hover:bg-surface-secondary transition-colors',
+                      modelValue === smallCategory ? 'text-primary font-semibold' : 'text-text-main'
+                    ]"
+                    @click.stop="selectOption(smallCategory)"
+                  >
+                    <span class="truncate">{{ smallCategory }}</span>
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+
+        <li
           v-for="group in groupedOptions"
           :key="group.mainCategory"
           class="relative"
-          @mouseenter="activeGroup = group.mainCategory"
+          @mouseenter="activateGroup(group.mainCategory, $event)"
         >
           <button
             type="button"
@@ -60,29 +134,55 @@
               'w-full flex items-center justify-start gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
               isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main'
             ]"
-            @click.stop="toggleGroup(group.mainCategory)"
+            @click.stop="selectOption(group.mainCategory)"
           >
-            <ChevronLeft :size="14" class="text-text-muted shrink-0" />
             <span class="truncate">{{ group.mainCategory }}</span>
           </button>
 
           <ul
             v-if="activeGroup === group.mainCategory"
             :class="[
-              'absolute top-0 min-w-40 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60 overflow-y-auto',
-              submenuDirection === 'left' ? 'right-full mr-1' : 'left-full ml-1'
+              'absolute top-0 w-44 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60',
+              hasSmallCategories(group) ? 'overflow-visible' : 'overflow-y-auto',
+              effectiveSubmenuDirection === 'left' ? 'right-full mr-1' : 'left-full ml-1'
             ]"
           >
             <li
-              v-for="subCategory in group.subCategories"
+              v-for="subCategory in getMiddleCategories(group)"
               :key="subCategory"
-              :class="[
-                'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer whitespace-nowrap',
-                modelValue === subCategory ? 'text-primary font-semibold' : 'text-text-main'
-              ]"
-              @click="selectOption(subCategory)"
+              class="relative"
+              @mouseenter="activateSubCategory(subCategory, $event)"
             >
-              {{ subCategory }}
+              <button
+                type="button"
+                :class="[
+                  'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors whitespace-nowrap',
+                  modelValue === subCategory || isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main'
+                ]"
+                @click.stop="selectOption(subCategory)"
+              >
+                <span class="truncate">{{ subCategory }}</span>
+              </button>
+
+              <ul
+                v-if="activeSubCategory === subCategory && getSmallCategories(group, subCategory).length"
+                :class="[
+                  'absolute top-0 w-44 rounded-xl border border-border bg-surface py-1 shadow-xl max-h-60 overflow-y-auto',
+                  effectiveNestedSubmenuDirection === 'left' ? 'right-full mr-1' : 'left-full ml-1'
+                ]"
+              >
+                <li
+                  v-for="smallCategory in getSmallCategories(group, subCategory)"
+                  :key="smallCategory"
+                  :class="[
+                    'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer truncate',
+                    modelValue === smallCategory ? 'text-primary font-semibold' : 'text-text-main'
+                  ]"
+                  @click="selectOption(smallCategory)"
+                >
+                  {{ smallCategory }}
+                </li>
+              </ul>
             </li>
           </ul>
         </li>
@@ -92,12 +192,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { ChevronDown, ChevronLeft } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ChevronDown } from 'lucide-vue-next'
 
 interface CategoryGroup {
   mainCategory: string
   subCategories: string[]
+  childCategories?: Record<string, string[]>
 }
 
 const props = withDefaults(defineProps<{
@@ -112,11 +213,19 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits(['update:modelValue'])
+const rootRef = ref<HTMLElement | null>(null)
+const dropdownId = crypto.randomUUID()
 const isOpen = ref(false)
 const activeGroup = ref<string | null>(null)
+const activeSubCategory = ref<string | null>(null)
+const effectiveSubmenuDirection = ref<'left' | 'right'>('right')
+const effectiveNestedSubmenuDirection = ref<'left' | 'right'>('right')
+const isPanelDropdown = ref(false)
 
 const menuAlign = computed(() => props.menuAlign ?? 'left')
 const submenuDirection = computed(() => props.submenuDirection ?? 'right')
+const submenuWidth = 176
+const viewportPadding = 12
 
 const isSimpleOptions = computed(() => {
   return props.options.length === 0 || typeof props.options[0] === 'string'
@@ -127,7 +236,11 @@ const simpleOptions = computed(() => {
 })
 
 const groupedOptions = computed(() => {
-  return isSimpleOptions.value ? [] : props.options as CategoryGroup[]
+  return isSimpleOptions.value || isPanelDropdown.value ? [] : props.options as CategoryGroup[]
+})
+
+const panelGroupedOptions = computed(() => {
+  return !isSimpleOptions.value && isPanelDropdown.value ? props.options as CategoryGroup[] : []
 })
 
 const selectedTextClass = computed(() => {
@@ -137,29 +250,166 @@ const selectedTextClass = computed(() => {
 })
 
 const isGroupSelected = (group: CategoryGroup) => {
-  return group.subCategories.includes(props.modelValue)
+  return props.modelValue === group.mainCategory || group.subCategories.includes(props.modelValue)
+}
+
+const getSmallCategorySet = (group: CategoryGroup) => (
+  new Set(Object.values(group.childCategories ?? {}).flat())
+)
+
+const getMiddleCategories = (group: CategoryGroup) => {
+  const smallCategorySet = getSmallCategorySet(group)
+  return group.subCategories.filter((subCategory) => !smallCategorySet.has(subCategory))
+}
+
+const getSmallCategories = (group: CategoryGroup, subCategory: string) => (
+  group.childCategories?.[subCategory] ?? []
+)
+
+const hasSmallCategories = (group: CategoryGroup) => (
+  Object.values(group.childCategories ?? {}).some((categories) => categories.length > 0)
+)
+
+const isSubCategorySelected = (group: CategoryGroup, subCategory: string) => {
+  return getSmallCategories(group, subCategory).includes(props.modelValue)
+}
+
+const updatePanelContext = () => {
+  isPanelDropdown.value = Boolean(rootRef.value?.closest('[data-dropdown-panel]'))
+}
+
+const clipsOverflow = (element: HTMLElement) => {
+  const style = window.getComputedStyle(element)
+  return [style.overflow, style.overflowX, style.overflowY].some((value) => (
+    value === 'hidden' || value === 'auto' || value === 'scroll' || value === 'clip'
+  ))
+}
+
+const getVisibleBounds = (anchor: HTMLElement) => {
+  const bounds = {
+    left: viewportPadding,
+    right: window.innerWidth - viewportPadding,
+  }
+
+  let parent = anchor.parentElement
+  while (parent) {
+    if (clipsOverflow(parent)) {
+      const rect = parent.getBoundingClientRect()
+      bounds.left = Math.max(bounds.left, rect.left + viewportPadding)
+      bounds.right = Math.min(bounds.right, rect.right - viewportPadding)
+    }
+
+    parent = parent.parentElement
+  }
+
+  return bounds
+}
+
+const getAdaptiveDirection = (anchor: HTMLElement, preferredDirection: 'left' | 'right') => {
+  const rect = anchor.getBoundingClientRect()
+  const bounds = getVisibleBounds(anchor)
+  const leftSpace = rect.left - bounds.left
+  const rightSpace = bounds.right - rect.right
+
+  if (preferredDirection === 'left') {
+    if (leftSpace >= submenuWidth) return 'left'
+    if (rightSpace >= submenuWidth) return 'right'
+    return leftSpace >= rightSpace ? 'left' : 'right'
+  }
+
+  if (rightSpace >= submenuWidth) return 'right'
+  if (leftSpace >= submenuWidth) return 'left'
+  return rightSpace >= leftSpace ? 'right' : 'left'
+}
+
+const activateGroup = (groupName: string, event: MouseEvent) => {
+  activeGroup.value = groupName
+  activeSubCategory.value = null
+  effectiveSubmenuDirection.value = getAdaptiveDirection(event.currentTarget as HTMLElement, submenuDirection.value)
+  effectiveNestedSubmenuDirection.value = effectiveSubmenuDirection.value
+}
+
+const activateSubCategory = (subCategory: string, event: MouseEvent) => {
+  activeSubCategory.value = subCategory
+  effectiveNestedSubmenuDirection.value = getAdaptiveDirection(
+    event.currentTarget as HTMLElement,
+    effectiveSubmenuDirection.value,
+  )
+}
+
+const selectPanelGroup = (groupName: string) => {
+  emit('update:modelValue', groupName)
+  activeGroup.value = activeGroup.value === groupName ? null : groupName
+  activeSubCategory.value = null
+}
+
+const selectPanelSubCategory = (group: CategoryGroup, subCategory: string) => {
+  emit('update:modelValue', subCategory)
+
+  if (!getSmallCategories(group, subCategory).length) {
+    closeDropdown()
+    return
+  }
+
+  activeSubCategory.value = activeSubCategory.value === subCategory ? null : subCategory
+}
+
+const closeDropdown = () => {
+  isOpen.value = false
+  activeGroup.value = null
+  activeSubCategory.value = null
+  effectiveSubmenuDirection.value = submenuDirection.value
+  effectiveNestedSubmenuDirection.value = submenuDirection.value
 }
 
 const toggleOpen = () => {
   if (props.disabled) return
-  isOpen.value = !isOpen.value
-}
+  const willOpen = !isOpen.value
 
-const toggleGroup = (mainCategory: string) => {
-  if (props.disabled) return
-  activeGroup.value = activeGroup.value === mainCategory ? null : mainCategory
+  if (willOpen) {
+    window.dispatchEvent(new CustomEvent('asset-ieum-dropdown-open', { detail: dropdownId }))
+  }
+
+  isOpen.value = willOpen
+  activeSubCategory.value = null
+  effectiveSubmenuDirection.value = submenuDirection.value
+  effectiveNestedSubmenuDirection.value = submenuDirection.value
+  nextTick(updatePanelContext)
 }
 
 const selectOption = (option: string) => {
   if (props.disabled) return
   emit('update:modelValue', option)
-  isOpen.value = false
-  activeGroup.value = null
+  closeDropdown()
 }
 
 watch(() => props.disabled, (disabled) => {
   if (!disabled) return
-  isOpen.value = false
-  activeGroup.value = null
+  closeDropdown()
+})
+
+const handlePointerDown = (event: PointerEvent) => {
+  if (!isOpen.value) return
+  const target = event.target
+
+  if (target instanceof Node && rootRef.value?.contains(target)) return
+  closeDropdown()
+}
+
+const handleDropdownOpen = (event: Event) => {
+  const detail = (event as CustomEvent<string>).detail
+  if (detail === dropdownId) return
+  closeDropdown()
+}
+
+onMounted(() => {
+  updatePanelContext()
+  document.addEventListener('pointerdown', handlePointerDown, true)
+  window.addEventListener('asset-ieum-dropdown-open', handleDropdownOpen)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handlePointerDown, true)
+  window.removeEventListener('asset-ieum-dropdown-open', handleDropdownOpen)
 })
 </script>

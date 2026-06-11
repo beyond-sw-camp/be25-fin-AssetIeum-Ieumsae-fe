@@ -3,6 +3,7 @@ import type {
   TangibleAssetItem,
   TangibleAssetItemCreateRequest,
   TangibleAssetItemUpdateRequest,
+  TangibleCategoryGroup,
   TangibleAsset,
   TangibleAssetCreateRequest,
   TangibleAssetUpdateRequest,
@@ -20,6 +21,10 @@ export const tangibleItemApi = {
   /** 유형자산 품목 목록 조회 */
   getList: (params?: { page?: number; size?: number; categoryName?: string; keyword?: string }) =>
     api.get<PageResponse<TangibleAssetItem>>('/assets/tangible/items', params as Record<string, unknown>),
+
+  /** 유형자산 품목 카테고리 목록 조회 */
+  getCategories: () =>
+    api.get<TangibleCategoryGroup[]>('/assets/tangible/categories'),
 
   /** 유형자산 품목 상세 조회 */
   getDetail: (assetItemId: string) =>
