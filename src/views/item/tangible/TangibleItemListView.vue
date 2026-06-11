@@ -4,7 +4,7 @@
     <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          Tangible Asset Item
+          유형자산 > 유형자산 품목 관리
         </p>
         <h1 class="page-title">
           유형자산 품목 관리
@@ -41,7 +41,7 @@
         </Button>
         <TangibleItemRegister
           :is-open="isRegisterDrawerOpen"
-          :initial-categories="localCategories"
+          :initial-categories="cascadingOptions"
           @close="isRegisterDrawerOpen = false"
           @register-asset="handleRegisterAsset"
         />
@@ -60,7 +60,12 @@
           <label for="edit-category" class="text-sm font-semibold text-text-main mb-2 block">
             카테고리 <span class="text-primary font-bold">*</span>
           </label>
-          <Dropdown v-model="itemEditForm.category" :options="categoryOptions" root-option="카테고리 선택" />
+          <Dropdown
+            v-model="itemEditForm.category"
+            :options="cascadingOptions"
+            root-option="카테고리 선택"
+            submenu-direction="left"
+          />
         </div>
 
         <Input id="edit-manufacturer" v-model="itemEditForm.manufacturer" label="제조사" required placeholder="예: Apple, 삼성전자" />
@@ -121,7 +126,6 @@
           <Dropdown
             v-model="rowsPerPageText"
             :options="rowsPerPageOptions"
-            class="w-36"
           />
           <span class="text-xs text-text-sub whitespace-nowrap">
             총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
@@ -241,7 +245,7 @@ import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api'
-import type { TangibleAssetItem, TangibleAssetItemCreateRequest } from '@/types'
+import type { TangibleAssetItem, TangibleAssetItemCreateRequest, TangibleCategoryGroup } from '@/types'
 
 import TangibleItemCategory from './TangibleItemCategory.vue';
 import TangibleItemRegister from './TangibleItemRegister.vue';
@@ -279,10 +283,7 @@ type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
   categoryName?: string
 }
 
-interface CategoryGroup {
-  mainCategory: string
-  subCategories: string[]
-}
+type CategoryGroup = TangibleCategoryGroup
 
 // 드로어 열림/닫힘 상태 플래그
 const isCategoryDrawerOpen = ref(false);
@@ -307,39 +308,85 @@ const searchParams = ref({
   size: 20
 });
 
-// 이중 드롭다운 레이아웃용 대분류-소분류 원본 상태 구조
-const cascadingOptions = ref<CategoryGroup[]>([
+const DEFAULT_CASCADING_OPTIONS: CategoryGroup[] = [
   {
     mainCategory: 'IT / 전자기기',
-    subCategories: ['IT / 전자기기 - 전체', '노트북', '모니터', '스마트폰', '태블릿', '주변기기']
+    subCategories: [
+      '노트북',
+      '노트북 커버',
+      '모니터',
+      '스마트폰',
+      '태블릿',
+      '주변기기',
+      '키보드',
+      '마우스',
+      '웹캠',
+      '외장 저장장치',
+    ],
+    childCategories: {
+      노트북: ['노트북 커버'],
+      주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
+    },
   },
   {
     mainCategory: '사무용 가구',
-    subCategories: ['사무용 가구 - 전체', '사무가구']
+    subCategories: ['사무가구', '의자', '책상', '회의 테이블'],
+    childCategories: {
+      사무가구: ['의자', '책상', '회의 테이블'],
+    },
   },
   {
     mainCategory: '사무기기 / 가전',
-    subCategories: ['사무기기 / 가전 - 전체', '사무기기']
+    subCategories: ['사무기기', '복합기', '라벨프린터'],
+    childCategories: {
+      사무기기: ['복합기', '라벨프린터'],
+    },
   }
-]);
+];
 
-// 자식 드로어(단일 1차원 리스트 규격)에 내려보내 주기 위한 computed 바인딩 데이터
-const localCategories = computed(() => {
-  const list: { id: string; name: string }[] = [];
-  let index = 1;
-  cascadingOptions.value.forEach(group => {
-    group.subCategories.forEach(sub => {
-      if (!sub.endsWith(' - 전체')) {
-        list.push({ id: String(index++), name: sub });
-      }
-    });
-  });
-  return list;
-});
+const cloneCategoryGroups = (groups: CategoryGroup[]): CategoryGroup[] => (
+  groups.map((group) => ({
+    mainCategory: group.mainCategory,
+    subCategories: [...group.subCategories],
+    ...(group.childCategories
+      ? {
+          childCategories: Object.fromEntries(
+            Object.entries(group.childCategories).map(([key, values]) => [key, [...values]]),
+          ),
+        }
+      : {}),
+  }))
+);
 
-const categoryOptions = computed(() => localCategories.value.map((category) => category.name));
+const cascadingOptions = ref<CategoryGroup[]>(cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS));
 
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
+
+const getSelectableSubCategories = (group: CategoryGroup) => (
+  group.subCategories.filter((category) => !category.endsWith(' - 전체'))
+);
+
+const getCategoryFilterNames = () => {
+  const selectedCategory = searchParams.value.categoryName;
+  if (!selectedCategory || selectedCategory === '전체 품목 보기') return [];
+
+  for (const group of cascadingOptions.value) {
+    if (selectedCategory === group.mainCategory || selectedCategory === `${group.mainCategory} - 전체`) {
+      return getSelectableSubCategories(group);
+    }
+
+    const childCategories = group.childCategories ?? {};
+    if (childCategories[selectedCategory]) {
+      return [selectedCategory, ...childCategories[selectedCategory]];
+    }
+
+    if (group.subCategories.includes(selectedCategory)) {
+      return [selectedCategory];
+    }
+  }
+
+  return [selectedCategory];
+};
 
 // [에러 해결 및 데이터 동기화 구현]
 // 자식 컴포넌트(1차원 배열)의 변경사항을 부모의 계층형 대분류 구조(2차원 배열)에 맞게 안전하게 가공 처리합니다.
@@ -347,9 +394,15 @@ const handleCategoryUpdate = (updatedGroups: CategoryGroup[]) => {
   cascadingOptions.value = updatedGroups.map((group) => ({
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
+    childCategories: Object.fromEntries(
+      Object.entries(group.childCategories ?? {}).map(([key, values]) => [key, [...values]]),
+    ),
   }));
 
-  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => g.subCategories);
+  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => [
+    g.mainCategory,
+    ...g.subCategories,
+  ]);
   if (
     searchParams.value.categoryName !== '전체 품목 보기' &&
     !flatCurrentCategories.includes(searchParams.value.categoryName)
@@ -522,13 +575,15 @@ const loadServerData = async () => {
   isLoading.value = true;
 
   try {
+    const categoryFilterNames = getCategoryFilterNames();
+    const shouldFilterClientSide = categoryFilterNames.length > 1;
     const params: { page: number; size: number; categoryName?: string; keyword?: string } = {
-      page: searchParams.value.page,
-      size: searchParams.value.size,
+      page: shouldFilterClientSide ? 0 : searchParams.value.page,
+      size: shouldFilterClientSide ? 999 : searchParams.value.size,
     };
 
-    if (searchParams.value.categoryName && searchParams.value.categoryName !== '전체 품목 보기') {
-      params.categoryName = searchParams.value.categoryName;
+    if (categoryFilterNames.length === 1) {
+      params.categoryName = categoryFilterNames[0];
     }
 
     if (searchParams.value.keyword.trim()) {
@@ -537,7 +592,20 @@ const loadServerData = async () => {
 
     const response = await tangibleItemApi.getList(params);
 
-    serverAssetList.value = response.data.content.map((item) => toAssetRow(item));
+    const rows = response.data.content.map((item) => toAssetRow(item));
+
+    if (shouldFilterClientSide) {
+      const filteredRows = rows.filter((row) => categoryFilterNames.includes(row.category));
+      const start = searchParams.value.page * searchParams.value.size;
+      const end = start + searchParams.value.size;
+
+      serverAssetList.value = filteredRows.slice(start, end);
+      totalElements.value = filteredRows.length;
+      totalPages.value = Math.ceil(filteredRows.length / searchParams.value.size);
+      return;
+    }
+
+    serverAssetList.value = rows;
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {

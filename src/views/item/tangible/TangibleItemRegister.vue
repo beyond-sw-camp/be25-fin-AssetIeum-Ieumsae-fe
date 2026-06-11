@@ -18,7 +18,101 @@
         <label for="category" class="text-sm font-semibold text-text-main mb-3 block">
           카테고리 <span class="text-primary font-bold">*</span>
         </label>
-        <Dropdown v-model="formData.category" :options="dropdownOptions" root-option="카테고리 선택" />
+        <div class="rounded-xl border border-border bg-surface">
+          <button
+            type="button"
+            class="flex h-10 w-full items-center justify-between gap-3 px-3.5 text-left text-sm"
+            @click="isCategoryListOpen = !isCategoryListOpen"
+          >
+            <span :class="formData.category === DEFAULT_CATEGORY ? 'text-text-muted' : 'font-medium text-text-main'">
+              {{ formData.category }}
+            </span>
+            <ChevronDown
+              :size="16"
+              class="shrink-0 text-text-muted transition-transform"
+              :class="isCategoryListOpen && 'rotate-180'"
+            />
+          </button>
+
+          <div v-if="isCategoryListOpen" class="border-t border-border p-2">
+            <button
+              type="button"
+              class="mb-1 flex w-full items-center rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-secondary"
+              @click="selectCategory(DEFAULT_CATEGORY)"
+            >
+              카테고리 선택
+            </button>
+
+            <div
+              v-for="group in initialCategories"
+              :key="group.mainCategory"
+              class="overflow-hidden rounded-lg"
+            >
+              <button
+                type="button"
+                :class="[
+                  'flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-surface-secondary',
+                  isCategorySelected(group.mainCategory) ? 'font-semibold text-primary' : 'font-medium text-text-main',
+                ]"
+                @click="selectMainCategory(group.mainCategory)"
+              >
+                <span class="truncate">{{ group.mainCategory }}</span>
+                <ChevronDown
+                  v-if="getMiddleCategories(group).length"
+                  :size="15"
+                  class="shrink-0 text-text-muted transition-transform"
+                  :class="expandedMainCategory === group.mainCategory && 'rotate-180'"
+                />
+              </button>
+
+              <div
+                v-if="expandedMainCategory === group.mainCategory"
+                class="ml-3 border-l border-border/80 pl-2"
+              >
+                <div
+                  v-for="middleCategory in getMiddleCategories(group)"
+                  :key="`${group.mainCategory}-${middleCategory}`"
+                  class="overflow-hidden rounded-lg"
+                >
+                  <button
+                    type="button"
+                    :class="[
+                      'flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-surface-secondary',
+                      isCategorySelected(middleCategory) ? 'font-semibold text-primary' : 'text-text-main',
+                    ]"
+                    @click="selectMiddleCategory(group.mainCategory, middleCategory)"
+                  >
+                    <span class="truncate">{{ middleCategory }}</span>
+                    <ChevronDown
+                      v-if="getSmallCategories(group, middleCategory).length"
+                      :size="15"
+                      class="shrink-0 text-text-muted transition-transform"
+                      :class="expandedMiddleCategory === middleCategory && 'rotate-180'"
+                    />
+                  </button>
+
+                  <div
+                    v-if="expandedMiddleCategory === middleCategory"
+                    class="ml-3 border-l border-border/70 pl-2"
+                  >
+                    <button
+                      v-for="smallCategory in getSmallCategories(group, middleCategory)"
+                      :key="`${group.mainCategory}-${middleCategory}-${smallCategory}`"
+                      type="button"
+                      :class="[
+                        'flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-secondary',
+                        isCategorySelected(smallCategory) ? 'font-semibold text-primary' : 'text-text-main',
+                      ]"
+                      @click="selectCategory(smallCategory)"
+                    >
+                      {{ smallCategory }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 제조사 -->
@@ -95,15 +189,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Input from '@/components/common/Input.vue';
-import Dropdown from '@/components/common/Dropdown.vue';
 import Button from '@/components/common/Button.vue';
+import { ChevronDown } from 'lucide-vue-next';
 
-interface CategoryItem {
-    id: string;
-    name: string;
+interface CategoryGroup {
+    mainCategory: string;
+    subCategories: string[];
+    childCategories?: Record<string, string[]>;
 }
 
 interface RegisterForm {
@@ -116,18 +211,16 @@ interface RegisterForm {
 
 const props = defineProps<{
     isOpen: boolean;
-    initialCategories: CategoryItem[]; // 부모에게서 내려받는 카테고리 원본 목록
+    initialCategories: CategoryGroup[];
 }>();
 
 const emit = defineEmits(['close', 'update-categories', 'register-asset']);
 
-const dropdownOptions = computed(() => {
-    return props.initialCategories.map(cat => cat.name);
-});
+const DEFAULT_CATEGORY = '카테고리 선택';
 
 const createInitialForm = (): RegisterForm => ({
     assetName: '',
-    category: '카테고리 선택', // 기본값 매칭
+    category: DEFAULT_CATEGORY,
     manufacturer: '',
     modelName: '',
     isStandard: 1
@@ -135,19 +228,55 @@ const createInitialForm = (): RegisterForm => ({
 
 // 등록할 폼 데이터 객체
 const formData = ref<RegisterForm>(createInitialForm());
+const isCategoryListOpen = ref(false);
+const expandedMainCategory = ref('');
+const expandedMiddleCategory = ref('');
 
 const isRegisterReady = computed(() => (
-    formData.value.category !== '카테고리 선택' &&
+    formData.value.category !== DEFAULT_CATEGORY &&
     Boolean(formData.value.assetName.trim()) &&
     Boolean(formData.value.manufacturer.trim()) &&
     Boolean(formData.value.modelName.trim())
 ));
 
+const getSmallCategorySet = (group: CategoryGroup) => (
+    new Set(Object.values(group.childCategories ?? {}).flat())
+);
+
+const getMiddleCategories = (group: CategoryGroup) => {
+    const smallCategorySet = getSmallCategorySet(group);
+    return group.subCategories.filter((subCategory) => !subCategory.endsWith(' - 전체') && !smallCategorySet.has(subCategory));
+};
+
+const getSmallCategories = (group: CategoryGroup, middleCategory: string) => (
+    group.childCategories?.[middleCategory] ?? []
+);
+
+const isCategorySelected = (category: string) => (
+    formData.value.category === category
+);
+
+const selectCategory = (category: string) => {
+    formData.value.category = category;
+};
+
+const selectMainCategory = (mainCategory: string) => {
+    formData.value.category = mainCategory;
+    expandedMainCategory.value = expandedMainCategory.value === mainCategory ? '' : mainCategory;
+    expandedMiddleCategory.value = '';
+};
+
+const selectMiddleCategory = (mainCategory: string, middleCategory: string) => {
+    formData.value.category = middleCategory;
+    expandedMainCategory.value = mainCategory;
+    expandedMiddleCategory.value = expandedMiddleCategory.value === middleCategory ? '' : middleCategory;
+};
+
 const handleSave = () => {
     if (!isRegisterReady.value) return;
 
     // 카테고리 유효성 검사 추가
-    if (formData.value.category === '카테고리 선택') {
+    if (formData.value.category === DEFAULT_CATEGORY) {
         alert('카테고리를 선택해주세요.');
         return;
     }
@@ -165,9 +294,15 @@ const handleSave = () => {
 watch(() => props.isOpen, (newVal) => {
     if (newVal) {
         formData.value = createInitialForm();
+        isCategoryListOpen.value = false;
+        expandedMainCategory.value = '';
+        expandedMiddleCategory.value = '';
         return;
     }
 
     formData.value = createInitialForm();
+    isCategoryListOpen.value = false;
+    expandedMainCategory.value = '';
+    expandedMiddleCategory.value = '';
 });
 </script>
