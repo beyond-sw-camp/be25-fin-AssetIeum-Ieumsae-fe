@@ -947,6 +947,8 @@ export const handlers = [
       purchaseDate: body.purchaseDate,
       vendor: body.vendor,
       purchasePrice: body.purchasePrice,
+      assetUsageType: body.assetUsageType,
+      usageType: body.usageType,
       warrantyExpiredAt: body.warrantyExpiredAt ?? new Date(new Date(body.purchaseDate).setFullYear(new Date(body.purchaseDate).getFullYear() + 2)).toISOString().split('T')[0],
       location: body.location ?? null,
       startedAt: body.startedAt ?? null,

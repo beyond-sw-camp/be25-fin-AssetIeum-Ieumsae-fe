@@ -67,6 +67,8 @@ export interface TangibleAsset {
   purchaseDate: string
   vendor?: string
   purchasePrice?: number
+  assetUsageType?: string
+  usageType?: string
   warrantyExpiredAt: string | null
   location?: string | null
   startedAt: string | null
@@ -81,6 +83,8 @@ export interface TangibleAssetCreateRequest {
   vendor?: string
   purchasePrice?: number
   status?: TangibleAssetStatus
+  assetUsageType?: string
+  usageType?: string
   assignedMemberId?: string | null
   assignedMemberName?: string | null
   departmentId?: string | null

@@ -33,7 +33,7 @@
           v-if="rootOption"
           :class="[
             'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
-            modelValue === rootOption ? 'text-primary font-semibold' : 'text-text-main'
+            modelValue === rootOption ? 'font-semibold' : 'text-text-main'
           ]"
           @click="selectOption(rootOption)"
         >
