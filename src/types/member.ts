@@ -11,7 +11,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  memberId: number
+  memberId: string
   memberNo: string
   name: string
   email: string
@@ -30,7 +30,7 @@ export type AuthUser = Omit<LoginResponse, 'accessToken' | 'refreshToken'>
 // =====================================================
 
 export interface Member {
-  memberId: number
+  memberId: string
   memberNo: string
   name: string
   email: string | null

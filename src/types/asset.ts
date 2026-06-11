@@ -5,26 +5,42 @@ import type { TangibleAssetStatus, IntangibleAssetStatus } from './common'
 // =====================================================
 
 export interface TangibleAssetItem {
-  assetItemId: number
+  assetItemId: string
   itemNo: string        // 품목번호
   name: string          // 제품명
+  category?: string     // 카테고리
   manufacturer: string  // 제조사
   modelName: string     // 모델명
   vendor: string        // 구매처
   purchasePrice: number // 구매금액
   stockCount: number    // 재고수량
   availableCount: number
+  isStandard?: number
   createdAt: string
 }
 
 export interface TangibleAssetItemCreateRequest {
-  itemNo: string
-  name: string
+  itemNo?: string
+  name?: string
+  assetName?: string
+  category?: string
   manufacturer?: string
   modelName?: string
   vendor?: string
   purchasePrice?: number
-  stockCount: number
+  stockCount?: number
+  isStandard?: number
+}
+
+export interface TangibleAssetItemUpdateRequest {
+  name?: string
+  assetName?: string
+  category?: string
+  manufacturer?: string
+  modelName?: string
+  vendor?: string
+  purchasePrice?: number
+  isStandard?: number
 }
 
 // =====================================================
@@ -32,25 +48,28 @@ export interface TangibleAssetItemCreateRequest {
 // =====================================================
 
 export interface TangibleAsset {
-  assetId: number
+  assetId: string
   assetCode: string     // 자산코드 (QR 연동)
   serialNo: string      // 시리얼번호
-  assetItemId: number
+  assetItemId: string
   assetItemName: string
   status: TangibleAssetStatus
-  assignedMemberId: number | null
+  assignedMemberId: string | null
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
   purchaseDate: string
+  vendor?: string
+  purchasePrice?: number
   warrantyExpiredAt: string | null
+  location?: string | null
   startedAt: string | null
   returnDueDate: string | null
   createdAt: string
 }
 
 export interface TangibleAssetCreateRequest {
-  assetItemId: number
+  assetItemId: string
   serialNo: string
   purchaseDate: string
   vendor?: string
@@ -58,13 +77,32 @@ export interface TangibleAssetCreateRequest {
   status?: TangibleAssetStatus
 }
 
+export interface TangibleAssetUpdateRequest {
+  assetCode?: string
+  assetItemName?: string
+  serialNo?: string
+  status?: TangibleAssetStatus
+  assignedMemberId?: string | null
+  assignedMemberName?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
+  startedAt?: string | null
+  returnDueDate?: string | null
+  purchaseDate?: string
+  vendor?: string
+  purchasePrice?: number | null
+  warrantyExpiredAt?: string | null
+  location?: string | null
+}
+
 export interface TangibleAssetListFilter {
   page?: number
   size?: number
   status?: TangibleAssetStatus
+  categoryName?: string
   departmentId?: string
-  memberId?: number
-  assetItemId?: number
+  memberId?: string
+  assetItemId?: string
   keyword?: string
 }
 
@@ -73,7 +111,7 @@ export interface TangibleAssetListFilter {
 // =====================================================
 
 export interface IntangibleAssetItem {
-  assetItemId: number
+  assetItemId: string
   itemNo: string
   name: string           // 소프트웨어명
   vendor: string         // 제공사
@@ -84,7 +122,7 @@ export interface IntangibleAssetItem {
 }
 
 export interface IntangibleItem {
-  assetItemId?: number
+  assetItemId?: string
   productName: string
   category: string
   licenseType: string
@@ -100,14 +138,14 @@ export interface IntangibleItem {
 export type LicenseType = 'SUBSCRIPTION' | 'PERPETUAL' | 'VOLUME' | 'USER_BASED'
 
 export interface IntangibleAsset {
-  assetId: number
+  assetId: string
   assetCode: string
-  assetItemId: number
+  assetItemId: string
   assetItemName: string
   licenseType: LicenseType
   licenseKey?: string
   status: IntangibleAssetStatus
-  assignedMemberId: number | null
+  assignedMemberId: string | null
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
@@ -119,7 +157,7 @@ export interface IntangibleAsset {
 }
 
 export interface IntangibleAssetCreateRequest {
-  assetItemId: number
+  assetItemId: string
   licenseType: LicenseType
   licenseKey?: string
   startedAt: string
@@ -132,6 +170,6 @@ export interface IntangibleAssetListFilter {
   size?: number
   status?: IntangibleAssetStatus
   departmentId?: string
-  memberId?: number
-  assetItemId?: number
+  memberId?: string
+  assetItemId?: string
 }

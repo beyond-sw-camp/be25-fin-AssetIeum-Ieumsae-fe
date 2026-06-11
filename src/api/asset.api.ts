@@ -2,8 +2,10 @@ import api from './client'
 import type {
   TangibleAssetItem,
   TangibleAssetItemCreateRequest,
+  TangibleAssetItemUpdateRequest,
   TangibleAsset,
   TangibleAssetCreateRequest,
+  TangibleAssetUpdateRequest,
   TangibleAssetListFilter,
   IntangibleItem,
   IntangibleAsset,
@@ -16,19 +18,23 @@ import type {
 
 export const tangibleItemApi = {
   /** 유형자산 품목 목록 조회 */
-  getList: (params?: { page?: number; size?: number; keyword?: string }) =>
+  getList: (params?: { page?: number; size?: number; categoryName?: string; keyword?: string }) =>
     api.get<PageResponse<TangibleAssetItem>>('/assets/tangible/items', params as Record<string, unknown>),
 
   /** 유형자산 품목 상세 조회 */
-  getDetail: (assetItemId: number) =>
+  getDetail: (assetItemId: string) =>
     api.get<TangibleAssetItem>(`/assets/tangible/items/${assetItemId}`),
 
   /** 유형자산 품목 등록 */
   create: (body: TangibleAssetItemCreateRequest) =>
     api.post<TangibleAssetItem>('/assets/tangible/items', body),
 
+  /** 유형자산 품목 수정 */
+  update: (assetItemId: string, body: TangibleAssetItemUpdateRequest) =>
+    api.patch<TangibleAssetItem>(`/assets/tangible/items/${assetItemId}`, body),
+
   /** 유형자산 품목 삭제 */
-  delete: (assetItemId: number) =>
+  delete: (assetItemId: string) =>
     api.delete(`/assets/tangible/items/${assetItemId}`),
 
   /** 유형자산 품목 일괄 등록 (CSV/Excel) */
@@ -47,24 +53,28 @@ export const tangibleAssetApi = {
     api.get<PageResponse<TangibleAsset>>('/assets/tangible', params as Record<string, unknown>),
 
   /** 유형자산 상세 조회 */
-  getDetail: (assetId: number) =>
+  getDetail: (assetId: string) =>
     api.get<TangibleAsset>(`/assets/tangible/${assetId}`),
 
   /** 유형자산 등록 */
   create: (body: TangibleAssetCreateRequest) =>
     api.post<TangibleAsset>('/assets/tangible', body),
 
+  /** 유형자산 수정 */
+  update: (assetId: string, body: TangibleAssetUpdateRequest) =>
+    api.patch<TangibleAsset>(`/assets/tangible/${assetId}`, body),
+
   /** 유형자산 상태 변경 */
-  changeStatus: (assetId: number, status: string) =>
+  changeStatus: (assetId: string, status: string) =>
     api.patch(`/assets/tangible/${assetId}/status`, { status }),
 
   /** 유형자산 폐기 처리 */
-  discard: (assetId: number) =>
+  discard: (assetId: string) =>
     api.patch(`/assets/tangible/${assetId}/discard`),
 
   /** QR 코드 조회 */
-  getQrCode: (assetId: number) =>
-    api.get<{ assetId: number; qrCodeUrl: string }>(`/assets/tangible/${assetId}/qr`),
+  getQrCode: (assetId: string) =>
+    api.get<{ assetId: string; qrCodeUrl: string }>(`/assets/tangible/${assetId}/qr`),
 
   /** 유형자산 품목 일괄 등록 (CSV/Excel) */
   bulkCreate: (file: File) => {
@@ -101,7 +111,7 @@ export const intangibleItemApi = {
   },
 
   /** 무형자산 품목 삭제 */
-  delete: (assetItemId: number) =>
+  delete: (assetItemId: string) =>
     api.delete(`/assets/intangible/items/${assetItemId}`),
 }
 
