@@ -128,6 +128,7 @@ const activeGroup = ref<string | null>(null)
 const menuAlign = computed(() => props.menuAlign ?? 'left')
 const submenuDirection = computed(() => props.submenuDirection ?? 'right')
 
+// 기존 문자열/카테고리 옵션과 label-value 옵션을 함께 지원해 공통 사용처의 호환성을 유지한다.
 const isSimpleOptions = computed(() => {
   return props.options.length === 0
     || typeof props.options[0] === 'string'

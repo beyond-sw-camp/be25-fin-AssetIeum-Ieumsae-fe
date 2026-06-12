@@ -336,6 +336,7 @@ import { useDepartmentStore, useNotificationStore } from '@/stores'
 import type { Member, MemberStatus, Role } from '@/types'
 import { formatDate, MEMBER_STATUS_LABEL, ROLE_LABEL } from '@/utils/labels'
 
+// 사원 등록 화면에서는 회사/플랫폼 관리자 권한을 부여하지 않는다.
 type RegisterRole = Exclude<Role, 'SUPER_ADMIN' | 'ADMIN'>
 
 const PAGE_SIZE_OPTIONS: DropdownOption[] = [10, 20, 50].map((value) => ({
@@ -419,6 +420,7 @@ const registerRoleOptions: Array<{
   { value: 'ASSET_TEAM', label: ROLE_LABEL.ASSET_TEAM },
 ]
 
+// 최상위 회사 노드는 조직 구조 표시용이므로 실제 사원 소속 선택지에서 제외한다.
 const selectableDepartments = computed(() =>
   departmentStore.departments.filter(
     ({ parentDepartmentId }) => parentDepartmentId !== null,
@@ -489,6 +491,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 async function fetchMembers() {
+  // 검색 조건이 빠르게 바뀌어도 가장 마지막 요청 결과만 목록에 반영한다.
   const requestId = ++listRequestId
   isLoading.value = true
   listError.value = ''
@@ -601,9 +604,6 @@ async function handleRegisterMember() {
     const memberNo = registerForm.memberNo.trim()
     await memberApi.create({
       memberNo,
-      // TODO: API 명세/백엔드 확인 필요 - 등록 스키마에는 password 필수,
-      // JSON 예시에는 누락되어 있어 현재 Mock 정책인 사번 초기화를 사용한다.
-      password: memberNo,
       name: registerForm.name.trim(),
       email: registerForm.email.trim(),
       departmentId: registerForm.departmentId,
@@ -612,6 +612,7 @@ async function handleRegisterMember() {
 
     isRegisterDrawerOpen.value = false
     setPage(0)
+    // 사원 변경은 부서별 현재 인원수에도 영향을 주므로 두 데이터를 함께 갱신한다.
     await Promise.all([fetchMembers(), departmentStore.fetchAll()])
     notificationStore.success(
       '사원이 등록되었습니다.',
