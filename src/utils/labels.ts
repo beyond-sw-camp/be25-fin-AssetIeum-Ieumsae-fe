@@ -17,8 +17,7 @@ export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus, string> = {
   REPAIR_REQUESTED: '수리요청',
   REPAIRING: '수리중',
   RETURN_REQUESTED: '반납요청',
-  RENTING: '대여중',
-  DISCARDED: '폐기완료',
+  DISPOSED: '폐기완료',
 }
 
 export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
