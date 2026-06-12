@@ -3,7 +3,9 @@ import type {
   Member,
   MemberRegisterRequest,
   MemberListFilter,
+  MemberResignResponse,
   DepartmentChangeRequest,
+  DepartmentChangeResponse,
   PageResponse,
 } from '@/types'
 
@@ -17,18 +19,10 @@ export const memberApi = {
     api.post<Member>('/members', body),
 
   /** 사원 퇴사 처리 */
-  resign: (memberId: number) =>
-    api.patch<{
-      memberId: number
-      memberNo: string
-      name: string
-      status: string
-      returnedTangibleAssetCount: number
-      returnedIntangibleAssetCount: number
-      resignedAt: string
-    }>(`/members/${memberId}/resign`),
+  resign: (memberId: Member['memberId']) =>
+    api.patch<MemberResignResponse>(`/members/${memberId}/resign`),
 
   /** 사원 소속 부서 변경 */
-  changeDepartment: (memberId: number, body: DepartmentChangeRequest) =>
-    api.patch(`/members/${memberId}/department`, body),
+  changeDepartment: (memberId: Member['memberId'], body: DepartmentChangeRequest) =>
+    api.patch<DepartmentChangeResponse>(`/members/${memberId}/department`, body),
 }

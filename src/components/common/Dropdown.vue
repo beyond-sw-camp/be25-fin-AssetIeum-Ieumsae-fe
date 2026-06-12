@@ -1,6 +1,7 @@
 <template>
   <div ref="rootRef" class="relative w-full text-left" :class="$attrs.class">
     <button
+      :id="props.id"
       type="button"
       :disabled="props.disabled"
       :class="[
@@ -11,7 +12,7 @@
     >
       <div class="flex items-center gap-2 overflow-hidden">
         <slot name="icon" />
-        <span :class="['truncate', selectedTextClass]">{{ modelValue }}</span>
+        <span :class="['truncate', selectedTextClass]">{{ selectedLabel }}</span>
       </div>
       <ChevronDown
         :size="16"
@@ -42,14 +43,14 @@
 
         <li
           v-for="option in simpleOptions"
-          :key="option"
+          :key="String(option.value)"
           :class="[
             'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
-            modelValue === option ? 'text-primary font-semibold' : 'text-text-main'
+            modelValue === option.value ? 'text-primary font-semibold' : 'text-text-main'
           ]"
-          @click="selectOption(option)"
+          @click="selectOption(option.value)"
         >
-          {{ option }}
+          {{ option.label }}
         </li>
 
         <li
@@ -195,27 +196,37 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
+import type { DropdownOption } from '@/types'
+
 interface CategoryGroup {
   mainCategory: string
   subCategories: string[]
   childCategories?: Record<string, string[]>
 }
 
-const props = withDefaults(defineProps<{
-  modelValue: string
-  options: string[] | CategoryGroup[]
+type DropdownOptionSource = string | DropdownOption | CategoryGroup
+
+interface Props {
+  id?: string
+  modelValue: string | number
+  options: DropdownOptionSource[]
   rootOption?: string
   menuAlign?: 'left' | 'right'
   submenuDirection?: 'left' | 'right'
   disabled?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  id: undefined,
   rootOption: '',
   menuAlign: 'left',
   submenuDirection: 'right',
   disabled: false,
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number]
+}>()
 const rootRef = ref<HTMLElement | null>(null)
 const dropdownId = crypto.randomUUID()
 const isOpen = ref(false)
@@ -230,24 +241,61 @@ const submenuDirection = computed(() => props.submenuDirection ?? 'right')
 const submenuWidth = 176
 const viewportPadding = 12
 
+// 기존 문자열/카테고리 옵션과 label-value 옵션을 함께 지원해 공통 사용처의 호환성을 유지한다.
+const isCategoryGroup = (option: DropdownOptionSource): option is CategoryGroup => (
+  typeof option === 'object'
+  && option !== null
+  && 'mainCategory' in option
+  && Array.isArray(option.subCategories)
+)
+
+const isDropdownOption = (option: DropdownOptionSource): option is DropdownOption => (
+  typeof option === 'object'
+  && option !== null
+  && 'label' in option
+  && 'value' in option
+)
+
+const categoryOptions = computed<CategoryGroup[]>(() => (
+  props.options.filter(isCategoryGroup)
+))
+
 const isSimpleOptions = computed(() => {
-  return props.options.length === 0 || typeof props.options[0] === 'string'
+  return categoryOptions.value.length === 0
 })
 
-const simpleOptions = computed(() => {
-  return isSimpleOptions.value ? props.options as string[] : []
+const simpleOptions = computed<DropdownOption[]>(() => {
+  if (!isSimpleOptions.value) return []
+
+  return props.options.flatMap((option) => {
+    if (typeof option === 'string') return [{ label: option, value: option }]
+    if (isDropdownOption(option)) return [option]
+    return []
+  })
 })
 
-const groupedOptions = computed(() => {
-  return isSimpleOptions.value || isPanelDropdown.value ? [] : props.options as CategoryGroup[]
+const selectedLabel = computed(() => {
+  const selectedOption = simpleOptions.value.find((option) => option.value === props.modelValue)
+  if (selectedOption) return selectedOption.label
+  if (props.modelValue === '' || props.modelValue === undefined || props.modelValue === null) {
+    return simpleOptions.value.find((option) => option.value === '')?.label
+      ?? props.rootOption
+      ?? ''
+  }
+  return String(props.modelValue)
 })
 
-const panelGroupedOptions = computed(() => {
-  return !isSimpleOptions.value && isPanelDropdown.value ? props.options as CategoryGroup[] : []
+const groupedOptions = computed<CategoryGroup[]>(() => {
+  return isSimpleOptions.value || isPanelDropdown.value ? [] : categoryOptions.value
+})
+
+const panelGroupedOptions = computed<CategoryGroup[]>(() => {
+  return !isSimpleOptions.value && isPanelDropdown.value ? categoryOptions.value : []
 })
 
 const selectedTextClass = computed(() => {
-  return props.rootOption && props.modelValue === props.rootOption
+  return (props.rootOption && props.modelValue === props.rootOption)
+    || props.modelValue === ''
     ? 'text-text-muted'
     : 'text-text-main'
 })
@@ -260,7 +308,8 @@ const isPlaceholderRootOption = computed(() => {
 })
 
 const isGroupSelected = (group: CategoryGroup) => {
-  return props.modelValue === group.mainCategory || group.subCategories.includes(props.modelValue)
+  const selectedValue = String(props.modelValue)
+  return selectedValue === group.mainCategory || group.subCategories.includes(selectedValue)
 }
 
 const getSmallCategorySet = (group: CategoryGroup) => (
@@ -281,7 +330,7 @@ const hasSmallCategories = (group: CategoryGroup) => (
 )
 
 const isSubCategorySelected = (group: CategoryGroup, subCategory: string) => {
-  return getSmallCategories(group, subCategory).includes(props.modelValue)
+  return getSmallCategories(group, subCategory).includes(String(props.modelValue))
 }
 
 const updatePanelContext = () => {
@@ -387,7 +436,7 @@ const toggleOpen = () => {
   nextTick(updatePanelContext)
 }
 
-const selectOption = (option: string) => {
+const selectOption = (option: string | number) => {
   if (props.disabled) return
   emit('update:modelValue', option)
   closeDropdown()

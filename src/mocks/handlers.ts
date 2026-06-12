@@ -84,9 +84,27 @@ let departments: Department[] = [
   },
 ]
 
-let members: Member[] = [
+function mockMemberId(sequence: number): string {
+  return `55555555-5555-5555-5555-${String(sequence).padStart(12, '0')}`
+}
+
+function getDepartmentNamePath(departmentId: string): string {
+  const names: string[] = []
+  let current = departments.find((department) => department.departmentId === departmentId)
+
+  while (current) {
+    names.unshift(current.name)
+    current = departments.find(
+      (department) => department.departmentId === current?.parentDepartmentId,
+    )
+  }
+
+  return names.join(' > ')
+}
+
+const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
-    memberId: '1',
+    memberId: mockMemberId(1),
     memberNo: 'EMP0001',
     name: '김관리',
     email: 'admin@ieumtech.com',
@@ -97,7 +115,7 @@ let members: Member[] = [
     createdAt: '2026-01-05T09:00:00',
   },
   {
-    memberId: '2',
+    memberId: mockMemberId(2),
     memberNo: 'EMP0002',
     name: '박자산',
     email: 'asset@ieumtech.com',
@@ -108,7 +126,7 @@ let members: Member[] = [
     createdAt: '2026-01-06T09:00:00',
   },
   {
-    memberId: '3',
+    memberId: mockMemberId(3),
     memberNo: 'EMP0003',
     name: '이부장',
     email: 'manager@ieumtech.com',
@@ -119,7 +137,7 @@ let members: Member[] = [
     createdAt: '2026-01-07T09:00:00',
   },
   {
-    memberId: '4',
+    memberId: mockMemberId(4),
     memberNo: 'EMP0004',
     name: '최휴직',
     email: 'leave@ieumtech.com',
@@ -130,7 +148,7 @@ let members: Member[] = [
     createdAt: '2026-01-08T09:00:00',
   },
   {
-    memberId: '5',
+    memberId: mockMemberId(5),
     memberNo: 'EMP0005',
     name: '정사원',
     email: 'member@ieumtech.com',
@@ -141,7 +159,7 @@ let members: Member[] = [
     createdAt: '2026-01-09T09:00:00',
   },
   {
-    memberId: '6',
+    memberId: mockMemberId(6),
     memberNo: 'EMP0006',
     name: '강개발',
     email: 'dev1@ieumtech.com',
@@ -152,7 +170,7 @@ let members: Member[] = [
     createdAt: '2026-01-10T09:00:00',
   },
   {
-    memberId: '7',
+    memberId: mockMemberId(7),
     memberNo: 'EMP0007',
     name: '윤프론트',
     email: 'dev2@ieumtech.com',
@@ -163,7 +181,7 @@ let members: Member[] = [
     createdAt: '2026-01-11T09:00:00',
   },
   {
-    memberId: '8',
+    memberId: mockMemberId(8),
     memberNo: 'EMP0008',
     name: '한지민',
     email: 'dev3@ieumtech.com',
@@ -174,7 +192,7 @@ let members: Member[] = [
     createdAt: '2026-01-12T09:00:00',
   },
   {
-    memberId: '9',
+    memberId: mockMemberId(9),
     memberNo: 'EMP0009',
     name: '오서준',
     email: 'dev4@ieumtech.com',
@@ -185,7 +203,7 @@ let members: Member[] = [
     createdAt: '2026-01-13T09:00:00',
   },
   {
-    memberId: '10',
+    memberId: mockMemberId(10),
     memberNo: 'EMP0010',
     name: '임하늘',
     email: 'dev5@ieumtech.com',
@@ -196,7 +214,7 @@ let members: Member[] = [
     createdAt: '2026-01-14T09:00:00',
   },
   {
-    memberId: '11',
+    memberId: mockMemberId(11),
     memberNo: 'EMP0011',
     name: '송유진',
     email: 'dev6@ieumtech.com',
@@ -207,7 +225,7 @@ let members: Member[] = [
     createdAt: '2026-01-15T09:00:00',
   },
   {
-    memberId: '12',
+    memberId: mockMemberId(12),
     memberNo: 'EMP0012',
     name: '문도윤',
     email: 'dev7@ieumtech.com',
@@ -218,7 +236,7 @@ let members: Member[] = [
     createdAt: '2026-01-16T09:00:00',
   },
   {
-    memberId: '13',
+    memberId: mockMemberId(13),
     memberNo: 'EMP0013',
     name: '배수아',
     email: 'dev8@ieumtech.com',
@@ -228,7 +246,23 @@ let members: Member[] = [
     status: 'ACTIVE',
     createdAt: '2026-01-17T09:00:00',
   },
+  {
+    memberId: mockMemberId(14),
+    memberNo: 'EMP0014',
+    name: '구매자산팀장',
+    email: 'asset.manager@ieumtech.com',
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
+    departmentName: '구매자산팀',
+    role: 'ASSET_MANAGER',
+    status: 'ACTIVE',
+    createdAt: '2026-01-18T09:00:00',
+  },
 ]
+
+let members: Member[] = memberSeeds.map((member) => ({
+  ...member,
+  departmentNamePath: getDepartmentNamePath(member.departmentId),
+}))
 
 const memberPasswords = new Map(
   members.map((member) => [member.memberNo, member.memberNo]),
@@ -483,6 +517,19 @@ let intangibleAssets: IntangibleAsset[] = [
   { assetId: '33', assetCode: 'INT-0034', assetItemId: '29', assetItemName: 'Dropbox Sign', licenseType: 'SUBSCRIPTION', licenseKey: 'DBS-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-09-02', vendor: 'Dropbox', purchasePrice: 290000, createdAt: '2025-09-02T09:45:00' }
 ]
 
+function normalizeAssignedMemberId(memberId: string | null | undefined): string | null {
+  if (!memberId || !/^\d+$/.test(memberId)) return memberId ?? null
+  return mockMemberId(Number(memberId))
+}
+
+tangibleAssets.forEach((asset) => {
+  asset.assignedMemberId = normalizeAssignedMemberId(asset.assignedMemberId)
+})
+
+intangibleAssets.forEach((asset) => {
+  asset.assignedMemberId = normalizeAssignedMemberId(asset.assignedMemberId)
+})
+
 function toLoginResponse(member: Member): LoginResponse {
   return {
     companyId: MOCK_COMPANY_ID,
@@ -612,15 +659,46 @@ export const handlers = [
   http.post(`${API_PREFIX}/members`, async ({ request }) => {
     const body = await request.json() as MemberRegisterRequest
     const department = departments.find((item) => item.departmentId === body.departmentId)
+    const normalizedEmail = body.email?.toLowerCase()
 
-    const nextId = String(Math.max(...members.map((item) => Number(item.memberId))) + 1)
+    if (members.some((item) => item.memberNo === body.memberNo)) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'MEMBER_NO_ALREADY_EXISTS',
+        message: '이미 사용 중인 사번입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (
+      normalizedEmail
+      && members.some((item) => item.email?.toLowerCase() === normalizedEmail)
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'MEMBER_EMAIL_ALREADY_EXISTS',
+        message: '이미 사용 중인 이메일입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (!department || department.parentDepartmentId === null) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'DEPARTMENT_NOT_FOUND',
+        message: '사원이 소속될 부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
     const member: Member = {
-      memberId: nextId,
+      memberId: crypto.randomUUID(),
       memberNo: body.memberNo,
       name: body.name,
       email: body.email ?? null,
       departmentId: body.departmentId,
-      departmentName: department?.name ?? '미지정',
+      departmentName: department.name,
+      departmentNamePath: getDepartmentNamePath(department.departmentId),
       role: body.role,
       status: 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -662,12 +740,58 @@ export const handlers = [
     const member = members.find((item) => item.memberId === memberId)
     const department = departments.find((item) => item.departmentId === body.departmentId)
 
-    if (member && department) {
-      member.departmentId = department.departmentId
-      member.departmentName = department.name
+    if (!member) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'MEMBER_NOT_FOUND',
+        message: '사원을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
     }
 
-    return HttpResponse.json(ok(member ?? null, '소속 부서가 변경되었습니다.'))
+    if (member.status === 'RESIGNED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'RESIGNED_MEMBER_CANNOT_CHANGE_DEPARTMENT',
+        message: '퇴사 처리된 사원은 부서를 변경할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (!department || department.parentDepartmentId === null) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'DEPARTMENT_NOT_FOUND',
+        message: '변경할 부서를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (member.departmentId === department.departmentId) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'SAME_DEPARTMENT',
+        message: '현재 소속 부서와 다른 부서를 선택해주세요.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const previousDepartmentId = member.departmentId
+    const previousDepartmentName = member.departmentName
+    member.departmentId = department.departmentId
+    member.departmentName = department.name
+    member.departmentNamePath = getDepartmentNamePath(department.departmentId)
+
+    return HttpResponse.json(ok({
+      memberId: member.memberId,
+      memberNo: member.memberNo,
+      name: member.name,
+      previousDepartmentId,
+      previousDepartmentName,
+      currentDepartmentId: department.departmentId,
+      currentDepartmentName: department.name,
+      updatedAt: new Date().toISOString(),
+    }, '소속 부서가 변경되었습니다.'))
   }),
 
   http.get(`${API_PREFIX}/tangible-asset/categories`, () => {
