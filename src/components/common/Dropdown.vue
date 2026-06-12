@@ -277,7 +277,11 @@ const simpleOptions = computed<DropdownOption[]>(() => {
 const selectedLabel = computed(() => {
   const selectedOption = simpleOptions.value.find((option) => option.value === props.modelValue)
   if (selectedOption) return selectedOption.label
-  if (props.modelValue === '') return props.rootOption
+  if (props.modelValue === '' || props.modelValue === undefined || props.modelValue === null) {
+    return simpleOptions.value.find((option) => option.value === '')?.label
+      ?? props.rootOption
+      ?? ''
+  }
   return String(props.modelValue)
 })
 

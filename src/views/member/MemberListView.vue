@@ -79,7 +79,7 @@
           :loading="isLoading"
           empty-text="조회된 사원이 없습니다."
           row-key="memberId"
-          class="min-w-[960px]"
+          class="h-full min-w-[960px]"
         >
           <template #cell-name="{ row }">
             <div class="min-w-0">
@@ -416,7 +416,7 @@ const registerRoleOptions: Array<{
   { value: 'EMPLOYEE', label: ROLE_LABEL.EMPLOYEE },
   { value: 'DEPARTMENT_MANAGER', label: ROLE_LABEL.DEPARTMENT_MANAGER },
   { value: 'ASSET_TEAM', label: ROLE_LABEL.ASSET_TEAM },
-  { value: 'ASSET_MANAGE', label: ROLE_LABEL.ASSET_MANAGE },
+  { value: 'ASSET_MANAGER', label: ROLE_LABEL.ASSET_MANAGER },
 ]
 
 // 최상위 회사 노드는 조직 구조 표시용이므로 실제 사원 소속 선택지에서 제외한다.
@@ -493,12 +493,24 @@ function getRoleLabel(role: unknown) {
   if (typeof role !== 'string' || !role.trim()) return '-'
 
   const roleCode = role.trim()
-  return Object.hasOwn(ROLE_LABEL, roleCode)
-    ? ROLE_LABEL[roleCode as Role]
+  const normalizedRoleCode = roleCode
+    .toUpperCase()
+    .replace(/^ROLE_/, '')
+    .replace(/^ASSET_MANAGE$/, 'ASSET_MANAGER')
+
+  return Object.hasOwn(ROLE_LABEL, normalizedRoleCode)
+    ? ROLE_LABEL[normalizedRoleCode as Role]
     : roleCode
 }
 
 function getMemberDepartmentName(member: Member) {
+  const pathDepartmentName = member.departmentNamePath
+    ?.split('>')
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .at(-1)
+  if (pathDepartmentName) return pathDepartmentName
+
   const departmentName = departmentStore.departments.find(
     ({ departmentId }) => departmentId === member.departmentId,
   )?.name
@@ -532,11 +544,7 @@ async function fetchMembers() {
     if (requestId !== listRequestId) return
 
     // TODO: 목록이 비었을 때는 백엔드에서 200과 빈 content를 반환하도록 수정 필요
-    if (
-      error instanceof ApiError
-      && error.status === 404
-      && error.errorCode === 'MEMBER_NOT_FOUND'
-    ) {
+    if (error instanceof ApiError && error.status === 404) {
       members.value = []
       updateFromResponse({
         page: page.value,
@@ -595,7 +603,7 @@ function handleRegisterRoleChange(value: string | number) {
     value === 'EMPLOYEE'
     || value === 'DEPARTMENT_MANAGER'
     || value === 'ASSET_TEAM'
-    || value === 'ASSET_MANAGE'
+    || value === 'ASSET_MANAGER'
   ) {
     registerForm.role = value
   }
@@ -669,7 +677,11 @@ async function handleRegisterMember() {
 function openDepartmentDrawer(member: Member) {
   closeRegisterDrawer()
   memberToChangeDepartment.value = member
-  departmentChangeForm.departmentId = member.departmentId
+  departmentChangeForm.departmentId = selectableDepartments.value.some(
+    ({ departmentId }) => departmentId === member.departmentId,
+  )
+    ? member.departmentId
+    : ''
   isDepartmentDrawerOpen.value = true
 }
 
