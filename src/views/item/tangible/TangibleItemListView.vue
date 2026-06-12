@@ -546,8 +546,7 @@ const handleUpdateItem = async () => {
     await loadServerData()
     closeItemEdit()
   } catch (error) {
-    console.error(error)
-    alert(getErrorMessage(error))
+    console.error('유형자산 품목 수정 실패', error)
   } finally {
     isSavingItem.value = false
   }
@@ -596,10 +595,6 @@ const tableColumns: Column<Asset>[] = [
   { key: 'isStandard', label: '표준 품목 여부', align: 'center', width: '10%' },
   { key: 'action', label: '삭제', align: 'center', width: '10%' }
 ];
-
-const getErrorMessage = (error: unknown) => (
-  error instanceof Error ? error.message : '유형자산 품목 목록을 불러오지 못했습니다.'
-)
 
 const handleSearch = () => {
   searchParams.value.page = 0;
@@ -783,7 +778,8 @@ const loadServerData = async () => {
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {
-    listError.value = getErrorMessage(error);
+    console.error('유형자산 품목 목록 조회 실패', error);
+    listError.value = '';
   } finally {
     isLoading.value = false;
   }

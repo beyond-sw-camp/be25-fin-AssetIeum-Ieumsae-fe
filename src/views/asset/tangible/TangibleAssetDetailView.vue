@@ -82,7 +82,6 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
-import { ApiError } from '@/api/client'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { Department, Member, TangibleAsset, TangibleAssetStatus, TangibleAssetUsageType } from '@/types'
@@ -222,12 +221,6 @@ const usageTypeValue = (): TangibleAssetUsageType | null => {
   return null
 }
 
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error) return error.message
-  return '자산 수정 중 오류가 발생했습니다.'
-}
-
 const toDateTimeInputValue = (value: string | null | undefined) => {
   if (!value) return ''
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`
@@ -312,7 +305,9 @@ const handleUpdateAsset = async () => {
   const assetId = getAssetId()
 
   if (!assetId) {
-    alert('이 자산의 수정용 UUID를 찾을 수 없습니다. 프론트에서 등록한 자산은 다시 조회 후 수정할 수 있고, 기존 자산은 목록 응답에 UUID가 있어야 수정할 수 있습니다.')
+    console.warn('유형자산 수정에 필요한 UUID를 찾을 수 없습니다.', {
+      asset: props.asset,
+    })
     return
   }
 
@@ -360,8 +355,7 @@ const handleUpdateAsset = async () => {
     emit('saved')
     emit('close')
   } catch (error) {
-    console.error(error)
-    alert(getErrorMessage(error))
+    console.error('유형자산 수정 실패', error)
   } finally {
     isSavingAsset.value = false
   }

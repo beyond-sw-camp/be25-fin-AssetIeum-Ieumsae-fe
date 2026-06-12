@@ -318,7 +318,10 @@ const openAssetDetail = async (row: TangibleAssetRow) => {
 
   if (!assetId) {
     const responseKeys = Object.keys(row).join(', ')
-    listError.value = `유형자산 상세 조회에 필요한 자산 ID가 없습니다. 응답 필드: ${responseKeys}`
+    console.warn('유형자산 상세 조회에 필요한 자산 UUID가 없습니다.', {
+      row,
+      responseKeys,
+    })
     return
   }
 
@@ -362,10 +365,6 @@ const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
   return TANGIBLE_STATUS_LABEL[status as keyof typeof TANGIBLE_STATUS_LABEL] ?? status
 }
-
-const getErrorMessage = (error: unknown) => (
-  error instanceof Error ? error.message : '유형자산 목록을 불러오지 못했습니다.'
-)
 
 const getSelectedCategoryId = () => {
   const selectedCategory = searchParams.value.categoryName
@@ -727,7 +726,8 @@ const loadServerData = async () => {
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
   } catch (error) {
-    listError.value = getErrorMessage(error);
+    console.error('유형자산 목록 조회 실패', error);
+    listError.value = '';
   } finally {
     isLoading.value = false;
   }

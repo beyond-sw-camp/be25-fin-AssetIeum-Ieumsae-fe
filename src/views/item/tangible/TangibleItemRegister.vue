@@ -40,22 +40,30 @@
               :key="group.mainCategory"
               class="overflow-hidden rounded-lg"
             >
-              <button
-                type="button"
-                :class="[
-                  'flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-surface-secondary',
-                  isCategorySelected(group.mainCategory) ? 'font-semibold text-primary' : 'font-medium text-text-main',
-                ]"
-                @click="selectMainCategory(group)"
-              >
-                <span class="truncate">{{ group.mainCategory }}</span>
-                <ChevronDown
+              <div class="flex w-full items-center rounded-lg transition-colors hover:bg-surface-secondary">
+                <button
+                  type="button"
+                  :class="[
+                    'min-w-0 flex-1 px-3 py-2 text-left text-sm transition-colors',
+                    isCategorySelected(group.mainCategory) ? 'font-semibold text-primary' : 'font-medium text-text-main',
+                  ]"
+                  @click="selectMainCategory(group)"
+                >
+                  <span class="block truncate">{{ group.mainCategory }}</span>
+                </button>
+                <button
                   v-if="getMiddleCategories(group).length"
-                  :size="15"
-                  class="shrink-0 text-text-muted transition-transform"
-                  :class="expandedMainCategory === group.mainCategory && 'rotate-180'"
-                />
-              </button>
+                  type="button"
+                  class="mr-2 flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface"
+                  @click="toggleMainCategory(group.mainCategory)"
+                >
+                  <ChevronDown
+                    :size="15"
+                    class="transition-transform"
+                    :class="expandedMainCategory === group.mainCategory && 'rotate-180'"
+                  />
+                </button>
+              </div>
 
               <div
                 v-if="expandedMainCategory === group.mainCategory"
@@ -66,22 +74,30 @@
                   :key="`${group.mainCategory}-${middleCategory}`"
                   class="overflow-hidden rounded-lg"
                 >
-                  <button
-                    type="button"
-                    :class="[
-                      'flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-surface-secondary',
-                      isCategorySelected(middleCategory) ? 'font-semibold text-primary' : 'text-text-main',
-                    ]"
-                    @click="selectMiddleCategory(group, middleCategory)"
-                  >
-                    <span class="truncate">{{ middleCategory }}</span>
-                    <ChevronDown
+                  <div class="flex w-full items-center rounded-lg transition-colors hover:bg-surface-secondary">
+                    <button
+                      type="button"
+                      :class="[
+                        'min-w-0 flex-1 px-3 py-2 text-left text-sm transition-colors',
+                        isCategorySelected(middleCategory) ? 'font-semibold text-primary' : 'text-text-main',
+                      ]"
+                      @click="selectMiddleCategory(group, middleCategory)"
+                    >
+                      <span class="block truncate">{{ middleCategory }}</span>
+                    </button>
+                    <button
                       v-if="getSmallCategories(group, middleCategory).length"
-                      :size="15"
-                      class="shrink-0 text-text-muted transition-transform"
-                      :class="expandedMiddleCategory === middleCategory && 'rotate-180'"
-                    />
-                  </button>
+                      type="button"
+                      class="mr-2 flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface"
+                      @click="toggleMiddleCategory(group.mainCategory, middleCategory)"
+                    >
+                      <ChevronDown
+                        :size="15"
+                        class="transition-transform"
+                        :class="expandedMiddleCategory === middleCategory && 'rotate-180'"
+                      />
+                    </button>
+                  </div>
 
                   <div
                     v-if="expandedMiddleCategory === middleCategory"
@@ -259,28 +275,39 @@ const isCategorySelected = (category: string) => (
     formData.value.category === category
 );
 
+const closeCategoryList = () => {
+    isCategoryListOpen.value = false;
+    expandedMainCategory.value = '';
+    expandedMiddleCategory.value = '';
+};
+
+const toggleMainCategory = (mainCategory: string) => {
+    expandedMainCategory.value = expandedMainCategory.value === mainCategory ? '' : mainCategory;
+    expandedMiddleCategory.value = '';
+};
+
+const toggleMiddleCategory = (mainCategory: string, middleCategory: string) => {
+    expandedMainCategory.value = mainCategory;
+    expandedMiddleCategory.value = expandedMiddleCategory.value === middleCategory ? '' : middleCategory;
+};
+
 const selectCategory = (category: string, categoryId = '') => {
     formData.value.category = category;
     formData.value.categoryId = category === DEFAULT_CATEGORY ? '' : categoryId;
+    closeCategoryList();
 };
 
 const selectMainCategory = (group: CategoryGroup) => {
     formData.value.category = group.mainCategory;
     formData.value.categoryId = group.categoryId ?? '';
-    expandedMainCategory.value = expandedMainCategory.value === group.mainCategory ? '' : group.mainCategory;
-    expandedMiddleCategory.value = '';
+    closeCategoryList();
 };
 
 const selectMiddleCategory = (group: CategoryGroup, middleCategory: string) => {
     formData.value.category = middleCategory;
     formData.value.categoryId = group.subCategoryIds?.[middleCategory] ?? '';
-    expandedMainCategory.value = group.mainCategory;
-    expandedMiddleCategory.value = expandedMiddleCategory.value === middleCategory ? '' : middleCategory;
+    closeCategoryList();
 };
-
-const getErrorMessage = (error: unknown) => (
-    error instanceof Error ? error.message : '품목 등록 중 오류가 발생했습니다.'
-);
 
 const handleSave = async () => {
     if (!isRegisterReady.value || isSaving.value) return;
@@ -317,8 +344,7 @@ const handleSave = async () => {
         alert('성공적으로 등록되었습니다.');
         emit('close');
     } catch (error) {
-        console.error(error);
-        alert(getErrorMessage(error));
+        console.error('유형자산 품목 등록 실패', error);
     } finally {
         isSaving.value = false;
     }

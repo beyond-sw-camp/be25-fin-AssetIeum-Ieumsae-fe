@@ -309,10 +309,6 @@ const tableColumns: Column<IntangibleItem>[] = [
   { key: 'action', label: '삭제', align: 'center', width: '13%' }
 ]
 
-const getErrorMessage = (error: unknown) => (
-  error instanceof Error ? error.message : '무형자산 품목 목록을 불러오지 못했습니다.'
-)
-
 const canDeleteRow = (row: IntangibleItem) => {
   return (row.assetCount ?? 0) === 0
 }
@@ -386,7 +382,8 @@ const loadServerData = async () => {
     totalElements.value = pageData.totalElements
     totalPages.value = pageData.totalPages
   } catch (error) {
-    listError.value = getErrorMessage(error)
+    console.error('무형자산 품목 목록 조회 실패', error)
+    listError.value = ''
   } finally {
     isLoading.value = false
   }

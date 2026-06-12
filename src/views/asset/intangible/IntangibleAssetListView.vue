@@ -171,10 +171,6 @@ const statusLabel = (status: string | null | undefined) => {
   return INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status
 }
 
-const getErrorMessage = (error: unknown) => (
-  error instanceof Error ? error.message : '무형자산 목록을 불러오지 못했습니다.'
-)
-
 const handleSearch = () => {
   searchParams.value.page = 0
   loadServerData()
@@ -206,7 +202,8 @@ const loadServerData = async () => {
     totalElements.value = response.data.totalElements
     totalPages.value = response.data.totalPages
   } catch (error) {
-    listError.value = getErrorMessage(error)
+    console.error('무형자산 목록 조회 실패', error)
+    listError.value = ''
   } finally {
     isLoading.value = false
   }
