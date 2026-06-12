@@ -2,7 +2,7 @@
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
     <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle mb-1">Member Management</p>
+        <p class="page-subtitle mb-1">사원 관리</p>
         <h1 class="page-title">사원 관리</h1>
       </div>
 
@@ -89,17 +89,17 @@
           </template>
 
           <template #cell-role="{ row }">
-            <span class="text-text-sub">{{ ROLE_LABEL[row.role] }}</span>
+            <span class="text-text-sub">{{ getRoleLabel(row.role) }}</span>
+          </template>
+
+          <template #cell-departmentName="{ row }">
+            <span class="text-text-sub">{{ getMemberDepartmentName(row) }}</span>
           </template>
 
           <template #cell-status="{ row }">
             <span :class="statusBadgeClass[row.status]">
               {{ MEMBER_STATUS_LABEL[row.status] }}
             </span>
-          </template>
-
-          <template #cell-createdAt="{ value }">
-            <span class="text-text-sub">{{ formatDate(String(value)) }}</span>
           </template>
 
           <template #cell-actions="{ row }">
@@ -257,7 +257,7 @@
         <div class="rounded-xl bg-surface-secondary p-4">
           <p class="font-semibold text-text-main">{{ memberToChangeDepartment.name }}</p>
           <p class="mt-1 text-sm text-text-sub">
-            현재 부서: {{ memberToChangeDepartment.departmentName }}
+            현재 부서: {{ getMemberDepartmentName(memberToChangeDepartment) }}
           </p>
         </div>
 
@@ -321,20 +321,19 @@ import {
   UserPlus,
 } from 'lucide-vue-next'
 
-import { memberApi } from '@/api'
+import { ApiError, memberApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import type { DropdownOption } from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import Table from '@/components/common/Table.vue'
 import type { Column } from '@/components/common/Table.vue'
 import MemberActionMenu from '@/components/member/MemberActionMenu.vue'
 import { usePagination, usePermission } from '@/composables'
 import { useDepartmentStore, useNotificationStore } from '@/stores'
-import type { Member, MemberStatus, Role } from '@/types'
-import { formatDate, MEMBER_STATUS_LABEL, ROLE_LABEL } from '@/utils/labels'
+import type { DropdownOption, Member, MemberStatus, Role } from '@/types'
+import { MEMBER_STATUS_LABEL, ROLE_LABEL } from '@/utils/labels'
 
 // 사원 등록 화면에서는 회사/플랫폼 관리자 권한을 부여하지 않는다.
 type RegisterRole = Exclude<Role, 'SUPER_ADMIN' | 'ADMIN'>
@@ -396,13 +395,12 @@ const departmentChangeForm = reactive({
 })
 
 const memberColumns: Column<Member>[] = [
-  { key: 'memberNo', label: '사번', width: '13%' },
-  { key: 'name', label: '이름 (이메일)', width: '22%' },
-  { key: 'departmentName', label: '소속 부서', width: '17%' },
-  { key: 'role', label: '권한', width: '14%' },
-  { key: 'status', label: '상태', width: '10%', align: 'center' },
-  { key: 'createdAt', label: '입사일', width: '14%' },
-  { key: 'actions', label: '관리', width: '10%', align: 'center' },
+  { key: 'memberNo', label: '사번', width: '14%' },
+  { key: 'name', label: '이름 (이메일)', width: '25%' },
+  { key: 'departmentName', label: '소속 부서', width: '20%' },
+  { key: 'role', label: '권한', width: '15%' },
+  { key: 'status', label: '상태', width: '11%', align: 'center' },
+  { key: 'actions', label: '관리', width: '15%', align: 'center' },
 ]
 
 const statusBadgeClass: Record<MemberStatus, string> = {
@@ -418,6 +416,7 @@ const registerRoleOptions: Array<{
   { value: 'EMPLOYEE', label: ROLE_LABEL.EMPLOYEE },
   { value: 'DEPARTMENT_MANAGER', label: ROLE_LABEL.DEPARTMENT_MANAGER },
   { value: 'ASSET_TEAM', label: ROLE_LABEL.ASSET_TEAM },
+  { value: 'ASSET_MANAGE', label: ROLE_LABEL.ASSET_MANAGE },
 ]
 
 // 최상위 회사 노드는 조직 구조 표시용이므로 실제 사원 소속 선택지에서 제외한다.
@@ -490,6 +489,27 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
+function getRoleLabel(role: unknown) {
+  if (typeof role !== 'string' || !role.trim()) return '-'
+
+  const roleCode = role.trim()
+  return Object.hasOwn(ROLE_LABEL, roleCode)
+    ? ROLE_LABEL[roleCode as Role]
+    : roleCode
+}
+
+function getMemberDepartmentName(member: Member) {
+  const departmentName = departmentStore.departments.find(
+    ({ departmentId }) => departmentId === member.departmentId,
+  )?.name
+  if (departmentName) return departmentName
+
+  const responseDepartmentName = member.departmentName?.trim()
+  if (responseDepartmentName) return responseDepartmentName
+
+  return '-'
+}
+
 async function fetchMembers() {
   // 검색 조건이 빠르게 바뀌어도 가장 마지막 요청 결과만 목록에 반영한다.
   const requestId = ++listRequestId
@@ -510,6 +530,23 @@ async function fetchMembers() {
     updateFromResponse(response.data)
   } catch (error) {
     if (requestId !== listRequestId) return
+
+    // TODO: 목록이 비었을 때는 백엔드에서 200과 빈 content를 반환하도록 수정 필요
+    if (
+      error instanceof ApiError
+      && error.status === 404
+      && error.errorCode === 'MEMBER_NOT_FOUND'
+    ) {
+      members.value = []
+      updateFromResponse({
+        page: page.value,
+        size: size.value,
+        totalElements: 0,
+        totalPages: 0,
+      })
+      return
+    }
+
     listError.value = getErrorMessage(error, '사원 목록을 불러오지 못했습니다.')
   } finally {
     if (requestId === listRequestId) {
@@ -558,6 +595,7 @@ function handleRegisterRoleChange(value: string | number) {
     value === 'EMPLOYEE'
     || value === 'DEPARTMENT_MANAGER'
     || value === 'ASSET_TEAM'
+    || value === 'ASSET_MANAGE'
   ) {
     registerForm.role = value
   }

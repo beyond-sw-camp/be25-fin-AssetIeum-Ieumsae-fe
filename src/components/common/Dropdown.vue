@@ -196,26 +196,27 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
+import type { DropdownOption } from '@/types'
+
 interface CategoryGroup {
   mainCategory: string
   subCategories: string[]
   childCategories?: Record<string, string[]>
 }
 
-export interface DropdownOption {
-  label: string
-  value: string | number
-}
+type DropdownOptionSource = string | DropdownOption | CategoryGroup
 
-const props = withDefaults(defineProps<{
+interface Props {
   id?: string
   modelValue: string | number
-  options: string[] | DropdownOption[] | CategoryGroup[]
+  options: DropdownOptionSource[]
   rootOption?: string
   menuAlign?: 'left' | 'right'
   submenuDirection?: 'left' | 'right'
   disabled?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   id: undefined,
   rootOption: '',
   menuAlign: 'left',
@@ -241,33 +242,51 @@ const submenuWidth = 176
 const viewportPadding = 12
 
 // 기존 문자열/카테고리 옵션과 label-value 옵션을 함께 지원해 공통 사용처의 호환성을 유지한다.
+const isCategoryGroup = (option: DropdownOptionSource): option is CategoryGroup => (
+  typeof option === 'object'
+  && option !== null
+  && 'mainCategory' in option
+  && Array.isArray(option.subCategories)
+)
+
+const isDropdownOption = (option: DropdownOptionSource): option is DropdownOption => (
+  typeof option === 'object'
+  && option !== null
+  && 'label' in option
+  && 'value' in option
+)
+
+const categoryOptions = computed<CategoryGroup[]>(() => (
+  props.options.filter(isCategoryGroup)
+))
+
 const isSimpleOptions = computed(() => {
-  return props.options.length === 0
-    || typeof props.options[0] === 'string'
-    || 'value' in props.options[0]
+  return categoryOptions.value.length === 0
 })
 
-const simpleOptions = computed(() => {
+const simpleOptions = computed<DropdownOption[]>(() => {
   if (!isSimpleOptions.value) return []
 
-  return props.options.map((option) =>
-    typeof option === 'string'
-      ? { label: option, value: option }
-      : option as DropdownOption
-  )
+  return props.options.flatMap((option) => {
+    if (typeof option === 'string') return [{ label: option, value: option }]
+    if (isDropdownOption(option)) return [option]
+    return []
+  })
 })
 
 const selectedLabel = computed(() => {
   const selectedOption = simpleOptions.value.find((option) => option.value === props.modelValue)
-  return selectedOption?.label ?? String(props.modelValue || props.rootOption)
+  if (selectedOption) return selectedOption.label
+  if (props.modelValue === '') return props.rootOption
+  return String(props.modelValue)
 })
 
-const groupedOptions = computed(() => {
-  return isSimpleOptions.value || isPanelDropdown.value ? [] : props.options as CategoryGroup[]
+const groupedOptions = computed<CategoryGroup[]>(() => {
+  return isSimpleOptions.value || isPanelDropdown.value ? [] : categoryOptions.value
 })
 
-const panelGroupedOptions = computed(() => {
-  return !isSimpleOptions.value && isPanelDropdown.value ? props.options as CategoryGroup[] : []
+const panelGroupedOptions = computed<CategoryGroup[]>(() => {
+  return !isSimpleOptions.value && isPanelDropdown.value ? categoryOptions.value : []
 })
 
 const selectedTextClass = computed(() => {
