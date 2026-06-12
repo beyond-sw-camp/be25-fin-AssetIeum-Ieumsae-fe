@@ -30,7 +30,7 @@
     >
       <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
         <li
-          v-if="rootOption"
+          v-if="rootOption && !isPlaceholderRootOption"
           :class="[
             'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
             modelValue === rootOption ? 'font-semibold' : 'text-text-main'
@@ -250,6 +250,13 @@ const selectedTextClass = computed(() => {
   return props.rootOption && props.modelValue === props.rootOption
     ? 'text-text-muted'
     : 'text-text-main'
+})
+
+const isPlaceholderRootOption = computed(() => {
+  const rootOption = props.rootOption.trim()
+  if (!rootOption) return false
+  if (rootOption.startsWith('전체')) return false
+  return rootOption.includes('선택')
 })
 
 const isGroupSelected = (group: CategoryGroup) => {

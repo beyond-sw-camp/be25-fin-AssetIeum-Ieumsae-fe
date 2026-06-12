@@ -35,14 +35,6 @@
           </button>
 
           <div v-if="isCategoryListOpen" class="border-t border-border p-2">
-            <button
-              type="button"
-              class="mb-1 flex w-full items-center rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-secondary"
-              @click="selectCategory(DEFAULT_CATEGORY)"
-            >
-              카테고리 선택
-            </button>
-
             <div
               v-for="group in initialCategories"
               :key="group.mainCategory"
