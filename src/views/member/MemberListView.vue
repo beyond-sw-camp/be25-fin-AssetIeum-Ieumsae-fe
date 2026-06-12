@@ -50,7 +50,7 @@
           <Input
             id="member-keyword"
             v-model="filterForm.keyword"
-            class="w-56"
+            class="w-72"
             placeholder="이름, 이메일, 사번 검색"
           />
 
@@ -237,14 +237,13 @@
       </form>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <Button variant="outline" :disabled="isRegistering" @click="closeRegisterDrawer">
-            취소
-          </Button>
-          <Button :loading="isRegistering" @click="handleRegisterMember">
-            등록
-          </Button>
-        </div>
+        <Button
+          class="w-full"
+          :loading="isRegistering"
+          @click="handleRegisterMember"
+        >
+          등록
+        </Button>
       </template>
     </BaseDrawer>
 

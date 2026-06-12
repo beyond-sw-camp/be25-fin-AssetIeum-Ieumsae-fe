@@ -2,7 +2,7 @@
   <div class="flex h-full flex-col overflow-y-auto bg-background text-text-main transition-colors duration-300 xl:overflow-hidden">
     <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle mb-1">Organization</p>
+        <p class="page-subtitle mb-1">조직도</p>
         <h1 class="page-title">조직도</h1>
       </div>
       <Button v-if="canEditOrganization" size="md" @click="openCreateDrawer">
@@ -60,7 +60,10 @@
 
       <div class="flex min-h-0 min-w-0 flex-col gap-5 overflow-hidden">
         <section class="card mx-0 shrink-0 border border-border p-5">
-          <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div
+            class="flex flex-wrap items-start justify-between gap-3"
+            :class="selectedDetail ? 'mb-5' : 'mb-3'"
+          >
             <div class="flex items-start gap-2">
               <Building2 :size="20" class="mt-0.5 shrink-0 text-text-sub" />
               <div>
@@ -104,7 +107,7 @@
 
           <div
             v-else-if="!selectedDetail"
-            class="flex min-h-40 items-center justify-center text-sm text-text-muted"
+            class="flex min-h-24 items-center justify-center text-sm text-text-muted"
           >
             부서를 선택하면 상세 정보가 표시됩니다.
           </div>
@@ -125,21 +128,14 @@
                 <label for="parent-department" class="text-sm font-semibold text-text-main">
                   상위 부서
                 </label>
-                <select
+                <Dropdown
                   id="parent-department"
-                  v-model="editForm.parentDepartmentId"
-                  class="input-custom h-11 py-2.5"
+                  :model-value="editForm.parentDepartmentId ?? ''"
+                  :options="editParentDropdownOptions"
+                  root-option="최상위 부서"
                   :disabled="!canEditOrganization || isSaving || isSelectedRoot"
-                >
-                  <option v-if="isSelectedRoot" :value="null">최상위 부서</option>
-                  <option
-                    v-for="department in editParentOptions"
-                    :key="department.departmentId"
-                    :value="department.departmentId"
-                  >
-                    {{ department.name }}
-                  </option>
-                </select>
+                  @update:model-value="handleEditParentChange"
+                />
               </div>
             </div>
 
@@ -176,7 +172,10 @@
 
           <div
             v-else
-            class="min-h-0 flex-1 overflow-y-auto pb-2 pr-2 [scrollbar-gutter:stable]"
+            class="min-h-0 flex-1 pb-2"
+            :class="selectedDetail
+              ? 'overflow-y-auto pr-2 [scrollbar-gutter:stable]'
+              : 'overflow-hidden'"
           >
             <Table
               :columns="memberColumns"
@@ -238,20 +237,14 @@
           <label for="new-parent-department" class="text-sm font-semibold text-text-main">
             상위 부서
           </label>
-          <select
+          <Dropdown
             id="new-parent-department"
-            v-model="createForm.parentDepartmentId"
-            class="input-custom h-11 py-2.5"
+            :model-value="createForm.parentDepartmentId ?? ''"
+            :options="createParentDropdownOptions"
+            root-option="상위 부서 선택"
             :disabled="isCreating"
-          >
-            <option
-              v-for="department in departmentStore.departments"
-              :key="department.departmentId"
-              :value="department.departmentId"
-            >
-              {{ department.name }}
-            </option>
-          </select>
+            @update:model-value="handleCreateParentChange"
+          />
           <p class="text-xs text-text-sub">
             선택한 부서 아래에 새 하위 부서가 생성됩니다.
           </p>
@@ -262,18 +255,14 @@
       </form>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <Button variant="outline" :disabled="isCreating" @click="isCreateDrawerOpen = false">
-            취소
-          </Button>
-          <Button
-            :loading="isCreating"
-            :disabled="Boolean(createNameError || createParentError)"
-            @click="handleCreateDepartment"
-          >
-            등록하기
-          </Button>
-        </div>
+        <Button
+          class="w-full"
+          :loading="isCreating"
+          :disabled="Boolean(createNameError || createParentError)"
+          @click="handleCreateDepartment"
+        >
+          등록하기
+        </Button>
       </template>
     </BaseDrawer>
 
@@ -305,13 +294,14 @@ import { departmentApi, memberApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import Table from '@/components/common/Table.vue'
 import type { Column } from '@/components/common/Table.vue'
 import OrganizationTreeNode from '@/components/organization/OrganizationTreeNode.vue'
 import { usePermission } from '@/composables'
 import { useDepartmentStore, useNotificationStore } from '@/stores'
-import type { Department, DepartmentTreeNode, Member } from '@/types'
+import type { Department, DepartmentTreeNode, DropdownOption, Member } from '@/types'
 import { MEMBER_STATUS_LABEL, ROLE_LABEL } from '@/utils/labels'
 
 const departmentStore = useDepartmentStore()
@@ -388,6 +378,18 @@ const editParentOptions = computed(() =>
     && !descendantIds.value.has(departmentId)
   ),
 )
+const editParentDropdownOptions = computed<DropdownOption[]>(() =>
+  editParentOptions.value.map((department) => ({
+    label: department.name,
+    value: department.departmentId,
+  })),
+)
+const createParentDropdownOptions = computed<DropdownOption[]>(() =>
+  departmentStore.departments.map((department) => ({
+    label: department.name,
+    value: department.departmentId,
+  })),
+)
 
 const isEditDirty = computed(() => {
   if (!selectedDetail.value) return false
@@ -412,6 +414,14 @@ function resetEditForm() {
 function resetCreateForm() {
   createForm.name = ''
   createForm.parentDepartmentId = departmentStore.selectedDepartmentId
+}
+
+function handleEditParentChange(value: string | number) {
+  editForm.parentDepartmentId = value === '' ? null : String(value)
+}
+
+function handleCreateParentChange(value: string | number) {
+  createForm.parentDepartmentId = value === '' ? null : String(value)
 }
 
 async function fetchDepartmentDetail(departmentId: string) {
