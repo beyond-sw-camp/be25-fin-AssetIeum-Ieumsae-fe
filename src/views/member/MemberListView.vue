@@ -720,6 +720,7 @@ function requestResign(member: Member) {
   memberToResign.value = member
 }
 
+// TODO: 퇴사 처리 API 개발 중
 async function handleResignMember() {
   const member = memberToResign.value
   if (!member) return
