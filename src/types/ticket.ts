@@ -122,7 +122,7 @@ export interface TicketRejectRequest {
 export interface AssetAssignRequest {
   assetType: AssetType
   assetId: number
-  memberId: string
+  memberId: number
   returnDueDate?: string
 }
 

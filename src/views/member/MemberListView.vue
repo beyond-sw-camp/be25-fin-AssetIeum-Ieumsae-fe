@@ -505,7 +505,7 @@ function getRoleLabel(role: unknown) {
 
 function getMemberDepartmentName(member: Member) {
   const pathDepartmentName = member.departmentNamePath
-    ?.split('>')
+    .split('>')
     .map((name) => name.trim())
     .filter(Boolean)
     .at(-1)
@@ -543,8 +543,16 @@ async function fetchMembers() {
   } catch (error) {
     if (requestId !== listRequestId) return
 
-    // TODO: 목록이 비었을 때는 백엔드에서 200과 빈 content를 반환하도록 수정 필요
-    if (error instanceof ApiError && error.status === 404) {
+    const isEmptyMemberList = error instanceof ApiError
+      && error.status === 404
+      && (
+        error.errorCode === 'MEMBER_NOT_FOUND'
+        || error.message.includes('멤버를 찾을 수 없습니다')
+        || error.message.includes('사원을 찾을 수 없습니다')
+      )
+
+    // TODO: 백엔드에서 빈 목록을 200과 빈 content로 반환하면 이 호환 처리를 제거한다.
+    if (isEmptyMemberList) {
       members.value = []
       updateFromResponse({
         page: page.value,
@@ -560,6 +568,20 @@ async function fetchMembers() {
     if (requestId === listRequestId) {
       isLoading.value = false
     }
+  }
+}
+
+async function refreshMemberRelatedData() {
+  const [, departmentResult] = await Promise.allSettled([
+    fetchMembers(),
+    departmentStore.fetchAll(),
+  ])
+
+  if (departmentResult.status === 'rejected') {
+    notificationStore.warning(
+      '변경사항은 저장되었지만 부서 목록을 갱신하지 못했습니다.',
+      departmentStore.errorMessage || '화면을 새로고침해 최신 부서 정보를 확인해주세요.',
+    )
   }
 }
 
@@ -658,12 +680,11 @@ async function handleRegisterMember() {
 
     isRegisterDrawerOpen.value = false
     setPage(0)
-    // 사원 변경은 부서별 현재 인원수에도 영향을 주므로 두 데이터를 함께 갱신한다.
-    await Promise.all([fetchMembers(), departmentStore.fetchAll()])
     notificationStore.success(
       '사원이 등록되었습니다.',
       '초기 비밀번호는 사번과 동일합니다.',
     )
+    await refreshMemberRelatedData()
   } catch (error) {
     notificationStore.error(
       '사원을 등록하지 못했습니다.',
@@ -704,8 +725,8 @@ async function handleChangeDepartment() {
 
     isDepartmentDrawerOpen.value = false
     memberToChangeDepartment.value = null
-    await Promise.all([fetchMembers(), departmentStore.fetchAll()])
     notificationStore.success('소속 부서가 변경되었습니다.')
+    await refreshMemberRelatedData()
   } catch (error) {
     notificationStore.error(
       '소속 부서를 변경하지 못했습니다.',
@@ -729,11 +750,11 @@ async function handleResignMember() {
   try {
     const response = await memberApi.resign(member.memberId)
     memberToResign.value = null
-    await Promise.all([fetchMembers(), departmentStore.fetchAll()])
     notificationStore.success(
       '퇴사 처리가 완료되었습니다.',
       `유형자산 ${response.data.returnedTangibleAssetCount}개, 무형자산 ${response.data.returnedIntangibleAssetCount}개가 회수 처리되었습니다.`,
     )
+    await refreshMemberRelatedData()
   } catch (error) {
     notificationStore.error(
       '퇴사 처리에 실패했습니다.',
@@ -745,9 +766,16 @@ async function handleResignMember() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([
+  const [departmentResult] = await Promise.allSettled([
     departmentStore.fetchAll(),
     fetchMembers(),
   ])
+
+  if (departmentResult.status === 'rejected') {
+    notificationStore.error(
+      '부서 목록을 불러오지 못했습니다.',
+      departmentStore.errorMessage || '부서 필터와 사원 등록 기능을 사용할 수 없습니다.',
+    )
+  }
 })
 </script>

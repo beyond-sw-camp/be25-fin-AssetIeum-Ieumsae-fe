@@ -14,8 +14,10 @@ import type {
   PageResponse,
   PasswordChangeRequest,
   TangibleAsset,
+  TangibleAssetCreateRequest,
   TangibleCategoryGroup,
   TangibleAssetItemUpdateRequest,
+  TangibleAssetUpdateRequest,
 } from '@/types'
 
 const API_PREFIX = '*/api/v1'
@@ -25,10 +27,6 @@ const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
 const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
-
-function mockMemberId(sequence: number): string {
-  return `55555555-5555-5555-5555-${String(sequence).padStart(12, '0')}`
-}
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
@@ -86,7 +84,25 @@ let departments: Department[] = [
   },
 ]
 
-let members: Member[] = [
+function mockMemberId(sequence: number): string {
+  return `55555555-5555-5555-5555-${String(sequence).padStart(12, '0')}`
+}
+
+function getDepartmentNamePath(departmentId: string): string {
+  const names: string[] = []
+  let current = departments.find((department) => department.departmentId === departmentId)
+
+  while (current) {
+    names.unshift(current.name)
+    current = departments.find(
+      (department) => department.departmentId === current?.parentDepartmentId,
+    )
+  }
+
+  return names.join(' > ')
+}
+
+const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
     memberId: mockMemberId(1),
     memberNo: 'EMP0001',
@@ -230,7 +246,23 @@ let members: Member[] = [
     status: 'ACTIVE',
     createdAt: '2026-01-17T09:00:00',
   },
+  {
+    memberId: mockMemberId(14),
+    memberNo: 'EMP0014',
+    name: '구매자산팀장',
+    email: 'asset.manager@ieumtech.com',
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
+    departmentName: '구매자산팀',
+    role: 'ASSET_MANAGER',
+    status: 'ACTIVE',
+    createdAt: '2026-01-18T09:00:00',
+  },
 ]
+
+let members: Member[] = memberSeeds.map((member) => ({
+  ...member,
+  departmentNamePath: getDepartmentNamePath(member.departmentId),
+}))
 
 const memberPasswords = new Map(
   members.map((member) => [member.memberNo, member.memberNo]),
@@ -273,33 +305,6 @@ interface IntangibleItem {
   licenseType: string
   vendor: string
   isStandard: number
-}
-
-interface TangibleAssetCreateBody {
-  tangibleItemId?: string
-  serialNumber?: string
-  usageType?: TangibleAsset['usageType']
-  assetUsageType?: TangibleAsset['assetUsageType']
-  tangibleAssetStatus?: TangibleAsset['status']
-  memberId?: string | null
-  departmentId?: string | null
-  location?: string | null
-  usedStartedAt?: string | null
-  returnDueDate?: string | null
-  purchaseDate: string
-  purchasePrice?: number
-  purchaseVendor?: string
-  warrantyExpiredAt?: string | null
-}
-
-interface TangibleAssetUpdateBody {
-  tangibleAssetStatus?: TangibleAsset['status']
-  memberId?: string | null
-  departmentId?: string | null
-  location?: string | null
-  usedStartedAt?: string | null
-  returnDueDate?: string | null
-  usageType?: TangibleAsset['usageType']
 }
 
 // 유형자산 품목 마스터 데이터 (30개) - ID를 string으로 변경
@@ -512,7 +517,7 @@ let intangibleAssets: IntangibleAsset[] = [
   { assetId: '33', assetCode: 'INT-0034', assetItemId: '29', assetItemName: 'Dropbox Sign', licenseType: 'SUBSCRIPTION', licenseKey: 'DBS-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-09-02', vendor: 'Dropbox', purchasePrice: 290000, createdAt: '2025-09-02T09:45:00' }
 ]
 
-const normalizeAssignedMemberId = (memberId: string | null | undefined) => {
+function normalizeAssignedMemberId(memberId: string | null | undefined): string | null {
   if (!memberId || !/^\d+$/.test(memberId)) return memberId ?? null
   return mockMemberId(Number(memberId))
 }
@@ -621,8 +626,8 @@ export const handlers = [
 
   http.get(`${API_PREFIX}/members`, ({ request }) => {
     const url = new URL(request.url)
-    const page = Number(url.searchParams.get('page') ?? 0)
-    const size = Number(url.searchParams.get('size') ?? 10)
+    const page = Number(url.searchParams.get('page') ?? 0) as number
+    const size = Number(url.searchParams.get('size') ?? 10) as number
     const departmentId = url.searchParams.get('departmentId') ?? ''
     const role = url.searchParams.get('role') ?? ''
     const status = url.searchParams.get('status') ?? ''
@@ -654,6 +659,7 @@ export const handlers = [
   http.post(`${API_PREFIX}/members`, async ({ request }) => {
     const body = await request.json() as MemberRegisterRequest
     const department = departments.find((item) => item.departmentId === body.departmentId)
+    const normalizedEmail = body.email?.toLowerCase()
 
     if (members.some((item) => item.memberNo === body.memberNo)) {
       return HttpResponse.json({
@@ -665,8 +671,8 @@ export const handlers = [
     }
 
     if (
-      body.email
-      && members.some((item) => item.email?.toLowerCase() === body.email?.toLowerCase())
+      normalizedEmail
+      && members.some((item) => item.email?.toLowerCase() === normalizedEmail)
     ) {
       return HttpResponse.json({
         status: 409,
@@ -685,14 +691,14 @@ export const handlers = [
       }, { status: 404 })
     }
 
-
     const member: Member = {
       memberId: crypto.randomUUID(),
       memberNo: body.memberNo,
       name: body.name,
       email: body.email ?? null,
       departmentId: body.departmentId,
-      departmentName: department?.name ?? '미지정',
+      departmentName: department.name,
+      departmentNamePath: getDepartmentNamePath(department.departmentId),
       role: body.role,
       status: 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -700,8 +706,7 @@ export const handlers = [
 
     members = [member, ...members]
     memberPasswords.set(member.memberNo, member.memberNo)
-
-    return HttpResponse.json(ok(member, '사원 등록에 성공했습니다.'))
+    return HttpResponse.json(ok(member, '사원이 등록되었습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/members/:memberId/resign`, ({ params }) => {
@@ -715,15 +720,6 @@ export const handlers = [
         message: '사원을 찾을 수 없습니다.',
         data: null,
       }, { status: 404 })
-    }
-
-    if (member.status === 'RESIGNED') {
-      return HttpResponse.json({
-        status: 409,
-        errorCode: 'MEMBER_ALREADY_RESIGNED',
-        message: '이미 퇴사 처리된 사원입니다.',
-        data: null,
-      }, { status: 409 })
     }
 
     member.status = 'RESIGNED'
@@ -784,6 +780,7 @@ export const handlers = [
     const previousDepartmentName = member.departmentName
     member.departmentId = department.departmentId
     member.departmentName = department.name
+    member.departmentNamePath = getDepartmentNamePath(department.departmentId)
 
     return HttpResponse.json(ok({
       memberId: member.memberId,
@@ -803,6 +800,7 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tangible-asset/categories`, async ({ request }) => {
     const body = await request.json() as { name?: string; parentId?: string | null }
+    const categoryId = crypto.randomUUID()
     const name = body.name?.trim() ?? ''
 
     if (!name) {
@@ -814,7 +812,6 @@ export const handlers = [
       }, { status: 400 })
     }
 
-    const categoryId = crypto.randomUUID()
     if (!body.parentId) {
       tangibleCategoryGroups.push({
         categoryId,
@@ -858,13 +855,6 @@ export const handlers = [
             [name]: categoryId,
           }
         }
-      } else {
-        return HttpResponse.json({
-          status: 404,
-          errorCode: 'PARENT_CATEGORY_NOT_FOUND',
-          message: '상위 카테고리를 찾을 수 없습니다.',
-          data: null,
-        }, { status: 404 })
       }
     }
 
@@ -877,71 +867,58 @@ export const handlers = [
 
   http.delete(`${API_PREFIX}/tangible-asset/categories/:categoryId`, ({ params }) => {
     const categoryId = String(params.categoryId)
-    const rootIndex = tangibleCategoryGroups.findIndex((group) => group.categoryId === categoryId)
 
-    if (rootIndex >= 0) {
-      tangibleCategoryGroups.splice(rootIndex, 1)
-      return HttpResponse.json(ok({ categoryId, deletedAt: new Date().toISOString() }))
-    }
+    tangibleCategoryGroups = tangibleCategoryGroups
+      .filter((group) => group.categoryId !== categoryId)
+      .map((group) => {
+        const middleName = Object.entries(group.subCategoryIds ?? {})
+          .find(([, id]) => id === categoryId)?.[0]
+        const smallName = Object.entries(group.childCategoryIds ?? {})
+          .find(([, id]) => id === categoryId)?.[0]
 
-    let isDeleted = false
-    tangibleCategoryGroups = tangibleCategoryGroups.map((group) => {
-      const middleName = Object.entries(group.subCategoryIds ?? {})
-        .find(([, id]) => id === categoryId)?.[0]
-      const childName = Object.entries(group.childCategoryIds ?? {})
-        .find(([, id]) => id === categoryId)?.[0]
-
-      if (middleName) {
-        isDeleted = true
-        const children = group.childCategories?.[middleName] ?? []
-        return {
-          ...group,
-          subCategories: group.subCategories.filter((name) => name !== middleName && !children.includes(name)),
-          childCategories: Object.fromEntries(
-            Object.entries(group.childCategories ?? {}).filter(([name]) => name !== middleName),
-          ),
-          subCategoryIds: Object.fromEntries(
-            Object.entries(group.subCategoryIds ?? {}).filter(([name]) => name !== middleName),
-          ),
-          childCategoryIds: Object.fromEntries(
-            Object.entries(group.childCategoryIds ?? {}).filter(([name]) => !children.includes(name)),
-          ),
+        if (middleName) {
+          const smallCategories = group.childCategories?.[middleName] ?? []
+          return {
+            ...group,
+            subCategories: group.subCategories.filter((name) => name !== middleName && !smallCategories.includes(name)),
+            childCategories: Object.fromEntries(
+              Object.entries(group.childCategories ?? {}).filter(([name]) => name !== middleName),
+            ),
+            subCategoryIds: Object.fromEntries(
+              Object.entries(group.subCategoryIds ?? {}).filter(([name]) => name !== middleName),
+            ),
+            childCategoryIds: Object.fromEntries(
+              Object.entries(group.childCategoryIds ?? {}).filter(([name]) => !smallCategories.includes(name)),
+            ),
+          }
         }
-      }
 
-      if (childName) {
-        isDeleted = true
-        return {
-          ...group,
-          subCategories: group.subCategories.filter((name) => name !== childName),
-          childCategories: Object.fromEntries(
-            Object.entries(group.childCategories ?? {}).map(([name, children]) => [
-              name,
-              children.filter((child) => child !== childName),
-            ]),
-          ),
-          childCategoryIds: Object.fromEntries(
-            Object.entries(group.childCategoryIds ?? {}).filter(([name]) => name !== childName),
-          ),
+        if (smallName) {
+          return {
+            ...group,
+            subCategories: group.subCategories.filter((name) => name !== smallName),
+            childCategories: Object.fromEntries(
+              Object.entries(group.childCategories ?? {}).map(([name, values]) => [
+                name,
+                values.filter((value) => value !== smallName),
+              ]),
+            ),
+            childCategoryIds: Object.fromEntries(
+              Object.entries(group.childCategoryIds ?? {}).filter(([name]) => name !== smallName),
+            ),
+          }
         }
-      }
 
-      return group
-    })
+        return group
+      })
 
-    if (!isDeleted) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'CATEGORY_NOT_FOUND',
-        message: '카테고리를 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-
-    return HttpResponse.json(ok({ categoryId, deletedAt: new Date().toISOString() }))
+    return HttpResponse.json(ok({
+      categoryId,
+      deletedAt: new Date().toISOString(),
+    }, '유형자산 카테고리가 삭제되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/assets/tangible/items`, ({ request }) => {
+  http.get(`${API_PREFIX}/tangible-asset/items`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
@@ -1302,31 +1279,28 @@ export const handlers = [
   }),
 
   http.post(`${API_PREFIX}/tangible-asset/assets`, async ({ request }) => {
-    const body = await request.json() as TangibleAssetCreateBody
-    const item = tangibleItems.find((entry) => entry.assetItemId === body.tangibleItemId)
-    const member = members.find((entry) => entry.memberId === body.memberId)
-    const department = departments.find((entry) => entry.departmentId === body.departmentId)
+    const body = await request.json() as TangibleAssetCreateRequest
+    const item = tangibleItems.find((t) => t.assetItemId === body.assetItemId)
 
     const nextId = String(Math.max(...tangibleAssets.map((asset) => Number(asset.assetId))) + 1)
     const newAsset: TangibleAsset = {
       assetId: nextId,
       assetCode: `TNG-${nextId.padStart(4, '0')}`,
-      serialNo: body.serialNumber,
-      assetItemId: body.tangibleItemId,
+      serialNo: body.serialNo,
+      assetItemId: body.assetItemId,
       assetItemName: item?.assetName ?? '알 수 없는 품목',
-      status: body.tangibleAssetStatus ?? 'AVAILABLE',
-      assignedMemberId: body.memberId ?? null,
-      assignedMemberName: member?.name ?? null,
+      status: body.status ?? 'AVAILABLE',
+      assignedMemberId: body.assignedMemberId ?? null,
+      assignedMemberName: body.assignedMemberName ?? null,
       departmentId: body.departmentId ?? null,
-      departmentName: department?.name ?? null,
+      departmentName: body.departmentName ?? null,
       purchaseDate: body.purchaseDate,
-      vendor: body.purchaseVendor,
+      vendor: body.vendor,
       purchasePrice: body.purchasePrice,
       usageType: body.usageType,
-      assetUsageType: body.assetUsageType,
       warrantyExpiredAt: body.warrantyExpiredAt ?? new Date(new Date(body.purchaseDate).setFullYear(new Date(body.purchaseDate).getFullYear() + 2)).toISOString().split('T')[0],
       location: body.location ?? null,
-      startedAt: body.usedStartedAt ?? null,
+      startedAt: body.startedAt ?? null,
       returnDueDate: body.returnDueDate ?? null,
       createdAt: new Date().toISOString(),
     }
@@ -1337,7 +1311,7 @@ export const handlers = [
 
   http.patch(`${API_PREFIX}/tangible-asset/assets/:assetId`, async ({ params, request }) => {
     const assetId = String(params.assetId)
-    const body = await request.json() as TangibleAssetUpdateBody
+    const body = await request.json() as TangibleAssetUpdateRequest
     const asset = tangibleAssets.find((item) => item.assetId === assetId)
 
     if (!asset) {
@@ -1349,18 +1323,22 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    const member = members.find((entry) => entry.memberId === body.memberId)
-    const department = departments.find((entry) => entry.departmentId === body.departmentId)
     const updatedAsset = Object.assign(asset, {
-      status: body.tangibleAssetStatus ?? asset.status,
-      assignedMemberId: body.memberId ?? null,
-      assignedMemberName: member?.name ?? null,
+      assetCode: body.assetCode ?? asset.assetCode,
+      assetItemName: body.assetItemName ?? asset.assetItemName,
+      serialNo: body.serialNo ?? asset.serialNo,
+      status: body.status ?? asset.status,
+      assignedMemberId: body.assignedMemberId ?? null,
+      assignedMemberName: body.assignedMemberName ?? null,
       departmentId: body.departmentId ?? null,
-      departmentName: department?.name ?? null,
-      startedAt: body.usedStartedAt ?? null,
+      departmentName: body.departmentName ?? null,
+      startedAt: body.startedAt ?? null,
       returnDueDate: body.returnDueDate ?? null,
+      purchaseDate: body.purchaseDate ?? asset.purchaseDate,
+      vendor: body.vendor ?? asset.vendor,
+      purchasePrice: body.purchasePrice ?? asset.purchasePrice,
+      warrantyExpiredAt: body.warrantyExpiredAt ?? null,
       location: body.location ?? null,
-      usageType: body.usageType ?? asset.usageType,
     })
 
     return HttpResponse.json(ok(updatedAsset, '유형자산이 수정되었습니다.'))
@@ -1502,7 +1480,7 @@ export const handlers = [
     ))
   }),
 
-  http.patch(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
+  http.put(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
     const departmentId = String(params.departmentId)
     const body = await request.json() as DepartmentUpdateRequest
 

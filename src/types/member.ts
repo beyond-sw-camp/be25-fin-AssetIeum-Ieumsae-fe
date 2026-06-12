@@ -37,7 +37,7 @@ export interface Member {
   email: string | null
   departmentId: string
   departmentName: string
-  departmentNamePath?: string | null
+  departmentNamePath: string
   role: Role
   status: MemberStatus
   createdAt: string

@@ -57,6 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => currentRole.value === 'ADMIN')
   const isDepartmentManager = computed(() => currentRole.value === 'DEPARTMENT_MANAGER')
   const isAssetTeam = computed(() => currentRole.value === 'ASSET_TEAM')
+  const isAssetManager = computed(() => currentRole.value === 'ASSET_MANAGER')
 
   async function login(credentials: LoginRequest) {
     isLoading.value = true
@@ -141,6 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isDepartmentManager,
     isAssetTeam,
+    isAssetManager,
     login,
     logout,
     changePassword,
