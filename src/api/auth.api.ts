@@ -13,8 +13,8 @@ export const authApi = {
   logout: () =>
     api.post<null>('/auth/logout'),
 
-  refresh: (refreshToken: string) =>
-    api.post<{ accessToken: string }>('/auth/refresh', { refreshToken }),
+  reissue: () =>
+    api.post<{ accessToken: string }>('/auth/reissue'),
 
   changePassword: (body: PasswordChangeRequest) =>
     api.patch<PasswordChangeResponse>('/members/me/password', body),

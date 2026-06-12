@@ -22,6 +22,9 @@ export function usePermission() {
   // 회사 최고 관리자 전용 기능 여부
   const canManageCompany = computed(() => hasRole('ADMIN'))
 
+  // 사원 등록, 부서 변경, 퇴사 처리 권한
+  const canManageMembers = computed(() => hasRole('ADMIN'))
+
   // 조직도 조회 가능 여부
   const canManageDepartment = computed(() => hasRole('ADMIN'))
 
@@ -30,17 +33,17 @@ export function usePermission() {
 
   // 자산 관리 가능 여부 (구매자산팀, 최고관리자)
   const canManageAsset = computed(() =>
-    hasRole('ADMIN', 'ASSET_TEAM')
+    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 티켓 승인 가능 여부 (부서책임자, 구매자산팀, 최고관리자)
   const canApproveTicket = computed(() =>
-    hasRole('ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM')
+    hasRole('ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 구매 관련 기능 (구매자산팀)
   const canPurchase = computed(() =>
-    hasRole('ADMIN', 'ASSET_TEAM')
+    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 예산 관리 (최고관리자)
@@ -51,6 +54,7 @@ export function usePermission() {
     hasRole,
     canManagePlatform,
     canManageCompany,
+    canManageMembers,
     canManageDepartment,
     canEditOrganization,
     canManageAsset,

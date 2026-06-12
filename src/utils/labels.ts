@@ -17,8 +17,7 @@ export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus, string> = {
   REPAIR_REQUESTED: '수리요청',
   REPAIRING: '수리중',
   RETURN_REQUESTED: '반납요청',
-  RENTING: '대여중',
-  DISCARDED: '폐기완료',
+  DISPOSED: '폐기완료',
 }
 
 export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
@@ -59,6 +58,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   ADMIN: '최고 관리자',
   DEPARTMENT_MANAGER: '부서책임자',
   ASSET_TEAM: '구매자산팀',
+  ASSET_MANAGER: '구매자산팀장',
   EMPLOYEE: '사원',
 }
 

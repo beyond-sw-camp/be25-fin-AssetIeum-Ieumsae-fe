@@ -5,8 +5,45 @@ import { authApi } from '@/api'
 import type { AuthUser, LoginRequest, PasswordChangeRequest, Role } from '@/types'
 
 const ACCESS_TOKEN_KEY = 'accessToken'
-const REFRESH_TOKEN_KEY = 'refreshToken'
 const AUTH_USER_KEY = 'authUser'
+
+function decodeTokenPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decodedPayload = decodeURIComponent(
+      Array.from(atob(normalizedPayload), (char) => (
+        `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`
+      )).join(''),
+    )
+
+    return JSON.parse(decodedPayload) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function stringClaim(payload: Record<string, unknown> | null, keys: string[]) {
+  if (!payload) return undefined
+
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value) return value
+  }
+
+  return undefined
+}
+
+function withTokenClaims(userInfo: AuthUser, token: string): AuthUser {
+  const payload = decodeTokenPayload(token)
+
+  return {
+    ...userInfo,
+    companyId: userInfo.companyId ?? stringClaim(payload, ['companyId', 'company_id']),
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
@@ -20,19 +57,22 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => currentRole.value === 'ADMIN')
   const isDepartmentManager = computed(() => currentRole.value === 'DEPARTMENT_MANAGER')
   const isAssetTeam = computed(() => currentRole.value === 'ASSET_TEAM')
+  const isAssetManager = computed(() => currentRole.value === 'ASSET_MANAGER')
 
   async function login(credentials: LoginRequest) {
     isLoading.value = true
     try {
       const res = await authApi.login(credentials)
-      const { accessToken: token, refreshToken, ...userInfo } = res.data
+      const { accessToken: token, refreshToken: _refreshToken, ...userInfo } = res.data
+      void _refreshToken
+      const normalizedUserInfo = withTokenClaims(userInfo, token)
 
-      user.value = userInfo
+      user.value = normalizedUserInfo
       accessToken.value = token
 
       localStorage.setItem(ACCESS_TOKEN_KEY, token)
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userInfo))
+      localStorage.removeItem('refreshToken')
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(normalizedUserInfo))
 
       return true
     } catch (error) {
@@ -67,7 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     accessToken.value = null
     localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem(AUTH_USER_KEY)
   }
 
@@ -81,8 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      user.value = JSON.parse(storedUser) as AuthUser
+      user.value = withTokenClaims(JSON.parse(storedUser) as AuthUser, token)
       accessToken.value = token
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user.value))
       return true
     } catch {
       clearAuth()
@@ -101,6 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isDepartmentManager,
     isAssetTeam,
+    isAssetManager,
     login,
     logout,
     changePassword,

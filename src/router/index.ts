@@ -111,12 +111,6 @@ const router = createRouter({
               component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
               meta: { title: '유형자산 목록' },
             },
-            {
-              path: ':assetId',
-              name: 'TangibleAssetDetail',
-              component: () => import('@/views/asset/tangible/TangibleAssetDetailView.vue'),
-              meta: { title: '유형자산 상세' },
-            },
           ],
         },
 
@@ -160,7 +154,7 @@ const router = createRouter({
               path: '',
               name: 'SurveyList',
               component: () => import('@/views/survey/SurveyListView.vue'),
-              meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM'] },
+              meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
             },
             {
               path: ':surveyId',
@@ -184,7 +178,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 관리', roles: ['ADMIN', 'ASSET_TEAM'] },
+          meta: { title: '구매 관리', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
         },
 
         // ─── 로그 ─────────────────────────────────────

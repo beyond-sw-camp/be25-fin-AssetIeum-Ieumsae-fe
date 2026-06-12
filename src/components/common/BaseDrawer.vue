@@ -6,7 +6,7 @@
     >
     </div>
 
-    <div class="relative w-[50%] h-full bg-surface shadow-2xl flex flex-col z-10">
+    <div class="relative w-[50%] h-full bg-surface shadow-2xl flex flex-col z-10" data-dropdown-panel>
       <div class="p-6 border-b border-border flex items-center justify-between shrink-0">
         <slot name="header">
           <h2 class="text-xl font-bold text-text-main">{{ title }}</h2>
