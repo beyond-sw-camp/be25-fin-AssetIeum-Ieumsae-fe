@@ -26,12 +26,18 @@ function compactParams<T extends object>(params?: T) {
   )
 }
 
+function compactBody<T extends object>(body: T) {
+  return Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined && value !== ''),
+  )
+}
+
 const toBoolean = (value: number | boolean | undefined) => {
   if (typeof value === 'number') return value === 1
   return value
 }
 
-const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactParams({
+const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactBody({
   companyId: body.companyId,
   categoryId: body.categoryId,
   productName: body.productName ?? body.name ?? body.assetName ?? body.itemCode ?? body.itemNo,
@@ -40,12 +46,40 @@ const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compa
   isStandard: toBoolean(body.isStandard),
 })
 
-const toTangibleItemUpdateBody = (body: TangibleAssetItemUpdateRequest) => compactParams({
+const toTangibleItemUpdateBody = (body: TangibleAssetItemUpdateRequest) => compactBody({
   categoryId: body.categoryId,
   productName: body.productName ?? body.name ?? body.assetName ?? body.itemCode,
   manufacturer: body.manufacturer,
   modelName: body.modelName,
   isStandard: toBoolean(body.isStandard),
+})
+
+const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactBody({
+  companyId: body.companyId,
+  tangibleItemId: body.tangibleItemId ?? body.assetItemId,
+  serialNumber: body.serialNumber ?? body.serialNo,
+  usageType: body.usageType,
+  assetUsageType: body.assetUsageType,
+  tangibleAssetStatus: body.tangibleAssetStatus ?? body.status,
+  memberId: body.memberId ?? body.assignedMemberId,
+  departmentId: body.departmentId,
+  location: body.location,
+  usedStartedAt: body.usedStartedAt ?? body.startedAt,
+  returnDueDate: body.returnDueDate,
+  purchaseDate: body.purchaseDate,
+  purchasePrice: body.purchasePrice,
+  purchaseVendor: body.purchaseVendor ?? body.vendor,
+  warrantyExpiredAt: body.warrantyExpiredAt,
+})
+
+const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactBody({
+  tangibleAssetStatus: body.tangibleAssetStatus ?? body.tangibleAssetstatus ?? body.status,
+  memberId: body.memberId ?? body.assignedMemberId,
+  departmentId: body.departmentId,
+  location: body.location,
+  usedStartedAt: body.usedStartedAt ?? body.startedAt,
+  returnDueDate: body.returnDueDate,
+  usageType: body.usageType,
 })
 
 // ─── 유형자산 품목 API ───────────────────────────────────────────────────────
@@ -92,6 +126,10 @@ export const tangibleItemApi = {
 // ─── 유형자산 API ────────────────────────────────────────────────────────────
 
 export const tangibleAssetApi = {
+  /** 유형자산 등록 */
+  create: (body: TangibleAssetCreateRequest) =>
+    api.post<TangibleAsset>('/tangible-asset/assets', toTangibleAssetCreateBody(body)),
+
   /** 유형자산 목록 조회 */
   getList: (params?: TangibleAssetListFilter) =>
     api.get<PageResponse<TangibleAsset>>('/tangible-asset/assets', compactParams(params)),
@@ -100,13 +138,9 @@ export const tangibleAssetApi = {
   getDetail: (assetId: string) =>
     api.get<TangibleAsset>(`/tangible-asset/assets/${assetId}`),
 
-  /** 유형자산 등록 */
-  create: (body: TangibleAssetCreateRequest) =>
-    api.post<TangibleAsset>('/tangible-asset/assets', body),
-
   /** 유형자산 수정 */
   update: (assetId: string, body: TangibleAssetUpdateRequest) =>
-    api.patch<TangibleAsset>(`/tangible-asset/assets/${assetId}`, body),
+    api.patch<TangibleAsset>(`/tangible-asset/assets/${assetId}`, toTangibleAssetUpdateBody(body)),
 }
 
 // ─── 무형자산 품목 API ───────────────────────────────────────────────────────

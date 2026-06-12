@@ -48,7 +48,7 @@
           사용 정보
         </h2>
         <div class="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-          <FormField label="사용 유형">
+          <FormField label="사용 유형" required>
             <Dropdown v-model="formData.usageType" :options="usageTypeOptions" root-option="-- 사용 유형 선택 --" />
           </FormField>
 
@@ -56,26 +56,28 @@
             id="register-location"
             v-model="formData.location"
             label="위치"
+            required
             placeholder="위치 입력"
           />
 
           <Input
             id="register-startedAt"
             v-model="formData.startedAt"
-            type="date"
-            label="사용 시작일"
-            placeholder="사용 시작일 입력"
+            type="datetime-local"
+            label="사용 시작 일시"
+            :required="requiresAssignmentInfo"
+            placeholder="사용 시작 일시 입력"
           />
 
           <Input
             id="register-returnDueDate"
             v-model="formData.returnDueDate"
-            type="date"
-            label="반납 예정일"
-            placeholder="반납 예정일 입력"
+            type="datetime-local"
+            label="반납 예정 일시"
+            placeholder="반납 예정 일시 입력"
           />
 
-          <FormField label="부서">
+          <FormField label="부서" :required="requiresAssignmentInfo">
             <Dropdown
               v-model="formData.departmentName"
               :options="departmentOptions"
@@ -83,7 +85,7 @@
             />
           </FormField>
 
-          <FormField label="사용자">
+          <FormField label="사용자" :required="requiresAssignmentInfo">
             <Dropdown
               v-model="formData.memberName"
               :options="memberOptions"
@@ -101,9 +103,9 @@
           <Input
             id="register-purchaseDate"
             v-model="formData.purchaseDate"
-            type="date"
-            label="구매일"
-            placeholder="구매일 입력"
+            type="datetime-local"
+            label="구매 일시"
+            placeholder="구매 일시 입력"
             required
           />
 
@@ -126,9 +128,9 @@
           <Input
             id="register-warrantyExpiredAt"
             v-model="formData.warrantyExpiredAt"
-            type="date"
-            label="보증 만료일"
-            placeholder="보증 만료일 입력"
+            type="datetime-local"
+            label="보증 만료 일시"
+            placeholder="보증 만료 일시 입력"
             required
           />
         </div>
@@ -160,6 +162,7 @@ import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
   Member,
+  TangibleAsset,
   TangibleAssetCreateRequest,
   TangibleAssetStatus,
   TangibleAssetUsageType,
@@ -189,6 +192,7 @@ interface RegisterForm {
 
 const props = defineProps<{
   isOpen: boolean
+  companyId?: string
   initialItems: AssetItemOption[]
   departments: Department[]
   members: Member[]
@@ -196,7 +200,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  registered: []
+  registered: [asset: TangibleAsset]
 }>()
 
 const FormField = defineComponent({
@@ -228,7 +232,7 @@ const statusByLabel: Record<string, TangibleAssetStatus> = {
 }
 
 const assetUsageTypeOptions = ['공용자산', '개인자산']
-const usageTypeOptions = ['미배정', '정식 배정', '공용자산']
+const usageTypeOptions = ['정식 배정', '임시 대여', '미배정']
 
 const createInitialForm = (): RegisterForm => ({
   serialNo: '',
@@ -266,20 +270,38 @@ const selectedMember = computed(() => (
   props.members.find((member) => `${member.name}(${member.memberNo})` === formData.value.memberName)
 ))
 
+const selectedStatus = computed(() => (
+  statusByLabel[selectedStatusLabel.value] ?? 'AVAILABLE'
+))
+
+const requiresAssignmentInfo = computed(() => (
+  selectedStatus.value !== 'AVAILABLE' && selectedStatus.value !== 'DISPOSED'
+))
+
+const effectiveDepartment = computed(() => (
+  selectedDepartment.value
+  ?? props.departments.find((department) => department.departmentId === selectedMember.value?.departmentId)
+))
+
 const isRegisterReady = computed(() => (
   Boolean(selectedAssetItem.value) &&
   Boolean(formData.value.serialNo.trim()) &&
   assetUsageTypeOptions.includes(formData.value.assetUsageType) &&
+  usageTypeOptions.includes(formData.value.usageType) &&
+  Boolean(formData.value.location.trim()) &&
+  (
+    !requiresAssignmentInfo.value ||
+    (
+      Boolean(formData.value.startedAt.trim()) &&
+      Boolean(effectiveDepartment.value) &&
+      Boolean(selectedMember.value)
+    )
+  ) &&
   Boolean(formData.value.purchaseDate.trim()) &&
   Boolean(formData.value.purchasePrice.replaceAll(',', '').trim()) &&
   Boolean(formData.value.vendor.trim()) &&
   Boolean(formData.value.warrantyExpiredAt.trim())
 ))
-
-const nullableText = (value: string) => {
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
-}
 
 const optionalDate = (value: string) => {
   const trimmed = value.trim()
@@ -294,9 +316,15 @@ const parsePrice = (value: string) => {
   return Number.isFinite(price) ? price : undefined
 }
 
-const selectedUsageType = (): TangibleAssetUsageType | undefined => {
+const selectedUsageType = (): TangibleAssetUsageType => {
+  if (formData.value.usageType === '임시 대여') return 'TEMPORARY'
   if (formData.value.usageType === '정식 배정') return 'PERMANENT'
-  return undefined
+  return 'PERMANENT'
+}
+
+const selectedAssetUsageType = () => {
+  if (formData.value.assetUsageType === '개인자산') return 'PERSONAL'
+  return 'DEPARTMENT'
 }
 
 const handleClose = () => {
@@ -307,7 +335,12 @@ const handleClose = () => {
 const handleSave = async () => {
   if (!isRegisterReady.value || !selectedAssetItem.value || isSaving.value) return
 
-  const department = selectedDepartment.value
+  if (!props.companyId) {
+    alert('회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.')
+    return
+  }
+
+  const department = effectiveDepartment.value
   const member = selectedMember.value
   const purchaseDate = formData.value.purchaseDate.trim()
   const purchasePrice = parsePrice(formData.value.purchasePrice)
@@ -317,33 +350,43 @@ const handleSave = async () => {
     return
   }
 
+  if (!formData.value.location.trim()) {
+    alert('위치를 입력해주세요.')
+    return
+  }
+
+  if (requiresAssignmentInfo.value && (!member || !department || !formData.value.startedAt.trim())) {
+    alert('AVAILABLE, DISPOSED 상태가 아닌 자산은 사용자, 부서, 사용 시작일이 필요합니다.')
+    return
+  }
+
   const payload: TangibleAssetCreateRequest = {
-    assetItemId: selectedAssetItem.value.id,
-    serialNo: formData.value.serialNo.trim(),
+    companyId: props.companyId,
+    tangibleItemId: selectedAssetItem.value.id,
+    serialNumber: formData.value.serialNo.trim(),
     purchaseDate,
-    status: statusByLabel[selectedStatusLabel.value] ?? 'AVAILABLE',
+    tangibleAssetStatus: selectedStatus.value,
     usageType: selectedUsageType(),
-    vendor: formData.value.vendor.trim(),
+    assetUsageType: selectedAssetUsageType(),
+    purchaseVendor: formData.value.vendor.trim(),
     purchasePrice,
     departmentId: department?.departmentId ?? null,
-    departmentName: department?.name ?? null,
-    assignedMemberId: member?.memberId ?? null,
-    assignedMemberName: member?.name ?? null,
-    startedAt: optionalDate(formData.value.startedAt),
+    memberId: member?.memberId ?? null,
+    usedStartedAt: optionalDate(formData.value.startedAt),
     returnDueDate: optionalDate(formData.value.returnDueDate),
     warrantyExpiredAt: optionalDate(formData.value.warrantyExpiredAt),
-    location: nullableText(formData.value.location),
+    location: formData.value.location.trim(),
   }
 
   isSaving.value = true
 
   try {
-    await tangibleAssetApi.create(payload)
-    emit('registered')
+    const response = await tangibleAssetApi.create(payload)
+    emit('registered', response.data)
     emit('close')
   } catch (error) {
     console.error(error)
-    alert('자산 등록 중 오류가 발생했습니다.')
+    alert(error instanceof Error ? error.message : '자산 등록 중 오류가 발생했습니다.')
   } finally {
     isSaving.value = false
   }
@@ -356,5 +399,10 @@ watch(() => props.isOpen, (isOpen) => {
   selectedStatusLabel.value = TANGIBLE_STATUS_LABEL.AVAILABLE
 
   if (!isOpen) return
+})
+
+watch(selectedMember, (member) => {
+  if (!member?.departmentName) return
+  formData.value.departmentName = member.departmentName
 })
 </script>

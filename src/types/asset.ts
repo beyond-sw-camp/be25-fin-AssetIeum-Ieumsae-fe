@@ -1,6 +1,7 @@
 import type { TangibleAssetStatus, IntangibleAssetStatus } from './common'
 
 export type TangibleAssetUsageType = 'TEMPORARY' | 'PERMANENT'
+export type TangibleAssetUsageScope = 'PERSONAL' | 'DEPARTMENT' | string
 
 // =====================================================
 // 유형자산 품목(TangibleAssetItem) 타입
@@ -91,73 +92,137 @@ export interface TangibleAssetCategoryDeleteResponse {
 // =====================================================
 
 export interface TangibleAsset {
-  assetId: string
-  assetCode: string     // 자산코드 (QR 연동)
-  serialNo: string      // 시리얼번호
-  assetItemId: string
-  assetItemName: string
-  status: TangibleAssetStatus
-  assignedMemberId: string | null
-  assignedMemberName: string | null
-  departmentId: string | null
-  departmentName: string | null
-  purchaseDate: string
-  vendor?: string
-  purchasePrice?: number
+  assetId?: string | number | null
+  id?: string | number | null
+  tangibleAssetId?: string | number | null
+  tangibleAssetAssetId?: string | number | null
+  asset_id?: string | number | null
+  tangible_asset_id?: string | number | null
+  tangible_asset_asset_id?: string | number | null
+  companyId?: string
+  tangibleItemId?: string
+  assetItemId?: string
+  tangibleAssetItemId?: string
+  assetCode: string
+  serialNumber?: string
+  serialNo?: string
   usageType?: TangibleAssetUsageType | null
-  warrantyExpiredAt: string | null
+  assetUsageType?: TangibleAssetUsageScope | null
+  tangibleAssetStatus?: TangibleAssetStatus | null
+  tangibleAssetstatus?: TangibleAssetStatus | null
+  status?: TangibleAssetStatus | null
+  memberId?: string | null
+  assignedMemberId?: string | null
+  assignedMemberName?: string | null
+  memberName?: string | null
+  userName?: string | null
+  currentUserName?: string | null
+  currentUserMemberNo?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
   location?: string | null
-  startedAt: string | null
-  returnDueDate: string | null
+  locationName?: string | null
+  usedStartedAt?: string | null
+  startedAt?: string | null
+  returnDueDate?: string | null
+  purchaseDate: string
+  purchasePrice?: number
+  purchaseVendor?: string
+  vendor?: string
+  warrantyExpiredAt?: string | null
+  assetItemName?: string
+  productName?: string
   createdAt: string
 }
 
 export interface TangibleAssetCreateRequest {
-  assetItemId: string
-  serialNo: string
-  purchaseDate: string
-  vendor?: string
-  purchasePrice?: number
-  status?: TangibleAssetStatus
+  companyId?: string
+  tangibleItemId?: string
+  assetItemId?: string
+  serialNumber?: string
+  serialNo?: string
   usageType?: TangibleAssetUsageType | null
+  assetUsageType?: TangibleAssetUsageScope
+  tangibleAssetStatus?: TangibleAssetStatus | null
+  status?: TangibleAssetStatus | null
+  memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
+  memberName?: string | null
   departmentId?: string | null
   departmentName?: string | null
+  location?: string | null
+  locationName?: string | null
+  usedStartedAt?: string | null
   startedAt?: string | null
   returnDueDate?: string | null
+  purchaseDate: string
+  purchasePrice?: number
+  purchaseVendor?: string
+  vendor?: string
   warrantyExpiredAt?: string | null
-  location?: string | null
 }
 
 export interface TangibleAssetUpdateRequest {
+  tangibleAssetId?: string
   assetCode?: string
   assetItemName?: string
   serialNo?: string
-  status?: TangibleAssetStatus
+  tangibleAssetStatus?: TangibleAssetStatus | null
+  tangibleAssetstatus?: TangibleAssetStatus | null
+  status?: TangibleAssetStatus | null
+  memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
+  memberName?: string | null
   departmentId?: string | null
   departmentName?: string | null
+  location?: string | null
+  locationName?: string | null
+  usedStartedAt?: string | null
   startedAt?: string | null
   returnDueDate?: string | null
+  usageType?: TangibleAssetUsageType | null
   purchaseDate?: string
   vendor?: string
-  purchasePrice?: number | null
+  purchasePrice?: number
   warrantyExpiredAt?: string | null
-  location?: string | null
-  usageType?: TangibleAssetUsageType | null
 }
 
 export interface TangibleAssetListFilter {
+  companyId?: string
   page?: number
   size?: number
+  assetId?: string | number | null
+  productName?: string
+  assetCode?: string
   status?: TangibleAssetStatus
-  categoryName?: string
+  tangibleAssetStatus?: TangibleAssetStatus
   departmentId?: string
   memberId?: string
+  currentUserId?: string
   assetItemId?: string
+  categoryId?: string
+  categoryName?: string
   keyword?: string
+}
+
+export interface TangibleAssetListDetailFilter {
+  productName: string
+  assetCode: string
+  serialNumber: string
+  status?: TangibleAssetStatus
+  usageType?: TangibleAssetUsageType
+  assetUsageType: TangibleAssetUsageScope
+  userName?: string | null
+  departmentName?: string | null
+  location?: string | null
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
+  purchaseDate: string
+  purchasePrice?: number
+  purchaseVendor?: string
+  warrantyExpiredAt?: string
 }
 
 // =====================================================

@@ -17,6 +17,7 @@
         </Button>
         <TangibleAssetRegister
           :is-open="isRegisterDrawerOpen"
+          :company-id="companyId"
           :initial-items="assetItemOptions"
           :departments="departments"
           :members="members"
@@ -158,6 +159,7 @@ import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
+import { useAuthStore } from '@/stores'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
@@ -175,6 +177,7 @@ interface AssetItemOption {
   id: string
   name: string
   category: string
+  categoryId: string
   manufacturer: string
   modelName: string
 }
@@ -189,6 +192,8 @@ interface TangibleAssetRow extends TangibleAsset {
 }
 
 const useMockData = import.meta.env.VITE_USE_MOCKS === 'true';
+const authStore = useAuthStore()
+const companyId = computed(() => authStore.user?.companyId ?? '')
 const isRegisterDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
@@ -206,6 +211,8 @@ const searchParams = ref({
 const assetItemOptions = ref<AssetItemOption[]>([]);
 const departments = ref<Department[]>([]);
 const members = ref<Member[]>([]);
+const assetIdByAssetCode = ref<Record<string, string>>({});
+const ASSET_ID_STORAGE_PREFIX = 'tangibleAssetId:'
 
 const DEFAULT_CASCADING_OPTIONS: FilterGroup[] = [
   {
@@ -245,6 +252,7 @@ const DEFAULT_CASCADING_OPTIONS: FilterGroup[] = [
 
 const cloneCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
   groups.map((group) => ({
+    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
     ...(group.childCategories
@@ -254,6 +262,8 @@ const cloneCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
           ),
         }
       : {}),
+    ...(group.subCategoryIds ? { subCategoryIds: { ...group.subCategoryIds } } : {}),
+    ...(group.childCategoryIds ? { childCategoryIds: { ...group.childCategoryIds } } : {}),
   }))
 );
 
@@ -264,6 +274,7 @@ const normalizeCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
     ));
 
     return {
+      ...(group.categoryId ? { categoryId: group.categoryId } : {}),
       mainCategory: group.mainCategory,
       subCategories,
       ...(group.childCategories
@@ -273,6 +284,8 @@ const normalizeCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
             ),
           }
         : {}),
+      ...(group.subCategoryIds ? { subCategoryIds: { ...group.subCategoryIds } } : {}),
+      ...(group.childCategoryIds ? { childCategoryIds: { ...group.childCategoryIds } } : {}),
     };
   })
 );
@@ -285,17 +298,38 @@ const assetItemMap = computed(() => (
   new Map(assetItemOptions.value.map((item) => [item.id, item]))
 ));
 
-const handleAssetRegistered = () => {
+const handleAssetRegistered = (asset: TangibleAsset) => {
+  const assetId = getAssetId(asset)
+  if (asset.assetCode && assetId) {
+    assetIdByAssetCode.value = {
+      ...assetIdByAssetCode.value,
+      [asset.assetCode]: assetId,
+    }
+    localStorage.setItem(`${ASSET_ID_STORAGE_PREFIX}${asset.assetCode}`, assetId)
+  }
+
   handleSearch()
 };
 
 const openAssetDetail = async (row: TangibleAssetRow) => {
-  selectedAsset.value = row
+  const assetId = getAssetId(row)
+  selectedAsset.value = { ...row, assetId }
   isDetailDrawerOpen.value = true
 
+  if (!assetId) {
+    const responseKeys = Object.keys(row).join(', ')
+    listError.value = `유형자산 상세 조회에 필요한 자산 ID가 없습니다. 응답 필드: ${responseKeys}`
+    return
+  }
+
   try {
-    const response = await tangibleAssetApi.getDetail(row.assetId)
-    selectedAsset.value = toAssetRow(response.data)
+    const response = await tangibleAssetApi.getDetail(assetId)
+    const detailRow = toAssetRow(response.data)
+    selectedAsset.value = {
+      ...detailRow,
+      assetId: detailRow.assetId || assetId,
+      tangibleAssetId: detailRow.tangibleAssetId || assetId,
+    }
   } catch (error) {
     console.error(error)
   }
@@ -333,31 +367,12 @@ const getErrorMessage = (error: unknown) => (
   error instanceof Error ? error.message : '유형자산 목록을 불러오지 못했습니다.'
 )
 
-const getSelectableSubCategories = (group: FilterGroup) => (
-  group.subCategories.filter((category) => !category.endsWith(' - 전체'))
-);
+const getSelectedCategoryId = () => {
+  const selectedCategory = searchParams.value.categoryName
+  if (!selectedCategory || selectedCategory === '전체 품목 보기') return undefined
 
-const getCategoryFilterNames = () => {
-  const selectedCategory = searchParams.value.categoryName;
-  if (!selectedCategory || selectedCategory === '전체 품목 보기') return [];
-
-  for (const group of cascadingOptions.value) {
-    if (selectedCategory === group.mainCategory || selectedCategory === `${group.mainCategory} - 전체`) {
-      return getSelectableSubCategories(group);
-    }
-
-    const childCategories = group.childCategories ?? {};
-    if (childCategories[selectedCategory]) {
-      return [selectedCategory, ...childCategories[selectedCategory]];
-    }
-
-    if (group.subCategories.includes(selectedCategory)) {
-      return [selectedCategory];
-    }
-  }
-
-  return [selectedCategory];
-};
+  return categoryIdByName(selectedCategory) || undefined
+}
 
 const handleSearch = () => {
   searchParams.value.page = 0;
@@ -371,19 +386,232 @@ const changePage = (targetPage: number) => {
 };
 
 const toAssetItemOption = (item: TangibleAssetItem): AssetItemOption => ({
-  id: item.assetItemId,
-  name: item.name,
-  category: item.category ?? '',
+  id: item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? '',
+  name: item.productName ?? item.name ?? item.itemNo ?? '',
+  category: item.categoryName ?? item.category ?? '',
+  categoryId: item.categoryId ?? '',
   manufacturer: item.manufacturer,
   modelName: item.modelName,
 })
 
+type CategoryTreeNode = {
+  categoryId?: string
+  tangibleAssetCategoryId?: string
+  id?: string
+  name?: string
+  categoryName?: string
+  children?: CategoryTreeNode[]
+  subCategories?: CategoryTreeNode[]
+}
+
+const categoryIdOf = (category: CategoryTreeNode) => (
+  category.categoryId ?? category.tangibleAssetCategoryId ?? category.id ?? ''
+)
+
+const categoryNameOf = (category: CategoryTreeNode) => (
+  category.name ?? category.categoryName ?? ''
+)
+
+const categoryChildrenOf = (category: CategoryTreeNode) => (
+  category.children ?? category.subCategories ?? []
+)
+
+const toCategoryGroups = (categories: CategoryTreeNode[]): FilterGroup[] => (
+  categories
+    .map((category) => {
+      const mainCategory = categoryNameOf(category)
+      const middleCategories = categoryChildrenOf(category)
+      const childCategories: Record<string, string[]> = {}
+      const subCategoryIds: Record<string, string> = {}
+      const childCategoryIds: Record<string, string> = {}
+      const subCategories: string[] = []
+
+      for (const middleCategory of middleCategories) {
+        const middleName = categoryNameOf(middleCategory)
+        if (!middleName) continue
+
+        subCategories.push(middleName)
+        subCategoryIds[middleName] = categoryIdOf(middleCategory)
+
+        const smallCategories = categoryChildrenOf(middleCategory)
+          .map((smallCategory) => {
+            const smallName = categoryNameOf(smallCategory)
+            if (smallName) childCategoryIds[smallName] = categoryIdOf(smallCategory)
+            return smallName
+          })
+          .filter((smallName) => smallName)
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories
+          subCategories.push(...smallCategories)
+        }
+      }
+
+      return {
+        categoryId: categoryIdOf(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      }
+    })
+    .filter((category) => category.mainCategory)
+)
+
+const categoryIdByName = (categoryName: string) => {
+  if (!categoryName || categoryName === '전체 품목 보기') return ''
+
+  for (const group of cascadingOptions.value) {
+    if (categoryName === group.mainCategory || categoryName === `${group.mainCategory} - 전체`) {
+      return group.categoryId ?? ''
+    }
+
+    if (group.subCategoryIds?.[categoryName]) {
+      return group.subCategoryIds[categoryName]
+    }
+
+    if (group.childCategoryIds?.[categoryName]) {
+      return group.childCategoryIds[categoryName]
+    }
+  }
+
+  return ''
+}
+
+type AssetResponseAliases = TangibleAsset & {
+  memberName?: string | null
+  locationName?: string | null
+  member?: Partial<Member> | null
+  user?: Partial<Member> | null
+  department?: Partial<Department> | null
+  asset?: Record<string, unknown> | null
+  tangibleAsset?: Record<string, unknown> | null
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const isUuid = (value: unknown): value is string => (
+  typeof value === 'string' && UUID_PATTERN.test(value)
+)
+
+const toIdString = (value: unknown) => {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number') return String(value)
+  return ''
+}
+
+const toUuidString = (value: unknown) => {
+  const id = toIdString(value)
+  return isUuid(id) ? id : ''
+}
+
+const normalizeKey = (key: string) => key.toLowerCase().replaceAll('_', '')
+
+const findNestedAssetId = (value: unknown, path: string[] = [], seen = new Set<object>()): string => {
+  if (!value || typeof value !== 'object') return ''
+  if (seen.has(value)) return ''
+
+  seen.add(value)
+
+  for (const [key, childValue] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedPath = [...path, key].map(normalizeKey)
+    const normalizedKey = normalizeKey(key)
+    const pathText = normalizedPath.join('.')
+    const isAssetIdKey = normalizedKey.includes('asset') && normalizedKey.includes('id')
+    const isNestedAssetId = normalizedKey === 'id' && normalizedPath.some((part) => part.includes('asset'))
+    const isWrongDomain = ['item', 'company', 'category', 'department', 'member', 'user'].some((domain) => pathText.includes(domain))
+
+    if (isUuid(childValue) && (isAssetIdKey || isNestedAssetId) && !isWrongDomain) {
+      return childValue
+    }
+  }
+
+  for (const [key, childValue] of Object.entries(value as Record<string, unknown>)) {
+    const nestedId = findNestedAssetId(childValue, [...path, key], seen)
+    if (nestedId) return nestedId
+  }
+
+  return ''
+}
+
+const getAssetId = (asset: TangibleAsset) => {
+  const assetWithAliases = asset as AssetResponseAliases
+  const storedAssetId = asset.assetCode
+    ? localStorage.getItem(`${ASSET_ID_STORAGE_PREFIX}${asset.assetCode}`)
+    : ''
+
+  return toUuidString(asset.assetId)
+    || toUuidString(asset.id)
+    || toUuidString(asset.tangibleAssetId)
+    || toUuidString(asset.tangibleAssetAssetId)
+    || toUuidString(asset.asset_id)
+    || toUuidString(asset.tangible_asset_id)
+    || toUuidString(asset.tangible_asset_asset_id)
+    || toUuidString(asset.assetCode ? assetIdByAssetCode.value[asset.assetCode] : '')
+    || toUuidString(storedAssetId)
+    || findNestedAssetId(assetWithAliases.asset)
+    || findNestedAssetId(assetWithAliases.tangibleAsset)
+    || findNestedAssetId(asset)
+}
+
+const getMemberId = (asset: AssetResponseAliases) => (
+  asset.assignedMemberId ?? asset.memberId ?? asset.member?.memberId ?? asset.user?.memberId ?? null
+)
+
+const getDepartmentId = (asset: AssetResponseAliases) => (
+  asset.departmentId ?? asset.department?.departmentId ?? asset.member?.departmentId ?? asset.user?.departmentId ?? null
+)
+
+const getMemberName = (asset: AssetResponseAliases) => {
+  const memberId = getMemberId(asset)
+  const member = memberId ? members.value.find((candidate) => candidate.memberId === memberId) : undefined
+  const currentUserLabel = asset.currentUserName
+    ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
+    : null
+
+  return asset.assignedMemberName
+    ?? asset.memberName
+    ?? asset.userName
+    ?? currentUserLabel
+    ?? asset.member?.name
+    ?? asset.user?.name
+    ?? member?.name
+    ?? null
+}
+
+const getDepartmentName = (asset: AssetResponseAliases) => {
+  const departmentId = getDepartmentId(asset)
+  const department = departmentId ? departments.value.find((candidate) => candidate.departmentId === departmentId) : undefined
+  const memberId = getMemberId(asset)
+  const member = memberId ? members.value.find((candidate) => candidate.memberId === memberId) : undefined
+
+  return asset.departmentName
+    ?? asset.department?.name
+    ?? member?.departmentName
+    ?? department?.name
+    ?? null
+}
+
 const toAssetRow = (asset: TangibleAsset): TangibleAssetRow => {
-  const item = assetItemMap.value.get(asset.assetItemId)
+  const assetWithAliases = asset as AssetResponseAliases
+  const assetItemId = asset.assetItemId ?? asset.tangibleItemId ?? asset.tangibleAssetItemId
+  const item = assetItemId ? assetItemMap.value.get(assetItemId) : undefined
 
   return {
     ...asset,
-    productName: asset.assetItemName ?? item?.name ?? '',
+    assetId: getAssetId(asset),
+    assetItemId,
+    serialNo: asset.serialNo ?? asset.serialNumber ?? '',
+    status: asset.status ?? asset.tangibleAssetStatus ?? asset.tangibleAssetstatus ?? 'AVAILABLE',
+    assignedMemberId: getMemberId(assetWithAliases),
+    assignedMemberName: getMemberName(assetWithAliases),
+    departmentId: getDepartmentId(assetWithAliases),
+    departmentName: getDepartmentName(assetWithAliases),
+    location: asset.location ?? assetWithAliases.locationName ?? null,
+    startedAt: asset.startedAt ?? asset.usedStartedAt ?? null,
+    vendor: asset.vendor ?? asset.purchaseVendor ?? '',
+    productName: asset.productName ?? asset.assetItemName ?? item?.name ?? '',
     category: (asset as TangibleAsset & { category?: string }).category ?? item?.category ?? '',
     manufacturer: item?.manufacturer ?? '',
     modelName: item?.modelName ?? '',
@@ -400,11 +628,18 @@ const buildCategoryGroupsFromItems = (items: AssetItemOption[]) => {
       .map((item) => item.category)
       .filter((category) => category && !knownCategories.has(category)),
   ));
+  const additionalCategoryIds = Object.fromEntries(
+    additionalCategories.map((category) => [
+      category,
+      items.find((item) => item.category === category)?.categoryId ?? '',
+    ]),
+  );
 
   if (additionalCategories.length > 0) {
     groups.push({
       mainCategory: '기타',
       subCategories: additionalCategories,
+      subCategoryIds: additionalCategoryIds,
     });
   }
 
@@ -412,7 +647,18 @@ const buildCategoryGroupsFromItems = (items: AssetItemOption[]) => {
 };
 
 const loadCategoryOptions = async () => {
-  cascadingOptions.value = normalizeCategoryGroups(buildCategoryGroupsFromItems(assetItemOptions.value));
+  if (!companyId.value) {
+    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
+    return
+  }
+
+  try {
+    const response = await tangibleItemApi.getCategories(companyId.value)
+    cascadingOptions.value = normalizeCategoryGroups(toCategoryGroups(response.data as CategoryTreeNode[]))
+  } catch (error) {
+    console.error(error)
+    cascadingOptions.value = normalizeCategoryGroups(buildCategoryGroupsFromItems(assetItemOptions.value))
+  }
 };
 
 const loadReferenceData = async () => {
@@ -432,8 +678,13 @@ const loadReferenceData = async () => {
 }
 
 const loadAssetItems = async () => {
+  if (!companyId.value) {
+    assetItemOptions.value = []
+    return
+  }
+
   try {
-    const response = await tangibleItemApi.getList({ page: 0, size: 100 })
+    const response = await tangibleItemApi.getList({ companyId: companyId.value, page: 0, size: 100 })
     assetItemOptions.value = response.data.content.map(toAssetItemOption)
   } catch (error) {
     console.error(error)
@@ -442,40 +693,36 @@ const loadAssetItems = async () => {
 }
 
 const loadServerData = async () => {
+  if (!companyId.value) {
+    serverAssetList.value = []
+    totalElements.value = 0
+    totalPages.value = 0
+    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
+    return
+  }
+
   isLoading.value = true;
 
   try {
-    const categoryFilterNames = getCategoryFilterNames();
-    const shouldFilterClientSide = categoryFilterNames.length > 1;
-    const params: { page: number; size: number; categoryName?: string; keyword?: string } = {
-      page: shouldFilterClientSide ? 0 : searchParams.value.page,
-      size: shouldFilterClientSide ? 999 : searchParams.value.size,
+    const selectedCategoryId = getSelectedCategoryId()
+    const params: { companyId: string; page: number; size: number; categoryId?: string; keyword?: string } = {
+      companyId: companyId.value,
+      page: searchParams.value.page,
+      size: searchParams.value.size,
     };
 
-    if (categoryFilterNames.length === 1) {
-      params.categoryName = categoryFilterNames[0];
+    if (selectedCategoryId) {
+      params.categoryId = selectedCategoryId;
     }
 
     if (searchParams.value.keyword.trim()) {
-      params.keyword = searchParams.value.keyword.trim().toLowerCase();
+      params.keyword = searchParams.value.keyword.trim();
     }
 
     const response = await tangibleAssetApi.getList(params);
 
     const rows = response.data.content.map(toAssetRow);
     listError.value = '';
-
-    if (shouldFilterClientSide) {
-      const filteredRows = rows.filter((row) => categoryFilterNames.includes(row.category));
-      const start = searchParams.value.page * searchParams.value.size;
-      const end = start + searchParams.value.size;
-
-      serverAssetList.value = filteredRows.slice(start, end);
-      totalElements.value = filteredRows.length;
-      totalPages.value = Math.ceil(filteredRows.length / searchParams.value.size);
-      return;
-    }
-
     serverAssetList.value = rows;
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;

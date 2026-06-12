@@ -1088,7 +1088,7 @@ export const handlers = [
       const itemIds = tangibleItems
         .filter((item) => item.category === categoryName)
         .map((item) => item.assetItemId)
-      filteredAssets = filteredAssets.filter((asset) => itemIds.includes(asset.assetItemId))
+      filteredAssets = filteredAssets.filter((asset) => itemIds.includes(asset.assetItemId ?? ''))
     }
     if (departmentId) {
       filteredAssets = filteredAssets.filter((asset) => asset.departmentId === departmentId)
@@ -1103,8 +1103,8 @@ export const handlers = [
       filteredAssets = filteredAssets.filter(
         (asset) =>
           asset.assetCode.toLowerCase().includes(keyword) ||
-          asset.serialNo.toLowerCase().includes(keyword) ||
-          asset.assetItemName.toLowerCase().includes(keyword) ||
+          (asset.serialNo ?? '').toLowerCase().includes(keyword) ||
+          (asset.assetItemName ?? '').toLowerCase().includes(keyword) ||
           (asset.assignedMemberName && asset.assignedMemberName.toLowerCase().includes(keyword)),
       )
     }

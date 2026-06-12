@@ -122,7 +122,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 interface Props {
   id?: string
   modelValue: string | number
-  type?: 'text' | 'password' | 'number' | 'tel' | 'date'
+  type?: 'text' | 'password' | 'number' | 'tel' | 'date' | 'datetime-local'
   label?: string
   required?: boolean
   placeholder?: string
