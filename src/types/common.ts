@@ -40,8 +40,7 @@ export type TangibleAssetStatus =
   | 'REPAIR_REQUESTED' // 수리요청
   | 'REPAIRING'        // 수리중
   | 'RETURN_REQUESTED' // 반납요청
-  | 'RENTING'          // 대여중
-  | 'DISCARDED'        // 폐기완료
+  | 'DISPOSED'         // 폐기완료
 
 export type IntangibleAssetStatus =
   | 'AVAILABLE'            // 사용가능

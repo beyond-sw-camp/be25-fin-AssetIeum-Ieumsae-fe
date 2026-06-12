@@ -1,6 +1,5 @@
 <template>
   <div class="relative overflow-x-auto rounded-xl border border-border bg-surface transition-colors duration-300">
-    
     <div
       v-if="props.loading"
       class="absolute inset-0 z-10 flex items-center justify-center bg-surface/70 backdrop-blur-[1px]"
