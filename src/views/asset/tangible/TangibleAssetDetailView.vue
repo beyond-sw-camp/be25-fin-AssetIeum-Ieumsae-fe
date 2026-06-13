@@ -32,7 +32,11 @@
           <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :required="requiresAssignmentInfo" />
           <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="datetime-local" label="반납 예정 일시" />
           <FormField class="" label="부서" :required="requiresAssignmentInfo">
-            <Dropdown v-model="assetEditForm.departmentName" :options="departmentOptions" root-option="부서 선택" />
+            <DepartmentTreeSelect
+              v-model="assetEditForm.departmentId"
+              :departments="departments"
+              placeholder="부서 선택"
+            />
           </FormField>
           <FormField label="사용자" :required="requiresAssignmentInfo">
             <Dropdown v-model="assetEditForm.memberName" :options="memberOptions" root-option="사용자 선택" />
@@ -80,6 +84,7 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
@@ -102,12 +107,30 @@ interface AssetEditForm {
   location: string
   startedAt: string
   returnDueDate: string
+  departmentId: string | null
   departmentName: string
   memberName: string
   purchaseDate: string
   purchasePrice: string
   vendor: string
   warrantyExpiredAt: string
+}
+
+interface MemberAliases extends Member {
+  id?: string
+  member_id?: string
+  employeeNo?: string
+  employee_no?: string
+  department_id?: string
+  department_name?: string
+  department_name_path?: string
+  department?: {
+    departmentId?: string
+    id?: string
+    name?: string
+    departmentName?: string
+    departmentNamePath?: string
+  }
 }
 
 const props = defineProps<{
@@ -158,6 +181,7 @@ const createEmptyAssetEditForm = (): AssetEditForm => ({
   location: '',
   startedAt: '',
   returnDueDate: '',
+  departmentId: null,
   departmentName: '부서 선택',
   memberName: '사용자 선택',
   purchaseDate: '',
@@ -170,21 +194,156 @@ const assetEditForm = ref<AssetEditForm>(createEmptyAssetEditForm())
 const initialAssetEditForm = ref<AssetEditForm>(createEmptyAssetEditForm())
 const isSavingAsset = ref(false)
 
-const departmentOptions = computed(() => props.departments.map((department) => department.name))
-const memberOptions = computed(() => (
-  props.members.map((member) => `${member.name}(${member.memberNo})`)
+const flattenDepartments = (departments: Department[]): Department[] => (
+  departments.flatMap((department) => {
+    const { children = [], ...current } = department
+    return [current, ...flattenDepartments(children)]
+  })
+)
+
+const flatDepartments = computed(() => flattenDepartments(props.departments))
+const childDepartmentIdsByParentId = computed(() => (
+  flatDepartments.value.reduce((map, department) => {
+    if (!department.parentDepartmentId) return map
+
+    const children = map.get(department.parentDepartmentId) ?? []
+    children.push(department.departmentId)
+    map.set(department.parentDepartmentId, children)
+    return map
+  }, new Map<string, string[]>())
 ))
 
 const selectedDepartment = computed(() => (
-  props.departments.find((department) => department.name === assetEditForm.value.departmentName)
+  flatDepartments.value.find((department) => department.departmentId === assetEditForm.value.departmentId)
+  ?? flatDepartments.value.find((department) => department.name === assetEditForm.value.departmentName)
+))
+
+const selectedDepartmentIds = computed(() => {
+  const department = selectedDepartment.value
+  if (!department) return new Set<string>()
+
+  const ids = new Set<string>([department.departmentId])
+  const visit = (departmentId: string) => {
+    childDepartmentIdsByParentId.value.get(departmentId)?.forEach((childDepartmentId) => {
+      ids.add(childDepartmentId)
+      visit(childDepartmentId)
+    })
+  }
+
+  visit(department.departmentId)
+  return ids
+})
+
+const selectedDepartmentNames = computed(() => (
+  new Set(
+    flatDepartments.value
+      .filter((department) => selectedDepartmentIds.value.has(department.departmentId))
+      .map((department) => department.name),
+  )
+))
+
+const selectedDepartmentPathParts = computed(() => {
+  const department = selectedDepartment.value
+  if (!department) return []
+
+  const names: string[] = []
+  let current: Department | undefined = department
+
+  while (current) {
+    names.unshift(current.name)
+    current = current.parentDepartmentId
+      ? flatDepartments.value.find((candidate) => candidate.departmentId === current?.parentDepartmentId)
+      : undefined
+  }
+
+  return names
+})
+
+const getMemberNo = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.memberNo ?? aliases.employeeNo ?? aliases.employee_no ?? ''
+}
+
+const getMemberLabel = (member: Member) => `${member.name}(${getMemberNo(member)})`
+
+const getMemberDepartmentId = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentId
+    ?? aliases.department_id
+    ?? aliases.department?.departmentId
+    ?? aliases.department?.id
+    ?? ''
+}
+
+const getMemberDepartmentName = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentName
+    ?? aliases.department_name
+    ?? aliases.department?.name
+    ?? aliases.department?.departmentName
+    ?? ''
+}
+
+const getMemberDepartmentPath = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentNamePath
+    ?? aliases.department_name_path
+    ?? aliases.department?.departmentNamePath
+    ?? getMemberDepartmentName(member)
+}
+
+const memberDepartmentPathParts = (member: Member) => (
+  getMemberDepartmentPath(member)
+    .split('>')
+    .map((part) => part.trim())
+    .filter(Boolean)
+)
+
+const memberDepartmentPathContainsSelectedDepartment = (member: Member) => {
+  const selectedPathParts = selectedDepartmentPathParts.value
+  if (!selectedPathParts.length) return false
+
+  const memberPathParts = memberDepartmentPathParts(member)
+  if (memberPathParts.length < selectedPathParts.length) return false
+
+  return selectedPathParts.every((part, index) => memberPathParts[index] === part)
+}
+
+const memberBelongsToSelectedDepartment = (member: Member) => {
+  if (!selectedDepartment.value) return true
+
+  return selectedDepartmentIds.value.has(getMemberDepartmentId(member))
+    || selectedDepartmentNames.value.has(getMemberDepartmentName(member))
+    || memberDepartmentPathContainsSelectedDepartment(member)
+}
+
+const filteredMembers = computed(() => (
+  props.members.filter(memberBelongsToSelectedDepartment)
+))
+
+const memberOptions = computed(() => (
+  filteredMembers.value.map(getMemberLabel)
 ))
 
 const selectedMember = computed(() => (
   props.members.find((member) =>
-    `${member.name}(${member.memberNo})` === assetEditForm.value.memberName ||
+    getMemberLabel(member) === assetEditForm.value.memberName ||
     member.name === assetEditForm.value.memberName,
   )
 ))
+
+const selectedMemberDepartment = computed(() => {
+  const member = selectedMember.value
+  if (!member) return null
+
+  const departmentId = getMemberDepartmentId(member)
+  const departmentName = getMemberDepartmentName(member)
+  if (!departmentId && !departmentName) return null
+
+  return flatDepartments.value.find((department) => department.departmentId === departmentId)
+    ?? flatDepartments.value.find((department) => department.name === departmentName)
+    ?? null
+})
 
 const isAssetEditDirty = computed(() => (
   JSON.stringify(assetEditForm.value) !== JSON.stringify(initialAssetEditForm.value)
@@ -233,6 +392,9 @@ const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
     member.memberId === (asset.assignedMemberId ?? asset.memberId) ||
     member.name === displayMemberName
   ))
+  const assignedDepartment = flatDepartments.value.find((department) => department.departmentId === asset.departmentId)
+    ?? flatDepartments.value.find((department) => department.departmentId === (assignedMember ? getMemberDepartmentId(assignedMember) : ''))
+    ?? flatDepartments.value.find((department) => department.name === asset.departmentName)
 
   return {
     productName: asset.productName,
@@ -244,9 +406,10 @@ const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
     location: asset.location ?? '',
     startedAt: toDateTimeInputValue(asset.startedAt ?? asset.usedStartedAt),
     returnDueDate: toDateTimeInputValue(asset.returnDueDate),
-    departmentName: asset.departmentName ?? '부서 선택',
+    departmentId: assignedDepartment?.departmentId ?? asset.departmentId ?? null,
+    departmentName: assignedDepartment?.name ?? asset.departmentName ?? '부서 선택',
     memberName: displayMemberName
-      ? `${displayMemberName}${assignedMember ? `(${assignedMember.memberNo})` : ''}`
+      ? `${displayMemberName}${assignedMember ? `(${getMemberNo(assignedMember)})` : ''}`
       : '사용자 선택',
     purchaseDate: toDateTimeInputValue(asset.purchaseDate),
     purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '',
@@ -319,8 +482,7 @@ const handleUpdateAsset = async () => {
   const isAssigned = assetEditForm.value.usageType === '정식 배정'
   const isShared = assetEditForm.value.usageType === '공용자산'
   const member = selectedMember.value
-  const department = selectedDepartment.value
-    ?? props.departments.find((candidate) => candidate.departmentId === member?.departmentId)
+  const department = selectedMemberDepartment.value ?? selectedDepartment.value
 
   if (isAssigned && !member) {
     alert('정식 배정 자산은 사용자를 선택해주세요.')
@@ -374,5 +536,48 @@ watch(() => props.isOpen, (isOpen) => {
 
   assetEditForm.value = createEmptyAssetEditForm()
   initialAssetEditForm.value = createEmptyAssetEditForm()
+})
+
+watch(selectedMember, (member) => {
+  if (!member) {
+    return
+  }
+
+  if (selectedMemberDepartment.value) {
+    assetEditForm.value.departmentId = selectedMemberDepartment.value.departmentId
+    assetEditForm.value.departmentName = selectedMemberDepartment.value.name
+    return
+  }
+
+  if (selectedDepartment.value) return
+
+  const departmentId = getMemberDepartmentId(member)
+  const departmentName = getMemberDepartmentName(member)
+  if (!departmentId && !departmentName) return
+
+  assetEditForm.value.departmentId = departmentId || null
+  assetEditForm.value.departmentName = departmentName || assetEditForm.value.departmentName
+})
+
+watch(selectedMemberDepartment, (department) => {
+  if (!department || !selectedMember.value) return
+
+  assetEditForm.value.departmentId = department.departmentId
+  assetEditForm.value.departmentName = department.name
+}, { immediate: true })
+
+watch(flatDepartments, () => {
+  const department = selectedMemberDepartment.value
+  if (!department || !selectedMember.value) return
+
+  assetEditForm.value.departmentId = department.departmentId
+  assetEditForm.value.departmentName = department.name
+})
+
+watch(() => assetEditForm.value.departmentId, () => {
+  const member = selectedMember.value
+  if (!member || memberBelongsToSelectedDepartment(member)) return
+
+  assetEditForm.value.memberName = '사용자 선택'
 })
 </script>

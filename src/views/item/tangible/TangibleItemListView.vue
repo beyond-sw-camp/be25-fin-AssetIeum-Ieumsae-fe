@@ -19,7 +19,6 @@
         <TangibleItemCategory
           :is-open="isCategoryDrawerOpen"
           :initial-categories="cascadingOptions"
-          :company-id="companyId"
           @close="isCategoryDrawerOpen = false"
           @changed="handleCategoryChanged"
         />
@@ -31,7 +30,6 @@
         <TangibleItemRegister
           :is-open="isRegisterDrawerOpen"
           :initial-categories="cascadingOptions"
-          :company-id="companyId"
           @close="isRegisterDrawerOpen = false"
           @registered="handleItemRegistered"
         />
@@ -245,7 +243,6 @@ import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api'
-import { useAuthStore } from '@/stores'
 import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
 import TangibleItemCategory from './TangibleItemCategory.vue';
@@ -309,8 +306,6 @@ type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
 
 type CategoryGroup = TangibleCategoryGroup
 const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
-const authStore = useAuthStore()
-const companyId = computed(() => authStore.user?.companyId ?? '')
 
 const toRadioValue = (value: number | boolean | undefined) => {
   if (typeof value === 'boolean') return value ? 1 : 0
@@ -329,7 +324,6 @@ const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보�
 const rowsPerPageText = ref('20개씩 보기');
 
 const searchParams = ref({
-  companyId: '1',
   categoryName: '전체 품목 보기',
   categoryId: '',
   keyword: '',
@@ -672,13 +666,8 @@ const toCategoryGroups = (categories: CategoryTreeNode[]): CategoryGroup[] => (
 )
 
 const loadCategories = async () => {
-  if (!companyId.value) {
-    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
-    return
-  }
-
   try {
-    const response = await tangibleItemApi.getCategories(companyId.value)
+    const response = await tangibleItemApi.getCategories()
     cascadingOptions.value = toCategoryGroups(response.data as CategoryTreeNode[])
   } catch {
     if (useMockData) return
@@ -721,14 +710,6 @@ const toAssetRow = (item: TangibleItemResponse): Asset => {
 };
 
 const loadServerData = async () => {
-  if (!companyId.value) {
-    serverAssetList.value = []
-    totalElements.value = 0
-    totalPages.value = 0
-    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
-    return
-  }
-
   isLoading.value = true;
 
   try {
@@ -736,14 +717,12 @@ const loadServerData = async () => {
     const shouldFilterClientSide = categoryFilterNames.length > 1;
     const selectedCategoryId = categoryIdByName(searchParams.value.categoryName);
     const params: {
-      companyId: string
       page: number
       size: number
       categoryId?: string
       categoryName?: string
       keyword?: string
     } = {
-      companyId: companyId.value,
       page: shouldFilterClientSide ? 0 : searchParams.value.page,
       size: shouldFilterClientSide ? 999 : searchParams.value.size,
     };

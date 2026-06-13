@@ -32,13 +32,19 @@ function compactBody<T extends object>(body: T) {
   )
 }
 
+function toLocalDateTime(value?: string | null) {
+  if (!value) return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00`
+  return value
+}
+
 const toBoolean = (value: number | boolean | undefined) => {
   if (typeof value === 'number') return value === 1
   return value
 }
 
 const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactBody({
-  companyId: body.companyId,
   categoryId: body.categoryId,
   productName: body.productName ?? body.name ?? body.assetName ?? body.itemCode ?? body.itemNo,
   manufacturer: body.manufacturer,
@@ -55,7 +61,6 @@ const toTangibleItemUpdateBody = (body: TangibleAssetItemUpdateRequest) => compa
 })
 
 const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactBody({
-  companyId: body.companyId,
   tangibleItemId: body.tangibleItemId ?? body.assetItemId,
   serialNumber: body.serialNumber ?? body.serialNo,
   usageType: body.usageType,
@@ -64,12 +69,12 @@ const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactB
   memberId: body.memberId ?? body.assignedMemberId,
   departmentId: body.departmentId,
   location: body.location,
-  usedStartedAt: body.usedStartedAt ?? body.startedAt,
-  returnDueDate: body.returnDueDate,
-  purchaseDate: body.purchaseDate,
+  usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
+  returnDueDate: toLocalDateTime(body.returnDueDate),
+  purchaseDate: toLocalDateTime(body.purchaseDate),
+  warrantyExpiredAt: toLocalDateTime(body.warrantyExpiredAt),
   purchasePrice: body.purchasePrice,
   purchaseVendor: body.purchaseVendor ?? body.vendor,
-  warrantyExpiredAt: body.warrantyExpiredAt,
 })
 
 const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactBody({
@@ -77,8 +82,8 @@ const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactB
   memberId: body.memberId ?? body.assignedMemberId,
   departmentId: body.departmentId,
   location: body.location,
-  usedStartedAt: body.usedStartedAt ?? body.startedAt,
-  returnDueDate: body.returnDueDate,
+  usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
+  returnDueDate: toLocalDateTime(body.returnDueDate),
   usageType: body.usageType,
 })
 
@@ -87,7 +92,6 @@ const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactB
 export const tangibleItemApi = {
   /** 유형자산 품목 목록 조회 */
   getList: (params?: {
-    companyId?: string
     page?: number
     size?: number
     categoryId?: string
@@ -97,8 +101,8 @@ export const tangibleItemApi = {
     api.get<PageResponse<TangibleAssetItem>>('/tangible-asset/items', compactParams(params)),
 
   /** 유형자산 품목 카테고리 목록 조회 */
-  getCategories: (companyId: string) =>
-    api.get<TangibleCategoryGroup[]>('/tangible-asset/categories', { companyId }),
+  getCategories: () =>
+    api.get<TangibleCategoryGroup[]>('/tangible-asset/categories'),
 
   /** 유형자산 카테고리 등록 */
   createCategory: (body: TangibleAssetCategoryCreateRequest) =>

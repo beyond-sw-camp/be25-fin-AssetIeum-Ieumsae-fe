@@ -29,7 +29,6 @@ export interface TangibleAssetItem {
 }
 
 export interface TangibleAssetItemCreateRequest {
-  companyId?: string
   categoryId?: string
   productName?: string
   itemCode?: string
@@ -69,7 +68,6 @@ export interface TangibleCategoryGroup {
 }
 
 export interface TangibleAssetCategoryCreateRequest {
-  companyId: string
   name: string
   parentId?: string | null
 }
@@ -99,7 +97,6 @@ export interface TangibleAsset {
   asset_id?: string | number | null
   tangible_asset_id?: string | number | null
   tangible_asset_asset_id?: string | number | null
-  companyId?: string
   tangibleItemId?: string
   assetItemId?: string
   tangibleAssetItemId?: string
@@ -136,7 +133,6 @@ export interface TangibleAsset {
 }
 
 export interface TangibleAssetCreateRequest {
-  companyId?: string
   tangibleItemId?: string
   assetItemId?: string
   serialNumber?: string
@@ -190,7 +186,6 @@ export interface TangibleAssetUpdateRequest {
 }
 
 export interface TangibleAssetListFilter {
-  companyId?: string
   page?: number
   size?: number
   assetId?: string | number | null

@@ -17,7 +17,6 @@
         </Button>
         <TangibleAssetRegister
           :is-open="isRegisterDrawerOpen"
-          :company-id="companyId"
           :initial-items="assetItemOptions"
           :departments="departments"
           :members="members"
@@ -159,7 +158,6 @@ import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
-import { useAuthStore } from '@/stores'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
@@ -192,8 +190,6 @@ interface TangibleAssetRow extends TangibleAsset {
 }
 
 const useMockData = import.meta.env.VITE_USE_MOCKS === 'true';
-const authStore = useAuthStore()
-const companyId = computed(() => authStore.user?.companyId ?? '')
 const isRegisterDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
@@ -646,13 +642,8 @@ const buildCategoryGroupsFromItems = (items: AssetItemOption[]) => {
 };
 
 const loadCategoryOptions = async () => {
-  if (!companyId.value) {
-    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
-    return
-  }
-
   try {
-    const response = await tangibleItemApi.getCategories(companyId.value)
+    const response = await tangibleItemApi.getCategories()
     cascadingOptions.value = normalizeCategoryGroups(toCategoryGroups(response.data as CategoryTreeNode[]))
   } catch (error) {
     console.error(error)
@@ -677,13 +668,8 @@ const loadReferenceData = async () => {
 }
 
 const loadAssetItems = async () => {
-  if (!companyId.value) {
-    assetItemOptions.value = []
-    return
-  }
-
   try {
-    const response = await tangibleItemApi.getList({ companyId: companyId.value, page: 0, size: 100 })
+    const response = await tangibleItemApi.getList({ page: 0, size: 100 })
     assetItemOptions.value = response.data.content.map(toAssetItemOption)
   } catch (error) {
     console.error(error)
@@ -692,20 +678,11 @@ const loadAssetItems = async () => {
 }
 
 const loadServerData = async () => {
-  if (!companyId.value) {
-    serverAssetList.value = []
-    totalElements.value = 0
-    totalPages.value = 0
-    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
-    return
-  }
-
   isLoading.value = true;
 
   try {
     const selectedCategoryId = getSelectedCategoryId()
-    const params: { companyId: string; page: number; size: number; categoryId?: string; keyword?: string } = {
-      companyId: companyId.value,
+    const params: { page: number; size: number; categoryId?: string; keyword?: string } = {
       page: searchParams.value.page,
       size: searchParams.value.size,
     };
