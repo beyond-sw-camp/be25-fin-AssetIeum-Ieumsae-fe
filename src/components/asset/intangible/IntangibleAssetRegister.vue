@@ -57,7 +57,7 @@
             required
           />
           <!-- 부서명 -->
-          <FormField label="부서">
+          <FormField label="부서" :required="requiresAssignmentInfo">
             <DepartmentTreeSelect
               v-model="formData.departmentId"
               :departments="departments"
@@ -65,7 +65,7 @@
             />
           </FormField>
           <!-- 사용자 -->
-          <FormField label="사용자">
+          <FormField label="사용자" :required="requiresAssignmentInfo">
             <Dropdown
               v-model="formData.memberName"
               :options="memberOptions"
@@ -78,6 +78,7 @@
             v-model="formData.startedAt"
             type="datetime-local"
             label="사용 시작 일시"
+            :required="requiresAssignmentInfo"
           />
           <!-- 만료 예정일  -->
           <Input
@@ -120,7 +121,7 @@
             required
           />
           <!-- 결제 주기  -->
-          <FormField label="결제 주기">
+          <FormField label="결제 주기" required>
             <Dropdown
               v-model="formData.billingCycleLabel"
               :options="billingCycleOptions"
@@ -134,8 +135,9 @@
     <template #footer>
       <Button
         class="w-full"
+        size="m"
+        :disabled="!isRegisterReady || isSaving"
         :loading="isSaving"
-        :disabled="isSaving"
         @click="handleSave"
       >
         등록
@@ -437,8 +439,26 @@ const positiveNumberValue = (value: string) => {
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null
 }
 
+const isRegisterReady = computed(() => (
+  Boolean(selectedItem.value) &&
+  positiveNumberValue(formData.value.seatCount) !== null &&
+  autoRenewalOptions.includes(formData.value.autoRenewalLabel) &&
+  (
+    !requiresAssignmentInfo.value ||
+    (
+      Boolean(formData.value.startedAt.trim()) &&
+      Boolean(effectiveDepartment.value) &&
+      Boolean(selectedMember.value)
+    )
+  ) &&
+  Boolean(formData.value.purchaseDate.trim()) &&
+  positiveNumberValue(formData.value.purchasePrice) !== null &&
+  Boolean(formData.value.purchaseVendor.trim()) &&
+  billingCycleOptions.includes(formData.value.billingCycleLabel)
+))
+
 const handleSave = async () => {
-  if (isSaving.value) return
+  if (!isRegisterReady.value || isSaving.value) return
 
   const item = selectedItem.value
   const member = selectedMember.value
