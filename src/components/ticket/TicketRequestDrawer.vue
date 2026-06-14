@@ -19,17 +19,27 @@
           <label
             v-for="option in assetScopeOptions"
             :key="option.value"
-            class="flex cursor-pointer items-center gap-2 text-sm text-text-main"
+            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
           >
-            <input
-              v-model="assetSearchForm.assetUsageType"
-              type="radio"
-              name="ticket-asset-usage-type"
-              :value="option.value"
-              class="accent-primary"
-              @change="invalidateAssetSearch"
-            />
-            {{ option.label }}
+            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                v-model="assetSearchForm.assetUsageType"
+                type="radio"
+                name="ticket-asset-usage-type"
+                :value="option.value"
+                class="peer sr-only"
+                @change="invalidateAssetSearch"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+              >
+              </span>
+              <span
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+              >
+              </span>
+            </span>
+            <span>{{ option.label }}</span>
           </label>
         </div>
       </section>
@@ -42,17 +52,26 @@
           <label
             v-for="option in assetTypeOptions"
             :key="option.value"
-            class="flex cursor-pointer items-center gap-2 text-sm text-text-main"
+            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
           >
-            <input
-              :checked="selectionAssetType === option.value"
-              type="radio"
-              name="ticket-asset-type"
-              :value="option.value"
-              class="accent-primary"
-              @change="handleSelectionAssetTypeChange(option.value)"
-            />
-            {{ option.label }}
+            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                type="radio"
+                name="ticket-asset-type"
+                :value="option.value"
+                class="peer sr-only"
+                @change="handleSelectionAssetTypeChange(option.value)"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+              >
+              </span>
+              <span
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+              >
+              </span>
+            </span>
+            <span>{{ option.label }}</span>
           </label>
         </div>
       </section>
@@ -126,7 +145,87 @@
         요청 유형 다시 선택
       </button>
 
-      <section v-if="showsAssetType" class="space-y-2">
+      <section v-if="showsPurchaseRequestAssetType" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          자산 유형 <span class="text-primary">*</span>
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <label
+            v-for="option in assetTypeOptions"
+            :key="option.value"
+            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
+          >
+            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                v-model="form.assetType"
+                type="radio"
+                name="ticket-request-asset-type"
+                :value="option.value"
+                class="peer sr-only"
+                @change="handleAssetTypeChange(option.value)"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+              >
+              </span>
+              <span
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+              >
+              </span>
+            </span>
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <template v-if="showsPurchaseRequestAssetType">
+        <section class="space-y-2">
+          <p class="text-sm font-semibold text-text-main">
+            공용자산 여부 <span class="text-primary">*</span>
+          </p>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <label
+              v-for="option in assetScopeOptions"
+              :key="option.value"
+              class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
+            >
+              <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+                <input
+                  v-model="form.assetUsageType"
+                  type="radio"
+                  name="ticket-request-asset-usage-type"
+                  :value="option.value"
+                  class="peer sr-only"
+                />
+                <span
+                  class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+                >
+                </span>
+                <span
+                  class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+                >
+                </span>
+              </span>
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="space-y-2">
+          <label class="text-sm font-semibold text-text-main" for="ticket-request-asset-category">
+            자산 분류 선택 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="ticket-request-asset-category"
+            :model-value="form.category"
+            :options="purchaseRequestCategoryOptions"
+            root-option="자산 카테고리 선택"
+            @update:model-value="handlePurchaseRequestCategoryChange"
+          />
+        </section>
+      </template>
+
+      <section v-else-if="showsAssetType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           자산 유형 <span class="text-primary">*</span>
         </p>
@@ -214,6 +313,7 @@
           :items="filteredAssetOptions"
           :loading="isAssetsLoading"
           :error-message="assetErrorMessage"
+          :empty-text="assetSelectionEmptyText"
           :name="`ticket-${selectedKind}-asset`"
         />
       </section>
@@ -265,7 +365,7 @@
 
       <div
         v-if="showsQuantityAndPrice"
-        class="grid grid-cols-2 gap-3"
+        class="grid grid-cols-8 gap-3"
       >
         <Input
           id="ticket-quantity"
@@ -274,14 +374,6 @@
           label="수량"
           required
           placeholder="1"
-          :disabled="isSubmitting"
-        />
-        <CurrencyInput
-          id="ticket-expected-price"
-          v-model="form.expectedPrice"
-          label="예상 금액"
-          required
-          placeholder="0"
           :disabled="isSubmitting"
         />
       </div>
@@ -416,13 +508,16 @@ import type {
   IntangibleItem,
   TangibleAsset,
   TangibleAssetItem,
-  TangibleCategoryGroup,
+  TangibleAssetUsageType,
   TicketCreateResponse,
   TicketRequestKind,
 } from '@/types'
+import { formatDate } from '@/utils/labels'
 
 interface SelectableAsset extends AssetRadioItem {
   assetType: AssetType
+  usageType?: TangibleAssetUsageType | null
+  returnDueDate?: string | null
 }
 
 const props = defineProps<{
@@ -462,6 +557,8 @@ const ownedAssetOptions = ref<SelectableAsset[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
+  assetUsageType: '' as '' | 'DEPARTMENT' | 'PERSONAL',
+  category: '',
   selectedAssetId: '',
   requestedItemName: '',
   modelName: '',
@@ -506,6 +603,11 @@ const showsAssetType = computed(() => (
   || selectedKind.value === 'PURCHASE_RETURN'
 ))
 
+const showsPurchaseRequestAssetType = computed(() => (
+  selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'DIRECT_PURCHASE'
+))
+
 const usesSelectableAsset = computed(() => (
   selectedKind.value === 'STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'RENTAL'
@@ -537,8 +639,15 @@ const showsQuantityAndPrice = computed(() => (
 const assetSelectionLabel = computed(() => {
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '표준 자산 선택'
   if (selectedKind.value === 'RENTAL') return '대여할 품목 선택'
+  if (selectedKind.value === 'RENTAL_EXTENSION') return '연장할 대여 자산 선택'
   return '대상 자산 선택'
 })
+
+const assetSelectionEmptyText = computed(() => (
+  selectedKind.value === 'RENTAL_EXTENSION'
+    ? '연장 가능한 대여 자산이 없습니다.'
+    : '선택할 수 있는 자산이 없습니다.'
+))
 
 const nestedAssetLabel = computed(() => (
   selectedKind.value === 'RENTAL' ? '대여 자산' : '표준 자산'
@@ -554,11 +663,31 @@ const visibleAssetOptions = computed(() => {
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
     return ownedAssetOptions.value.filter((item) => item.assetType === form.assetType)
   }
-  return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+
+  const tangibleAssets = ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+  if (selectedKind.value !== 'RENTAL_EXTENSION') return tangibleAssets
+
+  return tangibleAssets
+    .filter((item) => item.usageType === 'TEMPORARY')
+    .map((item) => ({
+      ...item,
+      description: [
+        item.description,
+        item.returnDueDate
+          ? `반납 예정일: ${formatDate(item.returnDueDate)}`
+          : '반납 예정일 없음',
+      ].filter(Boolean).join(' · '),
+    }))
 })
 
 const assetCategoryOptions = computed(() => (
   selectionAssetType.value === 'INTANGIBLE'
+    ? intangibleCategoryOptions.value
+    : tangibleCategoryOptions.value
+))
+
+const purchaseRequestCategoryOptions = computed(() => (
+  form.assetType === 'INTANGIBLE'
     ? intangibleCategoryOptions.value
     : tangibleCategoryOptions.value
 ))
@@ -619,6 +748,10 @@ const positiveNumber = (value: string) => Number.isFinite(Number(value)) && Numb
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
   if (usesSelectableAsset.value && !form.selectedAssetId) return false
+  if (
+    showsPurchaseRequestAssetType.value
+    && (!form.assetUsageType || !form.category)
+  ) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
     return positiveNumber(form.quantity) && positiveNumber(form.expectedPrice)
@@ -690,10 +823,12 @@ function toTangibleAssetOption(asset: TangibleAsset): SelectableAsset {
   return {
     id: String(getTangibleAssetId(asset)),
     name: asset.productName ?? asset.assetItemName ?? asset.assetCode,
-    description: [asset.assetCode, asset.serialNumber ?? asset.serialNo, asset.returnDueDate]
+    description: [asset.assetCode, asset.serialNumber ?? asset.serialNo]
       .filter(Boolean)
       .join(' · '),
     assetType: 'TANGIBLE',
+    usageType: asset.usageType,
+    returnDueDate: asset.returnDueDate,
   }
 }
 
@@ -706,11 +841,41 @@ function toIntangibleAssetOption(asset: IntangibleAsset): SelectableAsset {
   }
 }
 
-function toTangibleCategoryOptions(groups: TangibleCategoryGroup[]): DropdownOption[] {
-  const categoryNames = groups.flatMap((group) => [
-    group.mainCategory,
-    ...group.subCategories,
-  ])
+function collectTangibleCategoryNames(value: unknown): string[] {
+  if (typeof value === 'string') {
+    const name = value.trim()
+    return name ? [name] : []
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(collectTangibleCategoryNames)
+  }
+
+  if (!value || typeof value !== 'object') {
+    return []
+  }
+
+  const category = value as Record<string, unknown>
+  const categoryNames = [
+    ...collectTangibleCategoryNames(category.mainCategory),
+    ...collectTangibleCategoryNames(category.name),
+    ...collectTangibleCategoryNames(category.categoryName),
+    ...collectTangibleCategoryNames(category.children),
+    ...collectTangibleCategoryNames(category.subCategories),
+  ]
+
+  if (category.childCategories && typeof category.childCategories === 'object') {
+    Object.entries(category.childCategories).forEach(([name, children]) => {
+      categoryNames.push(...collectTangibleCategoryNames(name))
+      categoryNames.push(...collectTangibleCategoryNames(children))
+    })
+  }
+
+  return categoryNames
+}
+
+function toTangibleCategoryOptions(groups: unknown): DropdownOption[] {
+  const categoryNames = collectTangibleCategoryNames(groups)
 
   return [...new Set(categoryNames)]
     .filter(Boolean)
@@ -814,6 +979,8 @@ function resetForm() {
   })
   Object.assign(form, {
     assetType: 'TANGIBLE',
+    assetUsageType: '',
+    category: '',
     selectedAssetId: '',
     requestedItemName: '',
     modelName: '',
@@ -835,6 +1002,8 @@ function resetSelection() {
 function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
   form.assetType = 'TANGIBLE'
+  form.assetUsageType = ''
+  form.category = ''
   form.selectedAssetId = ''
   assetSearchKeyword.value = ''
   errorMessage.value = ''
@@ -877,6 +1046,11 @@ function handleAssetCategoryChange(value: string | number) {
   invalidateAssetSearch()
 }
 
+function handlePurchaseRequestCategoryChange(value: string | number) {
+  if (typeof value !== 'string') return
+  form.category = value
+}
+
 function invalidateAssetSearch() {
   pendingSelectedAssetId.value = ''
   itemOptions.value = []
@@ -886,6 +1060,7 @@ function invalidateAssetSearch() {
 
 function handleAssetTypeChange(assetType: AssetType) {
   form.assetType = assetType
+  form.category = ''
   form.selectedAssetId = ''
 }
 
@@ -923,6 +1098,7 @@ async function handleSubmit() {
         })
         break
       case 'NON_STANDARD_ASSET_REQUEST':
+        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부와 자산 분류 요청 필드가 명세에 없음
         response = await ticketCreateApi.createNonStandardRequest({
           assetType: form.assetType,
           requestedItemName: form.requestedItemName.trim(),
@@ -934,6 +1110,7 @@ async function handleSubmit() {
         })
         break
       case 'DIRECT_PURCHASE':
+        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부와 자산 분류 요청 필드가 명세에 없음
         response = await ticketCreateApi.createDirectPurchaseRequest({
           assetType: form.assetType,
           requestedItemName: form.requestedItemName.trim(),
