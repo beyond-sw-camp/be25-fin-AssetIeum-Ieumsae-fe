@@ -6,7 +6,13 @@
     >
     </div>
 
-    <div class="relative w-[50%] h-full bg-surface shadow-2xl flex flex-col z-10" data-dropdown-panel>
+    <div
+      :class="[
+        'relative h-full bg-surface shadow-2xl flex flex-col z-10',
+        panelClass,
+      ]"
+      data-dropdown-panel
+    >
       <div class="p-6 border-b border-border flex items-center justify-between shrink-0">
         <slot name="header">
           <h2 class="text-xl font-bold text-text-main">{{ title }}</h2>
@@ -46,7 +52,8 @@ import Button from './Button.vue';
 defineProps({
   isOpen: { type: Boolean, required: true },
   title: { type: String, default: '타이틀' },
-  submitText: { type: String, default: '저장하기' }
+  submitText: { type: String, default: '저장하기' },
+  panelClass: { type: String, default: 'w-[50%]' },
 });
 
 const emit = defineEmits(['close', 'submit']);

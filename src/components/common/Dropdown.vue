@@ -24,7 +24,8 @@
     <div
       v-if="isOpen"
       :class="[
-        'absolute mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
+        'absolute w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
+        menuDirection === 'up' ? 'bottom-full mb-1' : 'top-full mt-1',
         menuAlign === 'right' ? 'right-0' : 'left-0',
         isPanelDropdown && !isSimpleOptions ? 'max-h-72 overflow-y-auto' : ''
       ]"
@@ -212,6 +213,7 @@ interface Props {
   options: DropdownOptionSource[]
   rootOption?: string
   menuAlign?: 'left' | 'right'
+  menuDirection?: 'up' | 'down'
   submenuDirection?: 'left' | 'right'
   disabled?: boolean
 }
@@ -220,6 +222,7 @@ const props = withDefaults(defineProps<Props>(), {
   id: undefined,
   rootOption: '',
   menuAlign: 'left',
+  menuDirection: 'down',
   submenuDirection: 'right',
   disabled: false,
 })
@@ -237,6 +240,7 @@ const effectiveNestedSubmenuDirection = ref<'left' | 'right'>('right')
 const isPanelDropdown = ref(false)
 
 const menuAlign = computed(() => props.menuAlign ?? 'left')
+const menuDirection = computed(() => props.menuDirection ?? 'down')
 const submenuDirection = computed(() => props.submenuDirection ?? 'right')
 const submenuWidth = 176
 const viewportPadding = 12
