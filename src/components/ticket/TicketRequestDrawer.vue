@@ -1,0 +1,998 @@
+<template>
+  <BaseDrawer
+    :is-open="isOpen"
+    :title="drawerTitle"
+    panel-class="w-full md:w-[50vw] md:max-w-none"
+    @close="handleClose"
+  >
+    <RequestTypeSelector
+      v-if="!selectedKind"
+      @select="handleKindSelect"
+    />
+
+    <div v-else-if="isAssetSelectionStep" class="space-y-5">
+      <section class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          공용자산 여부 <span class="text-primary">*</span>
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <label
+            v-for="option in assetScopeOptions"
+            :key="option.value"
+            class="flex cursor-pointer items-center gap-2 text-sm text-text-main"
+          >
+            <input
+              v-model="assetSearchForm.assetUsageType"
+              type="radio"
+              name="ticket-asset-usage-type"
+              :value="option.value"
+              class="accent-primary"
+              @change="invalidateAssetSearch"
+            />
+            {{ option.label }}
+          </label>
+        </div>
+      </section>
+
+      <section v-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          유형/무형자산 <span class="text-primary">*</span>
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <label
+            v-for="option in assetTypeOptions"
+            :key="option.value"
+            class="flex cursor-pointer items-center gap-2 text-sm text-text-main"
+          >
+            <input
+              :checked="selectionAssetType === option.value"
+              type="radio"
+              name="ticket-asset-type"
+              :value="option.value"
+              class="accent-primary"
+              @change="handleSelectionAssetTypeChange(option.value)"
+            />
+            {{ option.label }}
+          </label>
+        </div>
+      </section>
+
+      <section class="space-y-3">
+        <div class="space-y-2">
+          <label class="text-sm font-semibold text-text-main" for="ticket-asset-category">
+            자산 분류 선택 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="ticket-asset-category"
+            :model-value="assetSearchForm.category"
+            :options="assetCategoryOptions"
+            root-option="자산 카테고리 선택"
+            @update:model-value="handleAssetCategoryChange"
+          />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="relative min-w-0 flex-1">
+            <Search
+              :size="16"
+              class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+            />
+            <input
+              id="ticket-asset-search"
+              v-model="assetSearchForm.keyword"
+              type="search"
+              class="h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-4 text-sm text-text-main outline-none placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+              placeholder="모델명, 제조사 검색"
+              @input="invalidateAssetSearch"
+              @keydown.enter.prevent="handleAssetSearch"
+            />
+          </div>
+          <Button
+            class="shrink-0"
+            :loading="isAssetsLoading"
+            :disabled="!canSearchAssets"
+            @click="handleAssetSearch"
+          >
+            확인
+          </Button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-text-main">자산 목록</p>
+          <span v-if="hasSearchedAssets" class="text-xs text-text-muted">
+            {{ itemOptions.length }}개
+          </span>
+        </div>
+
+        <AssetRadioList
+          v-model="pendingSelectedAssetId"
+          :items="itemOptions"
+          :loading="isAssetsLoading"
+          :error-message="assetErrorMessage"
+          :empty-text="hasSearchedAssets ? '조회 조건에 맞는 자산이 없습니다.' : '조회 조건을 선택하고 확인을 눌러주세요.'"
+          name="standard-request-asset"
+        />
+      </section>
+    </div>
+
+    <form v-else class="space-y-5" @submit.prevent="handleSubmit">
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 text-sm font-semibold text-text-sub hover:text-primary"
+        :disabled="isSubmitting"
+        @click="resetSelection"
+      >
+        <ChevronLeft :size="16" />
+        요청 유형 다시 선택
+      </button>
+
+      <section v-if="showsAssetType" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          자산 유형 <span class="text-primary">*</span>
+        </p>
+        <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
+          <button
+            v-for="option in assetTypeOptions"
+            :key="option.value"
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              form.assetType === option.value
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="handleAssetTypeChange(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </section>
+
+      <section v-if="usesNestedAssetSelection" class="space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-text-main">
+            {{ nestedAssetLabel }} <span class="text-primary">*</span>
+          </p>
+        </div>
+
+        <button
+          v-if="selectedAssetOption"
+          type="button"
+          class="flex w-full items-start gap-3 rounded-xl border border-primary bg-primary/5 p-4 text-left transition hover:bg-primary/10"
+          @click="openAssetSelection"
+        >
+          <PackageCheck :size="20" class="mt-0.5 shrink-0 text-primary" />
+          <span class="min-w-0">
+            <span class="block truncate text-sm font-semibold text-text-main">
+              {{ selectedAssetOption.name }}
+            </span>
+            <span v-if="selectedAssetOption.description" class="mt-1 block text-xs text-text-muted">
+              {{ selectedAssetOption.description }}
+            </span>
+            <span class="mt-2 block text-xs font-semibold text-primary">
+              선택한 자산을 눌러 변경할 수 있습니다.
+            </span>
+          </span>
+        </button>
+
+        <button
+          v-else
+          type="button"
+          class="flex min-h-28 w-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-secondary/60 px-4 text-center transition hover:border-primary hover:bg-primary/5"
+          @click="openAssetSelection"
+        >
+          <PackagePlus :size="24" class="mb-2 text-text-muted" />
+          <span class="text-sm font-medium text-text-sub">신청할 자산을 목록에서 추가해주세요.</span>
+          <span class="mt-1 text-xs text-text-muted">하나의 자산만 등록 가능합니다.</span>
+        </button>
+      </section>
+
+      <section v-if="usesInlineSelectableAsset" class="space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-semibold text-text-main" for="ticket-asset-search">
+            {{ assetSelectionLabel }} <span class="text-primary">*</span>
+          </label>
+          <span class="text-xs text-text-muted">{{ filteredAssetOptions.length }}개</span>
+        </div>
+
+        <div v-if="showsAssetSearch" class="relative">
+          <Search
+            :size="16"
+            class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            id="ticket-asset-search"
+            v-model="assetSearchKeyword"
+            type="search"
+            class="h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-4 text-sm text-text-main outline-none placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="품목명, 모델명, 제조사 검색"
+          />
+        </div>
+
+        <AssetRadioList
+          v-model="form.selectedAssetId"
+          :items="filteredAssetOptions"
+          :loading="isAssetsLoading"
+          :error-message="assetErrorMessage"
+          :name="`ticket-${selectedKind}-asset`"
+        />
+      </section>
+
+      <template v-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'">
+        <Input
+          id="ticket-requested-item-name"
+          v-model="form.requestedItemName"
+          label="정확한 제품명"
+          required
+          placeholder="예: MacBook Pro 16형"
+          :disabled="isSubmitting"
+        />
+        <Input
+          id="ticket-model-name"
+          v-model="form.modelName"
+          label="모델명"
+          required
+          placeholder="모델명을 입력해주세요."
+          :disabled="isSubmitting"
+        />
+        <Input
+          id="ticket-vendor"
+          v-model="form.vendor"
+          label="제조사 또는 구매처"
+          required
+          placeholder="예: Apple"
+          :disabled="isSubmitting"
+        />
+        <Input
+          id="ticket-external-url"
+          v-model="form.externalUrl"
+          label="구매처 및 구매 링크(URL)"
+          required
+          placeholder="https://"
+          :disabled="isSubmitting"
+        />
+      </template>
+
+      <Input
+        v-if="selectedKind === 'DIRECT_PURCHASE'"
+        id="ticket-direct-item-name"
+        v-model="form.requestedItemName"
+        label="정확한 제품명"
+        required
+        placeholder="구매할 품목명을 입력해주세요."
+        :disabled="isSubmitting"
+      />
+
+      <div
+        v-if="showsQuantityAndPrice"
+        class="grid grid-cols-2 gap-3"
+      >
+        <Input
+          id="ticket-quantity"
+          v-model="form.quantity"
+          type="number"
+          label="수량"
+          required
+          placeholder="1"
+          :disabled="isSubmitting"
+        />
+        <CurrencyInput
+          id="ticket-expected-price"
+          v-model="form.expectedPrice"
+          label="예상 금액"
+          required
+          placeholder="0"
+          :disabled="isSubmitting"
+        />
+      </div>
+
+      <CurrencyInput
+        v-else-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'"
+        id="ticket-expected-price"
+        v-model="form.expectedPrice"
+        label="예상 금액"
+        required
+        placeholder="0"
+        :disabled="isSubmitting"
+      />
+
+      <div v-if="selectedKind === 'RENTAL'" class="grid grid-cols-2 gap-3">
+        <Input
+          id="ticket-rental-start-date"
+          v-model="form.rentalStartDate"
+          type="date"
+          label="대여 시작일"
+          required
+          :disabled="isSubmitting"
+        />
+        <Input
+          id="ticket-rental-due-date"
+          v-model="form.rentalDueDate"
+          type="date"
+          label="반납 예정일"
+          required
+          :disabled="isSubmitting"
+        />
+      </div>
+
+      <Input
+        v-if="selectedKind === 'RENTAL_EXTENSION'"
+        id="ticket-requested-due-date"
+        v-model="form.requestedDueDate"
+        type="date"
+        label="연장 요청 반납일"
+        required
+        :disabled="isSubmitting"
+      />
+
+      <div class="space-y-2">
+        <label class="text-sm font-semibold text-text-main" for="ticket-reason">
+          {{ reasonLabel }} <span class="text-primary">*</span>
+        </label>
+        <textarea
+          id="ticket-reason"
+          v-model="form.reason"
+          rows="6"
+          required
+          :disabled="isSubmitting"
+          :placeholder="reasonPlaceholder"
+          class="w-full resize-none rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:opacity-60"
+        />
+      </div>
+
+      <p
+        v-if="dateErrorMessage"
+        class="rounded-xl bg-danger/5 px-4 py-3 text-sm text-danger"
+        role="alert"
+      >
+        {{ dateErrorMessage }}
+      </p>
+
+      <p
+        v-if="errorMessage"
+        class="rounded-xl bg-danger/5 px-4 py-3 text-sm text-danger"
+        role="alert"
+      >
+        {{ errorMessage }}
+      </p>
+    </form>
+
+    <template #footer>
+      <div class="grid grid-cols-2 gap-3">
+        <Button
+          variant="ghost"
+          size="m"
+          :disabled="isSubmitting"
+          @click="isAssetSelectionStep ? closeAssetSelection() : handleClose()"
+        >
+          취소
+        </Button>
+        <Button
+          v-if="isAssetSelectionStep"
+          size="m"
+          :disabled="!pendingSelectedAssetId"
+          @click="confirmAssetSelection"
+        >
+          확인
+        </Button>
+        <Button
+          v-else
+          size="m"
+          :loading="isSubmitting"
+          :disabled="!isFormValid"
+          @click="handleSubmit"
+        >
+          신청 제출
+        </Button>
+      </div>
+    </template>
+  </BaseDrawer>
+</template>
+
+<script setup lang="ts">
+import { ChevronLeft, PackageCheck, PackagePlus, Search } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
+
+import {
+  intangibleAssetApi,
+  intangibleItemApi,
+  tangibleAssetApi,
+  tangibleItemApi,
+  ticketCreateApi,
+} from '@/api'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import Button from '@/components/common/Button.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
+import Dropdown from '@/components/common/Dropdown.vue'
+import Input from '@/components/common/Input.vue'
+import AssetRadioList from '@/components/ticket/AssetRadioList.vue'
+import type { AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
+import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
+import { useAuthStore } from '@/stores'
+import type {
+  AssetType,
+  DropdownOption,
+  IntangibleAsset,
+  IntangibleItem,
+  TangibleAsset,
+  TangibleAssetItem,
+  TangibleCategoryGroup,
+  TicketCreateResponse,
+  TicketRequestKind,
+} from '@/types'
+
+interface SelectableAsset extends AssetRadioItem {
+  assetType: AssetType
+}
+
+const props = defineProps<{
+  isOpen: boolean
+}>()
+
+const emit = defineEmits<{
+  close: []
+  created: [ticket: TicketCreateResponse]
+}>()
+
+const authStore = useAuthStore()
+const assetTypeOptions = [
+  { label: '유형 자산', value: 'TANGIBLE' as const },
+  { label: '무형 자산', value: 'INTANGIBLE' as const },
+]
+const assetScopeOptions = [
+  { label: '공용 자산', value: 'DEPARTMENT' as const },
+  { label: '개인 자산', value: 'PERSONAL' as const },
+]
+
+const selectedKind = ref<TicketRequestKind | ''>('')
+const isAssetSelectionStep = ref(false)
+const pendingSelectedAssetId = ref('')
+const selectionAssetType = ref<AssetType>('TANGIBLE')
+const confirmedSelectedAsset = ref<SelectableAsset | null>(null)
+const isSubmitting = ref(false)
+const isAssetsLoading = ref(false)
+const errorMessage = ref('')
+const assetErrorMessage = ref('')
+const assetSearchKeyword = ref('')
+const hasSearchedAssets = ref(false)
+const tangibleCategoryOptions = ref<DropdownOption[]>([])
+const intangibleCategoryOptions = ref<DropdownOption[]>([])
+const itemOptions = ref<SelectableAsset[]>([])
+const ownedAssetOptions = ref<SelectableAsset[]>([])
+
+const form = reactive({
+  assetType: 'TANGIBLE' as AssetType,
+  selectedAssetId: '',
+  requestedItemName: '',
+  modelName: '',
+  vendor: '',
+  externalUrl: '',
+  quantity: '1',
+  expectedPrice: '',
+  rentalStartDate: '',
+  rentalDueDate: '',
+  requestedDueDate: '',
+  reason: '',
+})
+const assetSearchForm = reactive({
+  assetUsageType: '' as '' | 'DEPARTMENT' | 'PERSONAL',
+  category: '',
+  keyword: '',
+})
+
+const requestTitleMap: Record<TicketRequestKind, string> = {
+  STANDARD_ASSET_REQUEST: '자산 요청',
+  NON_STANDARD_ASSET_REQUEST: '구매 요청',
+  DIRECT_PURCHASE: '직접 구매 요청',
+  RENTAL: '대여 자산 요청',
+  RENTAL_EXTENSION: '대여 연장 요청',
+  MAINTENANCE: '자산 서비스 요청',
+  RETURN: '자산 반납 및 해지 요청',
+  PURCHASE_RETURN: '구매 자산 반품 요청',
+}
+
+const drawerTitle = computed(() => (
+  isAssetSelectionStep.value
+    ? '자산 선택 팝업'
+    : selectedKind.value
+      ? requestTitleMap[selectedKind.value]
+      : '새 요청'
+))
+
+const showsAssetType = computed(() => (
+  selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'DIRECT_PURCHASE'
+  || selectedKind.value === 'RETURN'
+  || selectedKind.value === 'PURCHASE_RETURN'
+))
+
+const usesSelectableAsset = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'RENTAL'
+  || selectedKind.value === 'RENTAL_EXTENSION'
+  || selectedKind.value === 'MAINTENANCE'
+  || selectedKind.value === 'RETURN'
+  || selectedKind.value === 'PURCHASE_RETURN'
+))
+
+const usesNestedAssetSelection = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'RENTAL'
+))
+
+const usesInlineSelectableAsset = computed(() => (
+  usesSelectableAsset.value && !usesNestedAssetSelection.value
+))
+
+const showsAssetSearch = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'RENTAL'
+))
+
+const showsQuantityAndPrice = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'DIRECT_PURCHASE'
+))
+
+const assetSelectionLabel = computed(() => {
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '표준 자산 선택'
+  if (selectedKind.value === 'RENTAL') return '대여할 품목 선택'
+  return '대상 자산 선택'
+})
+
+const nestedAssetLabel = computed(() => (
+  selectedKind.value === 'RENTAL' ? '대여 자산' : '표준 자산'
+))
+
+const visibleAssetOptions = computed(() => {
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
+    return itemOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  if (selectedKind.value === 'RENTAL') {
+    return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+  }
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+    return ownedAssetOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+})
+
+const assetCategoryOptions = computed(() => (
+  selectionAssetType.value === 'INTANGIBLE'
+    ? intangibleCategoryOptions.value
+    : tangibleCategoryOptions.value
+))
+
+const canSearchAssets = computed(() => Boolean(
+  assetSearchForm.assetUsageType && assetSearchForm.category,
+))
+
+const selectedAssetOption = computed(() => (
+  confirmedSelectedAsset.value?.id === form.selectedAssetId
+    ? confirmedSelectedAsset.value
+    : null
+))
+
+const filteredAssetOptions = computed(() => {
+  const keyword = assetSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) return visibleAssetOptions.value
+
+  return visibleAssetOptions.value.filter((item) => (
+    `${item.name} ${item.description ?? ''}`.toLowerCase().includes(keyword)
+  ))
+})
+
+const reasonLabel = computed(() => {
+  if (selectedKind.value === 'MAINTENANCE') return '요청 상세 내용 및 증상'
+  if (selectedKind.value === 'RENTAL') return '대여 목적'
+  if (selectedKind.value === 'RENTAL_EXTENSION') return '연장 요청 이유'
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+    return '반납 및 해지 이유'
+  }
+  return '신청 사유'
+})
+
+const reasonPlaceholder = computed(() => {
+  if (selectedKind.value === 'MAINTENANCE') return '고장 증상이나 수리 요청 사항을 상세히 입력해주세요.'
+  if (selectedKind.value === 'RENTAL') return '대여 목적을 상세히 기술해주세요.'
+  if (selectedKind.value === 'RENTAL_EXTENSION') return '연장이 필요한 이유를 상세히 기술해주세요.'
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+    return '반납 및 해지할 이유를 상세히 입력해주세요.'
+  }
+  return '신청 사유를 상세히 입력해주세요.'
+})
+
+const dateErrorMessage = computed(() => {
+  if (
+    selectedKind.value === 'RENTAL'
+    && form.rentalStartDate
+    && form.rentalDueDate
+    && form.rentalStartDate > form.rentalDueDate
+  ) {
+    return '반납 예정일은 대여 시작일보다 빠를 수 없습니다.'
+  }
+  return ''
+})
+
+const positiveNumber = (value: string) => Number.isFinite(Number(value)) && Number(value) > 0
+
+const isFormValid = computed(() => {
+  if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
+  if (usesSelectableAsset.value && !form.selectedAssetId) return false
+
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
+    return positiveNumber(form.quantity) && positiveNumber(form.expectedPrice)
+  }
+  if (selectedKind.value === 'NON_STANDARD_ASSET_REQUEST') {
+    return Boolean(
+      form.requestedItemName.trim()
+      && form.modelName.trim()
+      && form.vendor.trim()
+      && form.externalUrl.trim()
+      && positiveNumber(form.expectedPrice),
+    )
+  }
+  if (selectedKind.value === 'DIRECT_PURCHASE') {
+    return Boolean(
+      form.requestedItemName.trim()
+      && positiveNumber(form.quantity)
+      && positiveNumber(form.expectedPrice),
+    )
+  }
+  if (selectedKind.value === 'RENTAL') {
+    return Boolean(form.rentalStartDate && form.rentalDueDate)
+  }
+  if (selectedKind.value === 'RENTAL_EXTENSION') {
+    return Boolean(form.requestedDueDate)
+  }
+  return true
+})
+
+function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
+  return {
+    id: String(item.assetItemId ?? item.itemId ?? ''),
+    name: item.productName ?? item.name,
+    description: [item.categoryName ?? item.category, item.manufacturer, item.modelName]
+      .filter(Boolean)
+      .join(' · '),
+    assetType: 'TANGIBLE',
+  }
+}
+
+function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
+  const responseItem = item as IntangibleItem & {
+    name?: string
+    provider?: string
+    softwareType?: string
+  }
+
+  return {
+    id: String(item.assetItemId ?? ''),
+    name: item.productName ?? responseItem.name ?? '',
+    description: [
+      item.category ?? responseItem.softwareType,
+      item.vendor ?? responseItem.provider,
+      item.licenseType,
+    ].filter(Boolean).join(' · '),
+    assetType: 'INTANGIBLE',
+  }
+}
+
+function getTangibleAssetId(asset: TangibleAsset) {
+  return asset.assetId
+    ?? asset.id
+    ?? asset.tangibleAssetId
+    ?? asset.tangibleAssetAssetId
+    ?? ''
+}
+
+function toTangibleAssetOption(asset: TangibleAsset): SelectableAsset {
+  return {
+    id: String(getTangibleAssetId(asset)),
+    name: asset.productName ?? asset.assetItemName ?? asset.assetCode,
+    description: [asset.assetCode, asset.serialNumber ?? asset.serialNo, asset.returnDueDate]
+      .filter(Boolean)
+      .join(' · '),
+    assetType: 'TANGIBLE',
+  }
+}
+
+function toIntangibleAssetOption(asset: IntangibleAsset): SelectableAsset {
+  return {
+    id: String(asset.assetId),
+    name: asset.assetItemName,
+    description: [asset.assetCode, asset.vendor, asset.expiredAt].filter(Boolean).join(' · '),
+    assetType: 'INTANGIBLE',
+  }
+}
+
+function toTangibleCategoryOptions(groups: TangibleCategoryGroup[]): DropdownOption[] {
+  const categoryNames = groups.flatMap((group) => [
+    group.mainCategory,
+    ...group.subCategories,
+  ])
+
+  return [...new Set(categoryNames)]
+    .filter(Boolean)
+    .map((category) => ({ label: category, value: category }))
+}
+
+async function loadAssetCategories() {
+  const companyId = authStore.user?.companyId
+  const results = await Promise.allSettled([
+    companyId ? tangibleItemApi.getCategories(companyId) : Promise.resolve(null),
+    intangibleItemApi.getCategories(),
+  ])
+  const [tangibleResult, intangibleResult] = results
+
+  tangibleCategoryOptions.value = tangibleResult.status === 'fulfilled' && tangibleResult.value
+    ? toTangibleCategoryOptions(tangibleResult.value.data)
+    : []
+  intangibleCategoryOptions.value = intangibleResult.status === 'fulfilled'
+    ? intangibleResult.value.data.map((category) => ({ label: category, value: category }))
+    : []
+}
+
+async function loadOwnedAssets() {
+  const memberId = authStore.user?.memberId
+  const results = await Promise.allSettled([
+    tangibleAssetApi.getList({ page: 0, size: 100, memberId }),
+    intangibleAssetApi.getList({ page: 0, size: 100, memberId }),
+  ])
+
+  const [tangibleAssetsResult, intangibleAssetsResult] = results
+
+  ownedAssetOptions.value = [
+    ...(tangibleAssetsResult.status === 'fulfilled'
+      ? tangibleAssetsResult.value.data.content.map(toTangibleAssetOption)
+      : []),
+    ...(intangibleAssetsResult.status === 'fulfilled'
+      ? intangibleAssetsResult.value.data.content.map(toIntangibleAssetOption)
+      : []),
+  ].filter((item) => item.id)
+
+}
+
+async function loadSelectableAssets() {
+  await Promise.all([loadAssetCategories(), loadOwnedAssets()])
+}
+
+async function handleAssetSearch() {
+  if (!canSearchAssets.value) return
+
+  isAssetsLoading.value = true
+  assetErrorMessage.value = ''
+  pendingSelectedAssetId.value = ''
+
+  try {
+    if (selectionAssetType.value === 'INTANGIBLE') {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        category: assetSearchForm.category || undefined,
+        keyword: assetSearchForm.keyword.trim() || undefined,
+        assetUsageType: assetSearchForm.assetUsageType || undefined,
+      })
+      itemOptions.value = response.data.content.map(toIntangibleItemOption).filter((item) => item.id)
+    } else {
+      const response = await tangibleItemApi.getList({
+        companyId: authStore.user?.companyId,
+        page: 0,
+        size: 100,
+        categoryName: assetSearchForm.category || undefined,
+        keyword: assetSearchForm.keyword.trim() || undefined,
+        assetUsageType: assetSearchForm.assetUsageType || undefined,
+      })
+      itemOptions.value = response.data.content.map(toTangibleItemOption).filter((item) => item.id)
+    }
+  } catch (error) {
+    itemOptions.value = []
+    assetErrorMessage.value = error instanceof Error
+      ? error.message
+      : '자산 목록을 불러오지 못했습니다.'
+  } finally {
+    hasSearchedAssets.value = true
+    isAssetsLoading.value = false
+  }
+}
+
+function resetForm() {
+  selectedKind.value = ''
+  isAssetSelectionStep.value = false
+  pendingSelectedAssetId.value = ''
+  selectionAssetType.value = 'TANGIBLE'
+  confirmedSelectedAsset.value = null
+  errorMessage.value = ''
+  assetErrorMessage.value = ''
+  assetSearchKeyword.value = ''
+  hasSearchedAssets.value = false
+  itemOptions.value = []
+  Object.assign(assetSearchForm, {
+    assetUsageType: '',
+    category: '',
+    keyword: '',
+  })
+  Object.assign(form, {
+    assetType: 'TANGIBLE',
+    selectedAssetId: '',
+    requestedItemName: '',
+    modelName: '',
+    vendor: '',
+    externalUrl: '',
+    quantity: '1',
+    expectedPrice: '',
+    rentalStartDate: '',
+    rentalDueDate: '',
+    requestedDueDate: '',
+    reason: '',
+  })
+}
+
+function resetSelection() {
+  resetForm()
+}
+
+function handleKindSelect(kind: TicketRequestKind) {
+  selectedKind.value = kind
+  form.assetType = 'TANGIBLE'
+  form.selectedAssetId = ''
+  assetSearchKeyword.value = ''
+  errorMessage.value = ''
+}
+
+function openAssetSelection() {
+  pendingSelectedAssetId.value = form.selectedAssetId
+  selectionAssetType.value = selectedKind.value === 'RENTAL' ? 'TANGIBLE' : form.assetType
+  isAssetSelectionStep.value = true
+}
+
+function closeAssetSelection() {
+  pendingSelectedAssetId.value = ''
+  assetSearchKeyword.value = ''
+  isAssetSelectionStep.value = false
+}
+
+function confirmAssetSelection() {
+  if (!pendingSelectedAssetId.value) return
+  const selectedAsset = itemOptions.value.find((item) => item.id === pendingSelectedAssetId.value)
+  if (!selectedAsset) return
+
+  form.assetType = selectionAssetType.value
+  form.selectedAssetId = pendingSelectedAssetId.value
+  confirmedSelectedAsset.value = selectedAsset
+  assetSearchKeyword.value = ''
+  isAssetSelectionStep.value = false
+}
+
+function handleSelectionAssetTypeChange(assetType: AssetType) {
+  selectionAssetType.value = assetType
+  pendingSelectedAssetId.value = ''
+  assetSearchForm.category = ''
+  invalidateAssetSearch()
+}
+
+function handleAssetCategoryChange(value: string | number) {
+  if (typeof value !== 'string') return
+  assetSearchForm.category = value
+  invalidateAssetSearch()
+}
+
+function invalidateAssetSearch() {
+  pendingSelectedAssetId.value = ''
+  itemOptions.value = []
+  hasSearchedAssets.value = false
+  assetErrorMessage.value = ''
+}
+
+function handleAssetTypeChange(assetType: AssetType) {
+  form.assetType = assetType
+  form.selectedAssetId = ''
+}
+
+function handleClose() {
+  if (isSubmitting.value) return
+  emit('close')
+}
+
+function selectedNumericId() {
+  const id = Number(form.selectedAssetId)
+  if (!Number.isFinite(id)) {
+    throw new Error('선택한 자산 ID 형식이 티켓 API 계약과 일치하지 않습니다.')
+  }
+  return id
+}
+
+async function handleSubmit() {
+  if (!isFormValid.value || !selectedKind.value) return
+
+  isSubmitting.value = true
+  errorMessage.value = ''
+
+  try {
+    let response
+    const requestReason = form.reason.trim()
+
+    switch (selectedKind.value) {
+      case 'STANDARD_ASSET_REQUEST':
+        response = await ticketCreateApi.createStandardRequest({
+          assetType: form.assetType,
+          assetItemId: selectedNumericId(),
+          quantity: Number(form.quantity),
+          expectedPrice: Number(form.expectedPrice),
+          requestReason,
+        })
+        break
+      case 'NON_STANDARD_ASSET_REQUEST':
+        response = await ticketCreateApi.createNonStandardRequest({
+          assetType: form.assetType,
+          requestedItemName: form.requestedItemName.trim(),
+          modelName: form.modelName.trim(),
+          vendor: form.vendor.trim(),
+          externalUrl: form.externalUrl.trim(),
+          expectedPrice: Number(form.expectedPrice),
+          requestReason,
+        })
+        break
+      case 'DIRECT_PURCHASE':
+        response = await ticketCreateApi.createDirectPurchaseRequest({
+          assetType: form.assetType,
+          requestedItemName: form.requestedItemName.trim(),
+          quantity: Number(form.quantity),
+          expectedPrice: Number(form.expectedPrice),
+          requestReason,
+        })
+        break
+      case 'RENTAL':
+        response = await ticketCreateApi.createRentalRequest({
+          assetItemId: selectedNumericId(),
+          rentalStartDate: form.rentalStartDate,
+          rentalDueDate: form.rentalDueDate,
+          requestReason,
+        })
+        break
+      case 'RENTAL_EXTENSION':
+        response = await ticketCreateApi.createRentalExtension({
+          assetId: selectedNumericId(),
+          requestedDueDate: form.requestedDueDate,
+          requestReason,
+        })
+        break
+      case 'MAINTENANCE':
+        response = await ticketCreateApi.createMaintenanceRequest({
+          assetId: selectedNumericId(),
+          maintenanceReason: requestReason,
+        })
+        break
+      case 'RETURN':
+        response = await ticketCreateApi.createReturnRequest({
+          assetType: form.assetType,
+          assetId: selectedNumericId(),
+          returnReason: requestReason,
+        })
+        break
+      case 'PURCHASE_RETURN':
+        response = await ticketCreateApi.createPurchaseReturnRequest({
+          assetType: form.assetType,
+          assetId: selectedNumericId(),
+          type: 'EMPLOYEE',
+          returnReason: requestReason,
+        })
+        break
+    }
+
+    if (response) emit('created', response.data)
+  } catch (error) {
+    errorMessage.value = error instanceof Error
+      ? error.message
+      : '요청을 등록하지 못했습니다. 입력 내용을 확인해주세요.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+watch(() => props.isOpen, async (isOpen) => {
+  if (!isOpen) return
+  resetForm()
+  await loadSelectableAssets()
+})
+</script>

@@ -4,14 +4,15 @@ import type { AssetType, TicketType, TicketStatus } from './common'
 // 티켓(Ticket) 공통 타입
 // =====================================================
 
-export interface TicketListItem {
+export interface TicketListItem extends Record<string, unknown> {
   ticketId: number
   ticketNo: string
   ticketType: TicketType
+  assetItemName: string | null
   status: TicketStatus
   requesterId: number
   requesterName: string
-  departmentId: string
+  departmentId: number
   departmentName: string
   createdAt: string
 }
@@ -23,15 +24,13 @@ export interface TicketDetail {
   status: TicketStatus
   requesterId: number
   requesterName: string
-  departmentId: string
+  departmentId: number
   departmentName: string
   approverId: number | null
   approverName: string | null
   assigneeId: number | null
   assigneeName: string | null
   requestReason: string | null
-  expectedPrice: number | null
-  actualPrice: number | null
   departmentApprovedAt: string | null
   departmentRejectedAt: string | null
   departmentRejectionReason: string | null
@@ -42,11 +41,6 @@ export interface TicketDetail {
   cancelledAt: string | null
   createdAt: string
   updatedAt: string
-  // 자산 정보
-  assetType?: AssetType
-  assetItemId?: number
-  assetItemName?: string
-  assetId?: number
 }
 
 export interface TicketListFilter {
@@ -55,12 +49,30 @@ export interface TicketListFilter {
   ticketType?: TicketType
   status?: TicketStatus
   requesterId?: number
-  departmentId?: string
+  departmentId?: number
 }
 
 // =====================================================
 // 티켓 생성 요청 타입들
 // =====================================================
+
+export type TicketRequestKind =
+  | 'STANDARD_ASSET_REQUEST'
+  | 'NON_STANDARD_ASSET_REQUEST'
+  | 'DIRECT_PURCHASE'
+  | 'RENTAL'
+  | 'RENTAL_EXTENSION'
+  | 'MAINTENANCE'
+  | 'RETURN'
+  | 'PURCHASE_RETURN'
+
+export interface TicketCreateResponse {
+  ticketId: number
+  ticketNo: string
+  ticketType: TicketType
+  status?: TicketStatus
+  createdAt?: string
+}
 
 export interface StandardAssetRequestCreate {
   assetType: AssetType
@@ -72,36 +84,51 @@ export interface StandardAssetRequestCreate {
 
 export interface NonStandardAssetRequestCreate {
   assetType: AssetType
-  productName: string
-  vendor?: string
-  purchaseLink?: string
-  modelName?: string
+  requestedItemName: string
+  modelName: string
+  vendor: string
+  externalUrl: string
+  expectedPrice: number
+  requestReason: string
+}
+
+export interface DirectPurchaseRequestCreate {
+  assetType: AssetType
+  requestedItemName: string
+  quantity: number
   expectedPrice: number
   requestReason: string
 }
 
 export interface RentalRequestCreate {
-  assetType: AssetType
   assetItemId: number
-  returnDueDate: string
+  rentalStartDate: string
+  rentalDueDate: string
+  requestReason: string
+}
+
+export interface RentalExtensionRequestCreate {
+  assetId: number
+  requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
   assetId: number
-  assetType: AssetType
-  requestReason: string
+  maintenanceReason: string
 }
 
 export interface ReturnRequestCreate {
-  assetId: number
   assetType: AssetType
-  requestReason?: string
+  assetId: number
+  returnReason: string
 }
 
-export interface TerminationRequestCreate {
+export interface PurchaseReturnRequestCreate {
+  assetType: AssetType
   assetId: number
-  requestReason?: string
+  type: 'EMPLOYEE' | 'PURCHASE_TEAM'
+  returnReason: string
 }
 
 // =====================================================
