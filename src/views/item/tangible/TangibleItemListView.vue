@@ -305,7 +305,6 @@ type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
 }
 
 type CategoryGroup = TangibleCategoryGroup
-const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
 
 const toRadioValue = (value: number | boolean | undefined) => {
   if (typeof value === 'boolean') return value ? 1 : 0
@@ -333,66 +332,7 @@ const searchParams = ref({
   size: 20
 });
 
-const DEFAULT_CASCADING_OPTIONS: CategoryGroup[] = [
-  {
-    mainCategory: 'IT / 전자기기',
-    subCategories: [
-      '노트북',
-      '노트북 커버',
-      '모니터',
-      '스마트폰',
-      '태블릿',
-      '주변기기',
-      '키보드',
-      '마우스',
-      '웹캠',
-      '외장 저장장치',
-    ],
-    childCategories: {
-      노트북: ['노트북 커버'],
-      주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
-    },
-  },
-  {
-    mainCategory: '사무용 가구',
-    subCategories: ['사무가구', '의자', '책상', '회의 테이블'],
-    childCategories: {
-      사무가구: ['의자', '책상', '회의 테이블'],
-    },
-  },
-  {
-    mainCategory: '사무기기 / 가전',
-    subCategories: ['사무기기', '복합기', '라벨프린터'],
-    childCategories: {
-      사무기기: ['복합기', '라벨프린터'],
-    },
-  }
-];
-
-const cloneCategoryGroups = (groups: CategoryGroup[]): CategoryGroup[] => (
-  groups.map((group) => ({
-    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-    ...(group.childCategories
-      ? {
-          childCategories: Object.fromEntries(
-            Object.entries(group.childCategories).map(([key, values]) => [key, [...values]]),
-          ),
-        }
-      : {}),
-    ...(group.subCategoryIds
-      ? { subCategoryIds: { ...group.subCategoryIds } }
-      : {}),
-    ...(group.childCategoryIds
-      ? { childCategoryIds: { ...group.childCategoryIds } }
-      : {}),
-  }))
-);
-
-const cascadingOptions = ref<CategoryGroup[]>(
-  useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [],
-);
+const cascadingOptions = ref<CategoryGroup[]>([]);
 
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
 
@@ -670,7 +610,6 @@ const loadCategories = async () => {
     const response = await tangibleItemApi.getCategories()
     cascadingOptions.value = toCategoryGroups(response.data as CategoryTreeNode[])
   } catch {
-    if (useMockData) return
     cascadingOptions.value = []
   }
 }
