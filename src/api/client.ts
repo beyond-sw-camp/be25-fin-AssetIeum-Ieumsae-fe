@@ -80,7 +80,24 @@ httpClient.interceptors.response.use(
   async (error: AxiosError<ApiResponse<unknown>>) => {
     const originalRequest = error.config as RetryRequestConfig | undefined
     const isUnauthorized = error.response?.status === 401
+    const isForbidden = error.response?.status === 403
     const isAuthRequest = originalRequest?.url?.includes('/auth/')
+
+    if (isUnauthorized) {
+      console.warn('API 401 Unauthorized 응답', {
+        method: originalRequest?.method?.toUpperCase(),
+        url: originalRequest?.url,
+        status: error.response?.status,
+      })
+    }
+
+    if (isForbidden) {
+      console.error('API 403 Forbidden 응답', {
+        method: originalRequest?.method?.toUpperCase(),
+        url: originalRequest?.url,
+        status: error.response?.status,
+      })
+    }
 
     if (isUnauthorized && originalRequest && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true
