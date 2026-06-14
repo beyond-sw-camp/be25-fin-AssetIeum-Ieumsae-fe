@@ -315,8 +315,8 @@ export interface IntangibleAsset {
   assetItemId: string
   assetItemName: string
   licenseType: LicenseType
-  licenseCode: string
-  licenseKey: string
+  licenseCode?: string
+  licenseKey?: string
   status?: IntangibleAssetStatus
   assignedMemberId: string | null
   assignedMemberName: string | null
@@ -327,23 +327,27 @@ export interface IntangibleAsset {
   vendor?: string
   purchasePrice?: number
   createdAt: string
-  billingCycle: BillingCycle
-  seatCount: number
-  intangibleAssetStatus: IntangibleAssetStatus
-  isAutoRenewal: number
-  purchaseDate: string
-  purchaseVendor: string
+  billingCycle?: BillingCycle
+  seatCount?: number
+  intangibleAssetStatus?: IntangibleAssetStatus
+  isAutoRenewal?: number
+  purchaseDate?: string
+  purchaseVendor?: string
 }
 
 export interface IntangibleAssetCreateRequest {
   intangibleItemId: string
+  assetItemId?: string
   licenseCode: string
+  licenseType?: LicenseType
+  licenseKey?: string
   seatCount: number
   isAutoRenewal: number
   purchaseDate: string
   purchasePrice: number
   purchaseVendor: string
   intangibleAssetStatus: IntangibleAssetStatus
+  status?: IntangibleAssetStatus
   memberId?: string | null
   departmentId?: string | null
   startedAt?: string | null
