@@ -5,10 +5,13 @@ import type {
   TicketListFilter,
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
+  DirectPurchaseRequestCreate,
   RentalRequestCreate,
+  RentalExtensionRequestCreate,
   MaintenanceRequestCreate,
   ReturnRequestCreate,
-  TerminationRequestCreate,
+  PurchaseReturnRequestCreate,
+  TicketCreateResponse,
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
@@ -68,37 +71,33 @@ export const ticketApi = {
 export const ticketCreateApi = {
   /** 표준 자산 요청 */
   createStandardRequest: (body: StandardAssetRequestCreate) =>
-    api.post('/tickets/asset-requests/standard', body),
+    api.post<TicketCreateResponse>('/tickets/asset-requests/standard', body),
 
   /** 비표준 자산 요청 */
   createNonStandardRequest: (body: NonStandardAssetRequestCreate) =>
-    api.post('/tickets/asset-requests/non-standard', body),
+    api.post<TicketCreateResponse>('/tickets/asset-requests/non-standard', body),
+
+  /** 직접 구매 자산 요청 */
+  createDirectPurchaseRequest: (body: DirectPurchaseRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/asset-requests/direct-purchase', body),
 
   /** 대여 요청 */
   createRentalRequest: (body: RentalRequestCreate) =>
-    api.post('/tickets/rental-requests', body),
+    api.post<TicketCreateResponse>('/tickets/rentals', body),
 
   /** 대여 연장 요청 */
-  createRentalExtension: (body: { assetId: number; newReturnDueDate: string }) =>
-    api.post('/tickets/rental-extensions', body),
+  createRentalExtension: (body: RentalExtensionRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/rental-extensions', body),
 
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>
-    api.post('/tickets/maintenance-requests', body),
+    api.post<TicketCreateResponse>('/tickets/maintenance-requests', body),
 
   /** 반납 요청 */
   createReturnRequest: (body: ReturnRequestCreate) =>
-    api.post('/tickets/return-requests', body),
+    api.post<TicketCreateResponse>('/tickets/returns', body),
 
-  /** 무형자산 해지 요청 */
-  createTerminationRequest: (body: TerminationRequestCreate) =>
-    api.post('/tickets/termination-requests', body),
-
-  /** 구매 요청 (구매자산팀) */
-  createPurchaseRequest: (body: unknown) =>
-    api.post('/tickets/purchase-requests', body),
-
-  /** 반품 요청 */
-  createReturnProductRequest: (body: unknown) =>
-    api.post('/tickets/return-product-requests', body),
+  /** 반품/환불 요청 */
+  createPurchaseReturnRequest: (body: PurchaseReturnRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/purchase-returns', body),
 }

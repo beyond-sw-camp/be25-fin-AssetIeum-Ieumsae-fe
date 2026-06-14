@@ -5,19 +5,32 @@ import type {
   DepartmentChangeRequest,
   DepartmentCreateRequest,
   DepartmentUpdateRequest,
+  DirectPurchaseRequestCreate,
   IntangibleAsset,
   IntangibleAssetCreateRequest,
   LoginRequest,
   LoginResponse,
+  MaintenanceRequestCreate,
   Member,
   MemberRegisterRequest,
+  NonStandardAssetRequestCreate,
   PageResponse,
   PasswordChangeRequest,
+  PurchaseReturnRequestCreate,
+  RentalExtensionRequestCreate,
+  RentalRequestCreate,
+  ReturnRequestCreate,
+  StandardAssetRequestCreate,
   TangibleAsset,
   TangibleAssetCreateRequest,
   TangibleCategoryGroup,
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
+  TicketCreateResponse,
+  TicketDetail,
+  TicketListItem,
+  TicketStatus,
+  TicketType,
 } from '@/types'
 
 const API_PREFIX = '*/api/v1'
@@ -267,6 +280,77 @@ let members: Member[] = memberSeeds.map((member) => ({
 const memberPasswords = new Map(
   members.map((member) => [member.memberNo, member.memberNo]),
 )
+
+let tickets: TicketListItem[] = [
+  {
+    ticketId: 1,
+    ticketNo: 'TKT-20260601-001',
+    ticketType: 'ASSET_REQUEST',
+    assetItemName: 'MacBook Pro 14인치 M3 Max',
+    status: 'REQUESTED',
+    requesterId: 5,
+    requesterName: '정사원',
+    departmentId: 30,
+    departmentName: '프론트엔드팀',
+    createdAt: '2026-06-01T10:00:00',
+  },
+  {
+    ticketId: 2,
+    ticketNo: 'TKT-20260528-002',
+    ticketType: 'RENTAL',
+    assetItemName: 'Dell UltraSharp 27인치 4K',
+    status: 'ASSET_TEAM_REVIEWING',
+    requesterId: 5,
+    requesterName: '정사원',
+    departmentId: 30,
+    departmentName: '프론트엔드팀',
+    createdAt: '2026-05-28T14:20:00',
+  },
+  {
+    ticketId: 3,
+    ticketNo: 'TKT-20260520-003',
+    ticketType: 'MAINTENANCE',
+    assetItemName: '에어론 체어 풀 스펙 B사이즈',
+    status: 'COMPLETED',
+    requesterId: 5,
+    requesterName: '정사원',
+    departmentId: 30,
+    departmentName: '프론트엔드팀',
+    createdAt: '2026-05-20T09:10:00',
+  },
+  {
+    ticketId: 4,
+    ticketNo: 'TKT-20260512-004',
+    ticketType: 'RETURN',
+    assetItemName: 'iPhone 15 Pro Max 512GB',
+    status: 'DEPARTMENT_REJECTED',
+    requesterId: 5,
+    requesterName: '정사원',
+    departmentId: 30,
+    departmentName: '프론트엔드팀',
+    createdAt: '2026-05-12T11:30:00',
+  },
+  {
+    ticketId: 5,
+    ticketNo: 'TKT-20260508-005',
+    ticketType: 'PURCHASE_RETURN',
+    assetItemName: 'Adobe Creative Cloud',
+    status: 'CANCELLED',
+    requesterId: 1,
+    requesterName: '김관리',
+    departmentId: 20,
+    departmentName: '구매자산팀',
+    createdAt: '2026-05-08T16:00:00',
+  },
+]
+
+const ticketReasons = new Map<number, string>([
+  [1, '업무용 표준 자산이 필요합니다.'],
+  [2, '외부 교육 기간 동안 사용할 장비가 필요합니다.'],
+  [3, '사용 중인 장비 점검이 필요합니다.'],
+  [4, '업무 종료로 자산을 반납합니다.'],
+  [5, '구매한 자산의 반품을 요청합니다.'],
+])
 
 function withCurrentMemberCount(department: Department): Department {
   return {
@@ -546,6 +630,79 @@ function toLoginResponse(member: Member): LoginResponse {
   }
 }
 
+function getAuthenticatedMember(request: Request): Member | undefined {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer mock-access-token-')) return undefined
+
+  const memberNo = authHeader.replace('Bearer mock-access-token-', '')
+  return members.find((member) => member.memberNo === memberNo)
+}
+
+function getMockItemName(
+  assetType: StandardAssetRequestCreate['assetType'],
+  assetItemId: number,
+): string | null {
+  const itemId = String(assetItemId)
+
+  if (assetType === 'INTANGIBLE') {
+    return intangibleItems.find((item) => item.assetItemId === itemId)?.productName ?? null
+  }
+
+  return tangibleItems.find((item) => item.assetItemId === itemId)?.assetName ?? null
+}
+
+function getMockAssetName(
+  assetType: ReturnRequestCreate['assetType'],
+  assetId: number,
+): string | null {
+  const targetAssetId = String(assetId)
+
+  if (assetType === 'INTANGIBLE') {
+    return intangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+  }
+
+  return tangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+}
+
+function createMockTicket(
+  request: Request,
+  ticketType: TicketType,
+  requestReason: string,
+  assetItemName: string | null,
+): TicketCreateResponse {
+  const requester = getAuthenticatedMember(request)
+  const ticketId = Math.max(0, ...tickets.map((ticket) => ticket.ticketId)) + 1
+  const createdAt = new Date().toISOString()
+  const datePart = createdAt.slice(0, 10).replaceAll('-', '')
+  const requesterId = requester
+    ? Number(requester.memberNo.replace(/\D/g, '')) || ticketId
+    : ticketId
+
+  const ticket: TicketListItem = {
+    ticketId,
+    ticketNo: `TKT-${datePart}-${String(ticketId).padStart(3, '0')}`,
+    ticketType,
+    assetItemName,
+    status: 'REQUESTED',
+    requesterId,
+    requesterName: requester?.name ?? '요청자',
+    departmentId: requester?.departmentId === ASSET_TEAM_DEPARTMENT_ID ? 20 : 30,
+    departmentName: requester?.departmentName ?? '미지정',
+    createdAt,
+  }
+
+  tickets = [ticket, ...tickets]
+  ticketReasons.set(ticketId, requestReason)
+
+  return {
+    ticketId: ticket.ticketId,
+    ticketNo: ticket.ticketNo,
+    ticketType: ticket.ticketType,
+    status: ticket.status,
+    createdAt: ticket.createdAt,
+  }
+}
+
 export const handlers = [
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
@@ -622,6 +779,164 @@ export const handlers = [
 
     memberPasswords.set(empNo, body.newPassword)
     return HttpResponse.json(ok(null, '비밀번호가 성공적으로 변경되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/tickets`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 20)
+    const ticketType = url.searchParams.get('ticketType') as TicketType | null
+    const status = url.searchParams.get('status') as TicketStatus | null
+    const requesterId = Number(url.searchParams.get('requesterId') ?? 0)
+    const departmentId = Number(url.searchParams.get('departmentId') ?? 0)
+    const requester = getAuthenticatedMember(request)
+
+    let filteredTickets = requester
+      ? tickets.filter((ticket) => ticket.requesterName === requester.name)
+      : [...tickets]
+
+    if (ticketType) {
+      filteredTickets = filteredTickets.filter((ticket) => ticket.ticketType === ticketType)
+    }
+    if (status) {
+      filteredTickets = filteredTickets.filter((ticket) => ticket.status === status)
+    }
+    if (requesterId) {
+      filteredTickets = filteredTickets.filter((ticket) => ticket.requesterId === requesterId)
+    }
+    if (departmentId) {
+      filteredTickets = filteredTickets.filter((ticket) => ticket.departmentId === departmentId)
+    }
+
+    return HttpResponse.json(ok(pageOf(filteredTickets, page, size)))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params }) => {
+    const ticketId = Number(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const detail: TicketDetail = {
+      ...ticket,
+      approverId: null,
+      approverName: null,
+      assigneeId: null,
+      assigneeName: null,
+      requestReason: ticketReasons.get(ticketId) ?? null,
+      departmentApprovedAt: null,
+      departmentRejectedAt: null,
+      departmentRejectionReason: null,
+      purchaseApprovedAt: null,
+      purchaseRejectedAt: null,
+      purchaseRejectionReason: null,
+      completedAt: ticket.status === 'COMPLETED' ? ticket.createdAt : null,
+      cancelledAt: ticket.status === 'CANCELLED' ? ticket.createdAt : null,
+      updatedAt: ticket.createdAt,
+    }
+
+    return HttpResponse.json(ok(detail))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
+    const body = await request.json() as StandardAssetRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'ASSET_REQUEST',
+        body.requestReason,
+        getMockItemName(body.assetType, body.assetItemId),
+      ),
+      '표준 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/asset-requests/non-standard`, async ({ request }) => {
+    const body = await request.json() as NonStandardAssetRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemName),
+      '비표준 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/asset-requests/direct-purchase`, async ({ request }) => {
+    const body = await request.json() as DirectPurchaseRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemName),
+      '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/rentals`, async ({ request }) => {
+    const body = await request.json() as RentalRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'RENTAL',
+        body.requestReason,
+        getMockItemName('TANGIBLE', body.assetItemId),
+      ),
+      '대여 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/rental-extensions`, async ({ request }) => {
+    const body = await request.json() as RentalExtensionRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'RENTAL_EXTENSION',
+        body.requestReason,
+        getMockAssetName('TANGIBLE', body.assetId),
+      ),
+      '대여 연장 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/maintenance-requests`, async ({ request }) => {
+    const body = await request.json() as MaintenanceRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'MAINTENANCE',
+        body.maintenanceReason,
+        getMockAssetName('TANGIBLE', body.assetId),
+      ),
+      '유지보수 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/returns`, async ({ request }) => {
+    const body = await request.json() as ReturnRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'RETURN',
+        body.returnReason,
+        getMockAssetName(body.assetType, body.assetId),
+      ),
+      '자산 반납 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/purchase-returns`, async ({ request }) => {
+    const body = await request.json() as PurchaseReturnRequestCreate
+    return HttpResponse.json(ok(
+      createMockTicket(
+        request,
+        'PURCHASE_RETURN',
+        body.returnReason,
+        getMockAssetName(body.assetType, body.assetId),
+      ),
+      '반품 요청 티켓 등록에 성공했습니다.',
+    ))
   }),
 
   http.get(`${API_PREFIX}/members`, ({ request }) => {
@@ -924,6 +1239,7 @@ export const handlers = [
     const size = Number(url.searchParams.get('size') ?? 10)
     const categoryName = url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...tangibleItems]
 
@@ -938,6 +1254,15 @@ export const handlers = [
           item.manufacturer.toLowerCase().includes(keyword) ||
           item.modelName.toLowerCase().includes(keyword),
       )
+    }
+
+    if (assetUsageType) {
+      filteredItems = filteredItems.filter((item) => tangibleAssets.some((asset) => {
+        if (asset.assetItemId !== item.assetItemId) return false
+        const usageScope = asset.assetUsageType
+          ?? (asset.assignedMemberId ? 'PERSONAL' : 'DEPARTMENT')
+        return usageScope === assetUsageType
+      }))
     }
 
     const itemsWithCounts = filteredItems.map((item) => {
@@ -1083,12 +1408,13 @@ export const handlers = [
     return HttpResponse.json(ok(null, '유형자산 품목 일괄 업로드가 완료되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/assets/intangible/items`, ({ request }) => {
+  http.get(`${API_PREFIX}/intangible-asset/items`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
     const category = url.searchParams.get('category') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...intangibleItems]
 
@@ -1106,8 +1432,20 @@ export const handlers = [
       )
     }
 
+    if (assetUsageType) {
+      filteredItems = filteredItems.filter((item) => intangibleAssets.some((asset) => {
+        if (asset.assetItemId !== item.assetItemId) return false
+        const usageScope = asset.assignedMemberId ? 'PERSONAL' : 'DEPARTMENT'
+        return usageScope === assetUsageType
+      }))
+    }
+
     const itemsWithAssetCount = filteredItems.map((item) => ({
       assetItemId: item.assetItemId,
+      productName: item.productName,
+      category: item.category,
+      licenseType: item.licenseType,
+      isStandard: item.isStandard,
       itemNo: `SW-${item.assetItemId!.padStart(4, '0')}`,
       name: item.productName,
       vendor: item.vendor,
@@ -1124,6 +1462,10 @@ export const handlers = [
       totalElements: itemsWithAssetCount.length,
       totalPages: Math.ceil(itemsWithAssetCount.length / size),
     }))
+  }),
+
+  http.get(`${API_PREFIX}/intangible-asset/categories`, () => {
+    return HttpResponse.json(ok([...new Set(intangibleItems.map((item) => item.category))]))
   }),
 
   http.post(`${API_PREFIX}/assets/intangible/items`, async ({ request }) => {

@@ -71,13 +71,15 @@ const router = createRouter({
               path: '',
               name: 'TicketList',
               component: () => import('@/views/ticket/TicketListView.vue'),
-              meta: { title: '티켓 목록' },
+              meta: {
+                title: '나의 요청',
+              },
             },
             {
               path: 'create',
               name: 'TicketCreate',
-              component: () => import('@/views/ticket/TicketCreateView.vue'),
-              meta: { title: '티켓 생성' },
+              redirect: { name: 'TicketList', query: { create: '1' } },
+              meta: { title: '새 요청', roles: ['EMPLOYEE'] },
             },
             {
               path: ':ticketId',

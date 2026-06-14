@@ -41,6 +41,19 @@ export function usePermission() {
     hasRole('ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
+  // 나의 요청은 역할과 관계없이 모든 로그인 사용자가 조회할 수 있다.
+  const canViewMyTickets = computed(() => auth.isAuthenticated)
+
+  const canCreateTicket = computed(() => auth.isAuthenticated)
+
+  const canViewDepartmentTickets = computed(() =>
+    hasRole('ADMIN', 'DEPARTMENT_MANAGER')
+  )
+
+  const canViewAllTickets = computed(() =>
+    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
   // 구매 관련 기능 (구매자산팀)
   const canPurchase = computed(() =>
     hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
@@ -59,6 +72,10 @@ export function usePermission() {
     canEditOrganization,
     canManageAsset,
     canApproveTicket,
+    canViewMyTickets,
+    canCreateTicket,
+    canViewDepartmentTickets,
+    canViewAllTickets,
     canPurchase,
     canManageBudget,
   }
