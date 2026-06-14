@@ -148,8 +148,8 @@ import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
-import IntangibleAssetDetailView from './IntangibleAssetDetailView.vue'
-import IntangibleAssetRegister from './IntangibleAssetRegister.vue'
+import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
+import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
 
 interface CategoryGroup {
   categoryId?: string

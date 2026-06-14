@@ -277,8 +277,8 @@ import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 }
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
 
-import IntangibleItemCategory from './IntangibleItemCategory.vue'
-import IntangibleItemRegister from './IntangibleItemRegister.vue'
+import IntangibleItemCategory from '../../../components/item/intangible/IntangibleItemCategory.vue'
+import IntangibleItemRegister from '../../../components/item/intangible/IntangibleItemRegister.vue'
 import Input from '@/components/common/Input.vue'
 
 interface SoftwareTypeGroup {

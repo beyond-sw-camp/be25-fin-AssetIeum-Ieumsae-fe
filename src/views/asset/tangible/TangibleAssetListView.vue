@@ -168,8 +168,8 @@ import type {
 } from '@/types'
 
 import Input from '@/components/common/Input.vue';
-import TangibleAssetDetailView from './TangibleAssetDetailView.vue';
-import TangibleAssetRegister from './TangibleAssetRegister.vue';
+import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
+import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
 
 interface AssetItemOption {
   id: string

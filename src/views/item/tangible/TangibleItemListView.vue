@@ -245,8 +245,8 @@ import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'l
 import { tangibleItemApi } from '@/api/asset.api'
 import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
-import TangibleItemCategory from './TangibleItemCategory.vue';
-import TangibleItemRegister from './TangibleItemRegister.vue';
+import TangibleItemCategory from '../../../components/item/tangible/TangibleItemCategory.vue';
+import TangibleItemRegister from '../../../components/item/tangible/TangibleItemRegister.vue';
 import Input from '@/components/common/Input.vue';
 
 interface Asset {
