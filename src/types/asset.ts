@@ -275,6 +275,12 @@ export interface IntangibleItem {
   provider?: string
   isStandard: number | boolean
   assetCount?: number
+  stockCount?: number
+  availableCount?: number
+  intangibleAssetCount?: number
+  totalAssetCount?: number
+  assetTotalCount?: number
+  count?: number
 }
 
 export interface IntangibleAssetItemCreateRequest {

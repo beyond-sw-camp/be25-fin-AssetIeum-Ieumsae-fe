@@ -274,8 +274,8 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next'
-import { intangibleItemApi } from '@/api/asset.api'
-import type { IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
+import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
+import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
 
 import IntangibleItemCategory from './IntangibleItemCategory.vue'
 import IntangibleItemRegister from './IntangibleItemRegister.vue'
@@ -311,6 +311,12 @@ interface ItemEditForm {
 
 type IntangibleItemResponse = IntangibleItem & {
   intangibleAssetItemId?: string
+  intangibleItemId?: string
+  assetItemCount?: number
+  intangibleAssetCount?: number
+  totalAssetCount?: number
+  assetTotalCount?: number
+  count?: number
   intangibleAssetCategory?: {
     id?: string
     categoryId?: string
@@ -325,6 +331,14 @@ type IntangibleItemResponse = IntangibleItem & {
   childCategoryName?: string
   stockCount?: number
   availableCount?: number
+}
+
+type IntangibleAssetCountSource = IntangibleAsset & {
+  intangibleAssetId?: string
+  intangibleItemId?: string
+  intangibleAssetItemId?: string
+  productName?: string
+  itemName?: string
 }
 
 const createEmptyItemEditForm = (): ItemEditForm => ({
@@ -700,10 +714,18 @@ const loadServerData = async () => {
       params.keyword = searchParams.value.keyword.trim().toLowerCase()
     }
 
-    const response = await intangibleItemApi.getList(params)
+    const [response, assetCountMap] = await Promise.all([
+      intangibleItemApi.getList(params),
+      loadAssetCountMap(),
+    ])
     const pageData = response.data
+    console.log('무형자산 품목 목록 조회 성공', {
+      status: response.status,
+      content: pageData.content,
+      assetCountMap: Object.fromEntries(assetCountMap),
+    })
     listError.value = ''
-    serverAssetList.value = pageData.content.map((item) => toItemRow(item as IntangibleItemResponse))
+    serverAssetList.value = pageData.content.map((item) => toItemRow(item as IntangibleItemResponse, assetCountMap))
     totalElements.value = pageData.totalElements
     totalPages.value = pageData.totalPages
   } catch (error) {
@@ -712,6 +734,36 @@ const loadServerData = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const assetItemIdOf = (asset: IntangibleAssetCountSource) => (
+  asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId ?? ''
+)
+
+const assetItemNameOf = (asset: IntangibleAssetCountSource) => (
+  asset.assetItemName ?? asset.productName ?? asset.itemName ?? ''
+)
+
+const addAssetCount = (map: Map<string, number>, key: string | undefined | null) => {
+  if (!key) return
+  map.set(key, (map.get(key) ?? 0) + 1)
+}
+
+const loadAssetCountMap = async () => {
+  const map = new Map<string, number>()
+
+  try {
+    const response = await intangibleAssetApi.getList({ page: 0, size: 999 })
+    response.data.content.forEach((asset) => {
+      const source = asset as IntangibleAssetCountSource
+      addAssetCount(map, assetItemIdOf(source))
+      addAssetCount(map, assetItemNameOf(source))
+    })
+  } catch (error) {
+    console.warn('무형자산 목록 기반 자산 수 계산 실패', error)
+  }
+
+  return map
 }
 
 const categoryIdByName = (categoryName: string) => {
@@ -752,18 +804,44 @@ const categoryNameById = (categoryId?: string) => {
   return ''
 }
 
-const toItemRow = (item: IntangibleItemResponse): IntangibleItem => {
+const numberValue = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value)
+  }
+
+  return 0
+}
+
+const toItemRow = (item: IntangibleItemResponse, assetCountMap = new Map<string, number>()): IntangibleItem => {
   const categoryId = item.categoryId
     ?? item.intangibleAssetCategoryId
     ?? item.intangibleAssetCategory?.categoryId
     ?? item.intangibleAssetCategory?.intangibleAssetCategoryId
     ?? item.intangibleAssetCategory?.id
 
+  const assetItemId = item.assetItemId ?? item.intangibleAssetItemId ?? item.intangibleItemId ?? item.itemId ?? item.id
+  const productName = item.productName ?? item.name ?? ''
+  const responseAssetCount = numberValue(
+    item.assetCount,
+    item.stockCount,
+    item.assetItemCount,
+    item.intangibleAssetCount,
+    item.totalAssetCount,
+    item.assetTotalCount,
+    item.count,
+  )
+  const calculatedAssetCount = Math.max(
+    assetCountMap.get(assetItemId ?? '') ?? 0,
+    assetCountMap.get(productName) ?? 0,
+  )
+  const assetCount = calculatedAssetCount > 0 ? calculatedAssetCount : responseAssetCount
+
   return {
     ...item,
-    assetItemId: item.assetItemId ?? item.intangibleAssetItemId ?? item.itemId ?? item.id,
+    assetItemId,
     categoryId,
-    productName: item.productName ?? '',
+    productName,
     category: item.category
       ?? item.categoryName
       ?? item.childCategoryName
@@ -778,7 +856,9 @@ const toItemRow = (item: IntangibleItemResponse): IntangibleItem => {
     vendor: item.provider ?? item.vendor ?? '',
     provider: item.provider ?? item.vendor ?? '',
     isStandard: item.isStandard ?? true,
-    assetCount: item.assetCount ?? item.stockCount ?? 0,
+    assetCount,
+    stockCount: assetCount,
+    availableCount: numberValue(item.availableCount),
   }
 }
 

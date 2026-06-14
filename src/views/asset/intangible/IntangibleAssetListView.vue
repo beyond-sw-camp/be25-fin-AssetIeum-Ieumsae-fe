@@ -66,7 +66,7 @@
           <Input
             id="keyword"
             v-model="searchParams.keyword"
-            placeholder="자산코드, 시리얼번호, 품목명으로 검색"
+            placeholder="제품명, 자산코드로 검색"
             autocomplete="off"
             @keyup.enter="handleSearch"
           />
