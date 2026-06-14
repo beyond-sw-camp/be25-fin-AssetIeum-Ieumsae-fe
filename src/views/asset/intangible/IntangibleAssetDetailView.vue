@@ -166,7 +166,7 @@ const createEmptyAssetEditForm = (): AssetEditForm => ({
   isAutoRenewal: '',
   billingCycle: '',
   departmentName: '',
-  memberName: '사용자 선택',
+  memberName: '',
   startedAt: '',
   expiredAt: '',
   purchaseDate: '',
@@ -232,20 +232,20 @@ const toAssetEditForm = (asset: IntangibleAsset): AssetEditForm => {
   const displayMemberName = asset.assignedMemberName ?? ''
 
   return {
-    assetItemName: asset.assetItemName ?? '',
-    assetCode: asset.assetCode ?? '',
+    assetItemName: asset.assetItemName ?? '-',
+    assetCode: asset.assetCode ?? '-',
     statusLabel: statusLabel(asset.status ?? asset.intangibleAssetStatus),
-    licenseCode: asset.licenseCode ?? asset.licenseKey ?? '',
-    seatCount: asset.seatCount !== undefined ? String(asset.seatCount) : '',
+    licenseCode: asset.licenseCode ?? asset.licenseKey ?? '-',
+    seatCount: asset.seatCount !== undefined ? String(asset.seatCount) : '-',
     isAutoRenewal: asset.isAutoRenewal === undefined ? '' : asset.isAutoRenewal ? '자동 갱신' : '자동 갱신 안 함',
-    billingCycle: billingCycleLabel(asset.billingCycle),
-    departmentName: asset.departmentName ?? '',
-    memberName: displayMemberName || '사용자 선택',
+    billingCycle: billingCycleLabel(asset.billingCycle) || '-',
+    departmentName: asset.departmentName ?? '-',
+    memberName: displayMemberName || '-',
     startedAt: toDateTimeInputValue(asset.startedAt),
     expiredAt: toDateTimeInputValue(asset.expiredAt),
     purchaseDate: toDateTimeInputValue(asset.purchaseDate),
-    purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '',
-    purchaseVendor: asset.purchaseVendor ?? asset.vendor ?? '',
+    purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '-',
+    purchaseVendor: asset.purchaseVendor ?? asset.vendor ?? '-',
   }
 }
 

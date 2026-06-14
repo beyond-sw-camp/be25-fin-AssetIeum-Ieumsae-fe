@@ -312,6 +312,7 @@ interface ItemEditForm {
 type IntangibleItemResponse = IntangibleItem & {
   intangibleAssetItemId?: string
   intangibleItemId?: string
+  name?: string
   assetItemCount?: number
   intangibleAssetCount?: number
   totalAssetCount?: number

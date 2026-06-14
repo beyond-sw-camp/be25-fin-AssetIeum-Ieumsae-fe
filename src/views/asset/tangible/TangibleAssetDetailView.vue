@@ -31,16 +31,8 @@
           <Input id="edit-location" v-model="assetEditForm.location" label="위치" placeholder="위치 입력" required />
           <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :required="requiresAssignmentInfo" />
           <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="datetime-local" label="반납 예정 일시" />
-          <FormField class="" label="부서" :required="requiresAssignmentInfo">
-            <DepartmentTreeSelect
-              v-model="assetEditForm.departmentId"
-              :departments="departments"
-              placeholder="부서 선택"
-            />
-          </FormField>
-          <FormField label="사용자" :required="requiresAssignmentInfo">
-            <Dropdown v-model="assetEditForm.memberName" :options="memberOptions" root-option="사용자 선택" />
-          </FormField>
+          <Input id="edit-department" v-model="assetEditForm.departmentName" label="부서" disabled />
+          <Input id="edit-member" v-model="assetEditForm.memberName" label="사용자" disabled />
         </div>
       </section>
 
@@ -84,7 +76,6 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
-import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
@@ -317,14 +308,6 @@ const memberBelongsToSelectedDepartment = (member: Member) => {
     || memberDepartmentPathContainsSelectedDepartment(member)
 }
 
-const filteredMembers = computed(() => (
-  props.members.filter(memberBelongsToSelectedDepartment)
-))
-
-const memberOptions = computed(() => (
-  filteredMembers.value.map(getMemberLabel)
-))
-
 const selectedMember = computed(() => (
   props.members.find((member) =>
     getMemberLabel(member) === assetEditForm.value.memberName ||
@@ -407,10 +390,10 @@ const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
     startedAt: toDateTimeInputValue(asset.startedAt ?? asset.usedStartedAt),
     returnDueDate: toDateTimeInputValue(asset.returnDueDate),
     departmentId: assignedDepartment?.departmentId ?? asset.departmentId ?? null,
-    departmentName: assignedDepartment?.name ?? asset.departmentName ?? '부서 선택',
+    departmentName: assignedDepartment?.name ?? asset.departmentName ?? '-',
     memberName: displayMemberName
       ? `${displayMemberName}${assignedMember ? `(${getMemberNo(assignedMember)})` : ''}`
-      : '사용자 선택',
+      : '-',
     purchaseDate: toDateTimeInputValue(asset.purchaseDate),
     purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '',
     vendor: asset.vendor ?? asset.purchaseVendor ?? '',
