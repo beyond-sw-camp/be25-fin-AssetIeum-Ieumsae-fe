@@ -66,7 +66,7 @@ const options: Array<{
   {
     value: 'MAINTENANCE',
     label: '자산 서비스 요청',
-    description: '사용 중인 자산의 수리 또는 점검을 요청합니다.',
+    description: '자산의 수리 또는 자산의 반품을 요청합니다.',
     icon: Wrench,
   },
   {

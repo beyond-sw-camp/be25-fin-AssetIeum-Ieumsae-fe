@@ -11,6 +11,16 @@
     />
 
     <div v-else-if="isAssetSelectionStep" class="space-y-5">
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 text-sm font-semibold text-text-sub hover:text-primary"
+        :disabled="isSubmitting"
+        @click="closeAssetSelection"
+      >
+        <ChevronLeft :size="16" />
+        요청 작성으로 돌아가기
+      </button>
+
       <section class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           공용자산 여부 <span class="text-primary">*</span>
@@ -144,6 +154,28 @@
         <ChevronLeft :size="16" />
         요청 유형 다시 선택
       </button>
+
+      <section v-if="selectedKind === 'MAINTENANCE'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          서비스 유형 <span class="text-primary">*</span>
+        </p>
+        <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
+          <button
+            v-for="option in assetServiceTypeOptions"
+            :key="option.value"
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              form.assetServiceType === option.value
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="handleAssetServiceTypeChange(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </section>
 
       <section v-if="showsPurchaseRequestAssetType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
@@ -364,29 +396,41 @@
       />
 
       <div
-        v-if="showsQuantityAndPrice"
-        class="grid grid-cols-8 gap-3"
+        v-if="showsPurchaseQuantityAndPrice"
+        class="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         <Input
           id="ticket-quantity"
           v-model="form.quantity"
           type="number"
+          :min="1"
+          label="수량"
+          required
+          placeholder="1"
+          :disabled="isSubmitting"
+        />
+        <CurrencyInput
+          id="ticket-expected-price"
+          v-model="form.expectedPrice"
+          label="예상 금액"
+          required
+          placeholder="0"
+          :disabled="isSubmitting"
+        />
+      </div>
+
+      <div v-else-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="grid grid-cols-8 gap-3">
+        <Input
+          id="ticket-quantity"
+          v-model="form.quantity"
+          type="number"
+          :min="1"
           label="수량"
           required
           placeholder="1"
           :disabled="isSubmitting"
         />
       </div>
-
-      <CurrencyInput
-        v-else-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'"
-        id="ticket-expected-price"
-        v-model="form.expectedPrice"
-        label="예상 금액"
-        required
-        placeholder="0"
-        :disabled="isSubmitting"
-      />
 
       <div v-if="selectedKind === 'RENTAL'" class="grid grid-cols-2 gap-3">
         <Input
@@ -538,6 +582,10 @@ const assetScopeOptions = [
   { label: '공용 자산', value: 'DEPARTMENT' as const },
   { label: '개인 자산', value: 'PERSONAL' as const },
 ]
+const assetServiceTypeOptions = [
+  { label: '수리', value: 'REPAIR' as const },
+  { label: '반품', value: 'RETURN' as const },
+]
 
 const selectedKind = ref<TicketRequestKind | ''>('')
 const isAssetSelectionStep = ref(false)
@@ -557,6 +605,7 @@ const ownedAssetOptions = ref<SelectableAsset[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
+  assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
   assetUsageType: '' as '' | 'DEPARTMENT' | 'PERSONAL',
   category: '',
   selectedAssetId: '',
@@ -593,7 +642,7 @@ const drawerTitle = computed(() => (
     ? '자산 선택 팝업'
     : selectedKind.value
       ? requestTitleMap[selectedKind.value]
-      : '새 요청'
+      : '새 티켓 요청'
 ))
 
 const showsAssetType = computed(() => (
@@ -631,8 +680,8 @@ const showsAssetSearch = computed(() => (
   || selectedKind.value === 'RENTAL'
 ))
 
-const showsQuantityAndPrice = computed(() => (
-  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+const showsPurchaseQuantityAndPrice = computed(() => (
+  selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'DIRECT_PURCHASE'
 ))
 
@@ -640,6 +689,9 @@ const assetSelectionLabel = computed(() => {
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '표준 자산 선택'
   if (selectedKind.value === 'RENTAL') return '대여할 품목 선택'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장할 대여 자산 선택'
+  if (selectedKind.value === 'MAINTENANCE') {
+    return form.assetServiceType === 'RETURN' ? '반품할 자산 선택' : '수리할 자산 선택'
+  }
   return '대상 자산 선택'
 })
 
@@ -712,7 +764,9 @@ const filteredAssetOptions = computed(() => {
 })
 
 const reasonLabel = computed(() => {
-  if (selectedKind.value === 'MAINTENANCE') return '요청 상세 내용 및 증상'
+  if (selectedKind.value === 'MAINTENANCE') {
+    return form.assetServiceType === 'RETURN' ? '반품 사유' : '요청 상세 내용 및 증상'
+  }
   if (selectedKind.value === 'RENTAL') return '대여 목적'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장 요청 이유'
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
@@ -722,7 +776,11 @@ const reasonLabel = computed(() => {
 })
 
 const reasonPlaceholder = computed(() => {
-  if (selectedKind.value === 'MAINTENANCE') return '고장 증상이나 수리 요청 사항을 상세히 입력해주세요.'
+  if (selectedKind.value === 'MAINTENANCE') {
+    return form.assetServiceType === 'RETURN'
+      ? '반품 사유를 상세히 입력해주세요.'
+      : '고장 증상이나 수리 요청 사항을 상세히 입력해주세요.'
+  }
   if (selectedKind.value === 'RENTAL') return '대여 목적을 상세히 기술해주세요.'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장이 필요한 이유를 상세히 기술해주세요.'
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
@@ -762,6 +820,7 @@ const isFormValid = computed(() => {
       && form.modelName.trim()
       && form.vendor.trim()
       && form.externalUrl.trim()
+      && positiveNumber(form.quantity)
       && positiveNumber(form.expectedPrice),
     )
   }
@@ -979,6 +1038,7 @@ function resetForm() {
   })
   Object.assign(form, {
     assetType: 'TANGIBLE',
+    assetServiceType: 'REPAIR',
     assetUsageType: '',
     category: '',
     selectedAssetId: '',
@@ -1002,6 +1062,7 @@ function resetSelection() {
 function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
   form.assetType = 'TANGIBLE'
+  form.assetServiceType = 'REPAIR'
   form.assetUsageType = ''
   form.category = ''
   form.selectedAssetId = ''
@@ -1064,6 +1125,12 @@ function handleAssetTypeChange(assetType: AssetType) {
   form.selectedAssetId = ''
 }
 
+function handleAssetServiceTypeChange(assetServiceType: 'REPAIR' | 'RETURN') {
+  form.assetServiceType = assetServiceType
+  form.selectedAssetId = ''
+  form.reason = ''
+}
+
 function handleClose() {
   if (isSubmitting.value) return
   emit('close')
@@ -1098,7 +1165,7 @@ async function handleSubmit() {
         })
         break
       case 'NON_STANDARD_ASSET_REQUEST':
-        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부와 자산 분류 요청 필드가 명세에 없음
+        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부, 자산 분류, 수량 요청 필드가 명세에 없음
         response = await ticketCreateApi.createNonStandardRequest({
           assetType: form.assetType,
           requestedItemName: form.requestedItemName.trim(),
@@ -1135,10 +1202,17 @@ async function handleSubmit() {
         })
         break
       case 'MAINTENANCE':
-        response = await ticketCreateApi.createMaintenanceRequest({
-          assetId: selectedNumericId(),
-          maintenanceReason: requestReason,
-        })
+        response = form.assetServiceType === 'RETURN'
+          ? await ticketCreateApi.createPurchaseReturnRequest({
+            assetType: 'TANGIBLE',
+            assetId: selectedNumericId(),
+            type: 'EMPLOYEE',
+            returnReason: requestReason,
+          })
+          : await ticketCreateApi.createMaintenanceRequest({
+            assetId: selectedNumericId(),
+            maintenanceReason: requestReason,
+          })
         break
       case 'RETURN':
         response = await ticketCreateApi.createReturnRequest({

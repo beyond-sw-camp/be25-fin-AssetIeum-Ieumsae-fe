@@ -525,7 +525,7 @@ let intangibleItems: IntangibleItem[] = [
   { assetItemId: '31', productName: 'Grammarly Business', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Grammarly', isStandard: 1 },
 ]
 
-// 유형자산 실물 데이터 (35개) - 모든 ID 필드를 string으로 정렬
+// 유형자산 실물 데이터 (36개) - 모든 ID 필드를 string으로 정렬
 let tangibleAssets: TangibleAsset[] = [
   { assetId: '1', assetCode: 'NBC-0001', serialNo: 'NB-C-01', assetItemId: '31', assetItemName: 'ABC 노트북 커버', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: '2025-01-25', returnDueDate: null, createdAt: '2025-01-20T09:00:00' },
   { assetId: '2', assetCode: 'TNG-0002', serialNo: 'SN-TNG-M3-02', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: null, returnDueDate: null, createdAt: '2025-01-20T09:10:00' },
@@ -562,6 +562,7 @@ let tangibleAssets: TangibleAsset[] = [
   { assetId: '33', assetCode: 'TNG-0033', serialNo: 'SN-TNG-BRIO-01', assetItemId: '24', assetItemName: 'Logitech Brio 500 웹캠', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-07-09', warrantyExpiredAt: '2027-07-09', startedAt: null, returnDueDate: null, createdAt: '2025-07-09T09:15:00' },
   { assetId: '34', assetCode: 'TNG-0034', serialNo: 'SN-TNG-CAN-01', assetItemId: '28', assetItemName: 'Canon imageCLASS 복합기', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2024-05-14', warrantyExpiredAt: '2026-05-14', startedAt: null, returnDueDate: null, createdAt: '2024-05-14T11:45:00' },
   { assetId: '35', assetCode: 'TNG-0035', serialNo: 'SN-TNG-ZFL-01', assetItemId: '30', assetItemName: 'Samsung Galaxy Z Fold 5', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2024-01-15', warrantyExpiredAt: '2026-01-15', startedAt: null, returnDueDate: null, createdAt: '2024-01-15T16:00:00' },
+  { assetId: '36', assetCode: 'TNG-0036', serialNo: 'SN-TNG-RENT-02', assetItemId: '17', assetItemName: 'Dell XPS 15 9530', status: 'IN_USE', usageType: 'TEMPORARY', assignedMemberId: '5', assignedMemberName: '정사원', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', purchaseDate: '2026-05-20', warrantyExpiredAt: '2028-05-20', startedAt: '2026-06-01', returnDueDate: '2026-06-30', createdAt: '2026-05-20T10:00:00' },
 ]
 
 // 무형자산 실물 데이터 (35개) - 모든 ID 필드를 string으로 정렬
@@ -1903,5 +1904,16 @@ export const handlers = [
 
     departments = departments.filter((item) => item.departmentId !== departmentId)
     return HttpResponse.json(ok(null, '부서가 성공적으로 삭제되었습니다.'))
+  }),
+
+  http.all(`${API_PREFIX}/*`, ({ request }) => {
+    const url = new URL(request.url)
+
+    return HttpResponse.json({
+      status: 501,
+      errorCode: 'MOCK_HANDLER_NOT_IMPLEMENTED',
+      message: `등록되지 않은 Mock API입니다: ${request.method} ${url.pathname}`,
+      data: null,
+    }, { status: 501 })
   }),
 ]
