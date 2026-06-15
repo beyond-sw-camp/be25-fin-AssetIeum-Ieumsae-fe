@@ -39,7 +39,13 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
-const { canManageCompany, canManageDepartment, canManageAsset, canPurchase } = usePermission()
+const {
+  canManageCompany,
+  canManageDepartment,
+  canManageAsset,
+  canPurchase,
+  canViewMyTickets,
+} = usePermission()
 
 const navItems = computed(() => {
   const menuConfig = [
@@ -64,7 +70,15 @@ const navItems = computed(() => {
         { name: 'intangible-list', to: '/assets/intangible', label: '무형자산 관리', show: true },
       ],
     },
-    { name: 'tickets', to: '/tickets', label: '서비스 데스크', icon: Ticket, show: true },
+    {
+      name: 'serviceDesk',
+      label: '서비스 데스크',
+      icon: Ticket,
+      show: canViewMyTickets.value,
+      children: [
+        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
+      ],
+    },
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },

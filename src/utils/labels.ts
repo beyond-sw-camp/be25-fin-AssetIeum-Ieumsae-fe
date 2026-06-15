@@ -37,20 +37,16 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   ASSET_TEAM_REJECTED: '구매자산팀 반려',
   PROCESSING: '처리 중',
   COMPLETED: '처리 완료',
-  CANCELLED: '취소',
+  CANCELLED: '요청 취소',
 }
 
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
-  ASSET_REQUEST: '표준 자산 요청',
-  NON_STANDARD_REQUEST: '비표준 자산 요청',
-  DIRECT_PURCHASE: '직접 구매 요청',
-  RENTAL_REQUEST: '대여 요청',
+  ASSET_REQUEST: '자산 요청',
+  RENTAL: '대여 요청',
   RENTAL_EXTENSION: '대여 연장',
-  MAINTENANCE_REQUEST: '유지보수 요청',
-  RETURN_REQUEST: '반납 요청',
-  TERMINATION_REQUEST: '해지 요청',
-  PURCHASE_REQUEST: '구매 요청',
-  RETURN_PRODUCT_REQUEST: '반품 요청',
+  MAINTENANCE: '유지보수 요청',
+  RETURN: '반납·해지 요청',
+  PURCHASE_RETURN: '반품 요청',
 }
 
 export const ROLE_LABEL: Record<Role, string> = {

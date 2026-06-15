@@ -138,6 +138,7 @@ export const tangibleItemApi = {
     categoryId?: string
     categoryName?: string
     keyword?: string
+    assetUsageType?: 'DEPARTMENT' | 'PERSONAL'
   }) =>
     api.get<PageResponse<TangibleAssetItem>>('/tangible-asset/items', compactParams(params)),
 
