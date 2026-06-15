@@ -10,8 +10,9 @@
         </h1>
       </div>
 
+      <!-- TODO: 자산 등록 시 부서, 사용자 에러 고치기 -->
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="openRegisterDrawer">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
@@ -170,6 +171,8 @@ import type {
 import Input from '@/components/common/Input.vue';
 import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
 import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
+import { usePermission } from '@/composables/usePermission.ts';
+import { useAuthStore } from '@/stores/auth.store'
 
 interface AssetItemOption {
   id: string
@@ -194,6 +197,36 @@ const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
 const isReferenceDataLoaded = ref(false)
 const referenceDataPromise = ref<Promise<void> | null>(null)
+const { canRegisterAsset, role } = usePermission()
+const auth = useAuthStore()
+
+const currentMemberId = computed(() => {
+  const user = auth.user as {
+    memberId?: string
+    id?: string
+    member_id?: string
+    employeeId?: string
+    employee_id?: string
+  } | null
+
+  return user?.memberId
+    ?? user?.id
+    ?? user?.member_id
+    ?? user?.employeeId
+    ?? user?.employee_id
+    ?? null
+})
+
+const currentDepartmentId = computed(() => {
+  const user = auth.user as {
+    departmentId?: string
+    department_id?: string
+  } | null
+
+  return user?.departmentId
+    ?? user?.department_id
+    ?? null
+})
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
@@ -628,10 +661,25 @@ const loadServerData = async () => {
 
   try {
     const selectedCategoryId = getSelectedCategoryId()
-    const params: { page: number; size: number; categoryId?: string; keyword?: string } = {
+    const params: {
+      page: number
+      size: number
+      categoryId?: string
+      keyword?: string
+      currentUserId?: string
+      departmentId?: string
+    } = {
       page: searchParams.value.page,
       size: searchParams.value.size,
-    };
+    }
+
+    if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+      params.currentUserId = currentMemberId.value
+    }
+
+    if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+      params.departmentId = currentDepartmentId.value
+    }
 
     if (selectedCategoryId) {
       params.categoryId = selectedCategoryId;

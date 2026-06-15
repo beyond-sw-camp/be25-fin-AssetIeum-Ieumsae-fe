@@ -219,12 +219,13 @@ export const intangibleItemApi = {
   update: (itemId: string, body: IntangibleAssetItemUpdateRequest) =>
     api.patch<IntangibleItem>(`/intangible-asset/items/${itemId}`, toIntangibleItemBody(body)),
 
+  // TODO: 무형자산 품목 일괄 등록
   /** 무형자산 품목 일괄 등록 (CSV/Excel) */
-  bulkCreate: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.upload('/assets/intangible/items/bulk', formData)
-  },
+  // bulkCreate: (file: File) => {
+  //   const formData = new FormData()
+  //   formData.append('file', file)
+  //   return api.upload('/assets/intangible/items/bulk', formData)
+  // },
 
   /** 무형자산 품목 삭제 */
   delete: (itemId: string) =>
@@ -254,10 +255,11 @@ export const intangibleAssetApi = {
   terminate: (assetId: string) =>
     api.patch(`/intangible-asset/assets/${assetId}/terminate`),
 
-  /** 무형자산 일괄 등록 (CSV/Excel) */
-  bulkCreate: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.upload('/intangible-asset/assets/bulk', formData)
-  },
+  // TODO: 무형자산 일괄 등록 
+  // /** 무형자산 일괄 등록 (CSV/Excel) */
+  // bulkCreate: (file: File) => {
+  //   const formData = new FormData()
+  //   formData.append('file', file)
+  //   return api.upload('/intangible-asset/assets/bulk', formData)
+  // },
 }

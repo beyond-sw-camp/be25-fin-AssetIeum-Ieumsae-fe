@@ -23,10 +23,10 @@ export function usePermission() {
   const canManageCompany = computed(() => hasRole('ADMIN'))
 
   // 사원 등록, 부서 변경, 퇴사 처리 권한
-  const canManageMembers = computed(() => hasRole('ADMIN'))
+  const canManageMembers = computed(() => hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'))
 
   // 조직도 조회 가능 여부
-  const canManageDepartment = computed(() => hasRole('ADMIN'))
+  const canManageDepartment = computed(() => hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'))
 
   // 조직도 부서 생성/수정/삭제 가능 여부
   const canEditOrganization = computed(() => hasRole('ADMIN'))
@@ -49,6 +49,16 @@ export function usePermission() {
   // 예산 관리 (최고관리자)
   const canManageBudget = computed(() => hasRole('ADMIN'))
 
+  // 자산 등록 (구매자산팀)
+  const canRegisterAsset = computed(() =>
+    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
+  // 자산 등록 (구매자산팀)
+  const canUpdateAsset = computed(() =>
+    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
   return {
     role,
     hasRole,
@@ -61,5 +71,7 @@ export function usePermission() {
     canApproveTicket,
     canPurchase,
     canManageBudget,
+    canRegisterAsset,
+    canUpdateAsset,
   }
 }
