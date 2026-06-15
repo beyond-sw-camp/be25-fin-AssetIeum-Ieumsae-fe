@@ -16,8 +16,8 @@ import type {
   TicketRejectRequest,
   AssetAssignRequest,
   TicketComment,
-  TicketCommentDeleteResponse,
   TicketStatus,
+  TicketCommentDeleteResponse,
   PageResponse,
 } from '@/types'
 

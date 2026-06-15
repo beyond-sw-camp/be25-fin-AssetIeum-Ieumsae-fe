@@ -1,158 +1,170 @@
 <template>
-  <div class="h-full overflow-y-auto bg-background text-text-main">
-    <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
-      <button
-        type="button"
-        class="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-text-sub transition hover:text-primary"
-        @click="router.push({ name: 'TicketList' })"
-      >
-        <ArrowLeft :size="16" />
-        목록으로 돌아가기
-      </button>
-
-      <div v-if="isLoading" class="space-y-4">
-        <div class="h-12 animate-pulse rounded-xl bg-surface-secondary" />
-        <div class="h-44 animate-pulse rounded-2xl bg-surface-secondary" />
-        <div class="h-48 animate-pulse rounded-2xl bg-surface-secondary" />
-        <div class="grid gap-4 lg:grid-cols-2">
-          <div class="h-80 animate-pulse rounded-2xl bg-surface-secondary" />
-          <div class="h-80 animate-pulse rounded-2xl bg-surface-secondary" />
+  <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
+    <div class="min-h-0 flex-1 overflow-y-auto pb-14">
+      <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+        <div class="mb-3 flex items-center">
+          <button
+            type="button"
+            class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-sub transition hover:border-primary/40 hover:text-primary"
+            aria-label="나의 요청 목록으로 돌아가기"
+            @click="router.push({ name: 'TicketList' })"
+          >
+            <ArrowLeft :size="14" />
+          </button>
+          <p class="page-subtitle">서비스데스크 > 나의 요청 > 상세 내용</p>
         </div>
-      </div>
 
-      <div
-        v-else-if="errorMessage"
-        class="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-danger/20 bg-surface p-8"
-      >
-        <CircleAlert :size="36" class="text-danger" />
-        <div class="text-center">
-          <p class="font-bold text-text-main">티켓 정보를 불러오지 못했습니다.</p>
-          <p class="mt-1 text-sm text-text-sub">{{ errorMessage }}</p>
+        <div v-if="isLoading" class="space-y-4">
+          <div class="h-12 animate-pulse rounded-xl bg-surface-secondary" />
+          <div class="h-44 animate-pulse rounded-2xl bg-surface-secondary" />
+          <div class="h-48 animate-pulse rounded-2xl bg-surface-secondary" />
+          <div class="grid gap-4 lg:grid-cols-2">
+            <div class="h-80 animate-pulse rounded-2xl bg-surface-secondary" />
+            <div class="h-80 animate-pulse rounded-2xl bg-surface-secondary" />
+          </div>
         </div>
-        <Button variant="outline" @click="loadTicketDetail">
-          <RefreshCw :size="16" />
-          다시 시도
-        </Button>
-      </div>
 
-      <template v-else-if="ticket">
-        <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-xl font-semibold text-text-muted">#{{ ticket.ticketNo }}</span>
-              <span class="text-text-muted">|</span>
-              <h1 class="text-2xl font-bold text-text-main">
-                {{ ticket.requestReason || '요청 사유가 등록되지 않았습니다.' }}
-              </h1>
-            </div>
+        <div
+          v-else-if="errorMessage"
+          class="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-danger/20 bg-surface p-8"
+        >
+          <CircleAlert :size="36" class="text-danger" />
+          <div class="text-center">
+            <p class="font-bold text-text-main">티켓 정보를 불러오지 못했습니다.</p>
+            <p class="mt-1 text-sm text-text-sub">{{ errorMessage }}</p>
           </div>
-          <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <TicketStatusBadge :status="ticket.status" />
-          </div>
-        </header>
+          <Button variant="outline" @click="loadTicketDetail">
+            <RefreshCw :size="16" />
+            다시 시도
+          </Button>
+        </div>
 
-        <div class="space-y-4">
-          <div class="grid items-stretch gap-4 lg:grid-cols-2">
-            <TicketDetailCard title="티켓 상세 내역" class="h-full">
-              <template #icon>
-                <TicketCheck :size="18" class="text-primary" />
-              </template>
-
-              <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-                <div
-                  v-for="item in ticketInfoItems"
-                  :key="item.label"
-                  class="border-b border-border pb-3"
-                >
-                  <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                  <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
-                </div>
-              </dl>
-            </TicketDetailCard>
-
-            <TicketDetailCard title="처리 및 상세 정보" class="h-full">
-              <template #icon>
-                <ClipboardCheck :size="18" class="text-primary" />
-              </template>
-
-              <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-                <div
-                  v-for="item in processingInfoItems"
-                  :key="item.label"
-                  class="border-b border-border pb-3"
-                >
-                  <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                  <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
-                </div>
-              </dl>
-            </TicketDetailCard>
-          </div>
-
-          <TicketDetailCard title="요청 상세 내역" padding="none">
-            <template #icon>
-              <ClipboardList :size="18" class="text-primary" />
-            </template>
-
-            <TicketRequestDetailTable
-              :columns="requestDetailColumns"
-              :rows="requestDetailRows"
-            />
-
-            <div
-              v-if="requestDetailReason"
-              class="border-t border-border bg-surface-secondary/40 px-5 py-4"
-            >
-              <p class="text-xs font-semibold text-text-muted">{{ requestDetailReason.label }}</p>
-              <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-main">
-                {{ requestDetailReason.value }}
-              </p>
-            </div>
-
-            <dl v-if="rejectionReason" class="border-t border-border p-4">
-              <div
-                class="rounded-xl border border-danger/20 bg-danger/5 p-4"
-              >
-                <dt class="text-xs font-semibold text-danger">반려 사유</dt>
-                <dd class="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-main">
-                  {{ rejectionReason }}
-                </dd>
+        <template v-else-if="ticket">
+          <header class="mb-4">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xl font-semibold text-text-muted">#{{ ticket.ticketNo }}</span>
+                <span class="text-text-muted">|</span>
+                <h1 class="text-2xl font-bold text-text-main">
+                  {{ ticket.requestReason || '요청 사유가 등록되지 않았습니다.' }}
+                </h1>
               </div>
-            </dl>
-          </TicketDetailCard>
+            </div>
+          </header>
 
-          <div class="grid items-stretch gap-4 lg:grid-cols-2">
-            <TicketProgressHistory :ticket="ticket" />
-            <TicketCommunication
-              :comments="comments"
-              :loading="isCommentsLoading"
-              :submitting="isCommentSubmitting"
-              :error-message="commentsErrorMessage"
-              :submit-error-message="commentSubmitErrorMessage"
-              :action-error-message="commentActionErrorMessage"
-              :current-member-id="authStore.user?.memberId"
-              :submit-version="commentSubmitVersion"
-              :action-version="commentActionVersion"
-              :updating-comment-id="updatingCommentId"
-              :deleting-comment-id="deletingCommentId"
-              @retry="loadComments"
-              @submit="handleCommentSubmit"
-              @update="handleCommentUpdate"
-              @delete="commentToDelete = $event"
-            />
+          <div class="space-y-4">
+            <div class="grid items-stretch gap-4 lg:grid-cols-2">
+              <TicketDetailCard title="티켓 상세 내역" class="h-full">
+                <template #icon>
+                  <TicketCheck :size="18" class="text-primary" />
+                </template>
+
+                <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    v-for="item in ticketInfoItems"
+                    :key="item.label"
+                    class="border-b border-border pb-3"
+                  >
+                    <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                    <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </TicketDetailCard>
+
+              <TicketDetailCard title="처리 및 상세 정보" class="h-full">
+                <template #icon>
+                  <ClipboardCheck :size="18" class="text-primary" />
+                </template>
+
+                <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    v-for="item in processingInfoItems"
+                    :key="item.label"
+                    class="border-b border-border pb-3"
+                  >
+                    <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                    <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </TicketDetailCard>
+            </div>
+
+            <TicketDetailCard title="요청 상세 내역" padding="none">
+              <template #icon>
+                <ClipboardList :size="18" class="text-primary" />
+              </template>
+
+              <TicketRequestDetailTable
+                :columns="requestDetailColumns"
+                :rows="requestDetailRows"
+              />
+
+              <div
+                v-if="requestDetailReason"
+                class="border-t border-border bg-surface-secondary/40 px-5 py-4"
+              >
+                <p class="text-xs font-semibold text-text-muted">{{ requestDetailReason.label }}</p>
+                <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-main">
+                  {{ requestDetailReason.value }}
+                </p>
+              </div>
+
+              <dl v-if="rejectionReason" class="border-t border-border p-4">
+                <div
+                  class="rounded-xl border border-danger/20 bg-danger/5 p-4"
+                >
+                  <dt class="text-xs font-semibold text-danger">반려 사유</dt>
+                  <dd class="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-main">
+                    {{ rejectionReason }}
+                  </dd>
+                </div>
+              </dl>
+            </TicketDetailCard>
+
+            <div class="grid items-stretch gap-4 lg:grid-cols-2">
+              <TicketProgressHistory :ticket="ticket" />
+              <TicketCommunication
+                :comments="comments"
+                :loading="isCommentsLoading"
+                :submitting="isCommentSubmitting"
+                :error-message="commentsErrorMessage"
+                :submit-error-message="commentSubmitErrorMessage"
+                :current-member-id="authStore.user?.memberId"
+                :submit-version="commentSubmitVersion"
+                @retry="loadComments"
+                @submit="handleCommentSubmit"
+              />
+            </div>
           </div>
-        </div>
-      </template>
-
-      <ConfirmationModal
-        :is-open="Boolean(commentToDelete)"
-        title="댓글 삭제"
-        message="이 댓글을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다."
-        confirm-text="삭제"
-        :loading="deletingCommentId !== null"
-        @cancel="closeCommentDeleteModal"
-        @confirm="handleCommentDelete"
-      />
+        </template>
+      </div>
     </div>
+
+    <div
+      v-if="ticket && !isLoading && !errorMessage"
+      class="absolute -inset-x-4 -bottom-4 z-20 flex h-14 items-center justify-end border-t border-border bg-surface px-6"
+    >
+      <Button
+        variant="outline"
+        class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
+        :disabled="!canCancelTicket"
+        :loading="isCancelling"
+        :title="cancelActionMessage"
+        @click="isCancelModalOpen = true"
+      >
+        요청 취소
+      </Button>
+    </div>
+
+    <ConfirmationModal
+      :is-open="isCancelModalOpen"
+      title="요청 취소"
+      message="이 티켓의 요청을 취소하시겠습니까? 취소한 요청은 다시 진행할 수 없습니다."
+      confirm-text="요청 취소"
+      :loading="isCancelling"
+      @cancel="isCancelModalOpen = false"
+      @confirm="handleCancelTicket"
+    />
   </div>
 </template>
 
@@ -175,9 +187,8 @@ import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
 import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
-import TicketStatusBadge from '@/components/ticket/TicketStatusBadge.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
-import type { AssetType, TicketComment, TicketDetail } from '@/types'
+import type { AssetType, TicketComment, TicketDetail, TicketStatus } from '@/types'
 import {
   formatCurrency,
   formatDate,
@@ -202,6 +213,11 @@ interface RequestDetailReason {
   value: string
 }
 
+const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'REQUESTED',
+  'DEPARTMENT_APPROVED',
+])
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -212,19 +228,55 @@ const comments = ref<TicketComment[]>([])
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
-const updatingCommentId = ref<number | null>(null)
-const deletingCommentId = ref<number | null>(null)
-const commentToDelete = ref<TicketComment | null>(null)
+const isCancelling = ref(false)
+const isCancelModalOpen = ref(false)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
-const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
-const commentActionVersion = ref(0)
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
   return typeof value === 'string' ? value.trim() : ''
+})
+
+const isRequester = computed(() => (
+  Boolean(
+    ticket.value
+    && authStore.user?.memberId
+    && String(ticket.value.requesterId) === authStore.user.memberId,
+  )
+))
+
+const canCancelTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && isRequester.value
+    && CANCELLABLE_TICKET_STATUSES.has(ticket.value.status),
+  )
+))
+
+const cancelActionMessage = computed(() => {
+  if (!ticket.value) return ''
+  if (!isRequester.value) return '요청자 본인만 이 티켓을 취소할 수 있습니다.'
+  if (CANCELLABLE_TICKET_STATUSES.has(ticket.value.status)) {
+    return '구매자산팀 승인 전까지 요청을 취소할 수 있습니다.'
+  }
+
+  switch (ticket.value.status) {
+    case 'ASSET_APPROVED':
+    case 'IN_PROGRESS':
+      return '구매자산팀 승인 후에는 요청을 취소할 수 없습니다.'
+    case 'COMPLETED':
+      return '이미 처리가 완료된 요청입니다.'
+    case 'DEPARTMENT_REJECTED':
+    case 'ASSET_REJECTED':
+      return '반려된 요청은 취소할 수 없습니다.'
+    case 'CANCELLED':
+      return '이미 취소된 요청입니다.'
+    default:
+      return '현재 상태에서는 요청을 취소할 수 없습니다.'
+  }
 })
 
 const departmentDecisionAt = computed(() => (
@@ -395,9 +447,13 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
 const requestDetailRows = computed<Array<Record<string, string>>>(() => {
   if (!ticket.value) return []
 
-  const quantity = ticket.value.quantity ?? 1
+  if (!hasRequestDetailData(ticket.value)) return []
+
+  const quantity = ticket.value.quantity
   const expectedAmount = ticket.value.expectedPrice === null
     || ticket.value.expectedPrice === undefined
+    || quantity === null
+    || quantity === undefined
     ? null
     : ticket.value.expectedPrice * quantity
 
@@ -405,7 +461,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     assetType: assetTypeLabel(ticket.value.assetType),
     category: ticket.value.categoryName ?? '-',
     itemName: requestItemName(ticket.value),
-    quantity: String(quantity),
+    quantity: quantity === null || quantity === undefined ? '-' : String(quantity),
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
@@ -424,6 +480,34 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     refundAmount: formatCurrency(ticket.value.refundAmount),
   }]
 })
+
+function hasRequestDetailData(detail: TicketDetail): boolean {
+  return [
+    detail.assetType,
+    detail.categoryName,
+    detail.requestedItemName,
+    detail.requestedItemDetail,
+    detail.productName,
+    detail.quantity,
+    detail.expectedPrice,
+    detail.actualAmount,
+    detail.assetId,
+    detail.assetStatus,
+    detail.startedAt,
+    detail.rentalStartDate,
+    detail.requestedDueDate,
+    detail.rentalDueDate,
+    detail.previousDueDate,
+    detail.changedDueDate,
+    detail.maintenanceReason,
+    detail.maintenanceResult,
+    detail.returnReason,
+    detail.returnResult,
+    detail.refundAmount,
+    detail.collectedAt,
+    detail.processedAt,
+  ].some((value) => value !== null && value !== undefined && value !== '')
+}
 
 const requestDetailReason = computed<RequestDetailReason | null>(() => {
   if (!ticket.value || ticket.value.ticketType !== 'ASSET_RETURN') return null
@@ -546,58 +630,24 @@ async function handleCommentSubmit(content: string) {
   }
 }
 
-async function handleCommentUpdate(commentId: number, content: string) {
-  if (!ticketId.value || updatingCommentId.value !== null) return
+async function handleCancelTicket() {
+  if (!ticketId.value || !canCancelTicket.value || isCancelling.value) return
 
-  updatingCommentId.value = commentId
-  commentActionErrorMessage.value = ''
-
-  try {
-    const response = await ticketApi.updateComment(ticketId.value, commentId, content)
-    comments.value = comments.value.map((comment) => (
-      comment.commentId === commentId ? response.data : comment
-    ))
-    commentActionVersion.value += 1
-    notificationStore.success('댓글이 수정되었습니다.')
-  } catch (error) {
-    commentActionErrorMessage.value = commentActionMessage(error, '댓글을 수정하지 못했습니다.')
-  } finally {
-    updatingCommentId.value = null
-  }
-}
-
-function closeCommentDeleteModal() {
-  if (deletingCommentId.value !== null) return
-  commentToDelete.value = null
-}
-
-async function handleCommentDelete() {
-  const target = commentToDelete.value
-  if (!ticketId.value || !target || deletingCommentId.value !== null) return
-
-  deletingCommentId.value = target.commentId
-  commentActionErrorMessage.value = ''
+  isCancelling.value = true
 
   try {
-    await ticketApi.deleteComment(ticketId.value, target.commentId)
-    comments.value = comments.value.filter((comment) => comment.commentId !== target.commentId)
-    commentToDelete.value = null
-    commentActionVersion.value += 1
-    notificationStore.success('댓글이 삭제되었습니다.')
+    await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
+    isCancelModalOpen.value = false
+    await loadTicketDetail()
+    notificationStore.success('요청이 취소되었습니다.')
   } catch (error) {
-    commentActionErrorMessage.value = commentActionMessage(error, '댓글을 삭제하지 못했습니다.')
+    const message = error instanceof Error
+      ? error.message
+      : '요청을 취소하지 못했습니다.'
+    notificationStore.error('요청 취소 실패', message)
   } finally {
-    deletingCommentId.value = null
+    isCancelling.value = false
   }
-}
-
-function commentActionMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiError) {
-    if (error.status === 403) return '본인이 작성한 댓글만 수정하거나 삭제할 수 있습니다.'
-    if (error.status === 404) return '댓글을 찾을 수 없습니다. 목록을 다시 불러와주세요.'
-    return error.message
-  }
-  return error instanceof Error ? error.message : fallback
 }
 
 async function loadPage() {

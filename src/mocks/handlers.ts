@@ -42,6 +42,20 @@ const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
 const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
+const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
+  'REQUESTED',
+  'DEPARTMENT_APPROVED',
+  'DEPARTMENT_REJECTED',
+  'ASSET_APPROVED',
+  'ASSET_REJECTED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+])
+const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'REQUESTED',
+  'DEPARTMENT_APPROVED',
+])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
@@ -295,9 +309,9 @@ const memberPasswords = new Map(
 )
 
 interface MockTicket extends TicketListItem {
-  requesterId: number
+  requesterId: string
   requesterName: string
-  departmentId: number
+  departmentId: string
   departmentName: string
 }
 
@@ -309,9 +323,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
     ticketStatus: 'REQUESTED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-06-01T10:00:00',
   },
@@ -322,9 +336,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'Dell UltraSharp 27인치 4K',
     ticketStatus: 'ASSET_APPROVED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-28T14:20:00',
   },
@@ -335,9 +349,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: '에어론 체어 풀 스펙 B사이즈',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-20T09:10:00',
   },
@@ -348,9 +362,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'iPhone 15 Pro Max 512GB',
     ticketStatus: 'DEPARTMENT_REJECTED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-12T11:30:00',
   },
@@ -361,9 +375,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-08T16:00:00',
   },
@@ -374,9 +388,9 @@ let tickets: MockTicket[] = [
     requestMethod: 'TEAM_PURCHASE',
     requestedItemName: 'IntelliJ IDEA Ultimate 연간 구독',
     ticketStatus: 'IN_PROGRESS',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-06T09:20:00',
   },
@@ -387,9 +401,9 @@ let tickets: MockTicket[] = [
     requestMethod: 'DIRECT_PURCHASE',
     requestedItemName: 'MX Keys S 무선 키보드',
     ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-04T13:40:00',
   },
@@ -400,9 +414,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'iPhone 15 Pro Max 512GB',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-02T11:10:00',
   },
@@ -442,7 +456,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '가구',
     requestedItemName: '에어론 체어 풀 스펙 B사이즈',
-    assetId: 19,
+    assetId: '19',
     maintenanceReason: '사용 중인 장비 점검이 필요합니다.',
     maintenanceResult: '점검 완료',
   }],
@@ -451,7 +465,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '모바일 기기',
     requestedItemName: 'iPhone 15 Pro Max 512GB',
-    assetId: 11,
+    assetId: '11',
     quantity: 1,
     startedAt: '2025-07-03T00:00:00',
     assetStatus: 'IN_USE',
@@ -462,7 +476,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '전산장비 (PC)',
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
-    assetId: 2,
+    assetId: '2',
     returnReason: '초기 불량으로 구매한 노트북의 반품을 요청합니다.',
     collectedAt: '2026-05-08T18:00:00',
     returnResult: 'REFUNDED',
@@ -498,7 +512,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '모바일 기기',
     requestedItemName: 'iPhone 15 Pro Max 512GB',
-    assetId: 11,
+    assetId: '11',
     quantity: 1,
     previousDueDate: '2026-06-20T18:00:00',
     requestedDueDate: '2026-07-10T18:00:00',
@@ -508,6 +522,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
 ])
 
 const ticketApproverIds = new Map<string, string>()
+const ticketCancelledAt = new Map<string, string>()
 
 let ticketComments: TicketComment[] = [
   {
@@ -833,7 +848,7 @@ function getTicketApprover(ticket: MockTicket): Member | undefined {
     return members.find((member) => member.memberId === assignedApproverId)
   }
 
-  const requester = members.find((member) => member.name === ticket.requesterName)
+  const requester = members.find((member) => member.memberId === ticket.requesterId)
   return requester ? getDepartmentManager(requester.departmentId) : undefined
 }
 
@@ -856,15 +871,13 @@ function getMockItemName(
 
 function getMockAssetName(
   assetType: ReturnRequestCreate['assetType'],
-  assetId: number,
+  assetId: string,
 ): string | null {
-  const targetAssetId = String(assetId)
-
   if (assetType === 'INTANGIBLE') {
-    return intangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+    return intangibleAssets.find((asset) => asset.assetId === assetId)?.assetItemName ?? null
   }
 
-  return tangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+  return tangibleAssets.find((asset) => asset.assetId === assetId)?.assetItemName ?? null
 }
 
 function createMockTicket(
@@ -880,9 +893,7 @@ function createMockTicket(
   const ticketId = String(nextTicketId)
   const createdAt = new Date().toISOString()
   const datePart = createdAt.slice(0, 10).replaceAll('-', '')
-  const requesterId = requester
-    ? Number(requester.memberNo.replace(/\D/g, '')) || nextTicketId
-    : nextTicketId
+  const requesterId = requester?.memberId ?? mockMemberId(nextTicketId)
 
   const ticket: MockTicket = {
     ticketId,
@@ -893,7 +904,7 @@ function createMockTicket(
     ticketStatus: 'REQUESTED',
     requesterId,
     requesterName: requester?.name ?? '요청자',
-    departmentId: requester?.departmentId === ASSET_TEAM_DEPARTMENT_ID ? 20 : 30,
+    departmentId: requester?.departmentId ?? FRONTEND_DEPARTMENT_ID,
     departmentName: requester?.departmentName ?? '미지정',
     requestedAt: createdAt,
   }
@@ -1017,16 +1028,16 @@ export const handlers = [
     const ticketType = url.searchParams.get('ticketType') as TicketType | null
     const ticketStatus = url.searchParams.get('ticketStatus') as TicketStatus | null
     const keyword = url.searchParams.get('keyword')?.trim().toLowerCase() ?? ''
-    const requesterId = Number(url.searchParams.get('requesterId') ?? 0)
-    const departmentId = Number(url.searchParams.get('departmentId') ?? 0)
+    const requesterId = url.searchParams.get('requesterId')
+    const departmentId = url.searchParams.get('departmentId')
     const requester = getAuthenticatedMember(request)
 
     let filteredTickets = [...tickets]
     if (requester?.role === 'EMPLOYEE') {
-      filteredTickets = tickets.filter((ticket) => ticket.requesterName === requester.name)
+      filteredTickets = tickets.filter((ticket) => ticket.requesterId === requester.memberId)
     } else if (requester?.role === 'DEPARTMENT_MANAGER') {
       filteredTickets = tickets.filter((ticket) => (
-        String(ticket.departmentId) === requester.departmentId
+        ticket.departmentId === requester.departmentId
       ))
     }
 
@@ -1083,9 +1094,11 @@ export const handlers = [
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
-    const updatedAt = ticket.ticketStatus === 'REQUESTED'
-      ? ticket.requestedAt
-      : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    const cancellationDate = ticketCancelledAt.get(ticketId)
+    const updatedAt = cancellationDate
+      ?? (ticket.ticketStatus === 'REQUESTED'
+        ? ticket.requestedAt
+        : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString())
     const assetDecisionAt = isAssetApproved || isAssetRejected ? updatedAt : null
     const requestDetail = ticketDetailData.get(ticketId) ?? {}
 
@@ -1125,6 +1138,65 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(detail))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const body = await request.json() as { status?: string }
+    if (!body.status || !TICKET_STATUS_VALUES.has(body.status as TicketStatus)) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_TICKET_STATUS',
+        message: '올바르지 않은 티켓 상태입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const nextStatus = body.status as TicketStatus
+    if (nextStatus === 'CANCELLED') {
+      if (!requester || requester.memberId !== ticket.requesterId) {
+        return HttpResponse.json({
+          status: 403,
+          errorCode: 'FORBIDDEN',
+          message: '요청자 본인만 티켓을 취소할 수 있습니다.',
+          data: null,
+        }, { status: 403 })
+      }
+      if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'TICKET_CANNOT_BE_CANCELLED',
+          message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+    }
+
+    const previousStatus = ticket.ticketStatus
+    const updatedAt = new Date().toISOString()
+    ticket.ticketStatus = nextStatus
+    if (nextStatus === 'CANCELLED') {
+      ticketCancelledAt.set(ticketId, updatedAt)
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      previousStatus,
+      currentStatus: nextStatus,
+      updatedAt,
+    }, '티켓 상태 변경에 성공했습니다.'))
   }),
 
   http.get(`${API_PREFIX}/tickets/:ticketId/comments`, ({ params, request }) => {
@@ -1184,98 +1256,6 @@ export const handlers = [
     ticketComments = [...ticketComments, comment]
 
     return HttpResponse.json(ok(comment, '티켓 댓글 등록에 성공했습니다.'))
-  }),
-
-  http.patch(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, async ({ params, request }) => {
-    const ticketId = String(params.ticketId)
-    const commentId = Number(params.commentId)
-    const writer = getAuthenticatedMember(request)
-    const ticket = tickets.find((item) => item.ticketId === ticketId)
-    const comment = ticketComments.find((item) => (
-      item.ticketId === ticketId && item.commentId === commentId
-    ))
-
-    if (!ticket || !comment) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'COMMENT_NOT_FOUND',
-        message: '댓글을 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-    if (!writer) {
-      return HttpResponse.json({
-        status: 401,
-        errorCode: 'UNAUTHORIZED',
-        message: '인증되지 않은 요청입니다.',
-        data: null,
-      }, { status: 401 })
-    }
-    if (comment.writerId !== writer.memberId) {
-      return HttpResponse.json({
-        status: 403,
-        errorCode: 'COMMENT_FORBIDDEN',
-        message: '본인이 작성한 댓글만 수정할 수 있습니다.',
-        data: null,
-      }, { status: 403 })
-    }
-
-    const body = await request.json() as { content?: string }
-    const content = body.content?.trim()
-    if (!content) {
-      return HttpResponse.json({
-        status: 400,
-        errorCode: 'INVALID_COMMENT',
-        message: '댓글 내용을 입력해주세요.',
-        data: null,
-      }, { status: 400 })
-    }
-
-    comment.content = content
-    comment.updatedAt = new Date().toISOString()
-
-    return HttpResponse.json(ok(comment, '티켓 댓글 수정에 성공했습니다.'))
-  }),
-
-  http.delete(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, ({ params, request }) => {
-    const ticketId = String(params.ticketId)
-    const commentId = Number(params.commentId)
-    const writer = getAuthenticatedMember(request)
-    const commentIndex = ticketComments.findIndex((item) => (
-      item.ticketId === ticketId && item.commentId === commentId
-    ))
-
-    if (commentIndex < 0) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'COMMENT_NOT_FOUND',
-        message: '댓글을 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-    if (!writer) {
-      return HttpResponse.json({
-        status: 401,
-        errorCode: 'UNAUTHORIZED',
-        message: '인증되지 않은 요청입니다.',
-        data: null,
-      }, { status: 401 })
-    }
-    if (ticketComments[commentIndex]?.writerId !== writer.memberId) {
-      return HttpResponse.json({
-        status: 403,
-        errorCode: 'COMMENT_FORBIDDEN',
-        message: '본인이 작성한 댓글만 삭제할 수 있습니다.',
-        data: null,
-      }, { status: 403 })
-    }
-
-    ticketComments.splice(commentIndex, 1)
-
-    return HttpResponse.json(ok({
-      commentId,
-      deletedAt: new Date().toISOString(),
-    }, '티켓 댓글 삭제에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {

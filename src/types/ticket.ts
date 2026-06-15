@@ -42,7 +42,7 @@ export interface TicketDetail {
   quantity?: number | null
   expectedPrice?: number | null
   actualAmount?: number | null
-  assetId?: string | number | null
+  assetId?: string | null
   assetStatus?: string | null
   startedAt?: string | null
   rentalStartDate?: string | null
@@ -166,13 +166,13 @@ export interface MaintenanceRequestCreate {
 
 export interface ReturnRequestCreate {
   assetType: AssetType
-  assetId: number
+  assetId: string
   returnReason: string
 }
 
 export interface PurchaseReturnRequestCreate {
   assetType: AssetType
-  assetId: number
+  assetId: string
   type: 'EMPLOYEE' | 'PURCHASE_TEAM'
   returnReason: string
 }
@@ -183,19 +183,19 @@ export interface PurchaseReturnRequestCreate {
 
 export interface TicketApproveRequest {
   approver: 'DEPARTMENT_MANAGER' | 'ASSET_TEAM'
-  approverMemberId: number
+  approverMemberId: string
 }
 
 export interface TicketRejectRequest {
   rejectionType: 'DEPARTMENT_MANAGER' | 'ASSET_TEAM'
-  rejecterMemberId: number
+  rejecterMemberId: string
   rejectionReason: string
 }
 
 export interface AssetAssignRequest {
   assetType: AssetType
-  assetId: number
-  memberId: number
+  assetId: string
+  memberId: string
   returnDueDate?: string
 }
 
@@ -206,16 +206,10 @@ export interface AssetAssignRequest {
 export interface TicketComment {
   commentId: number
   ticketId: string
-  // TODO: API 명세/백엔드 확인 필요 - 응답 예시는 writerId, 스키마 표는 writerMemberNo를 사용한다.
   writerId: string
   writerName: string
   writerRole: Role
   content: string
   createdAt: string
   updatedAt: string
-}
-
-export interface TicketCommentDeleteResponse {
-  commentId: number
-  deletedAt: string
 }
