@@ -27,6 +27,7 @@ import type {
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
   TicketCreateResponse,
+  TicketComment,
   TicketDetail,
   TicketListItem,
   TicketStatus,
@@ -299,7 +300,7 @@ let tickets: TicketListItem[] = [
     ticketNo: 'TKT-20260528-002',
     ticketType: 'RENTAL',
     assetItemName: 'Dell UltraSharp 27인치 4K',
-    status: 'ASSET_TEAM_REVIEWING',
+    status: 'ASSET_APPROVED',
     requesterId: 5,
     requesterName: '정사원',
     departmentId: 30,
@@ -309,7 +310,7 @@ let tickets: TicketListItem[] = [
   {
     ticketId: 3,
     ticketNo: 'TKT-20260520-003',
-    ticketType: 'MAINTENANCE',
+    ticketType: 'MAINTENANCE_REQUEST',
     assetItemName: '에어론 체어 풀 스펙 B사이즈',
     status: 'COMPLETED',
     requesterId: 5,
@@ -321,7 +322,7 @@ let tickets: TicketListItem[] = [
   {
     ticketId: 4,
     ticketNo: 'TKT-20260512-004',
-    ticketType: 'RETURN',
+    ticketType: 'ASSET_RETURN',
     assetItemName: 'iPhone 15 Pro Max 512GB',
     status: 'DEPARTMENT_REJECTED',
     requesterId: 5,
@@ -351,6 +352,31 @@ const ticketReasons = new Map<number, string>([
   [4, '업무 종료로 자산을 반납합니다.'],
   [5, '구매한 자산의 반품을 요청합니다.'],
 ])
+
+let ticketComments: TicketComment[] = [
+  {
+    commentId: 1,
+    ticketId: 1,
+    writerId: mockMemberId(3),
+    writerMemberNo: 'EMP0003',
+    writerName: '이부장',
+    writerRole: 'DEPARTMENT_MANAGER',
+    content: '요청 내용을 확인했습니다. 필요한 사양을 댓글로 남겨주세요.',
+    createdAt: '2026-06-01T10:20:00',
+    updatedAt: '2026-06-01T10:20:00',
+  },
+  {
+    commentId: 2,
+    ticketId: 1,
+    writerId: mockMemberId(5),
+    writerMemberNo: 'EMP0005',
+    writerName: '정사원',
+    writerRole: 'EMPLOYEE',
+    content: '개발 업무용으로 메모리 32GB 이상이 필요합니다.',
+    createdAt: '2026-06-01T10:35:00',
+    updatedAt: '2026-06-01T10:35:00',
+  },
+]
 
 function withCurrentMemberCount(department: Department): Department {
   return {
@@ -825,25 +851,109 @@ export const handlers = [
       }, { status: 404 })
     }
 
+    const isDepartmentRejected = ticket.status === 'DEPARTMENT_REJECTED'
+    const isAssetRejected = ticket.status === 'ASSET_REJECTED'
+    const isAssetApproved = [
+      'ASSET_APPROVED',
+      'IN_PROGRESS',
+      'COMPLETED',
+    ].includes(ticket.status)
+    const hasDepartmentDecision = ticket.status !== 'REQUESTED'
+    const hasAssetTeamAssignee = [
+      'ASSET_APPROVED',
+      'ASSET_REJECTED',
+      'IN_PROGRESS',
+      'COMPLETED',
+    ].includes(ticket.status)
+    const departmentDecisionAt = hasDepartmentDecision
+      ? new Date(new Date(ticket.createdAt).getTime() + 60 * 60 * 1000).toISOString()
+      : null
+    const updatedAt = ticket.status === 'REQUESTED'
+      ? ticket.createdAt
+      : new Date(new Date(ticket.createdAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    const assetDecisionAt = isAssetApproved || isAssetRejected ? updatedAt : null
+
     const detail: TicketDetail = {
       ...ticket,
-      approverId: null,
-      approverName: null,
-      assigneeId: null,
-      assigneeName: null,
+      approverId: hasDepartmentDecision ? 3 : null,
+      approverName: hasDepartmentDecision ? '이부장' : null,
+      assigneeId: hasAssetTeamAssignee ? 2 : null,
+      assigneeName: hasAssetTeamAssignee ? '박자산' : null,
       requestReason: ticketReasons.get(ticketId) ?? null,
-      departmentApprovedAt: null,
-      departmentRejectedAt: null,
-      departmentRejectionReason: null,
-      purchaseApprovedAt: null,
-      purchaseRejectedAt: null,
-      purchaseRejectionReason: null,
-      completedAt: ticket.status === 'COMPLETED' ? ticket.createdAt : null,
-      cancelledAt: ticket.status === 'CANCELLED' ? ticket.createdAt : null,
-      updatedAt: ticket.createdAt,
+      departmentApprovedAt: hasDepartmentDecision && !isDepartmentRejected
+        ? departmentDecisionAt
+        : null,
+      departmentRejectedAt: isDepartmentRejected ? departmentDecisionAt : null,
+      departmentRejectionReason: isDepartmentRejected ? '요청 사유를 보완해주세요.' : null,
+      purchaseApprovedAt: isAssetApproved ? assetDecisionAt : null,
+      purchaseRejectedAt: isAssetRejected ? assetDecisionAt : null,
+      purchaseRejectionReason: isAssetRejected ? '구매자산팀 검토 결과 반려되었습니다.' : null,
+      completedAt: ticket.status === 'COMPLETED' ? updatedAt : null,
+      cancelledAt: ticket.status === 'CANCELLED' ? updatedAt : null,
+      updatedAt,
     }
 
     return HttpResponse.json(ok(detail))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/:ticketId/comments`, ({ params, request }) => {
+    const ticketId = Number(params.ticketId)
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const comments = ticketComments.filter((comment) => Number(comment.ticketId) === ticketId)
+
+    return HttpResponse.json(ok(pageOf(comments, page, size)))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/:ticketId/comments`, async ({ params, request }) => {
+    const ticketId = Number(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const writer = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!writer) {
+      return HttpResponse.json({
+        status: 401,
+        errorCode: 'UNAUTHORIZED',
+        message: '인증되지 않은 요청입니다.',
+        data: null,
+      }, { status: 401 })
+    }
+
+    const body = await request.json() as { content?: string }
+    const content = body.content?.trim()
+    if (!content) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_COMMENT',
+        message: '댓글 내용을 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const createdAt = new Date().toISOString()
+    const comment: TicketComment = {
+      commentId: Math.max(0, ...ticketComments.map((item) => item.commentId)) + 1,
+      ticketId,
+      writerId: writer.memberId,
+      writerMemberNo: writer.memberNo,
+      writerName: writer.name,
+      writerRole: writer.role,
+      content,
+      createdAt,
+      updatedAt: createdAt,
+    }
+    ticketComments = [...ticketComments, comment]
+
+    return HttpResponse.json(ok(comment, '티켓 댓글 등록에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
@@ -862,7 +972,7 @@ export const handlers = [
   http.post(`${API_PREFIX}/tickets/purchase-requests/non-standard`, async ({ request }) => {
     const body = await request.json() as NonStandardAssetRequestCreate
     return HttpResponse.json(ok(
-      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemDetail),
+      createMockTicket(request, 'PURCHASE_REQUEST', body.requestReason, body.requestedItemDetail),
       '비표준 자산 요청 티켓 등록에 성공했습니다.',
     ))
   }),
@@ -870,7 +980,7 @@ export const handlers = [
   http.post(`${API_PREFIX}/tickets/purchase-requests/direct-purchase`, async ({ request }) => {
     const body = await request.json() as DirectPurchaseRequestCreate
     return HttpResponse.json(ok(
-      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemDetail),
+      createMockTicket(request, 'PURCHASE_REQUEST', body.requestReason, body.requestedItemDetail),
       '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
     ))
   }),
@@ -906,7 +1016,7 @@ export const handlers = [
     return HttpResponse.json(ok(
       createMockTicket(
         request,
-        'MAINTENANCE',
+        'MAINTENANCE_REQUEST',
         body.maintenanceReason,
         getMockAssetName('TANGIBLE', body.assetId),
       ),
@@ -919,7 +1029,7 @@ export const handlers = [
     return HttpResponse.json(ok(
       createMockTicket(
         request,
-        'RETURN',
+        'ASSET_RETURN',
         body.returnReason,
         getMockAssetName(body.assetType, body.assetId),
       ),

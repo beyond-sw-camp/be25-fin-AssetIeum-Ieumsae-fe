@@ -30,22 +30,23 @@ export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
-  REQUESTED: '접수 대기',
+  REQUESTED: '요청',
   DEPARTMENT_APPROVED: '부서 승인',
   DEPARTMENT_REJECTED: '부서 반려',
-  ASSET_TEAM_REVIEWING: '검토 중',
-  ASSET_TEAM_REJECTED: '구매자산팀 반려',
-  PROCESSING: '처리 중',
-  COMPLETED: '처리 완료',
-  CANCELLED: '요청 취소',
+  ASSET_APPROVED: '구매자산팀 승인',
+  ASSET_REJECTED: '구매자산팀 반려',
+  IN_PROGRESS: '진행 중',
+  COMPLETED: '완료',
+  CANCELLED: '취소',
 }
 
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   ASSET_REQUEST: '자산 요청',
   RENTAL: '대여 요청',
   RENTAL_EXTENSION: '대여 연장',
-  MAINTENANCE: '유지보수 요청',
-  RETURN: '반납·해지 요청',
+  MAINTENANCE_REQUEST: '유지보수 요청',
+  ASSET_RETURN: '반납·해지 요청',
+  PURCHASE_REQUEST: '구매 요청',
   PURCHASE_RETURN: '반품 요청',
 }
 
