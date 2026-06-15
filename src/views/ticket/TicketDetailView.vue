@@ -129,10 +129,16 @@
                 :submitting="isCommentSubmitting"
                 :error-message="commentsErrorMessage"
                 :submit-error-message="commentSubmitErrorMessage"
+                :action-error-message="commentActionErrorMessage"
                 :current-member-id="authStore.user?.memberId"
                 :submit-version="commentSubmitVersion"
+                :action-version="commentActionVersion"
+                :updating-comment-id="updatingCommentId"
+                :deleting-comment-id="deletingCommentId"
                 @retry="loadComments"
                 @submit="handleCommentSubmit"
+                @update="handleCommentUpdate"
+                @delete="handleCommentDeleteRequest"
               />
             </div>
           </div>
@@ -164,6 +170,16 @@
       :loading="isCancelling"
       @cancel="isCancelModalOpen = false"
       @confirm="handleCancelTicket"
+    />
+
+    <ConfirmationModal
+      :is-open="Boolean(commentToDelete)"
+      title="댓글 삭제"
+      message="이 댓글을 삭제하시겠습니까? 삭제한 댓글은 복구할 수 없습니다."
+      confirm-text="삭제"
+      :loading="deletingCommentId !== null"
+      @cancel="handleCommentDeleteCancel"
+      @confirm="handleCommentDelete"
     />
   </div>
 </template>
@@ -228,12 +244,17 @@ const comments = ref<TicketComment[]>([])
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
+const updatingCommentId = ref<number | null>(null)
+const deletingCommentId = ref<number | null>(null)
 const isCancelling = ref(false)
 const isCancelModalOpen = ref(false)
+const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
+const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
+const commentActionVersion = ref(0)
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
@@ -627,6 +648,64 @@ async function handleCommentSubmit(content: string) {
       : '댓글을 등록하지 못했습니다.'
   } finally {
     isCommentSubmitting.value = false
+  }
+}
+
+async function handleCommentUpdate(commentId: number, content: string) {
+  if (!ticketId.value || updatingCommentId.value !== null || deletingCommentId.value !== null) return
+
+  updatingCommentId.value = commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    const response = await ticketApi.updateComment(ticketId.value, commentId, content)
+    comments.value = comments.value.map((comment) => (
+      comment.commentId === commentId ? response.data : comment
+    ))
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 수정되었습니다.')
+  } catch (error) {
+    commentActionErrorMessage.value = error instanceof Error
+      ? error.message
+      : '댓글을 수정하지 못했습니다.'
+  } finally {
+    updatingCommentId.value = null
+  }
+}
+
+function handleCommentDeleteRequest(comment: TicketComment) {
+  if (updatingCommentId.value !== null || deletingCommentId.value !== null) return
+
+  commentActionErrorMessage.value = ''
+  commentToDelete.value = comment
+}
+
+function handleCommentDeleteCancel() {
+  if (deletingCommentId.value !== null) return
+  commentToDelete.value = null
+}
+
+async function handleCommentDelete() {
+  const targetComment = commentToDelete.value
+  if (!ticketId.value || !targetComment || deletingCommentId.value !== null) return
+
+  deletingCommentId.value = targetComment.commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    await ticketApi.deleteComment(ticketId.value, targetComment.commentId)
+    comments.value = comments.value.filter(
+      (comment) => comment.commentId !== targetComment.commentId,
+    )
+    commentToDelete.value = null
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 삭제되었습니다.')
+  } catch (error) {
+    commentActionErrorMessage.value = error instanceof Error
+      ? error.message
+      : '댓글을 삭제하지 못했습니다.'
+  } finally {
+    deletingCommentId.value = null
   }
 }
 

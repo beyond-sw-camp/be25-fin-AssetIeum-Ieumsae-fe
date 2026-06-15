@@ -154,13 +154,13 @@ export interface RentalRequestCreate {
 }
 
 export interface RentalExtensionRequestCreate {
-  assetId: number
+  assetId: string
   requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: number
+  assetId: string
   maintenanceReason: string
 }
 
@@ -212,4 +212,9 @@ export interface TicketComment {
   content: string
   createdAt: string
   updatedAt: string
+}
+
+export interface TicketCommentDeleteResponse {
+  commentId: number
+  deletedAt: string
 }
