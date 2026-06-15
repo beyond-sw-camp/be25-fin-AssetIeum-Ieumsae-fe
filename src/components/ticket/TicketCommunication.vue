@@ -33,14 +33,90 @@
             :class="['flex', isMine(comment) ? 'justify-end' : 'justify-start']"
           >
             <div :class="['max-w-[82%]', isMine(comment) && 'text-right']">
-              <p class="mb-1 text-xs font-semibold text-text-sub">
-                {{ comment.writerName }}
-                <span v-if="isMine(comment)" class="text-primary">(나)</span>
-                <span class="ml-1 font-normal text-text-muted">
-                  {{ formatDate(comment.createdAt, 'YYYY-MM-DD HH:mm') }}
-                </span>
-              </p>
+              <div
+                :class="[
+                  'mb-1 flex items-center gap-2',
+                  isMine(comment) ? 'justify-end' : 'justify-start',
+                ]"
+              >
+                <p class="text-xs font-semibold text-text-sub">
+                  {{ comment.writerName }}
+                  <span v-if="isMine(comment)" class="text-primary">(나)</span>
+                  <span class="ml-1 font-normal text-text-muted">
+                    {{ formatDate(comment.createdAt, 'YYYY-MM-DD HH:mm') }}
+                  </span>
+                  <span
+                    v-if="comment.updatedAt !== comment.createdAt"
+                    class="ml-1 font-normal text-text-muted"
+                  >
+                    (수정됨)
+                  </span>
+                </p>
+                <div
+                  v-if="isMine(comment) && editingCommentId !== comment.commentId"
+                  class="flex items-center gap-0.5"
+                >
+                  <button
+                    type="button"
+                    class="rounded-md p-1 text-text-muted transition hover:bg-surface-secondary hover:text-primary disabled:opacity-40"
+                    aria-label="댓글 수정"
+                    :disabled="isCommentActionPending"
+                    @click="startEditing(comment)"
+                  >
+                    <Pencil :size="13" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md p-1 text-text-muted transition hover:bg-danger/10 hover:text-danger disabled:opacity-40"
+                    aria-label="댓글 삭제"
+                    :disabled="isCommentActionPending"
+                    @click="emit('delete', comment)"
+                  >
+                    <Trash2 :size="13" />
+                  </button>
+                </div>
+              </div>
+
+              <form
+                v-if="editingCommentId === comment.commentId"
+                class="w-80 max-w-full rounded-2xl rounded-br-md border border-primary/30 bg-primary/5 p-3 text-left"
+                @submit.prevent="handleUpdate(comment)"
+              >
+                <label class="sr-only" :for="`ticket-comment-edit-${comment.commentId}`">
+                  댓글 수정
+                </label>
+                <textarea
+                  :id="`ticket-comment-edit-${comment.commentId}`"
+                  v-model="editContent"
+                  rows="3"
+                  maxlength="1000"
+                  class="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  :disabled="updatingCommentId === comment.commentId"
+                  @keydown.esc.prevent="cancelEditing"
+                  @keydown.ctrl.enter.prevent="handleUpdate(comment)"
+                />
+                <div class="mt-2 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    :disabled="updatingCommentId === comment.commentId"
+                    @click="cancelEditing"
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    :loading="updatingCommentId === comment.commentId"
+                    :disabled="!editContent.trim() || editContent.trim() === comment.content"
+                  >
+                    저장
+                  </Button>
+                </div>
+              </form>
               <p
+                v-else
                 :class="[
                   'inline-block whitespace-pre-wrap rounded-2xl px-4 py-3 text-left text-sm',
                   isMine(comment)
@@ -80,13 +156,23 @@
       <p v-if="submitErrorMessage" class="mt-2 text-xs text-danger">
         {{ submitErrorMessage }}
       </p>
+      <p v-if="actionErrorMessage" class="mt-2 text-xs text-danger">
+        {{ actionErrorMessage }}
+      </p>
     </div>
   </TicketDetailCard>
 </template>
 
 <script setup lang="ts">
-import { LoaderCircle, MessageSquareText, RefreshCw, Send } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+import {
+  LoaderCircle,
+  MessageSquareText,
+  Pencil,
+  RefreshCw,
+  Send,
+  Trash2,
+} from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 
 import Button from '@/components/common/Button.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -99,31 +185,42 @@ const props = withDefaults(defineProps<{
   submitting?: boolean
   errorMessage?: string
   submitErrorMessage?: string
+  actionErrorMessage?: string
   currentMemberId?: string
-  currentMemberNo?: string
   submitVersion?: number
+  actionVersion?: number
+  updatingCommentId?: number | null
+  deletingCommentId?: number | null
 }>(), {
   loading: false,
   submitting: false,
   errorMessage: '',
   submitErrorMessage: '',
+  actionErrorMessage: '',
   currentMemberId: '',
-  currentMemberNo: '',
   submitVersion: 0,
+  actionVersion: 0,
+  updatingCommentId: null,
+  deletingCommentId: null,
 })
 
 const emit = defineEmits<{
   retry: []
   submit: [content: string]
+  update: [commentId: number, content: string]
+  delete: [comment: TicketComment]
 }>()
 
 const content = ref('')
+const editingCommentId = ref<number | null>(null)
+const editContent = ref('')
+
+const isCommentActionPending = computed(() => (
+  props.updatingCommentId !== null || props.deletingCommentId !== null
+))
 
 function isMine(comment: TicketComment) {
-  return Boolean(
-    (comment.writerId && comment.writerId === props.currentMemberId)
-    || (comment.writerMemberNo && comment.writerMemberNo === props.currentMemberNo),
-  )
+  return comment.writerId === props.currentMemberId
 }
 
 function handleSubmit() {
@@ -132,7 +229,34 @@ function handleSubmit() {
   emit('submit', normalizedContent)
 }
 
+function startEditing(comment: TicketComment) {
+  editingCommentId.value = comment.commentId
+  editContent.value = comment.content
+}
+
+function cancelEditing() {
+  if (props.updatingCommentId !== null) return
+  editingCommentId.value = null
+  editContent.value = ''
+}
+
+function handleUpdate(comment: TicketComment) {
+  const normalizedContent = editContent.value.trim()
+  if (
+    !normalizedContent
+    || normalizedContent === comment.content
+    || props.updatingCommentId !== null
+  ) return
+
+  emit('update', comment.commentId, normalizedContent)
+}
+
 watch(() => props.submitVersion, () => {
   content.value = ''
+})
+
+watch(() => props.actionVersion, () => {
+  editingCommentId.value = null
+  editContent.value = ''
 })
 </script>

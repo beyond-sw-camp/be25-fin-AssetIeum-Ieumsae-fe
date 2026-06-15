@@ -1186,6 +1186,98 @@ export const handlers = [
     return HttpResponse.json(ok(comment, '티켓 댓글 등록에 성공했습니다.'))
   }),
 
+  http.patch(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const commentId = Number(params.commentId)
+    const writer = getAuthenticatedMember(request)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const comment = ticketComments.find((item) => (
+      item.ticketId === ticketId && item.commentId === commentId
+    ))
+
+    if (!ticket || !comment) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'COMMENT_NOT_FOUND',
+        message: '댓글을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!writer) {
+      return HttpResponse.json({
+        status: 401,
+        errorCode: 'UNAUTHORIZED',
+        message: '인증되지 않은 요청입니다.',
+        data: null,
+      }, { status: 401 })
+    }
+    if (comment.writerId !== writer.memberId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'COMMENT_FORBIDDEN',
+        message: '본인이 작성한 댓글만 수정할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as { content?: string }
+    const content = body.content?.trim()
+    if (!content) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_COMMENT',
+        message: '댓글 내용을 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    comment.content = content
+    comment.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok(comment, '티켓 댓글 수정에 성공했습니다.'))
+  }),
+
+  http.delete(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const commentId = Number(params.commentId)
+    const writer = getAuthenticatedMember(request)
+    const commentIndex = ticketComments.findIndex((item) => (
+      item.ticketId === ticketId && item.commentId === commentId
+    ))
+
+    if (commentIndex < 0) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'COMMENT_NOT_FOUND',
+        message: '댓글을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!writer) {
+      return HttpResponse.json({
+        status: 401,
+        errorCode: 'UNAUTHORIZED',
+        message: '인증되지 않은 요청입니다.',
+        data: null,
+      }, { status: 401 })
+    }
+    if (ticketComments[commentIndex]?.writerId !== writer.memberId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'COMMENT_FORBIDDEN',
+        message: '본인이 작성한 댓글만 삭제할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    ticketComments.splice(commentIndex, 1)
+
+    return HttpResponse.json(ok({
+      commentId,
+      deletedAt: new Date().toISOString(),
+    }, '티켓 댓글 삭제에 성공했습니다.'))
+  }),
+
   http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
     const body = await request.json() as StandardAssetRequestCreate
     return HttpResponse.json(ok(

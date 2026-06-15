@@ -214,3 +214,8 @@ export interface TicketComment {
   createdAt: string
   updatedAt: string
 }
+
+export interface TicketCommentDeleteResponse {
+  commentId: number
+  deletedAt: string
+}

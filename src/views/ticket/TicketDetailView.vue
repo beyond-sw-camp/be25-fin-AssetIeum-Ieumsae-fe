@@ -128,14 +128,30 @@
               :submitting="isCommentSubmitting"
               :error-message="commentsErrorMessage"
               :submit-error-message="commentSubmitErrorMessage"
+              :action-error-message="commentActionErrorMessage"
               :current-member-id="authStore.user?.memberId"
               :submit-version="commentSubmitVersion"
+              :action-version="commentActionVersion"
+              :updating-comment-id="updatingCommentId"
+              :deleting-comment-id="deletingCommentId"
               @retry="loadComments"
               @submit="handleCommentSubmit"
+              @update="handleCommentUpdate"
+              @delete="commentToDelete = $event"
             />
           </div>
         </div>
       </template>
+
+      <ConfirmationModal
+        :is-open="Boolean(commentToDelete)"
+        title="댓글 삭제"
+        message="이 댓글을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다."
+        confirm-text="삭제"
+        :loading="deletingCommentId !== null"
+        @cancel="closeCommentDeleteModal"
+        @confirm="handleCommentDelete"
+      />
     </div>
   </div>
 </template>
@@ -154,6 +170,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
@@ -195,10 +212,15 @@ const comments = ref<TicketComment[]>([])
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
+const updatingCommentId = ref<number | null>(null)
+const deletingCommentId = ref<number | null>(null)
+const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
+const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
+const commentActionVersion = ref(0)
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
@@ -522,6 +544,60 @@ async function handleCommentSubmit(content: string) {
   } finally {
     isCommentSubmitting.value = false
   }
+}
+
+async function handleCommentUpdate(commentId: number, content: string) {
+  if (!ticketId.value || updatingCommentId.value !== null) return
+
+  updatingCommentId.value = commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    const response = await ticketApi.updateComment(ticketId.value, commentId, content)
+    comments.value = comments.value.map((comment) => (
+      comment.commentId === commentId ? response.data : comment
+    ))
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 수정되었습니다.')
+  } catch (error) {
+    commentActionErrorMessage.value = commentActionMessage(error, '댓글을 수정하지 못했습니다.')
+  } finally {
+    updatingCommentId.value = null
+  }
+}
+
+function closeCommentDeleteModal() {
+  if (deletingCommentId.value !== null) return
+  commentToDelete.value = null
+}
+
+async function handleCommentDelete() {
+  const target = commentToDelete.value
+  if (!ticketId.value || !target || deletingCommentId.value !== null) return
+
+  deletingCommentId.value = target.commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    await ticketApi.deleteComment(ticketId.value, target.commentId)
+    comments.value = comments.value.filter((comment) => comment.commentId !== target.commentId)
+    commentToDelete.value = null
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 삭제되었습니다.')
+  } catch (error) {
+    commentActionErrorMessage.value = commentActionMessage(error, '댓글을 삭제하지 못했습니다.')
+  } finally {
+    deletingCommentId.value = null
+  }
+}
+
+function commentActionMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return '본인이 작성한 댓글만 수정하거나 삭제할 수 있습니다.'
+    if (error.status === 404) return '댓글을 찾을 수 없습니다. 목록을 다시 불러와주세요.'
+    return error.message
+  }
+  return error instanceof Error ? error.message : fallback
 }
 
 async function loadPage() {
