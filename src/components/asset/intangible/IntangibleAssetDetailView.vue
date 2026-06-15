@@ -13,11 +13,11 @@
           <Input id="edit-assetItemName" v-model="assetEditForm.assetItemName" label="품목명" disabled />
           <Input id="edit-assetCode" v-model="assetEditForm.assetCode" label="자산 코드" disabled />
           <FormField label="자산 상태" required>
-            <Dropdown v-model="assetEditForm.statusLabel" :options="statusOptions" />
+            <Dropdown v-model="assetEditForm.statusLabel" :options="statusOptions" :disabled="!canUpdateAsset" />
           </FormField>
-          <Input id="edit-licenseCode" v-model="assetEditForm.licenseCode" label="라이선스 번호" placeholder="라이선스 번호 입력" />
+          <Input id="edit-licenseCode" v-model="assetEditForm.licenseCode" label="라이선스 번호" placeholder="라이선스 번호 입력" :disabled="!canUpdateAsset" />
           <FormField label="결제 주기">
-            <Dropdown v-model="assetEditForm.billingCycle" :options="billingCycleOptions" root-option="결제 주기 선택" />
+            <Dropdown v-model="assetEditForm.billingCycle" :options="billingCycleOptions" root-option="결제 주기 선택" :disabled="!canUpdateAsset" />
           </FormField>
         </div>
       </section>
@@ -29,12 +29,12 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Input id="edit-departmentName" v-model="assetEditForm.departmentName" label="부서" disabled />
           <Input id="edit-memberName" v-model="assetEditForm.memberName" label="사용자" disabled />
-          <Input id="edit-seatCount" v-model="assetEditForm.seatCount" type="number" label="최대 사용 가능 인원 수" required />
+          <Input id="edit-seatCount" v-model="assetEditForm.seatCount" type="number" label="최대 사용 가능 인원 수" required :disabled="!canUpdateAsset" />
           <FormField label="자동 갱신 여부" required>
-            <Dropdown v-model="assetEditForm.isAutoRenewal" :options="autoRenewalOptions" />
+            <Dropdown v-model="assetEditForm.isAutoRenewal" :options="autoRenewalOptions" :disabled="!canUpdateAsset" />
           </FormField>
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" required />
-          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="datetime-local" label="만료 일시" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" required :disabled="!canUpdateAsset" />
+          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="datetime-local" label="만료 일시" :disabled="!canUpdateAsset" />
         </div>
       </section>
 
@@ -57,7 +57,8 @@
 
     <template #footer>
       <div class="flex gap-2">
-        <Button
+        <Button 
+          v-if="canUpdateAsset"
           variant="outline"
           class="flex-1"
           :disabled="!isAssetEditDirty || isSavingAsset"
@@ -65,7 +66,8 @@
         >
           초기화
         </Button>
-        <Button
+        <Button 
+          v-if="canUpdateAsset"
           class="flex-1"
           :disabled="!isAssetEditDirty || isSavingAsset"
           :loading="isSavingAsset"
@@ -88,6 +90,7 @@ import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { BillingCycle, IntangibleAsset, IntangibleAssetStatus } from '@/types'
+import { usePermission } from '@/composables'
 
 interface AssetEditForm {
   assetItemName: string
@@ -105,6 +108,8 @@ interface AssetEditForm {
   purchasePrice: string
   purchaseVendor: string
 }
+
+const { canUpdateAsset } = usePermission()
 
 const props = withDefaults(defineProps<{
   isOpen?: boolean

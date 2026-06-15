@@ -11,7 +11,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="openRegisterDrawer">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
@@ -170,6 +170,7 @@ import type {
 import Input from '@/components/common/Input.vue';
 import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
 import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
+import { usePermission } from '@/composables/usePermission.ts';
 
 interface AssetItemOption {
   id: string
@@ -194,6 +195,7 @@ const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
 const isReferenceDataLoaded = ref(false)
 const referenceDataPromise = ref<Promise<void> | null>(null)
+const { canRegisterAsset } = usePermission()
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');

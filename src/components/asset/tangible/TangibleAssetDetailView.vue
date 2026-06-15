@@ -13,7 +13,7 @@
           <Input id="edit-productName" v-model="assetEditForm.productName" label="제품명" disabled />
           <Input id="edit-assetCode" v-model="assetEditForm.assetCode" label="자산 번호" disabled />
           <FormField label="자산 상태" required>
-            <Dropdown v-model="assetEditForm.statusLabel" :options="statusOptions" />
+            <Dropdown v-model="assetEditForm.statusLabel" :options="statusOptions" :disabled="!canUpdateAsset"/>
           </FormField>
           <Input id="edit-serialNo" v-model="assetEditForm.serialNo" label="시리얼 번호" disabled />
           <Input id="edit-assetUsageType" v-model="assetEditForm.assetUsageType" label="공용자산 여부" disabled />
@@ -28,9 +28,9 @@
           <FormField label="사용 유형">
             <Dropdown v-model="assetEditForm.usageType" :options="usageTypeOptions" disabled />
           </FormField>
-          <Input id="edit-location" v-model="assetEditForm.location" label="위치" placeholder="위치 입력" required />
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :required="requiresAssignmentInfo" />
-          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="datetime-local" label="반납 예정 일시" />
+          <Input id="edit-location" v-model="assetEditForm.location" label="위치" placeholder="위치 입력" required :disabled="!canUpdateAsset" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :required="requiresAssignmentInfo" :disabled="!canUpdateAsset" />
+          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="datetime-local" label="반납 예정 일시" :disabled="!canUpdateAsset" />
           <Input id="edit-department" v-model="assetEditForm.departmentName" label="부서" disabled />
           <Input id="edit-member" v-model="assetEditForm.memberName" label="사용자" disabled />
         </div>
@@ -52,6 +52,7 @@
     <template #footer>
       <div class="flex gap-2">
         <Button
+          v-if="canUpdateAsset"
           variant="outline"
           class="flex-1"
           :disabled="!isAssetEditDirty || isSavingAsset"
@@ -60,6 +61,7 @@
           초기화
         </Button>
         <Button
+          v-if="canUpdateAsset"
           class="flex-1"
           :disabled="!isAssetEditDirty || isSavingAsset"
           :loading="isSavingAsset"
@@ -81,6 +83,7 @@ import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { Department, Member, TangibleAsset, TangibleAssetStatus, TangibleAssetUsageType } from '@/types'
+import { usePermission } from '@/composables'
 
 interface TangibleAssetDetail extends TangibleAsset {
   productName: string
@@ -123,6 +126,8 @@ interface MemberAliases extends Member {
     departmentNamePath?: string
   }
 }
+
+const { canUpdateAsset } = usePermission()
 
 const props = defineProps<{
   isOpen: boolean

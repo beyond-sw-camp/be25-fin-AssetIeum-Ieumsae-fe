@@ -12,7 +12,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="openRegisterDrawer">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
@@ -150,6 +150,8 @@ import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
+import { usePermission } from '@/composables/usePermission.ts'
+const { canRegisterAsset } = usePermission()
 
 interface CategoryGroup {
   categoryId?: string

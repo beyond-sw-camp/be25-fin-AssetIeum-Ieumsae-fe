@@ -49,6 +49,16 @@ export function usePermission() {
   // 예산 관리 (최고관리자)
   const canManageBudget = computed(() => hasRole('ADMIN'))
 
+  // 자산 등록 (구매자산팀)
+  const canRegisterAsset = computed(() =>
+    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
+  // 자산 등록 (구매자산팀)
+  const canUpdateAsset = computed(() =>
+    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
   return {
     role,
     hasRole,
@@ -61,5 +71,7 @@ export function usePermission() {
     canApproveTicket,
     canPurchase,
     canManageBudget,
+    canRegisterAsset,
+    canUpdateAsset,
   }
 }
