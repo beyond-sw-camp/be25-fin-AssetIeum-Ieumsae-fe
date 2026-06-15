@@ -1,13 +1,20 @@
 <template>
   <div class="overflow-x-auto">
-    <table class="w-full min-w-max border-collapse">
+    <table class="w-full min-w-[720px] table-fixed border-collapse">
+      <colgroup>
+        <col
+          v-for="column in columns"
+          :key="column.key"
+          :style="{ width: `${100 / columns.length}%` }"
+        />
+      </colgroup>
       <thead>
         <tr class="border-b border-border bg-surface-secondary">
           <th
             v-for="column in columns"
             :key="column.key"
             scope="col"
-            class="whitespace-nowrap px-5 py-3 text-center text-xs font-semibold text-text-sub"
+            class="px-4 py-3 text-center text-xs font-semibold text-text-sub"
           >
             {{ column.label }}
           </th>
@@ -31,7 +38,7 @@
           <td
             v-for="column in columns"
             :key="column.key"
-            class="whitespace-nowrap px-5 py-4 text-center text-sm font-medium text-text-main"
+            class="break-words px-4 py-4 text-center text-sm font-medium leading-5 text-text-main"
           >
             {{ row[column.key] ?? '-' }}
           </td>

@@ -1,14 +1,17 @@
 <template>
   <div class="h-full overflow-y-auto bg-background text-text-main">
     <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
-      <button
-        type="button"
-        class="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-text-sub transition hover:text-primary"
-        @click="router.push({ name: 'TicketList' })"
-      >
-        <ArrowLeft :size="16" />
-        목록으로 돌아가기
-      </button>
+      <div class="mb-3 flex items-center">
+        <button
+          type="button"
+          class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-sub transition hover:border-primary/40 hover:text-primary"
+          aria-label="나의 요청 목록으로 돌아가기"
+          @click="router.push({ name: 'TicketList' })"
+        >
+          <ArrowLeft :size="14" />
+        </button>
+        <p class="page-subtitle">서비스데스크 > 나의 요청 > 상세 내용</p>
+      </div>
 
       <div v-if="isLoading" class="space-y-4">
         <div class="h-12 animate-pulse rounded-xl bg-surface-secondary" />
