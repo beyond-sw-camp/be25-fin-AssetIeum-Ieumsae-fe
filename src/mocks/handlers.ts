@@ -295,9 +295,9 @@ const memberPasswords = new Map(
 )
 
 interface MockTicket extends TicketListItem {
-  requesterId: number
+  requesterId: string
   requesterName: string
-  departmentId: number
+  departmentId: string
   departmentName: string
 }
 
@@ -309,9 +309,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
     ticketStatus: 'REQUESTED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-06-01T10:00:00',
   },
@@ -322,9 +322,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'Dell UltraSharp 27인치 4K',
     ticketStatus: 'ASSET_APPROVED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-28T14:20:00',
   },
@@ -335,9 +335,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: '에어론 체어 풀 스펙 B사이즈',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-20T09:10:00',
   },
@@ -348,9 +348,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'iPhone 15 Pro Max 512GB',
     ticketStatus: 'DEPARTMENT_REJECTED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-12T11:30:00',
   },
@@ -361,9 +361,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-08T16:00:00',
   },
@@ -374,9 +374,9 @@ let tickets: MockTicket[] = [
     requestMethod: 'TEAM_PURCHASE',
     requestedItemName: 'IntelliJ IDEA Ultimate 연간 구독',
     ticketStatus: 'IN_PROGRESS',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-06T09:20:00',
   },
@@ -387,9 +387,9 @@ let tickets: MockTicket[] = [
     requestMethod: 'DIRECT_PURCHASE',
     requestedItemName: 'MX Keys S 무선 키보드',
     ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-04T13:40:00',
   },
@@ -400,9 +400,9 @@ let tickets: MockTicket[] = [
     requestMethod: null,
     requestedItemName: 'iPhone 15 Pro Max 512GB',
     ticketStatus: 'COMPLETED',
-    requesterId: 5,
+    requesterId: mockMemberId(5),
     requesterName: '정사원',
-    departmentId: 30,
+    departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-02T11:10:00',
   },
@@ -833,7 +833,7 @@ function getTicketApprover(ticket: MockTicket): Member | undefined {
     return members.find((member) => member.memberId === assignedApproverId)
   }
 
-  const requester = members.find((member) => member.name === ticket.requesterName)
+  const requester = members.find((member) => member.memberId === ticket.requesterId)
   return requester ? getDepartmentManager(requester.departmentId) : undefined
 }
 
@@ -880,9 +880,7 @@ function createMockTicket(
   const ticketId = String(nextTicketId)
   const createdAt = new Date().toISOString()
   const datePart = createdAt.slice(0, 10).replaceAll('-', '')
-  const requesterId = requester
-    ? Number(requester.memberNo.replace(/\D/g, '')) || nextTicketId
-    : nextTicketId
+  const requesterId = requester?.memberId ?? mockMemberId(nextTicketId)
 
   const ticket: MockTicket = {
     ticketId,
@@ -893,7 +891,7 @@ function createMockTicket(
     ticketStatus: 'REQUESTED',
     requesterId,
     requesterName: requester?.name ?? '요청자',
-    departmentId: requester?.departmentId === ASSET_TEAM_DEPARTMENT_ID ? 20 : 30,
+    departmentId: requester?.departmentId ?? FRONTEND_DEPARTMENT_ID,
     departmentName: requester?.departmentName ?? '미지정',
     requestedAt: createdAt,
   }
@@ -1017,16 +1015,16 @@ export const handlers = [
     const ticketType = url.searchParams.get('ticketType') as TicketType | null
     const ticketStatus = url.searchParams.get('ticketStatus') as TicketStatus | null
     const keyword = url.searchParams.get('keyword')?.trim().toLowerCase() ?? ''
-    const requesterId = Number(url.searchParams.get('requesterId') ?? 0)
-    const departmentId = Number(url.searchParams.get('departmentId') ?? 0)
+    const requesterId = url.searchParams.get('requesterId')
+    const departmentId = url.searchParams.get('departmentId')
     const requester = getAuthenticatedMember(request)
 
     let filteredTickets = [...tickets]
     if (requester?.role === 'EMPLOYEE') {
-      filteredTickets = tickets.filter((ticket) => ticket.requesterName === requester.name)
+      filteredTickets = tickets.filter((ticket) => ticket.requesterId === requester.memberId)
     } else if (requester?.role === 'DEPARTMENT_MANAGER') {
       filteredTickets = tickets.filter((ticket) => (
-        String(ticket.departmentId) === requester.departmentId
+        ticket.departmentId === requester.departmentId
       ))
     }
 

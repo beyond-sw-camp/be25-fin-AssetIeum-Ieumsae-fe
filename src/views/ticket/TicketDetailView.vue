@@ -36,7 +36,7 @@
       </div>
 
       <template v-else-if="ticket">
-        <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <header class="mb-4">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-xl font-semibold text-text-muted">#{{ ticket.ticketNo }}</span>
@@ -45,9 +45,6 @@
                 {{ ticket.requestReason || '요청 사유가 등록되지 않았습니다.' }}
               </h1>
             </div>
-          </div>
-          <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <TicketStatusBadge :status="ticket.status" />
           </div>
         </header>
 
@@ -158,7 +155,6 @@ import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
 import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
-import TicketStatusBadge from '@/components/ticket/TicketStatusBadge.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type { AssetType, TicketComment, TicketDetail } from '@/types'
 import {
@@ -373,9 +369,13 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
 const requestDetailRows = computed<Array<Record<string, string>>>(() => {
   if (!ticket.value) return []
 
-  const quantity = ticket.value.quantity ?? 1
+  if (!hasRequestDetailData(ticket.value)) return []
+
+  const quantity = ticket.value.quantity
   const expectedAmount = ticket.value.expectedPrice === null
     || ticket.value.expectedPrice === undefined
+    || quantity === null
+    || quantity === undefined
     ? null
     : ticket.value.expectedPrice * quantity
 
@@ -383,7 +383,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     assetType: assetTypeLabel(ticket.value.assetType),
     category: ticket.value.categoryName ?? '-',
     itemName: requestItemName(ticket.value),
-    quantity: String(quantity),
+    quantity: quantity === null || quantity === undefined ? '-' : String(quantity),
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
@@ -402,6 +402,34 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     refundAmount: formatCurrency(ticket.value.refundAmount),
   }]
 })
+
+function hasRequestDetailData(detail: TicketDetail): boolean {
+  return [
+    detail.assetType,
+    detail.categoryName,
+    detail.requestedItemName,
+    detail.requestedItemDetail,
+    detail.productName,
+    detail.quantity,
+    detail.expectedPrice,
+    detail.actualAmount,
+    detail.assetId,
+    detail.assetStatus,
+    detail.startedAt,
+    detail.rentalStartDate,
+    detail.requestedDueDate,
+    detail.rentalDueDate,
+    detail.previousDueDate,
+    detail.changedDueDate,
+    detail.maintenanceReason,
+    detail.maintenanceResult,
+    detail.returnReason,
+    detail.returnResult,
+    detail.refundAmount,
+    detail.collectedAt,
+    detail.processedAt,
+  ].some((value) => value !== null && value !== undefined && value !== '')
+}
 
 const requestDetailReason = computed<RequestDetailReason | null>(() => {
   if (!ticket.value || ticket.value.ticketType !== 'ASSET_RETURN') return null

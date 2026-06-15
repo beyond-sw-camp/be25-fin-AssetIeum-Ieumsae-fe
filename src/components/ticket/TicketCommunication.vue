@@ -100,7 +100,6 @@ const props = withDefaults(defineProps<{
   errorMessage?: string
   submitErrorMessage?: string
   currentMemberId?: string
-  currentMemberNo?: string
   submitVersion?: number
 }>(), {
   loading: false,
@@ -108,7 +107,6 @@ const props = withDefaults(defineProps<{
   errorMessage: '',
   submitErrorMessage: '',
   currentMemberId: '',
-  currentMemberNo: '',
   submitVersion: 0,
 })
 
@@ -120,10 +118,7 @@ const emit = defineEmits<{
 const content = ref('')
 
 function isMine(comment: TicketComment) {
-  return Boolean(
-    (comment.writerId && comment.writerId === props.currentMemberId)
-    || (comment.writerMemberNo && comment.writerMemberNo === props.currentMemberNo),
-  )
+  return comment.writerId === props.currentMemberId
 }
 
 function handleSubmit() {

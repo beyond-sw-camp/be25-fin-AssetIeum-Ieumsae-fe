@@ -206,7 +206,6 @@ export interface AssetAssignRequest {
 export interface TicketComment {
   commentId: number
   ticketId: string
-  // TODO: API 명세/백엔드 확인 필요 - 응답 예시는 writerId, 스키마 표는 writerMemberNo를 사용한다.
   writerId: string
   writerName: string
   writerRole: Role

@@ -14,8 +14,17 @@
         </tr>
       </thead>
       <tbody>
+        <tr v-if="rows.length === 0">
+          <td
+            :colspan="columns.length"
+            class="px-5 py-10 text-center text-sm text-text-muted"
+          >
+            {{ emptyText }}
+          </td>
+        </tr>
         <tr
           v-for="(row, rowIndex) in rows"
+          v-else
           :key="rowIndex"
           class="border-b border-border last:border-b-0"
         >
@@ -38,8 +47,11 @@ interface TicketRequestDetailColumn {
   label: string
 }
 
-defineProps<{
+withDefaults(defineProps<{
   columns: TicketRequestDetailColumn[]
   rows: Array<Record<string, string>>
-}>()
+  emptyText?: string
+}>(), {
+  emptyText: '요청 상세 내역이 없습니다.',
+})
 </script>
