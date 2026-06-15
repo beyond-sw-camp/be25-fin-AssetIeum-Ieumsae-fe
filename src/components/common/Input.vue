@@ -98,10 +98,12 @@
       :autocomplete="props.autocomplete"
       :disabled="props.disabled"
       :maxlength="props.maxlength"
+      :min="props.min"
       :aria-invalid="props.error"
       :aria-describedby="props.error && props.errorMessage ? errorId : undefined"
       :class="inputClasses"
       @input="handleInput"
+      @keydown="handleKeydown"
     />
 
     <p
@@ -131,6 +133,7 @@ interface Props {
   error?: boolean
   errorMessage?: string
   maxlength?: number
+  min?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -144,6 +147,7 @@ const props = withDefaults(defineProps<Props>(), {
   error: false,
   errorMessage: '',
   maxlength: undefined,
+  min: undefined,
 })
 
 const emit = defineEmits<{
@@ -195,7 +199,25 @@ const calendarDays = computed(() => {
 
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
+  const value = target.value
+
+  if (props.type === 'number' && props.min !== undefined && value !== '') {
+    const numericValue = Number(value)
+    if (Number.isFinite(numericValue) && numericValue < props.min) {
+      const minimumValue = String(props.min)
+      target.value = minimumValue
+      emit('update:modelValue', minimumValue)
+      return
+    }
+  }
+
+  emit('update:modelValue', value)
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (props.type === 'number' && props.min !== undefined && props.min >= 0 && event.key === '-') {
+    event.preventDefault()
+  }
 }
 
 const toggleCalendar = () => {

@@ -61,16 +61,12 @@ export type IntangibleAssetStatus =
 // =====================================================
 
 export type TicketType =
-  | 'ASSET_REQUEST'          // 표준 자산 요청
-  | 'NON_STANDARD_REQUEST'   // 비표준 자산 요청
-  | 'DIRECT_PURCHASE'        // 직접 구매 요청
-  | 'RENTAL_REQUEST'         // 대여 요청
+  | 'ASSET_REQUEST'          // 표준/비표준/직접 구매 자산 요청
+  | 'RENTAL'                 // 대여 요청
   | 'RENTAL_EXTENSION'       // 대여 연장
-  | 'MAINTENANCE_REQUEST'    // 유지보수 요청
-  | 'RETURN_REQUEST'         // 반납 요청
-  | 'TERMINATION_REQUEST'    // 해지 요청
-  | 'PURCHASE_REQUEST'       // 구매 요청 (구매자산팀)
-  | 'RETURN_PRODUCT_REQUEST'  // 반품 요청
+  | 'MAINTENANCE'            // 유지보수 요청
+  | 'RETURN'                 // 반납/해지 요청
+  | 'PURCHASE_RETURN'        // 반품 요청
 
 export type TicketStatus =
   | 'REQUESTED'              // 접수 대기

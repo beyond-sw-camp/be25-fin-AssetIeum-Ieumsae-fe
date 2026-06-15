@@ -153,6 +153,7 @@ defineProps<{
 const openMenus = ref<Record<string, boolean>>({
   tangible: true,
   intangible: false,
+  serviceDesk: false,
 })
 
 function handleParentClick(item: NavItem) {
