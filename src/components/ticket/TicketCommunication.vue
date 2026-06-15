@@ -4,7 +4,7 @@
       <MessageSquareText :size="18" class="text-primary" />
     </template>
 
-    <div class="flex min-h-80 flex-col">
+    <div class="flex h-full min-h-80 flex-col">
       <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <div v-if="loading" class="flex min-h-40 items-center justify-center text-sm text-text-sub">
           <LoaderCircle :size="18" class="mr-2 animate-spin" />
@@ -131,20 +131,21 @@
         </template>
       </div>
 
-      <form class="mt-4 flex items-end gap-2 border-t border-border pt-4" @submit.prevent="handleSubmit">
+      <form class="mt-4 flex items-stretch gap-2 border-t border-border pt-4" @submit.prevent="handleSubmit">
         <label class="sr-only" for="ticket-comment">댓글</label>
         <textarea
           id="ticket-comment"
           v-model="content"
-          rows="2"
+          rows="1"
           maxlength="1000"
-          class="min-h-11 flex-1 resize-none rounded-xl border border-border bg-surface-secondary px-3 py-2.5 text-sm text-text-main placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
+          class="h-11 flex-1 resize-none overflow-y-auto rounded-xl border border-border bg-surface-secondary px-3 py-2.5 text-sm text-text-main placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
           placeholder="댓글을 입력해주세요."
           :disabled="submitting"
-          @keydown.ctrl.enter.prevent="handleSubmit"
+          @keydown="handleCommentKeydown"
         />
         <Button
           type="submit"
+          size="m"
           class="shrink-0"
           :loading="submitting"
           :disabled="!content.trim()"
@@ -227,6 +228,13 @@ function handleSubmit() {
   const normalizedContent = content.value.trim()
   if (!normalizedContent || props.submitting) return
   emit('submit', normalizedContent)
+}
+
+function handleCommentKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+
+  event.preventDefault()
+  handleSubmit()
 }
 
 function startEditing(comment: TicketComment) {
