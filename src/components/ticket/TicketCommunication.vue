@@ -60,7 +60,7 @@
                     type="button"
                     class="rounded-md p-1 text-text-muted transition hover:bg-surface-secondary hover:text-primary disabled:opacity-40"
                     aria-label="댓글 수정"
-                    :disabled="isCommentActionPending"
+                    :disabled="isCommentActionLocked"
                     @click="startEditing(comment)"
                   >
                     <Pencil :size="13" />
@@ -69,7 +69,7 @@
                     type="button"
                     class="rounded-md p-1 text-text-muted transition hover:bg-danger/10 hover:text-danger disabled:opacity-40"
                     aria-label="댓글 삭제"
-                    :disabled="isCommentActionPending"
+                    :disabled="isCommentActionLocked"
                     @click="emit('delete', comment)"
                   >
                     <Trash2 :size="13" />
@@ -216,8 +216,10 @@ const content = ref('')
 const editingCommentId = ref<number | null>(null)
 const editContent = ref('')
 
-const isCommentActionPending = computed(() => (
-  props.updatingCommentId !== null || props.deletingCommentId !== null
+const isCommentActionLocked = computed(() => (
+  editingCommentId.value !== null
+  || props.updatingCommentId !== null
+  || props.deletingCommentId !== null
 ))
 
 function isMine(comment: TicketComment) {
@@ -238,6 +240,7 @@ function handleCommentKeydown(event: KeyboardEvent) {
 }
 
 function startEditing(comment: TicketComment) {
+  if (isCommentActionLocked.value) return
   editingCommentId.value = comment.commentId
   editContent.value = comment.content
 }

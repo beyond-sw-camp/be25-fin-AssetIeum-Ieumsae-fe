@@ -129,8 +129,6 @@ export interface TangibleAsset {
   warrantyExpiredAt?: string | null
   assetItemName?: string
   productName?: string
-  createdAt?: string
-  updatedAt?: string
 }
 
 export interface TangibleAssetCreateRequest {
@@ -331,8 +329,6 @@ export interface IntangibleAsset {
   isAutoRenewal?: number
   purchaseDate?: string
   purchaseVendor?: string
-  createdAt?: string
-  updatedAt?: string
 }
 
 export interface IntangibleAssetCreateRequest {

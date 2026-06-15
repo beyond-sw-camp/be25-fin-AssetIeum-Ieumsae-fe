@@ -255,6 +255,7 @@ const commentSubmitErrorMessage = ref('')
 const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
+let commentActionRequestVersion = 0
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
@@ -654,22 +655,29 @@ async function handleCommentSubmit(content: string) {
 async function handleCommentUpdate(commentId: number, content: string) {
   if (!ticketId.value || updatingCommentId.value !== null || deletingCommentId.value !== null) return
 
+  const requestVersion = ++commentActionRequestVersion
   updatingCommentId.value = commentId
   commentActionErrorMessage.value = ''
 
   try {
     const response = await ticketApi.updateComment(ticketId.value, commentId, content)
+    if (requestVersion !== commentActionRequestVersion) return
+
     comments.value = comments.value.map((comment) => (
       comment.commentId === commentId ? response.data : comment
     ))
     commentActionVersion.value += 1
     notificationStore.success('댓글이 수정되었습니다.')
   } catch (error) {
+    if (requestVersion !== commentActionRequestVersion) return
+
     commentActionErrorMessage.value = error instanceof Error
       ? error.message
       : '댓글을 수정하지 못했습니다.'
   } finally {
-    updatingCommentId.value = null
+    if (requestVersion === commentActionRequestVersion) {
+      updatingCommentId.value = null
+    }
   }
 }
 
@@ -689,11 +697,14 @@ async function handleCommentDelete() {
   const targetComment = commentToDelete.value
   if (!ticketId.value || !targetComment || deletingCommentId.value !== null) return
 
+  const requestVersion = ++commentActionRequestVersion
   deletingCommentId.value = targetComment.commentId
   commentActionErrorMessage.value = ''
 
   try {
     await ticketApi.deleteComment(ticketId.value, targetComment.commentId)
+    if (requestVersion !== commentActionRequestVersion) return
+
     comments.value = comments.value.filter(
       (comment) => comment.commentId !== targetComment.commentId,
     )
@@ -701,11 +712,17 @@ async function handleCommentDelete() {
     commentActionVersion.value += 1
     notificationStore.success('댓글이 삭제되었습니다.')
   } catch (error) {
-    commentActionErrorMessage.value = error instanceof Error
+    if (requestVersion !== commentActionRequestVersion) return
+
+    const message = error instanceof Error
       ? error.message
       : '댓글을 삭제하지 못했습니다.'
+    commentActionErrorMessage.value = message
+    notificationStore.error('댓글 삭제 실패', message)
   } finally {
-    deletingCommentId.value = null
+    if (requestVersion === commentActionRequestVersion) {
+      deletingCommentId.value = null
+    }
   }
 }
 
@@ -733,6 +750,18 @@ async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(ticketId, loadPage)
+function resetCommentActionState() {
+  commentActionRequestVersion += 1
+  commentToDelete.value = null
+  updatingCommentId.value = null
+  deletingCommentId.value = null
+  commentActionErrorMessage.value = ''
+  commentActionVersion.value += 1
+}
+
+watch(ticketId, () => {
+  resetCommentActionState()
+  void loadPage()
+})
 onMounted(loadPage)
 </script>
