@@ -105,9 +105,9 @@ export interface TangibleAsset {
   serialNo?: string
   usageType?: TangibleAssetUsageType | null
   assetUsageType?: TangibleAssetUsageScope | null
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  tangibleAssetstatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -129,6 +129,7 @@ export interface TangibleAsset {
   warrantyExpiredAt?: string | null
   assetItemName?: string
   productName?: string
+  createdAt?: string
 }
 
 export interface TangibleAssetCreateRequest {
@@ -138,8 +139,9 @@ export interface TangibleAssetCreateRequest {
   serialNo?: string
   usageType?: TangibleAssetUsageType | null
   assetUsageType?: TangibleAssetUsageScope
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -163,9 +165,9 @@ export interface TangibleAssetUpdateRequest {
   assetCode?: string
   assetItemName?: string
   serialNo?: string
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  tangibleAssetstatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -190,8 +192,9 @@ export interface TangibleAssetListFilter {
   assetId?: string | number | null
   productName?: string
   assetCode?: string
-  status?: TangibleAssetStatus
-  tangibleAssetStatus?: TangibleAssetStatus
+  status?: TangibleAssetStatus | string
+  tangibleAssetStatus?: TangibleAssetStatus | string
+  tangibleAssetstatus?: TangibleAssetStatus | string
   departmentId?: string
   memberId?: string
   currentUserId?: string
@@ -329,6 +332,7 @@ export interface IntangibleAsset {
   isAutoRenewal?: number
   purchaseDate?: string
   purchaseVendor?: string
+  createdAt?: string
 }
 
 export interface IntangibleAssetCreateRequest {

@@ -615,6 +615,89 @@ intangibleAssets.forEach((asset) => {
   asset.assignedMemberId = normalizeAssignedMemberId(asset.assignedMemberId)
 })
 
+type MockAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED'
+type MockAssignmentType = 'TEMPORARY' | 'PERMANENT'
+
+interface MockTangibleAssetAssignment {
+  assignmentId: string
+  assetId: string
+  memberId: string
+  memberName: string
+  memberNo: string
+  departmentName: string
+  assignmentType: MockAssignmentType
+  assetUsageType: 'PERSONAL' | 'DEPARTMENT'
+  assignedAt: string
+  endedAt: string | null
+  assignmentStatus: MockAssignmentStatus
+}
+
+const memberById = (memberId: string) => members.find((member) => member.memberId === memberId)
+
+let tangibleAssignmentSequence = 1
+let tangibleAssetAssignments: MockTangibleAssetAssignment[] = tangibleAssets
+  .filter((asset) => asset.assignedMemberId)
+  .map((asset) => {
+    const member = memberById(asset.assignedMemberId ?? '')
+    return {
+      assignmentId: `assignment-${tangibleAssignmentSequence++}`,
+      assetId: String(asset.assetId),
+      memberId: asset.assignedMemberId ?? '',
+      memberName: member?.name ?? asset.assignedMemberName ?? '-',
+      memberNo: member?.memberNo ?? '-',
+      departmentName: member?.departmentName ?? asset.departmentName ?? '-',
+      assignmentType: (asset.usageType === 'TEMPORARY' ? 'TEMPORARY' : 'PERMANENT') as MockAssignmentType,
+      assetUsageType: asset.assetUsageType === 'DEPARTMENT' ? 'DEPARTMENT' : 'PERSONAL',
+      assignedAt: asset.startedAt?.includes('T') ? asset.startedAt : `${asset.startedAt ?? '2026-06-01'}T09:00:00`,
+      endedAt: asset.returnDueDate ? (asset.returnDueDate.includes('T') ? asset.returnDueDate : `${asset.returnDueDate}T18:00:00`) : null,
+      assignmentStatus: 'ASSIGNED',
+    }
+  })
+
+function createTangibleAssignment(asset: TangibleAsset, body: {
+  memberId: string
+  usageType?: MockAssignmentType
+  assetUsageType?: 'PERSONAL' | 'DEPARTMENT'
+  endedAt?: string | null
+}): MockTangibleAssetAssignment {
+  const member = memberById(body.memberId)
+
+  return {
+    assignmentId: `assignment-${tangibleAssignmentSequence++}`,
+    assetId: String(asset.assetId),
+    memberId: body.memberId,
+    memberName: member?.name ?? '-',
+    memberNo: member?.memberNo ?? '-',
+    departmentName: member?.departmentName ?? '-',
+    assignmentType: body.usageType ?? 'PERMANENT',
+    assetUsageType: body.assetUsageType ?? 'PERSONAL',
+    assignedAt: new Date().toISOString().slice(0, 19),
+    endedAt: body.endedAt ?? null,
+    assignmentStatus: 'ASSIGNED',
+  }
+}
+
+function applyAssignmentToAsset(asset: TangibleAsset, assignment: MockTangibleAssetAssignment) {
+  asset.status = 'IN_USE'
+  asset.tangibleAssetStatus = 'IN_USE'
+  asset.assignedMemberId = assignment.memberId
+  asset.assignedMemberName = assignment.memberName
+  asset.departmentId = memberById(assignment.memberId)?.departmentId ?? asset.departmentId ?? null
+  asset.departmentName = assignment.departmentName
+  asset.usageType = assignment.assignmentType
+  asset.assetUsageType = assignment.assetUsageType
+  asset.startedAt = assignment.assignedAt
+  asset.returnDueDate = assignment.endedAt
+}
+
+function closeActiveAssignments(assetId: string, endedAt = new Date().toISOString().slice(0, 19)) {
+  tangibleAssetAssignments = tangibleAssetAssignments.map((assignment) => (
+    assignment.assetId === assetId && assignment.assignmentStatus === 'ASSIGNED'
+      ? { ...assignment, assignmentStatus: 'RETURNED', endedAt: assignment.endedAt ?? endedAt }
+      : assignment
+  ))
+}
+
 function toLoginResponse(member: Member): LoginResponse {
   return {
     companyId: MOCK_COMPANY_ID,
@@ -654,7 +737,7 @@ function getMockItemName(
 
 function getMockAssetName(
   assetType: ReturnRequestCreate['assetType'],
-  assetId: number,
+  assetId: string | number,
 ): string | null {
   const targetAssetId = String(assetId)
 
@@ -1685,6 +1768,134 @@ export const handlers = [
     })
 
     return HttpResponse.json(ok(updatedAsset, '유형자산이 수정되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/tangible-asset/assets/:assetId/assignments`, ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const url = new URL(request.url)
+    const assignmentStatus = url.searchParams.get('assignmentStatus')
+
+    let assignments = tangibleAssetAssignments.filter((assignment) => assignment.assetId === assetId)
+    if (assignmentStatus) {
+      assignments = assignments.filter((assignment) => assignment.assignmentStatus === assignmentStatus)
+    }
+
+    return HttpResponse.json(ok(assignments, '유형자산 배정 이력 조회에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/assets/:assetId/assign`, async ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const body = await request.json() as {
+      memberId: string
+      usageType?: MockAssignmentType
+      assetUsageType?: 'PERSONAL' | 'DEPARTMENT'
+      endedAt?: string | null
+    }
+    const asset = tangibleAssets.find((item) => String(item.assetId) === assetId)
+    const member = memberById(body.memberId)
+
+    if (!asset || !member) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSIGNMENT_TARGET_NOT_FOUND',
+        message: '배정 대상 자산 또는 사용자를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    closeActiveAssignments(assetId)
+    const assignment = createTangibleAssignment(asset, body)
+    tangibleAssetAssignments = [assignment, ...tangibleAssetAssignments]
+    applyAssignmentToAsset(asset, assignment)
+
+    return HttpResponse.json(ok(assignment, '유형자산이 배정되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/assets/:assetId/return`, ({ params }) => {
+    const assetId = String(params.assetId)
+    const asset = tangibleAssets.find((item) => String(item.assetId) === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '유형자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    closeActiveAssignments(assetId)
+    const latestAssignment = tangibleAssetAssignments.find((assignment) => assignment.assetId === assetId)
+
+    asset.status = 'AVAILABLE'
+    asset.tangibleAssetStatus = 'AVAILABLE'
+    asset.assignedMemberId = null
+    asset.assignedMemberName = null
+    asset.departmentId = null
+    asset.departmentName = null
+    asset.usageType = null
+    asset.returnDueDate = null
+
+    return HttpResponse.json(ok(latestAssignment ?? null, '유형자산이 반납 처리되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/assets/:assetId/reassign`, async ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const body = await request.json() as { newMemberId: string }
+    const asset = tangibleAssets.find((item) => String(item.assetId) === assetId)
+    const member = memberById(body.newMemberId)
+
+    if (!asset || !member) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'REASSIGNMENT_TARGET_NOT_FOUND',
+        message: '재배정 대상 자산 또는 사용자를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    closeActiveAssignments(assetId)
+    const assignment = createTangibleAssignment(asset, {
+      memberId: body.newMemberId,
+      usageType: asset.usageType === 'TEMPORARY' ? 'TEMPORARY' : 'PERMANENT',
+      assetUsageType: asset.assetUsageType === 'DEPARTMENT' ? 'DEPARTMENT' : 'PERSONAL',
+      endedAt: asset.returnDueDate ?? null,
+    })
+    tangibleAssetAssignments = [assignment, ...tangibleAssetAssignments]
+    applyAssignmentToAsset(asset, assignment)
+
+    return HttpResponse.json(ok(assignment, '유형자산이 재배정되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tangible-asset/assets/reassign-bulk`, async ({ request }) => {
+    const body = await request.json() as { currentMemberId: string; newMemberId: string }
+    const targetAssets = tangibleAssets.filter((asset) => asset.assignedMemberId === body.currentMemberId)
+    const member = memberById(body.newMemberId)
+
+    if (!member) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'MEMBER_NOT_FOUND',
+        message: '새 사용자를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const assignments = targetAssets.map((asset) => {
+      closeActiveAssignments(String(asset.assetId))
+      const assignment = createTangibleAssignment(asset, {
+        memberId: body.newMemberId,
+        usageType: asset.usageType === 'TEMPORARY' ? 'TEMPORARY' : 'PERMANENT',
+        assetUsageType: asset.assetUsageType === 'DEPARTMENT' ? 'DEPARTMENT' : 'PERSONAL',
+        endedAt: asset.returnDueDate ?? null,
+      })
+      applyAssignmentToAsset(asset, assignment)
+      return assignment
+    })
+
+    tangibleAssetAssignments = [...assignments, ...tangibleAssetAssignments]
+
+    return HttpResponse.json(ok(assignments, '유형자산이 일괄 재배정되었습니다.'))
   }),
 
   http.get(`${API_PREFIX}/assets/intangible`, ({ request }) => {

@@ -25,8 +25,22 @@
           @registered="handleAssetRegistered"
         />
 
-        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
-          <TagIcon :size="15" />
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="유형자산 배정"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <TangibleAssetAssignment
+            :assets="serverAssetList"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
           자산 배정
         </Button>
       </div>
@@ -160,7 +174,8 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Plus, Layers, ChevronLeft, ChevronRight, Search, TagIcon } from 'lucide-vue-next';
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import { Plus, Layers, ChevronLeft, ChevronRight, Search, Tag } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
@@ -176,6 +191,7 @@ import type {
 import Input from '@/components/common/Input.vue';
 import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
 import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
+import TangibleAssetAssignment from '@/components/asset/tangible/TangibleAssetAssignment.vue';
 import { usePermission } from '@/composables/usePermission.ts';
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -198,6 +214,7 @@ interface TangibleAssetRow extends TangibleAsset {
 }
 
 const isRegisterDrawerOpen = ref(false);
+const isAssignmentDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
 const isReferenceDataLoaded = ref(false)
@@ -296,6 +313,11 @@ const openRegisterDrawer = () => {
   void loadReferenceData()
 }
 
+const openAssignmentDrawer = async () => {
+  await loadReferenceData()
+  isAssignmentDrawerOpen.value = true
+}
+
 const openAssetDetail = async (row: TangibleAssetRow) => {
   const assetId = getAssetId(row)
   selectedAsset.value = { ...row, assetId }
@@ -332,6 +354,11 @@ const closeAssetDetail = () => {
 const handleAssetSaved = () => {
   loadServerData()
 };
+
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
+  loadServerData()
+}
 
 const serverAssetList = ref<TangibleAssetRow[]>([]);
 const totalElements = ref(0);
