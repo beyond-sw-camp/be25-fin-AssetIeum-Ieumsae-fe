@@ -13,21 +13,24 @@
     </template>
 
     <template #cell-ticketType="{ row }">
-      <TicketTypeBadge :type="row.ticketType" />
+      <TicketTypeBadge
+        :type="row.ticketType"
+        :request-method="row.requestMethod"
+      />
     </template>
 
-    <template #cell-assetItemName="{ value }">
+    <template #cell-requestedItemName="{ value }">
       <span :class="value ? 'text-text-main' : 'text-text-muted'">
         {{ value || '-' }}
       </span>
     </template>
 
-    <template #cell-createdAt="{ value }">
+    <template #cell-requestedAt="{ value }">
       <span class="text-text-main">{{ formatDate(String(value), 'YYYY-MM-DD HH:mm') }}</span>
     </template>
 
-    <template #cell-status="{ row }">
-      <TicketStatusBadge :status="row.status" />
+    <template #cell-ticketStatus="{ row }">
+      <TicketStatusBadge :status="row.ticketStatus" />
     </template>
   </Table>
 </template>
@@ -60,8 +63,8 @@ function handleRowClick(ticket: TicketListItem) {
 const columns: Column<TicketListItem>[] = [
   { key: 'ticketNo', label: '티켓 번호', width: '20%', align: 'center' },
   { key: 'ticketType', label: '티켓 유형', width: '18%', align: 'center' },
-  { key: 'assetItemName', label: '품목명', width: '27%', align: 'center' },
-  { key: 'createdAt', label: '요청일시', width: '20%', align: 'center' },
-  { key: 'status', label: '진행 상태', width: '15%', align: 'center' },
+  { key: 'requestedItemName', label: '품목명', width: '27%', align: 'center' },
+  { key: 'requestedAt', label: '요청일시', width: '20%', align: 'center' },
+  { key: 'ticketStatus', label: '진행 상태', width: '15%', align: 'center' },
 ]
 </script>

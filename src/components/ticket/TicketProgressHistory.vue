@@ -171,7 +171,7 @@ const props = defineProps<{
 }>()
 
 function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
-  if (key === 'created') return ticket.createdAt
+  if (key === 'created') return ticket.requestedAt
   if (key === 'department') {
     return ticket.departmentApprovedAt ?? ticket.departmentRejectedAt ?? undefined
   }

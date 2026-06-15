@@ -5,41 +5,74 @@ import type { AssetType, Role, TicketType, TicketStatus } from './common'
 // =====================================================
 
 export interface TicketListItem extends Record<string, unknown> {
-  ticketId: number
+  ticketId: string
   ticketNo: string
   ticketType: TicketType
-  assetItemName: string | null
-  status: TicketStatus
-  requesterId: number
-  requesterName: string
-  departmentId: number
-  departmentName: string
-  createdAt: string
+  requestMethod: PurchaseRequestMethod | null
+  requestedItemName: string | null
+  requestedAt: string
+  ticketStatus: TicketStatus
 }
 
 export interface TicketDetail {
-  ticketId: number
+  // TODO: API 명세/백엔드 확인 필요 - 상세 응답 표는 integer지만 목록과 path는 UUID string이다.
+  ticketId: string
   ticketNo: string
   ticketType: TicketType
+  requestMethod?: PurchaseRequestMethod | null
   status: TicketStatus
-  requesterId: number
+  detailStatus?: string | null
+  requesterId: string | number
   requesterName: string
-  departmentId: number
+  departmentId: string | number
   departmentName: string
-  approverId: number | null
+  approverId: string | number | null
   approverName: string | null
-  assigneeId: number | null
+  assigneeId: string | number | null
   assigneeName: string | null
   requestReason: string | null
+  // TODO: API 명세/백엔드 확인 필요 - 티켓 상세 응답은 현재 공통 정보만 정의되어 있다.
+  // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
+  requestedUsageType?: RequestedUsageType | null
+  assetType?: AssetType | null
+  categoryName?: string | null
+  requestedItemName?: string | null
+  requestedItemDetail?: string | null
+  productName?: string | null
+  quantity?: number | null
+  expectedPrice?: number | null
+  actualAmount?: number | null
+  assetId?: string | number | null
+  assetStatus?: string | null
+  startedAt?: string | null
+  rentalStartDate?: string | null
+  requestedDueDate?: string | null
+  rentalDueDate?: string | null
+  previousDueDate?: string | null
+  changedDueDate?: string | null
+  maintenanceReason?: string | null
+  maintenanceResult?: string | null
+  maintenanceCompletedAt?: string | null
+  maintenanceCost?: number | null
+  returnReason?: string | null
+  returnResult?: string | null
+  refundAmount?: number | null
+  collectedAt?: string | null
+  processedAt?: string | null
   departmentApprovedAt: string | null
   departmentRejectedAt: string | null
   departmentRejectionReason: string | null
   purchaseApprovedAt: string | null
   purchaseRejectedAt: string | null
   purchaseRejectionReason: string | null
+  // TODO: API 명세/백엔드 확인 필요 - DB의 purchase_request_items.received_at을 포함한
+  // 구매 처리 일시 필드가 티켓 상세 응답에는 아직 정의되지 않았다.
+  orderedAt?: string | null
+  receivedAt?: string | null
+  registeredAt?: string | null
   completedAt: string | null
   cancelledAt: string | null
-  createdAt: string
+  requestedAt: string
   updatedAt: string
 }
 
@@ -47,9 +80,10 @@ export interface TicketListFilter {
   page?: number
   size?: number
   ticketType?: TicketType
-  status?: TicketStatus
-  requesterId?: number
-  departmentId?: number
+  ticketStatus?: TicketStatus
+  keyword?: string
+  requesterId?: string
+  departmentId?: string
 }
 
 // =====================================================
@@ -67,12 +101,13 @@ export type TicketRequestKind =
   | 'PURCHASE_RETURN'
 
 export type RequestedUsageType = 'PERSONAL' | 'TEAM'
+export type PurchaseRequestMethod = 'TEAM_PURCHASE' | 'DIRECT_PURCHASE'
 
 export interface TicketCreateResponse {
-  ticketId: number
+  ticketId: string
   ticketNo: string
   ticketType: TicketType
-  status?: TicketStatus
+  ticketStatus?: TicketStatus
   createdAt?: string
 }
 
@@ -170,12 +205,11 @@ export interface AssetAssignRequest {
 
 export interface TicketComment {
   commentId: number
-  // TODO: API 명세의 응답 예시와 스키마에서 ticketId/writer 식별자 필드가 불일치한다.
-  ticketId: string | number
-  writerId?: string
-  writerMemberNo?: string
+  ticketId: string
+  // TODO: API 명세/백엔드 확인 필요 - 응답 예시는 writerId, 스키마 표는 writerMemberNo를 사용한다.
+  writerId: string
   writerName: string
-  writerRole?: Role
+  writerRole: Role
   content: string
   createdAt: string
   updatedAt: string

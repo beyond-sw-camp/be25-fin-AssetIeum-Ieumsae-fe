@@ -5,6 +5,7 @@ import type {
   TicketType,
   Role,
   MemberStatus,
+  PurchaseRequestMethod,
 } from '@/types'
 
 // =====================================================
@@ -30,12 +31,12 @@ export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
-  REQUESTED: '요청',
-  DEPARTMENT_APPROVED: '부서책임자 승인',
-  DEPARTMENT_REJECTED: '부서책임자 반려',
-  ASSET_APPROVED: '구매자산팀 승인',
-  ASSET_REJECTED: '구매자산팀 반려',
-  IN_PROGRESS: '진행 중',
+  REQUESTED: '부서 승인 대기',
+  DEPARTMENT_APPROVED: '자산팀 검토 대기',
+  DEPARTMENT_REJECTED: '부서 반려',
+  ASSET_APPROVED: '자산팀 승인',
+  ASSET_REJECTED: '자산팀 반려',
+  IN_PROGRESS: '처리 중',
   COMPLETED: '처리 완료',
   CANCELLED: '요청 취소',
 }
@@ -48,6 +49,17 @@ export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   ASSET_RETURN: '반납·해지 요청',
   PURCHASE_REQUEST: '구매 요청',
   PURCHASE_RETURN: '반품 요청',
+}
+
+export function getTicketTypeLabel(
+  ticketType: TicketType,
+  requestMethod?: PurchaseRequestMethod | null,
+): string {
+  if (ticketType === 'PURCHASE_REQUEST' && requestMethod === 'DIRECT_PURCHASE') {
+    return '직접 구매 요청'
+  }
+
+  return TICKET_TYPE_LABEL[ticketType]
 }
 
 export const ROLE_LABEL: Record<Role, string> = {

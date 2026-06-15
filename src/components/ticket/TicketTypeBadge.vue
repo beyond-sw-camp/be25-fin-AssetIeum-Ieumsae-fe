@@ -7,18 +7,20 @@
         : 'text-sm text-text-main',
     ]"
   >
-    {{ TICKET_TYPE_LABEL[type] }}
+    {{ getTicketTypeLabel(type, requestMethod) }}
   </span>
 </template>
 
 <script setup lang="ts">
-import type { TicketType } from '@/types'
-import { TICKET_TYPE_LABEL } from '@/utils/labels'
+import type { PurchaseRequestMethod, TicketType } from '@/types'
+import { getTicketTypeLabel } from '@/utils/labels'
 
 withDefaults(defineProps<{
   type: TicketType
+  requestMethod?: PurchaseRequestMethod | null
   variant?: 'text' | 'badge'
 }>(), {
+  requestMethod: null,
   variant: 'text',
 })
 </script>
