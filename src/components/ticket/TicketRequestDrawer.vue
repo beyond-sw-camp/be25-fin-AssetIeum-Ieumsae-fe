@@ -638,7 +638,7 @@ const requestTitleMap: Record<TicketRequestKind, string> = {
 
 const drawerTitle = computed(() => (
   isAssetSelectionStep.value
-    ? '자산 선택 팝업'
+    ? '표준 자산 선택'
     : selectedKind.value
       ? requestTitleMap[selectedKind.value]
       : '새 티켓 요청'
@@ -997,17 +997,16 @@ function uniqueCategoryOptions(options: DropdownOption[]): DropdownOption[] {
 }
 
 async function loadAssetCategories() {
-  const companyId = authStore.user?.companyId
   const results = await Promise.allSettled([
-    companyId ? tangibleItemApi.getCategories(companyId) : Promise.resolve(null),
+    tangibleItemApi.getCategories(),
     intangibleItemApi.getCategories(),
   ])
   const [tangibleResult, intangibleResult] = results
 
-  tangibleCategoryOptions.value = tangibleResult.status === 'fulfilled' && tangibleResult.value
+  tangibleCategoryOptions.value = tangibleResult.status === 'fulfilled'
     ? toTangibleCategoryOptions(tangibleResult.value.data)
     : []
-  tangiblePurchaseCategoryOptions.value = tangibleResult.status === 'fulfilled' && tangibleResult.value
+  tangiblePurchaseCategoryOptions.value = tangibleResult.status === 'fulfilled'
     ? uniqueCategoryOptions(collectPurchaseCategoryOptions(tangibleResult.value.data))
     : []
 
@@ -1023,8 +1022,8 @@ async function loadAssetCategories() {
 async function loadOwnedAssets() {
   const memberId = authStore.user?.memberId
   const results = await Promise.allSettled([
-    tangibleAssetApi.getList({ page: 0, size: 100, memberId }),
-    intangibleAssetApi.getList({ page: 0, size: 100, memberId }),
+    tangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
+    intangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
   ])
 
   const [tangibleAssetsResult, intangibleAssetsResult] = results
@@ -1058,12 +1057,10 @@ async function handleAssetSearch() {
         size: 100,
         category: assetSearchForm.category || undefined,
         keyword: assetSearchForm.keyword.trim() || undefined,
-        assetUsageType: assetSearchForm.assetUsageType || undefined,
       })
       itemOptions.value = response.data.content.map(toIntangibleItemOption).filter((item) => item.id)
     } else {
       const response = await tangibleItemApi.getList({
-        companyId: authStore.user?.companyId,
         page: 0,
         size: 100,
         categoryName: assetSearchForm.category || undefined,
