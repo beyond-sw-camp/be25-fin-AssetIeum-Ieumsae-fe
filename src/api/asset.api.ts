@@ -7,6 +7,12 @@ import type {
   TangibleAssetCategoryDeleteResponse,
   TangibleAssetCategoryResponse,
   TangibleCategoryGroup,
+  IntangibleAssetCategoryCreateRequest,
+  IntangibleAssetCategoryDeleteResponse,
+  IntangibleAssetCategoryResponse,
+  IntangibleAssetItemCreateRequest,
+  IntangibleAssetItemUpdateRequest,
+  IntangibleCategoryGroup,
   TangibleAsset,
   TangibleAssetCreateRequest,
   TangibleAssetUpdateRequest,
@@ -14,6 +20,7 @@ import type {
   IntangibleItem,
   IntangibleAsset,
   IntangibleAssetCreateRequest,
+  IntangibleAssetUpdateRequest,
   IntangibleAssetListFilter,
   PageResponse,
 } from '@/types'
@@ -32,13 +39,19 @@ function compactBody<T extends object>(body: T) {
   )
 }
 
+function toLocalDateTime(value?: string | null) {
+  if (!value) return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00`
+  return value
+}
+
 const toBoolean = (value: number | boolean | undefined) => {
   if (typeof value === 'number') return value === 1
   return value
 }
 
 const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactBody({
-  companyId: body.companyId,
   categoryId: body.categoryId,
   productName: body.productName ?? body.name ?? body.assetName ?? body.itemCode ?? body.itemNo,
   manufacturer: body.manufacturer,
@@ -55,7 +68,6 @@ const toTangibleItemUpdateBody = (body: TangibleAssetItemUpdateRequest) => compa
 })
 
 const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactBody({
-  companyId: body.companyId,
   tangibleItemId: body.tangibleItemId ?? body.assetItemId,
   serialNumber: body.serialNumber ?? body.serialNo,
   usageType: body.usageType,
@@ -64,12 +76,12 @@ const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactB
   memberId: body.memberId ?? body.assignedMemberId,
   departmentId: body.departmentId,
   location: body.location,
-  usedStartedAt: body.usedStartedAt ?? body.startedAt,
-  returnDueDate: body.returnDueDate,
-  purchaseDate: body.purchaseDate,
+  usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
+  returnDueDate: toLocalDateTime(body.returnDueDate),
+  purchaseDate: toLocalDateTime(body.purchaseDate),
+  warrantyExpiredAt: toLocalDateTime(body.warrantyExpiredAt),
   purchasePrice: body.purchasePrice,
   purchaseVendor: body.purchaseVendor ?? body.vendor,
-  warrantyExpiredAt: body.warrantyExpiredAt,
 })
 
 const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactBody({
@@ -77,9 +89,43 @@ const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactB
   memberId: body.memberId ?? body.assignedMemberId,
   departmentId: body.departmentId,
   location: body.location,
-  usedStartedAt: body.usedStartedAt ?? body.startedAt,
-  returnDueDate: body.returnDueDate,
+  usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
+  returnDueDate: toLocalDateTime(body.returnDueDate),
   usageType: body.usageType,
+})
+
+const toIntangibleItemBody = (body: IntangibleAssetItemCreateRequest | IntangibleAssetItemUpdateRequest) => compactBody({
+  categoryId: body.categoryId,
+  productName: body.productName,
+  licenseType: body.licenseType,
+  provider: body.provider ?? body.vendor,
+  isStandard: toBoolean(body.isStandard),
+})
+
+const toIntangibleAssetCreateBody = (body: IntangibleAssetCreateRequest) => compactBody({
+  intangibleItemId: body.intangibleItemId,
+  licenseCode: body.licenseCode,
+  seatCount: body.seatCount,
+  isAutoRenewal: body.isAutoRenewal,
+  purchaseDate: toLocalDateTime(body.purchaseDate),
+  purchasePrice: body.purchasePrice,
+  purchaseVendor: body.purchaseVendor,
+  intangibleAssetStatus: body.intangibleAssetStatus,
+  memberId: body.memberId,
+  departmentId: body.departmentId,
+  startedAt: toLocalDateTime(body.startedAt),
+  expiredAt: toLocalDateTime(body.expiredAt),
+  billingCycle: body.billingCycle,
+})
+
+const toIntangibleAssetUpdateBody = (body: Partial<IntangibleAssetUpdateRequest>) => compactBody({
+  intangibleAssetStatus: body.intangibleAssetStatus,
+  licenseCode: body.licenseCode,
+  seatCount: body.seatCount,
+  isAutoRenewal: body.isAutoRenewal,
+  startedAt: toLocalDateTime(body.startedAt),
+  expiredAt: toLocalDateTime(body.expiredAt),
+  billingCycle: body.billingCycle,
 })
 
 // ─── 유형자산 품목 API ───────────────────────────────────────────────────────
@@ -87,7 +133,6 @@ const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactB
 export const tangibleItemApi = {
   /** 유형자산 품목 목록 조회 */
   getList: (params?: {
-    companyId?: string
     page?: number
     size?: number
     categoryId?: string
@@ -97,8 +142,8 @@ export const tangibleItemApi = {
     api.get<PageResponse<TangibleAssetItem>>('/tangible-asset/items', compactParams(params)),
 
   /** 유형자산 품목 카테고리 목록 조회 */
-  getCategories: (companyId: string) =>
-    api.get<TangibleCategoryGroup[]>('/tangible-asset/categories', { companyId }),
+  getCategories: () =>
+    api.get<TangibleCategoryGroup[]>('/tangible-asset/categories'),
 
   /** 유형자산 카테고리 등록 */
   createCategory: (body: TangibleAssetCategoryCreateRequest) =>
@@ -147,31 +192,44 @@ export const tangibleAssetApi = {
 
 export const intangibleItemApi = {
   /** 무형자산 품목 목록 조회 */
-  getList: (params?: { page?: number; size?: number; category?: string; keyword?: string }) =>
-    api.get<PageResponse<IntangibleItem>>('intangible-asset/items', params as Record<string, unknown>),
+  getList: (params?: { page?: number; size?: number; category?: string; categoryId?: string; keyword?: string }) =>
+    api.get<PageResponse<IntangibleItem>>('/intangible-asset/items', compactParams(params)),
 
   /** 무형자산 품목 카테고리 목록 조회 */
   getCategories: () =>
-    api.get<string[]>('intangible-asset/categories'),
+    api.get<IntangibleCategoryGroup[] | string[]>('/intangible-asset/categories'),
+
+  /** 무형자산 카테고리 등록 */
+  createCategory: (body: IntangibleAssetCategoryCreateRequest) =>
+    api.post<IntangibleAssetCategoryResponse>('/intangible-asset/categories', compactBody(body)),
+
+  /** 무형자산 카테고리 삭제 */
+  deleteCategory: (categoryId: string) =>
+    api.delete<IntangibleAssetCategoryDeleteResponse>(`/intangible-asset/categories/${categoryId}`),
 
   /** 무형자산 품목 상세 조회 */
-  getDetail: (itemId: number) =>
-    api.get<IntangibleItem>(`intangible-asset/items/${itemId}`),
+  getDetail: (itemId: string) =>
+    api.get<IntangibleItem>(`/intangible-asset/items/${itemId}`),
 
   /** 무형자산 품목 등록 */
-  create: (body: Omit<IntangibleItem, 'itemId'>) =>
-    api.post<IntangibleItem>('intangible-asset/items/', body),
+  create: (body: IntangibleAssetItemCreateRequest) =>
+    api.post<IntangibleItem>('/intangible-asset/items', toIntangibleItemBody(body)),
 
+  /** 무형자산 품목 수정 */
+  update: (itemId: string, body: IntangibleAssetItemUpdateRequest) =>
+    api.patch<IntangibleItem>(`/intangible-asset/items/${itemId}`, toIntangibleItemBody(body)),
+
+  // TODO: 무형자산 품목 일괄 등록
   /** 무형자산 품목 일괄 등록 (CSV/Excel) */
-  bulkCreate: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.upload('/assets/intangible/items/bulk', formData)
-  },
+  // bulkCreate: (file: File) => {
+  //   const formData = new FormData()
+  //   formData.append('file', file)
+  //   return api.upload('/assets/intangible/items/bulk', formData)
+  // },
 
   /** 무형자산 품목 삭제 */
   delete: (itemId: string) =>
-    api.delete(`intangible-asset/items/${itemId}`),
+    api.delete(`/intangible-asset/items/${itemId}`),
 }
 
 // ─── 무형자산 API ────────────────────────────────────────────────────────────
@@ -179,24 +237,29 @@ export const intangibleItemApi = {
 export const intangibleAssetApi = {
   /** 무형자산 목록 조회 */
   getList: (params?: IntangibleAssetListFilter) =>
-    api.get<PageResponse<IntangibleAsset>>('/assets/intangible', params as Record<string, unknown>),
+    api.get<PageResponse<IntangibleAsset>>('/intangible-asset/assets', compactParams(params)),
 
   /** 무형자산 상세 조회 */
-  getDetail: (assetId: number) =>
-    api.get<IntangibleAsset>(`/assets/intangible/${assetId}`),
+  getDetail: (assetId: string) =>
+    api.get<IntangibleAsset>(`/intangible-asset/assets/${assetId}`),
 
   /** 무형자산 등록 */
   create: (body: IntangibleAssetCreateRequest) =>
-    api.post<IntangibleAsset>('/assets/intangible', body),
+    api.post<IntangibleAsset>('/intangible-asset/assets', toIntangibleAssetCreateBody(body)),
+
+  /** 무형자산 수정 */
+  update: (assetId: string, body: Partial<IntangibleAssetUpdateRequest>) =>
+    api.patch<IntangibleAsset>(`/intangible-asset/assets/${assetId}`, toIntangibleAssetUpdateBody(body)),
 
   /** 무형자산 해지 처리 */
-  terminate: (assetId: number) =>
-    api.patch(`/assets/intangible/${assetId}/terminate`),
+  terminate: (assetId: string) =>
+    api.patch(`/intangible-asset/assets/${assetId}/terminate`),
 
-  /** 무형자산 일괄 등록 (CSV/Excel) */
-  bulkCreate: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.upload('/assets/intangible/bulk', formData)
-  },
+  // TODO: 무형자산 일괄 등록 
+  // /** 무형자산 일괄 등록 (CSV/Excel) */
+  // bulkCreate: (file: File) => {
+  //   const formData = new FormData()
+  //   formData.append('file', file)
+  //   return api.upload('/intangible-asset/assets/bulk', formData)
+  // },
 }
