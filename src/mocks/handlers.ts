@@ -641,7 +641,7 @@ function getAuthenticatedMember(request: Request): Member | undefined {
 
 function getMockItemName(
   assetType: StandardAssetRequestCreate['assetType'],
-  assetItemId: number,
+  assetItemId: string | number,
 ): string | null {
   const itemId = String(assetItemId)
 
@@ -859,18 +859,18 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/asset-requests/non-standard`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/purchase-requests/non-standard`, async ({ request }) => {
     const body = await request.json() as NonStandardAssetRequestCreate
     return HttpResponse.json(ok(
-      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemName),
+      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemDetail),
       '비표준 자산 요청 티켓 등록에 성공했습니다.',
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/asset-requests/direct-purchase`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/purchase-requests/direct-purchase`, async ({ request }) => {
     const body = await request.json() as DirectPurchaseRequestCreate
     return HttpResponse.json(ok(
-      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemName),
+      createMockTicket(request, 'ASSET_REQUEST', body.requestReason, body.requestedItemDetail),
       '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
     ))
   }),
@@ -882,7 +882,7 @@ export const handlers = [
         request,
         'RENTAL',
         body.requestReason,
-        getMockItemName('TANGIBLE', body.assetItemId),
+        getMockItemName('TANGIBLE', body.tangibleAssetItemId),
       ),
       '대여 요청 티켓 등록에 성공했습니다.',
     ))

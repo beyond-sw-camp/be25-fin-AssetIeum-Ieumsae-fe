@@ -66,6 +66,8 @@ export type TicketRequestKind =
   | 'RETURN'
   | 'PURCHASE_RETURN'
 
+export type RequestedUsageType = 'PERSONAL' | 'TEAM'
+
 export interface TicketCreateResponse {
   ticketId: number
   ticketNo: string
@@ -75,7 +77,7 @@ export interface TicketCreateResponse {
 }
 
 export interface StandardAssetRequestCreate {
-  requestedUsageType: 'PERSONAL' | 'TEAM'
+  requestedUsageType: RequestedUsageType
   assetType: AssetType
   assetItemId: string
   quantity: number
@@ -83,7 +85,7 @@ export interface StandardAssetRequestCreate {
 }
 
 export interface NonStandardAssetRequestCreate {
-  requestedUsageType: 'PERSONAL' | 'TEAM'
+  requestedUsageType: RequestedUsageType
   assetType: AssetType
   categoryId: string
   requestedItemDetail: string
@@ -96,7 +98,7 @@ export interface NonStandardAssetRequestCreate {
 }
 
 export interface DirectPurchaseRequestCreate {
-  requestedUsageType: 'PERSONAL' | 'TEAM'
+  requestedUsageType: RequestedUsageType
   assetType: AssetType
   categoryId: string
   requestedItemDetail: string
@@ -107,10 +109,12 @@ export interface DirectPurchaseRequestCreate {
   requestReason: string
 }
 
+// TODO: API 명세 Params 표의 assetItemId/rentalDueDate는 Body 예시와 불일치하므로 백엔드 확인 필요
 export interface RentalRequestCreate {
-  assetItemId: number
+  requestedUsageType: RequestedUsageType
+  tangibleAssetItemId: string
   rentalStartDate: string
-  rentalDueDate: string
+  requestedDueDate: string
   requestReason: string
 }
 

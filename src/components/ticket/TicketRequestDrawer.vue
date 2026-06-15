@@ -542,6 +542,7 @@ import type {
   DropdownOption,
   IntangibleAsset,
   IntangibleItem,
+  RequestedUsageType,
   TangibleAsset,
   TangibleAssetItem,
   TangibleAssetUsageType,
@@ -604,7 +605,7 @@ const ownedAssetOptions = ref<SelectableAsset[]>([])
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
-  assetUsageType: '' as '' | 'TEAM' | 'PERSONAL',
+  assetUsageType: '' as '' | RequestedUsageType,
   category: '',
   selectedAssetId: '',
   requestedItemName: '',
@@ -800,6 +801,15 @@ const dateErrorMessage = computed(() => {
 })
 
 const positiveNumber = (value: string) => Number.isFinite(Number(value)) && Number(value) > 0
+
+function toRequestedUsageType(
+  value: '' | 'DEPARTMENT' | RequestedUsageType,
+): RequestedUsageType {
+  if (!value) {
+    throw new Error('공용자산 여부를 선택해주세요.')
+  }
+  return value === 'DEPARTMENT' ? 'TEAM' : value
+}
 
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
@@ -1209,9 +1219,7 @@ async function handleSubmit() {
     switch (selectedKind.value) {
       case 'STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createStandardRequest({
-          requestedUsageType: assetSearchForm.assetUsageType === 'DEPARTMENT'
-            ? 'TEAM'
-            : 'PERSONAL',
+          requestedUsageType: toRequestedUsageType(assetSearchForm.assetUsageType),
           assetType: form.assetType,
           assetItemId: form.selectedAssetId,
           quantity: Number(form.quantity),
@@ -1220,7 +1228,7 @@ async function handleSubmit() {
         break
       case 'NON_STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createNonStandardRequest({
-          requestedUsageType: form.assetUsageType as 'PERSONAL' | 'TEAM',
+          requestedUsageType: toRequestedUsageType(form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
           requestedItemDetail: form.requestedItemName.trim(),
@@ -1234,7 +1242,7 @@ async function handleSubmit() {
         break
       case 'DIRECT_PURCHASE':
         response = await ticketCreateApi.createDirectPurchaseRequest({
-          requestedUsageType: form.assetUsageType as 'PERSONAL' | 'TEAM',
+          requestedUsageType: toRequestedUsageType(form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
           requestedItemDetail: form.requestedItemName.trim(),
@@ -1247,9 +1255,10 @@ async function handleSubmit() {
         break
       case 'RENTAL':
         response = await ticketCreateApi.createRentalRequest({
-          assetItemId: selectedNumericId(),
+          requestedUsageType: toRequestedUsageType(assetSearchForm.assetUsageType),
+          tangibleAssetItemId: form.selectedAssetId,
           rentalStartDate: form.rentalStartDate,
-          rentalDueDate: form.rentalDueDate,
+          requestedDueDate: form.rentalDueDate,
           requestReason,
         })
         break
