@@ -26,7 +26,6 @@ export interface TangibleAssetItem {
   stockCount: number    // 재고수량
   availableCount: number
   isStandard?: number | boolean
-  createdAt: string
 }
 
 export interface TangibleAssetItemCreateRequest {
@@ -130,7 +129,6 @@ export interface TangibleAsset {
   warrantyExpiredAt?: string | null
   assetItemName?: string
   productName?: string
-  createdAt: string
 }
 
 export interface TangibleAssetCreateRequest {
@@ -259,7 +257,6 @@ export interface IntangibleAssetItem {
   softwareType: string   // 소프트웨어 종류
   stockCount: number
   availableCount: number
-  createdAt: string
 }
 
 export interface IntangibleItem {
@@ -326,7 +323,6 @@ export interface IntangibleAsset {
   expiredAt: string | null
   vendor?: string
   purchasePrice?: number
-  createdAt: string
   billingCycle?: BillingCycle
   seatCount?: number
   intangibleAssetStatus?: IntangibleAssetStatus
@@ -381,6 +377,4 @@ export interface IntangibleAssetUpdateRequest{
   startedAt?: string | null
   expiredAt?: string | null
   billingCycle?: BillingCycle
-  createdAt: string
-  updatedAt: string
 }
