@@ -24,6 +24,11 @@
           @close="isRegisterDrawerOpen = false"
           @registered="handleAssetRegistered"
         />
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
+          <TagIcon :size="15" />
+          자산 배정
+        </Button>
       </div>
     </div>
 
@@ -155,7 +160,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import { Plus, Layers, ChevronLeft, ChevronRight, Search, TagIcon } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'

@@ -1,3 +1,5 @@
+<!-- TODO: 네비게이션 바 수정 - 새로고침 시 유형자산의 세부 목록이 펼쳐지는 문제 해결 필요  -->
+
 <template>
   <div class="relative h-[calc(100vh-64px)] min-h-0">
     <aside
