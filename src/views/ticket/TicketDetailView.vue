@@ -145,6 +145,16 @@
       class="absolute -inset-x-4 -bottom-4 z-20 flex h-14 items-center justify-end border-t border-border bg-surface px-6"
     >
       <Button
+        v-if="showsDirectPurchasePaymentAction"
+        class="mr-2 shrink-0 bg-orange-500! text-white! hover:bg-orange-600! focus:ring-orange-500/50!"
+        :disabled="!canRegisterDirectPurchasePayment || isPurchasePaymentSubmitting"
+        :title="directPurchasePaymentActionMessage"
+        @click="openPurchasePaymentDrawer"
+      >
+        <ReceiptText :size="15" />
+        결제 정보 등록
+      </Button>
+      <Button
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="!canCancelTicket"
@@ -165,6 +175,16 @@
       @cancel="isCancelModalOpen = false"
       @confirm="handleCancelTicket"
     />
+
+    <DirectPurchasePaymentDrawer
+      v-if="ticket"
+      :is-open="isPurchasePaymentDrawerOpen"
+      :ticket="ticket"
+      :submitting="isPurchasePaymentSubmitting"
+      :error-message="purchasePaymentErrorMessage"
+      @close="closePurchasePaymentDrawer"
+      @submit="handlePurchasePaymentSubmit"
+    />
   </div>
 </template>
 
@@ -174,6 +194,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  ReceiptText,
   RefreshCw,
   TicketCheck,
 } from 'lucide-vue-next'
@@ -183,6 +204,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import DirectPurchasePaymentDrawer from '@/components/ticket/DirectPurchasePaymentDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
@@ -217,6 +239,10 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
   'DEPARTMENT_APPROVED',
 ])
+const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'ASSET_APPROVED',
+  'IN_PROGRESS',
+])
 
 const route = useRoute()
 const router = useRouter()
@@ -230,9 +256,12 @@ const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
 const isCancelling = ref(false)
 const isCancelModalOpen = ref(false)
+const isPurchasePaymentDrawerOpen = ref(false)
+const isPurchasePaymentSubmitting = ref(false)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
+const purchasePaymentErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
 
 const ticketId = computed(() => {
@@ -254,6 +283,31 @@ const canCancelTicket = computed(() => (
     && isRequester.value
     && CANCELLABLE_TICKET_STATUSES.has(ticket.value.status),
   )
+))
+
+const canRegisterDirectPurchasePayment = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && isRequester.value
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+  )
+))
+
+const showsDirectPurchasePaymentAction = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+  )
+))
+
+const directPurchasePaymentActionMessage = computed(() => (
+  isRequester.value
+    ? '실제 결제 금액과 영수증 증빙을 등록합니다.'
+    : '요청자 본인만 결제 정보를 등록할 수 있습니다.'
 ))
 
 const cancelActionMessage = computed(() => {
@@ -650,10 +704,54 @@ async function handleCancelTicket() {
   }
 }
 
+function openPurchasePaymentDrawer() {
+  if (!canRegisterDirectPurchasePayment.value) return
+  purchasePaymentErrorMessage.value = ''
+  isPurchasePaymentDrawerOpen.value = true
+}
+
+function closePurchasePaymentDrawer() {
+  if (isPurchasePaymentSubmitting.value) return
+  isPurchasePaymentDrawerOpen.value = false
+  purchasePaymentErrorMessage.value = ''
+}
+
+async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file: File }) {
+  if (
+    !ticketId.value
+    || !canRegisterDirectPurchasePayment.value
+    || isPurchasePaymentSubmitting.value
+  ) return
+
+  isPurchasePaymentSubmitting.value = true
+  purchasePaymentErrorMessage.value = ''
+
+  try {
+    await ticketApi.setActualPrice(ticketId.value, payload.actualPrice)
+    await ticketApi.uploadEvidence(ticketId.value, payload.file)
+    await loadTicketDetail()
+    isPurchasePaymentDrawerOpen.value = false
+    notificationStore.success('결제 정보가 저장되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '결제 정보를 저장하지 못했습니다.'
+    purchasePaymentErrorMessage.value = message
+    notificationStore.error('결제 정보 저장 실패', message)
+  } finally {
+    isPurchasePaymentSubmitting.value = false
+  }
+}
+
 async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(ticketId, loadPage)
+watch(ticketId, () => {
+  isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentSubmitting.value = false
+  purchasePaymentErrorMessage.value = ''
+  loadPage()
+})
 onMounted(loadPage)
 </script>
