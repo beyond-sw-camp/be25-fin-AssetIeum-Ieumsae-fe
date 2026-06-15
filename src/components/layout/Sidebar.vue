@@ -150,14 +150,6 @@ const props = defineProps<{
   navItems: NavItem[]
 }>()
 
-const getInitialOpenMenus = () => {
-  const matchedParent = props.navItems.find((item) =>
-    item.children?.some((child) => route.path === child.to),
-  )
-
-  return matchedParent ? { [matchedParent.name]: true } : {}
-}
-
 function updateOpenMenus() {
   const matchedParent = props.navItems.find((item) =>
     item.children?.some((child) =>
