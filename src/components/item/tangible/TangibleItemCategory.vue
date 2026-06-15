@@ -178,7 +178,6 @@ interface CategoryGroup {
 const props = defineProps<{
   isOpen: boolean;
   initialCategories: CategoryGroup[];
-  companyId: string;
 }>();
 
 const emit = defineEmits(['close', 'changed']);
@@ -249,13 +248,7 @@ const categoryResponseId = (response: { categoryId?: string; tangibleAssetCatego
 );
 
 const createCategory = async (name: string, parentId: string | null) => {
-  if (!props.companyId) {
-    alert('회사 정보를 찾을 수 없어 카테고리를 등록할 수 없습니다.');
-    return null;
-  }
-
   const response = await tangibleItemApi.createCategory({
-    companyId: props.companyId,
     name,
     parentId,
   });

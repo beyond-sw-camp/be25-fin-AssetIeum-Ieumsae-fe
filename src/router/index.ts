@@ -142,7 +142,7 @@ const router = createRouter({
             {
               path: ':assetId',
               name: 'IntangibleAssetDetail',
-              component: () => import('@/views/asset/intangible/IntangibleAssetDetailView.vue'),
+              component: () => import('@/components/asset/intangible/IntangibleAssetDetailView.vue'),
               meta: { title: '무형자산 상세' },
             },
           ],

@@ -227,7 +227,6 @@ interface RegisterForm {
 const props = defineProps<{
     isOpen: boolean;
     initialCategories: CategoryGroup[];
-    companyId?: string;
 }>();
 
 const emit = defineEmits(['close', 'update-categories', 'registered']);
@@ -321,14 +320,8 @@ const handleSave = async () => {
         return;
     }
 
-    if (!props.companyId) {
-        alert('회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.');
-        return;
-    }
-
     const productName = formData.value.productName.trim();
     const payload: TangibleAssetItemCreateRequest = {
-        companyId: props.companyId,
         categoryId: formData.value.categoryId,
         productName,
         manufacturer: formData.value.manufacturer.trim(),

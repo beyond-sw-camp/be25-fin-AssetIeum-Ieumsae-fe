@@ -1722,25 +1722,32 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/assets/intangible`, async ({ request }) => {
     const body = await request.json() as IntangibleAssetCreateRequest
-    const item = intangibleItems.find((t) => t.assetItemId === body.assetItemId)
+    const assetItemId = body.assetItemId ?? body.intangibleItemId ?? ''
+    const item = intangibleItems.find((t) => t.assetItemId === assetItemId)
 
     const nextId = String(Math.max(...intangibleAssets.map((asset) => Number(asset.assetId))) + 1)
     const newAsset: IntangibleAsset = {
       assetId: nextId,
       assetCode: `INT-${nextId.padStart(4, '0')}`,
-      assetItemId: body.assetItemId,
+      assetItemId,
       assetItemName: item?.productName ?? '알 수 없는 소프트웨어',
-      licenseType: body.licenseType,
-      licenseKey: body.licenseKey,
-      status: body.status ?? 'AVAILABLE',
+      licenseType: body.licenseType ?? 'SUBSCRIPTION',
+      licenseCode: body.licenseCode,
+      licenseKey: body.licenseKey ?? body.licenseCode,
+      status: body.intangibleAssetStatus ?? body.status ?? 'AVAILABLE',
       assignedMemberId: null,
       assignedMemberName: null,
-      departmentId: null,
+      departmentId: body.departmentId ?? null,
       departmentName: null,
-      startedAt: body.startedAt,
+      startedAt: body.startedAt ?? null,
       expiredAt: body.expiredAt ?? null,
-      vendor: item?.vendor,
-      purchasePrice: 500000,
+      vendor: body.purchaseVendor ?? item?.vendor,
+      purchaseDate: body.purchaseDate,
+      purchasePrice: body.purchasePrice ?? 500000,
+      purchaseVendor: body.purchaseVendor,
+      seatCount: body.seatCount,
+      isAutoRenewal: body.isAutoRenewal,
+      billingCycle: body.billingCycle,
       createdAt: new Date().toISOString(),
     }
 
