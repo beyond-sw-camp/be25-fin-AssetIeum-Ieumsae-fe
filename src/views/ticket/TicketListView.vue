@@ -304,7 +304,7 @@ async function handleTicketCreated(ticket: TicketCreateResponse) {
   await fetchTickets()
 }
 
-function openTicketDetail(ticketId: number) {
+function openTicketDetail(ticketId: TicketListItem['ticketId']) {
   router.push({ name: 'TicketDetail', params: { ticketId } })
 }
 

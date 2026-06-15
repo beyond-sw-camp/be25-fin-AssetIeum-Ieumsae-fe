@@ -1,5 +1,5 @@
 <template>
-  <div class="relative h-[calc(100vh-64px)] min-h-0">
+  <div class="relative h-full min-h-0">
     <aside
       :class="[
         'flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
