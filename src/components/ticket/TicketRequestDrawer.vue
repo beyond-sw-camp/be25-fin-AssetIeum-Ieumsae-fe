@@ -648,7 +648,6 @@ const showsAssetType = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'DIRECT_PURCHASE'
   || selectedKind.value === 'RETURN'
-  || selectedKind.value === 'PURCHASE_RETURN'
 ))
 
 const showsPurchaseRequestAssetType = computed(() => (
@@ -691,6 +690,7 @@ const assetSelectionLabel = computed(() => {
   if (selectedKind.value === 'MAINTENANCE') {
     return form.assetServiceType === 'RETURN' ? '반품할 자산 선택' : '수리할 자산 선택'
   }
+  if (selectedKind.value === 'PURCHASE_RETURN') return '반품할 자산 선택'
   return '대상 자산 선택'
 })
 
@@ -711,8 +711,11 @@ const visibleAssetOptions = computed(() => {
   if (selectedKind.value === 'RENTAL') {
     return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
   }
-  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+  if (selectedKind.value === 'RETURN') {
     return ownedAssetOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  if (selectedKind.value === 'PURCHASE_RETURN') {
+    return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
   }
 
   const tangibleAssets = ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
@@ -768,9 +771,8 @@ const reasonLabel = computed(() => {
   }
   if (selectedKind.value === 'RENTAL') return '대여 목적'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장 요청 이유'
-  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
-    return '반납 및 해지 이유'
-  }
+  if (selectedKind.value === 'RETURN') return '반납 및 해지 이유'
+  if (selectedKind.value === 'PURCHASE_RETURN') return '반품 이유'
   return '신청 사유'
 })
 
@@ -782,9 +784,8 @@ const reasonPlaceholder = computed(() => {
   }
   if (selectedKind.value === 'RENTAL') return '대여 목적을 상세히 기술해주세요.'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장이 필요한 이유를 상세히 기술해주세요.'
-  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
-    return '반납 및 해지할 이유를 상세히 입력해주세요.'
-  }
+  if (selectedKind.value === 'RETURN') return '반납 및 해지할 이유를 상세히 입력해주세요.'
+  if (selectedKind.value === 'PURCHASE_RETURN') return '반품 이유를 상세히 입력해주세요.'
   return '신청 사유를 상세히 입력해주세요.'
 })
 
@@ -1291,7 +1292,7 @@ async function handleSubmit() {
         break
       case 'PURCHASE_RETURN':
         response = await ticketCreateApi.createPurchaseReturnRequest({
-          assetType: form.assetType,
+          assetType: 'TANGIBLE',
           assetId: selectedNumericId(),
           type: 'EMPLOYEE',
           returnReason: requestReason,
