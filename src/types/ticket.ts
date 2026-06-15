@@ -75,26 +75,33 @@ export interface TicketCreateResponse {
 }
 
 export interface StandardAssetRequestCreate {
+  requestedUsageType: 'PERSONAL' | 'TEAM'
   assetType: AssetType
-  assetItemId: number
+  assetItemId: string
+  quantity: number
+  requestReason: string
+}
+
+export interface NonStandardAssetRequestCreate {
+  requestedUsageType: 'PERSONAL' | 'TEAM'
+  assetType: AssetType
+  categoryId: string
+  requestedItemDetail: string
+  manufacturer: string
+  licenseType: string | null
+  purchaseUrl: string
   quantity: number
   expectedPrice: number
   requestReason: string
 }
 
-export interface NonStandardAssetRequestCreate {
-  assetType: AssetType
-  requestedItemName: string
-  modelName: string
-  vendor: string
-  externalUrl: string
-  expectedPrice: number
-  requestReason: string
-}
-
 export interface DirectPurchaseRequestCreate {
+  requestedUsageType: 'PERSONAL' | 'TEAM'
   assetType: AssetType
-  requestedItemName: string
+  categoryId: string
+  requestedItemDetail: string
+  manufacturer: string
+  licenseType: string | null
   quantity: number
   expectedPrice: number
   requestReason: string

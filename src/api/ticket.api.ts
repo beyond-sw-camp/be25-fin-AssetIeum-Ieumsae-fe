@@ -50,12 +50,12 @@ export const ticketApi = {
   uploadEvidence: (ticketId: number, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.upload(`/tickets/${ticketId}/evidence`, formData)
+    return api.upload(`/tickets/${ticketId}/evidences`, formData)
   },
 
   /** 실제 결제 금액 입력 */
   setActualPrice: (ticketId: number, actualPrice: number) =>
-    api.patch(`/tickets/${ticketId}/actual-price`, { actualPrice }),
+    api.post(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
 
   /** 댓글 목록 조회 */
   getComments: (ticketId: number) =>
@@ -75,11 +75,11 @@ export const ticketCreateApi = {
 
   /** 비표준 자산 요청 */
   createNonStandardRequest: (body: NonStandardAssetRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/asset-requests/non-standard', body),
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/non-standard', body),
 
   /** 직접 구매 자산 요청 */
   createDirectPurchaseRequest: (body: DirectPurchaseRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/asset-requests/direct-purchase', body),
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/direct-purchase', body),
 
   /** 대여 요청 */
   createRentalRequest: (body: RentalRequestCreate) =>

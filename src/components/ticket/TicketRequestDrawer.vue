@@ -27,7 +27,7 @@
         </p>
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
           <label
-            v-for="option in assetScopeOptions"
+            v-for="option in assetSearchScopeOptions"
             :key="option.value"
             class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
           >
@@ -350,50 +350,42 @@
         />
       </section>
 
-      <template v-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'">
+      <template v-if="showsPurchaseRequestAssetType">
         <Input
           id="ticket-requested-item-name"
           v-model="form.requestedItemName"
-          label="정확한 제품명"
+          label="요청 품목 상세"
           required
-          placeholder="예: MacBook Pro 16형"
+          placeholder="예: MacBook Pro 14 M4 Pro / 24GB / 1TB"
           :disabled="isSubmitting"
         />
         <Input
-          id="ticket-model-name"
-          v-model="form.modelName"
-          label="모델명"
-          required
-          placeholder="모델명을 입력해주세요."
-          :disabled="isSubmitting"
-        />
-        <Input
-          id="ticket-vendor"
+          id="ticket-manufacturer"
           v-model="form.vendor"
-          label="제조사 또는 구매처"
+          label="제조사"
           required
           placeholder="예: Apple"
           :disabled="isSubmitting"
         />
         <Input
+          v-if="form.assetType === 'INTANGIBLE'"
+          id="ticket-license-type"
+          v-model="form.licenseType"
+          label="라이선스 유형"
+          required
+          placeholder="예: SUBSCRIPTION"
+          :disabled="isSubmitting"
+        />
+        <Input
+          v-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'"
           id="ticket-external-url"
           v-model="form.externalUrl"
-          label="구매처 및 구매 링크(URL)"
+          label="구매 링크(URL)"
           required
           placeholder="https://"
           :disabled="isSubmitting"
         />
       </template>
-
-      <Input
-        v-if="selectedKind === 'DIRECT_PURCHASE'"
-        id="ticket-direct-item-name"
-        v-model="form.requestedItemName"
-        label="정확한 제품명"
-        required
-        placeholder="구매할 품목명을 입력해주세요."
-        :disabled="isSubmitting"
-      />
 
       <div
         v-if="showsPurchaseQuantityAndPrice"
@@ -579,6 +571,10 @@ const assetTypeOptions = [
   { label: '무형 자산', value: 'INTANGIBLE' as const },
 ]
 const assetScopeOptions = [
+  { label: '공용 자산', value: 'TEAM' as const },
+  { label: '개인 자산', value: 'PERSONAL' as const },
+]
+const assetSearchScopeOptions = [
   { label: '공용 자산', value: 'DEPARTMENT' as const },
   { label: '개인 자산', value: 'PERSONAL' as const },
 ]
@@ -600,18 +596,20 @@ const assetSearchKeyword = ref('')
 const hasSearchedAssets = ref(false)
 const tangibleCategoryOptions = ref<DropdownOption[]>([])
 const intangibleCategoryOptions = ref<DropdownOption[]>([])
+const tangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
+const intangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
 const itemOptions = ref<SelectableAsset[]>([])
 const ownedAssetOptions = ref<SelectableAsset[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
-  assetUsageType: '' as '' | 'DEPARTMENT' | 'PERSONAL',
+  assetUsageType: '' as '' | 'TEAM' | 'PERSONAL',
   category: '',
   selectedAssetId: '',
   requestedItemName: '',
-  modelName: '',
   vendor: '',
+  licenseType: '',
   externalUrl: '',
   quantity: '1',
   expectedPrice: '',
@@ -740,8 +738,8 @@ const assetCategoryOptions = computed(() => (
 
 const purchaseRequestCategoryOptions = computed(() => (
   form.assetType === 'INTANGIBLE'
-    ? intangibleCategoryOptions.value
-    : tangibleCategoryOptions.value
+    ? intangiblePurchaseCategoryOptions.value
+    : tangiblePurchaseCategoryOptions.value
 ))
 
 const canSearchAssets = computed(() => Boolean(
@@ -812,13 +810,13 @@ const isFormValid = computed(() => {
   ) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
-    return positiveNumber(form.quantity) && positiveNumber(form.expectedPrice)
+    return positiveNumber(form.quantity)
   }
   if (selectedKind.value === 'NON_STANDARD_ASSET_REQUEST') {
     return Boolean(
       form.requestedItemName.trim()
-      && form.modelName.trim()
       && form.vendor.trim()
+      && (form.assetType === 'TANGIBLE' || form.licenseType.trim())
       && form.externalUrl.trim()
       && positiveNumber(form.quantity)
       && positiveNumber(form.expectedPrice),
@@ -827,6 +825,8 @@ const isFormValid = computed(() => {
   if (selectedKind.value === 'DIRECT_PURCHASE') {
     return Boolean(
       form.requestedItemName.trim()
+      && form.vendor.trim()
+      && (form.assetType === 'TANGIBLE' || form.licenseType.trim())
       && positiveNumber(form.quantity)
       && positiveNumber(form.expectedPrice),
     )
@@ -941,6 +941,50 @@ function toTangibleCategoryOptions(groups: unknown): DropdownOption[] {
     .map((category) => ({ label: category, value: category }))
 }
 
+function collectPurchaseCategoryOptions(value: unknown): DropdownOption[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectPurchaseCategoryOptions)
+  }
+
+  if (!value || typeof value !== 'object') {
+    return []
+  }
+
+  const category = value as Record<string, unknown>
+  const options: DropdownOption[] = []
+  const categoryId = typeof category.categoryId === 'string' ? category.categoryId : ''
+  const categoryName = typeof category.name === 'string'
+    ? category.name
+    : typeof category.mainCategory === 'string'
+      ? category.mainCategory
+      : ''
+
+  if (categoryId && categoryName) {
+    options.push({ label: categoryName, value: categoryId })
+  }
+
+  const subCategoryIds = category.subCategoryIds
+  if (subCategoryIds && typeof subCategoryIds === 'object') {
+    Object.entries(subCategoryIds).forEach(([name, id]) => {
+      if (typeof id === 'string') options.push({ label: name, value: id })
+    })
+  }
+
+  const childCategoryIds = category.childCategoryIds
+  if (childCategoryIds && typeof childCategoryIds === 'object') {
+    Object.entries(childCategoryIds).forEach(([name, id]) => {
+      if (typeof id === 'string') options.push({ label: name, value: id })
+    })
+  }
+
+  options.push(...collectPurchaseCategoryOptions(category.children))
+  return options
+}
+
+function uniqueCategoryOptions(options: DropdownOption[]): DropdownOption[] {
+  return [...new Map(options.map((option) => [String(option.value), option])).values()]
+}
+
 async function loadAssetCategories() {
   const companyId = authStore.user?.companyId
   const results = await Promise.allSettled([
@@ -952,9 +996,17 @@ async function loadAssetCategories() {
   tangibleCategoryOptions.value = tangibleResult.status === 'fulfilled' && tangibleResult.value
     ? toTangibleCategoryOptions(tangibleResult.value.data)
     : []
-  intangibleCategoryOptions.value = intangibleResult.status === 'fulfilled'
-    ? intangibleResult.value.data.map((category) => ({ label: category, value: category }))
+  tangiblePurchaseCategoryOptions.value = tangibleResult.status === 'fulfilled' && tangibleResult.value
+    ? uniqueCategoryOptions(collectPurchaseCategoryOptions(tangibleResult.value.data))
     : []
+
+  const intangibleCategories = intangibleResult.status === 'fulfilled'
+    ? intangibleResult.value.data as unknown
+    : []
+  intangibleCategoryOptions.value = toTangibleCategoryOptions(intangibleCategories)
+  intangiblePurchaseCategoryOptions.value = uniqueCategoryOptions(
+    collectPurchaseCategoryOptions(intangibleCategories),
+  )
 }
 
 async function loadOwnedAssets() {
@@ -1043,8 +1095,8 @@ function resetForm() {
     category: '',
     selectedAssetId: '',
     requestedItemName: '',
-    modelName: '',
     vendor: '',
+    licenseType: '',
     externalUrl: '',
     quantity: '1',
     expectedPrice: '',
@@ -1157,30 +1209,37 @@ async function handleSubmit() {
     switch (selectedKind.value) {
       case 'STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createStandardRequest({
+          requestedUsageType: assetSearchForm.assetUsageType === 'DEPARTMENT'
+            ? 'TEAM'
+            : 'PERSONAL',
           assetType: form.assetType,
-          assetItemId: selectedNumericId(),
+          assetItemId: form.selectedAssetId,
+          quantity: Number(form.quantity),
+          requestReason,
+        })
+        break
+      case 'NON_STANDARD_ASSET_REQUEST':
+        response = await ticketCreateApi.createNonStandardRequest({
+          requestedUsageType: form.assetUsageType as 'PERSONAL' | 'TEAM',
+          assetType: form.assetType,
+          categoryId: form.category,
+          requestedItemDetail: form.requestedItemName.trim(),
+          manufacturer: form.vendor.trim(),
+          licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
+          purchaseUrl: form.externalUrl.trim(),
           quantity: Number(form.quantity),
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
         break
-      case 'NON_STANDARD_ASSET_REQUEST':
-        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부, 자산 분류, 수량 요청 필드가 명세에 없음
-        response = await ticketCreateApi.createNonStandardRequest({
-          assetType: form.assetType,
-          requestedItemName: form.requestedItemName.trim(),
-          modelName: form.modelName.trim(),
-          vendor: form.vendor.trim(),
-          externalUrl: form.externalUrl.trim(),
-          expectedPrice: Number(form.expectedPrice),
-          requestReason,
-        })
-        break
       case 'DIRECT_PURCHASE':
-        // TODO: API 명세/백엔드 확인 필요 - 공용자산 여부와 자산 분류 요청 필드가 명세에 없음
         response = await ticketCreateApi.createDirectPurchaseRequest({
+          requestedUsageType: form.assetUsageType as 'PERSONAL' | 'TEAM',
           assetType: form.assetType,
-          requestedItemName: form.requestedItemName.trim(),
+          categoryId: form.category,
+          requestedItemDetail: form.requestedItemName.trim(),
+          manufacturer: form.vendor.trim(),
+          licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
           quantity: Number(form.quantity),
           expectedPrice: Number(form.expectedPrice),
           requestReason,
