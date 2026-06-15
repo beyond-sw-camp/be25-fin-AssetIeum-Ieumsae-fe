@@ -1198,9 +1198,9 @@ function handleClose() {
   emit('close')
 }
 
-function selectedNumericId() {
-  const id = Number(form.selectedAssetId)
-  if (!Number.isFinite(id)) {
+function selectedAssetId() {
+  const id = form.selectedAssetId.trim()
+  if (!id) {
     throw new Error('선택한 자산 ID 형식이 티켓 API 계약과 일치하지 않습니다.')
   }
   return id
@@ -1264,7 +1264,7 @@ async function handleSubmit() {
         break
       case 'RENTAL_EXTENSION':
         response = await ticketCreateApi.createRentalExtension({
-          assetId: selectedNumericId(),
+          assetId: selectedAssetId(),
           requestedDueDate: form.requestedDueDate,
           requestReason,
         })
@@ -1273,26 +1273,26 @@ async function handleSubmit() {
         response = form.assetServiceType === 'RETURN'
           ? await ticketCreateApi.createPurchaseReturnRequest({
             assetType: 'TANGIBLE',
-            assetId: selectedNumericId(),
+            assetId: selectedAssetId(),
             type: 'EMPLOYEE',
             returnReason: requestReason,
           })
           : await ticketCreateApi.createMaintenanceRequest({
-            assetId: selectedNumericId(),
+            assetId: selectedAssetId(),
             maintenanceReason: requestReason,
           })
         break
       case 'RETURN':
         response = await ticketCreateApi.createReturnRequest({
           assetType: form.assetType,
-          assetId: selectedNumericId(),
+          assetId: selectedAssetId(),
           returnReason: requestReason,
         })
         break
       case 'PURCHASE_RETURN':
         response = await ticketCreateApi.createPurchaseReturnRequest({
           assetType: 'TANGIBLE',
-          assetId: selectedNumericId(),
+          assetId: selectedAssetId(),
           type: 'EMPLOYEE',
           returnReason: requestReason,
         })

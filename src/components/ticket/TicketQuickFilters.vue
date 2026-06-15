@@ -18,11 +18,11 @@
 </template>
 
 <script setup lang="ts">
-export type TicketQuickFilter = 'ALL' | 'PROCESSING' | 'COMPLETED' | 'REJECTED_CANCELLED'
+export type TicketQuickFilter = 'ALL' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED_CANCELLED'
 
 const FILTER_OPTIONS: Array<{ label: string; value: TicketQuickFilter }> = [
   { label: '전체', value: 'ALL' },
-  { label: '처리 중', value: 'PROCESSING' },
+  { label: '진행 중', value: 'IN_PROGRESS' },
   { label: '완료', value: 'COMPLETED' },
   { label: '반려·취소', value: 'REJECTED_CANCELLED' },
 ]

@@ -1,16 +1,16 @@
 <template>
-  <div class="flex h-screen w-screen flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
+  <div class="flex h-dvh w-full max-w-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <Header class="h-16 shrink-0" />
     <ToastContainer />
 
-    <div class="mt-16 flex min-h-0 w-full flex-1">
+    <div class="mt-16 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-full flex-none overflow-hidden">
       <Sidebar
         v-model:collapsed="collapsed"
         :nav-items="navItems"
         class="shrink-0"
       />
 
-      <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
         <RouterView />
       </main>
     </div>

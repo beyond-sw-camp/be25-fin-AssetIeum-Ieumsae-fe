@@ -1,14 +1,26 @@
 <template>
-  <span class="text-sm font-semibold text-text-main">
-    {{ TICKET_TYPE_LABEL[type] }}
+  <span
+    :class="[
+      'inline-flex items-center font-semibold',
+      variant === 'badge'
+        ? 'rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary'
+        : 'text-sm text-text-main',
+    ]"
+  >
+    {{ getTicketTypeLabel(type, requestMethod) }}
   </span>
 </template>
 
 <script setup lang="ts">
-import type { TicketType } from '@/types'
-import { TICKET_TYPE_LABEL } from '@/utils/labels'
+import type { PurchaseRequestMethod, TicketType } from '@/types'
+import { getTicketTypeLabel } from '@/utils/labels'
 
-defineProps<{
+withDefaults(defineProps<{
   type: TicketType
-}>()
+  requestMethod?: PurchaseRequestMethod | null
+  variant?: 'text' | 'badge'
+}>(), {
+  requestMethod: null,
+  variant: 'text',
+})
 </script>

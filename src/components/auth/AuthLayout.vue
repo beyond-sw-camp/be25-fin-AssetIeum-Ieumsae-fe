@@ -1,5 +1,5 @@
 <template>
-  <main class="min-h-screen bg-background lg:grid lg:grid-cols-[1fr_minmax(480px,46%)]">
+  <main class="h-full overflow-y-auto bg-background lg:grid lg:grid-cols-[1fr_minmax(480px,46%)]">
     <section
       class="hidden items-center justify-center px-12 lg:flex"
       aria-label="자산이음 브랜드"

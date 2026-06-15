@@ -16,6 +16,7 @@ import type {
   TicketRejectRequest,
   AssetAssignRequest,
   TicketComment,
+  TicketStatus,
   PageResponse,
 } from '@/types'
 
@@ -27,42 +28,42 @@ export const ticketApi = {
     api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
 
   /** 티켓 상세 조회 */
-  getDetail: (ticketId: number) =>
+  getDetail: (ticketId: string) =>
     api.get<TicketDetail>(`/tickets/${ticketId}`),
 
   /** 티켓 승인 */
-  approve: (ticketId: number, body: TicketApproveRequest) =>
+  approve: (ticketId: string, body: TicketApproveRequest) =>
     api.patch(`/tickets/${ticketId}/approve`, body),
 
   /** 티켓 반려 */
-  reject: (ticketId: number, body: TicketRejectRequest) =>
+  reject: (ticketId: string, body: TicketRejectRequest) =>
     api.patch(`/tickets/${ticketId}/reject`, body),
 
   /** 티켓 상태 변경 */
-  changeStatus: (ticketId: number, status: string) =>
+  changeStatus: (ticketId: string, status: TicketStatus) =>
     api.patch(`/tickets/${ticketId}/status`, { status }),
 
   /** 자산 할당 */
-  assignAsset: (ticketId: number, body: AssetAssignRequest) =>
+  assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
 
   /** 구매 증빙 업로드 */
-  uploadEvidence: (ticketId: number, file: File) => {
+  uploadEvidence: (ticketId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
     return api.upload(`/tickets/${ticketId}/evidences`, formData)
   },
 
   /** 실제 결제 금액 입력 */
-  setActualPrice: (ticketId: number, actualPrice: number) =>
+  setActualPrice: (ticketId: string, actualPrice: number) =>
     api.post(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
 
   /** 댓글 목록 조회 */
-  getComments: (ticketId: number) =>
-    api.get<TicketComment[]>(`/tickets/${ticketId}/comments`),
+  getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
+    api.get<PageResponse<TicketComment>>(`/tickets/${ticketId}/comments`, params),
 
   /** 댓글 작성 */
-  addComment: (ticketId: number, content: string) =>
+  addComment: (ticketId: string, content: string) =>
     api.post<TicketComment>(`/tickets/${ticketId}/comments`, { content }),
 }
 

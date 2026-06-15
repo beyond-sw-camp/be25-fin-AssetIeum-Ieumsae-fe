@@ -45,7 +45,7 @@ export interface TicketStatusSummary {
 }
 
 export interface AssetExpiryItem {
-  assetId: number
+  assetId: string
   assetCode: string
   assetName: string
   assetType: 'TANGIBLE' | 'INTANGIBLE'
