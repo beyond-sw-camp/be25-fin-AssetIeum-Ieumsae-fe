@@ -42,6 +42,20 @@ const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
 const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
+const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
+  'REQUESTED',
+  'DEPARTMENT_APPROVED',
+  'DEPARTMENT_REJECTED',
+  'ASSET_APPROVED',
+  'ASSET_REJECTED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+])
+const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'REQUESTED',
+  'DEPARTMENT_APPROVED',
+])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
@@ -508,6 +522,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
 ])
 
 const ticketApproverIds = new Map<string, string>()
+const ticketCancelledAt = new Map<string, string>()
 
 let ticketComments: TicketComment[] = [
   {
@@ -1081,9 +1096,11 @@ export const handlers = [
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
-    const updatedAt = ticket.ticketStatus === 'REQUESTED'
-      ? ticket.requestedAt
-      : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    const cancellationDate = ticketCancelledAt.get(ticketId)
+    const updatedAt = cancellationDate
+      ?? (ticket.ticketStatus === 'REQUESTED'
+        ? ticket.requestedAt
+        : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString())
     const assetDecisionAt = isAssetApproved || isAssetRejected ? updatedAt : null
     const requestDetail = ticketDetailData.get(ticketId) ?? {}
 
@@ -1123,6 +1140,65 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(detail))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const body = await request.json() as { status?: string }
+    if (!body.status || !TICKET_STATUS_VALUES.has(body.status as TicketStatus)) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_TICKET_STATUS',
+        message: '올바르지 않은 티켓 상태입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const nextStatus = body.status as TicketStatus
+    if (nextStatus === 'CANCELLED') {
+      if (!requester || requester.memberId !== ticket.requesterId) {
+        return HttpResponse.json({
+          status: 403,
+          errorCode: 'FORBIDDEN',
+          message: '요청자 본인만 티켓을 취소할 수 있습니다.',
+          data: null,
+        }, { status: 403 })
+      }
+      if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'TICKET_CANNOT_BE_CANCELLED',
+          message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+    }
+
+    const previousStatus = ticket.ticketStatus
+    const updatedAt = new Date().toISOString()
+    ticket.ticketStatus = nextStatus
+    if (nextStatus === 'CANCELLED') {
+      ticketCancelledAt.set(ticketId, updatedAt)
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      previousStatus,
+      currentStatus: nextStatus,
+      updatedAt,
+    }, '티켓 상태 변경에 성공했습니다.'))
   }),
 
   http.get(`${API_PREFIX}/tickets/:ticketId/comments`, ({ params, request }) => {
