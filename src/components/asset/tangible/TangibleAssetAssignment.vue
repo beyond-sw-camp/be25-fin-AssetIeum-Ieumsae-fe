@@ -39,15 +39,13 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField label="사용자" required>
           <Dropdown
-            v-model="memberLabel"
+            v-model="memberId"
             :options="memberOptions"
             placeholder="사용자를 선택하세요"
           />
         </FormField>
 
-        <Input id="assignment-member-no" v-model="selectedMemberInfo.memberNo" label="사번" disabled />
-        <Input id="assignment-member-name" v-model="selectedMemberInfo.name" label="사용자명" disabled />
-        <Input id="assignment-department-name" v-model="selectedMemberInfo.departmentName" label="부서" disabled />
+        <Input id="assignment-department-name" :model-value="selectedMemberInfo.departmentName" label="부서" disabled />
 
         <FormField label="사용 유형" required>
           <Dropdown v-model="usageTypeLabel" :options="usageTypeOptions" />
@@ -79,13 +77,13 @@
 
         <FormField label="새 사용자" required>
           <Dropdown
-            v-model="newMemberLabel"
+            v-model="newMemberId"
             :options="memberOptions"
             placeholder="새 사용자를 선택하세요"
           />
         </FormField>
 
-        <Input id="assignment-new-member-no" v-model="selectedNewMemberInfo.memberNo" label="새 사번" disabled />
+        <Input id="assignment-current-department-name" :model-value="selectedAssetInfo.currentDepartment" label="현재 부서" disabled />
         <Input id="assignment-new-department-name" v-model="selectedNewMemberInfo.departmentName" label="새 부서" disabled />
       </div>
     </section>
@@ -97,7 +95,7 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField label="현재 사용자" required>
           <Dropdown
-            v-model="currentMemberLabel"
+            v-model="currentMemberId"
             :options="memberOptions"
             placeholder="현재 사용자를 선택하세요"
           />
@@ -105,7 +103,7 @@
 
         <FormField label="새 사용자" required>
           <Dropdown
-            v-model="bulkNewMemberLabel"
+            v-model="bulkNewMemberId"
             :options="memberOptions"
             placeholder="새 사용자를 선택하세요"
           />
@@ -184,20 +182,38 @@ import {
   type TangibleAssetAssignmentUsageType,
 } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
-import type { Member, TangibleAsset } from '@/types'
+import type { Department, Member, TangibleAsset } from '@/types'
 
 type AssignmentMode = 'assign' | 'reassign' | 'bulk'
 
-interface MemberAliases extends Member {
+interface MemberAliases extends Omit<Member, 'role' | 'memberRole' | 'departmentId' | 'departmentName' | 'department'> {
   id?: string
   member_id?: string
   employeeNo?: string
   employee_no?: string
+  memberName?: string
+  departmentName?: string
   department_name?: string
-  department?: {
+  deptName?: string
+  dept_name?: string
+  teamName?: string
+  team_name?: string
+  departmentId?: string
+  department_id?: string
+  deptId?: string
+  dept_id?: string
+  department?: string | {
+    departmentId?: string
+    department_id?: string
+    id?: string
     name?: string
     departmentName?: string
+    department_name?: string
+    deptName?: string
+    teamName?: string
   }
+  role?: string | Record<string, unknown> | null
+  memberRole?: string | Record<string, unknown> | null
 }
 
 interface TangibleAssetAliases extends TangibleAsset {
@@ -211,6 +227,7 @@ interface TangibleAssetAliases extends TangibleAsset {
 
 const props = defineProps<{
   assets: TangibleAsset[]
+  departments: Department[]
   members: Member[]
 }>()
 
@@ -245,10 +262,10 @@ const assetUsageTypeOptions = ['개인자산', '공용자산']
 
 const mode = ref<AssignmentMode>('assign')
 const assetLabel = ref('')
-const memberLabel = ref('')
-const newMemberLabel = ref('')
-const currentMemberLabel = ref('')
-const bulkNewMemberLabel = ref('')
+const memberId = ref('')
+const newMemberId = ref('')
+const currentMemberId = ref('')
+const bulkNewMemberId = ref('')
 const usageTypeLabel = ref('정식 배정')
 const assetUsageTypeLabel = ref('개인자산')
 const endedAt = ref('')
@@ -265,15 +282,14 @@ const getAssetId = (asset: TangibleAsset) => {
       ?? asset.tangibleAssetId
       ?? asset.tangibleAssetAssetId
       ?? asset.asset_id
-      ?? asset.tangible_asset_id
-      ?? asset.tangible_asset_asset_id
-      ?? '',
+      ?? null
   )
 }
 
 const getAssetStatus = (asset: TangibleAsset) => {
   const aliases = asset as TangibleAssetAliases
-  return asset.status ?? asset.tangibleAssetStatus ?? aliases.tangibleAssetstatus ?? 'AVAILABLE'
+  const itemStatus = asset.status ?? asset.tangibleAssetStatus ?? aliases.tangibleAssetstatus
+  return itemStatus ?? 'AVAILABLE'
 }
 
 const statusLabel = (status: string | null | undefined) => (
@@ -290,18 +306,33 @@ const getAssetMemberName = (asset: TangibleAsset) => {
   return asset.assignedMemberName ?? aliases.memberName ?? aliases.userName ?? '미배정'
 }
 
+const getAssetDepartmentName = (asset: TangibleAsset) => {
+  if (asset.departmentName) return asset.departmentName
+  if (asset.departmentId) {
+    return props.departments.find((department) => department.departmentId === asset.departmentId)?.name ?? '-'
+  }
+  return '-'
+}
+
 const getAssetLabel = (asset: TangibleAsset) => (
   `${getAssetProductName(asset)} / ${asset.assetCode ?? '-'} / ${statusLabel(getAssetStatus(asset))}`
 )
 
 const assignableAssets = computed(() => props.assets.filter((asset) => {
-  const status = getAssetStatus(asset)
-  return status === 'AVAILABLE' || !asset.assignedMemberId
+  const hasNoMemberId = !asset.assignedMemberId
+  const memberName = getAssetMemberName(asset)
+  const hasNoMemberName = !memberName || memberName === '미배정'
+
+  return hasNoMemberId && hasNoMemberName
 }))
 
 const assignedAssets = computed(() => props.assets.filter((asset) => {
   const status = getAssetStatus(asset)
-  return status !== 'AVAILABLE' && status !== 'DISPOSED' && !!asset.assignedMemberId
+  const hasMemberId = !!asset.assignedMemberId
+  const memberName = getAssetMemberName(asset)
+  const hasValidMemberName = memberName && memberName !== '미배정'
+
+  return status !== 'DISPOSED' && (hasMemberId || hasValidMemberName)
 }))
 
 const visibleAssets = computed(() => (mode.value === 'assign' ? assignableAssets.value : assignedAssets.value))
@@ -313,6 +344,7 @@ const selectedAssetInfo = computed(() => ({
   productName: selectedAsset.value ? getAssetProductName(selectedAsset.value) : '-',
   statusLabel: selectedAsset.value ? statusLabel(getAssetStatus(selectedAsset.value)) : '-',
   currentUser: selectedAsset.value ? getAssetMemberName(selectedAsset.value) : '-',
+  currentDepartment: selectedAsset.value ? getAssetDepartmentName(selectedAsset.value) : '-',
 }))
 
 const getMemberId = (member: Member) => {
@@ -327,25 +359,86 @@ const getMemberNo = (member: Member) => {
 
 const getMemberDepartmentName = (member: Member) => {
   const aliases = member as MemberAliases
-  return member.departmentName
+  const department = aliases.department
+  const departmentId = aliases.departmentId
+    ?? aliases.department_id
+    ?? aliases.deptId
+    ?? aliases.dept_id
+    ?? (department && typeof department === 'object'
+      ? department.departmentId ?? department.department_id ?? department.id
+      : undefined)
+
+  const matchedDepartment = departmentId
+    ? props.departments.find((candidate) => candidate.departmentId === departmentId)
+    : undefined
+
+  if (matchedDepartment?.name) {
+    return matchedDepartment.name
+  }
+
+  if (typeof department === 'string' && department.trim()) {
+    const matchedByString = props.departments.find((candidate) => candidate.departmentId === department)
+    return matchedByString?.name ?? department
+  }
+
+  if (department && typeof department === 'object') {
+    return department.departmentName
+      ?? department.department_name
+      ?? department.name
+      ?? department.deptName
+      ?? department.teamName
+      ?? '-'
+  }
+
+  return aliases.departmentName
     ?? aliases.department_name
-    ?? aliases.department?.name
-    ?? aliases.department?.departmentName
+    ?? aliases.deptName
+    ?? aliases.dept_name
+    ?? aliases.teamName
+    ?? aliases.team_name
     ?? '-'
 }
 
-const getMemberLabel = (member: Member) => `${member.name}(${getMemberNo(member)})`
-const memberOptions = computed(() => props.members.map(getMemberLabel))
-const findMemberByLabel = (label: string) => props.members.find((member) => getMemberLabel(member) === label) ?? null
+const getMemberName = (member: Member) => {
+  const aliases = member as MemberAliases
+  return member.name ?? aliases.memberName ?? '-'
+}
 
-const selectedMember = computed(() => findMemberByLabel(memberLabel.value))
-const selectedNewMember = computed(() => findMemberByLabel(newMemberLabel.value))
-const selectedCurrentMember = computed(() => findMemberByLabel(currentMemberLabel.value))
-const selectedBulkNewMember = computed(() => findMemberByLabel(bulkNewMemberLabel.value))
+const getMemberLabel = (member: Member) => `${getMemberName(member)}(${getMemberNo(member)})`
+
+const filteredMembers = computed(() => {
+  return props.members.filter((member) => {
+    const aliases = member as MemberAliases
+    const rawRole = aliases.role ?? aliases.memberRole
+    
+    if (!rawRole) return true
+
+    // 💡 복잡한 if-else 대입 과정을 생략하고 삼항 연산자로 즉시 값을 초기화합니다.
+    const roleStr = typeof rawRole === 'object'
+      ? (typeof (rawRole as Record<string, unknown>).name === 'string' ? String((rawRole as Record<string, unknown>).name) : '')
+      : String(rawRole)
+
+    const upperRole = roleStr.toUpperCase()
+    return upperRole !== 'ADMIN' && upperRole !== 'SUPER_ADMIN'
+  })
+})
+
+const memberOptions = computed(() => filteredMembers.value.map((member) => ({
+  label: getMemberLabel(member),
+  value: getMemberId(member),
+})))
+const findMemberById = (id: string | number) => (
+  filteredMembers.value.find((member) => getMemberId(member) === String(id)) ?? null
+)
+
+const selectedMember = computed(() => findMemberById(memberId.value))
+const selectedNewMember = computed(() => findMemberById(newMemberId.value))
+const selectedCurrentMember = computed(() => findMemberById(currentMemberId.value))
+const selectedBulkNewMember = computed(() => findMemberById(bulkNewMemberId.value))
 
 const memberInfo = (member: Member | null) => ({
   memberNo: member ? getMemberNo(member) : '-',
-  name: member?.name ?? '-',
+  name: member ? getMemberName(member) : '-',
   departmentName: member ? getMemberDepartmentName(member) : '-',
 })
 
@@ -439,10 +532,10 @@ const loadAssignments = async () => {
 const resetForm = () => {
   if (isSubmitting.value) return
   assetLabel.value = ''
-  memberLabel.value = ''
-  newMemberLabel.value = ''
-  currentMemberLabel.value = ''
-  bulkNewMemberLabel.value = ''
+  memberId.value = ''
+  newMemberId.value = ''
+  currentMemberId.value = ''
+  bulkNewMemberId.value = ''
   usageTypeLabel.value = '정식 배정'
   assetUsageTypeLabel.value = '개인자산'
   endedAt.value = ''

@@ -33,6 +33,7 @@
         >
           <TangibleAssetAssignment
             :assets="serverAssetList"
+            :departments="departments"
             :members="members"
             @close="isAssignmentDrawerOpen = false"
             @assigned="handleAssetAssigned"
