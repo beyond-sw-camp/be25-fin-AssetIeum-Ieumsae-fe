@@ -371,8 +371,8 @@ const tableColumns: Column<TangibleAssetRow>[] = [
   { key: 'productName', label: '제품명', align: 'center', width: '25%' },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '20%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '18%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '18%' },
-  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '19%' }
+  { key: 'departmentName', label: '부서', align: 'center', width: '14%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '23%' }
 ];
 
 const statusLabel = (status: string | null | undefined) => {

@@ -52,7 +52,7 @@ const toBoolean = (value: number | boolean | undefined) => {
   return value
 }
 
-export type TangibleAssetAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
+export type TangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
 export type TangibleAssetAssignmentUsageType = 'TEMPORARY' | 'PERMANENT' | string
 export type TangibleAssetAssignmentAssetUsageType = 'PERSONAL' | 'DEPARTMENT' | string
 
