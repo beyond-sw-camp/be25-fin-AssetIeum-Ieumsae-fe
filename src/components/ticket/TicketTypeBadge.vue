@@ -1,5 +1,12 @@
 <template>
-  <span class="text-sm font-semibold text-text-main">
+  <span
+    :class="[
+      'inline-flex items-center font-semibold',
+      variant === 'badge'
+        ? 'rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary'
+        : 'text-sm text-text-main',
+    ]"
+  >
     {{ TICKET_TYPE_LABEL[type] }}
   </span>
 </template>
@@ -8,7 +15,10 @@
 import type { TicketType } from '@/types'
 import { TICKET_TYPE_LABEL } from '@/utils/labels'
 
-defineProps<{
+withDefaults(defineProps<{
   type: TicketType
-}>()
+  variant?: 'text' | 'badge'
+}>(), {
+  variant: 'text',
+})
 </script>

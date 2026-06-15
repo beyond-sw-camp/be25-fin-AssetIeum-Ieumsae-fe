@@ -1,11 +1,11 @@
-import type { AssetType, TicketType, TicketStatus } from './common'
+import type { AssetType, Role, TicketType, TicketStatus } from './common'
 
 // =====================================================
 // 티켓(Ticket) 공통 타입
 // =====================================================
 
 export interface TicketListItem extends Record<string, unknown> {
-  ticketId: string
+  ticketId: number
   ticketNo: string
   ticketType: TicketType
   assetItemName: string | null
@@ -18,7 +18,7 @@ export interface TicketListItem extends Record<string, unknown> {
 }
 
 export interface TicketDetail {
-  ticketId: string
+  ticketId: number
   ticketNo: string
   ticketType: TicketType
   status: TicketStatus
@@ -119,13 +119,13 @@ export interface RentalRequestCreate {
 }
 
 export interface RentalExtensionRequestCreate {
-  assetId: string
+  assetId: number
   requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: string
+  assetId: number
   maintenanceReason: string
 }
 
@@ -170,9 +170,13 @@ export interface AssetAssignRequest {
 
 export interface TicketComment {
   commentId: number
-  ticketId: number
-  authorId: number
-  authorName: string
+  // TODO: API 명세의 응답 예시와 스키마에서 ticketId/writer 식별자 필드가 불일치한다.
+  ticketId: string | number
+  writerId?: string
+  writerMemberNo?: string
+  writerName: string
+  writerRole?: Role
   content: string
   createdAt: string
+  updatedAt: string
 }

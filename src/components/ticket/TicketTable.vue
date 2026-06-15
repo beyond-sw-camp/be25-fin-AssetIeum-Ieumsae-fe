@@ -50,7 +50,7 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  detail: [ticketId: number]
+  detail: [ticketId: TicketListItem['ticketId']]
 }>()
 
 function handleRowClick(ticket: TicketListItem) {
