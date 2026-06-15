@@ -12,22 +12,27 @@ import type {
 // 상태 코드 → 한국어 레이블 변환
 // =====================================================
 
-export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus, string> = {
+export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus | string, string> = {
   AVAILABLE: '사용가능',
   IN_USE: '사용중',
   REPAIR_REQUESTED: '수리요청',
   REPAIRING: '수리중',
   RETURN_REQUESTED: '반납요청',
   DISPOSED: '폐기완료',
+  LOST: '분실',
+  CANCELED: '취소',
+  CANCELLED: '취소',
 }
 
-export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
+export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus | string, string> = {
   AVAILABLE: '사용가능',
   IN_USE: '사용중',
   EXPIRING_SOON: '만료예정',
   EXPIRED: '만료',
   TERMINATION_REQUESTED: '해지요청',
   TERMINATED: '해지',
+  CANCELED: '해지완료',
+  CANCELLED: '해지완료',
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {

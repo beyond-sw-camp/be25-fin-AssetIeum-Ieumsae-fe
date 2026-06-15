@@ -377,7 +377,7 @@ const tableColumns: Column<TangibleAssetRow>[] = [
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return TANGIBLE_STATUS_LABEL[status as keyof typeof TANGIBLE_STATUS_LABEL] ?? status
+  return TANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
 const getSelectedCategoryId = () => {

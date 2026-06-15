@@ -24,6 +24,26 @@
           @close="isRegisterDrawerOpen = false"
           @registered="handleAssetRegistered"
         />
+
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="무형자산 배정"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <IntangibleAssetAssignment
+            :assets="serverAssetList"
+            :departments="departments"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
+          자산 배정
+        </Button>
       </div>
     </div>
 
@@ -139,10 +159,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Search, ChevronLeft, ChevronRight, Layers, Plus } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag } from 'lucide-vue-next'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
@@ -150,6 +171,7 @@ import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
+import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
 
 import { usePermission } from '@/composables/usePermission.ts'
 import { useAuthStore } from '@/stores/auth.store'
@@ -245,6 +267,7 @@ type StoredAuthUser = {
 const rowsPerPageOptions = ['10개씩 보기', '20개씩 보기', '50개씩 보기', '100개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
 const isRegisterDrawerOpen = ref(false)
+const isAssignmentDrawerOpen = ref(false)
 const isDetailDrawerOpen = ref(false)
 const selectedAsset = ref<IntangibleAsset | null>(null)
 const ALL_CATEGORY = '전체 품목 보기'
@@ -266,16 +289,16 @@ const totalPages = ref(0)
 const isLoading = ref(false)
 
 const tableColumns: Column<IntangibleAsset>[] = [
-  { key: 'assetItemName', label: '제품명', align: 'center', width: '28%' },
+  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%' },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '22%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '16%' },
-  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '18%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '16%' },
+  { key: 'departmentName', label: '부서', align: 'center', width: '16%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '22%' },
 ]
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status
+  return INTANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
 const assetIdOf = (asset: IntangibleAsset) => (
@@ -330,6 +353,11 @@ const handleAssetRegistered = () => {
   handleSearch()
 }
 
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
+  handleSearch()
+}
+
 const handleAssetSaved = () => {
   handleSearch()
 }
@@ -342,6 +370,11 @@ const openRegisterDrawer = () => {
     'GET /members?size=999',
   ])
   void loadRegisterReferenceData()
+}
+
+const openAssignmentDrawer = async () => {
+  await loadRegisterReferenceData()
+  isAssignmentDrawerOpen.value = true
 }
 
 const handleSearch = () => {
