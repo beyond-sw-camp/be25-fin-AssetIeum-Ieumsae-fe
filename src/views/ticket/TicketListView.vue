@@ -144,6 +144,7 @@ import type {
   DropdownOption,
   TicketCreateResponse,
   TicketListItem,
+  PurchaseRequestMethod,
   TicketStatus,
   TicketType,
 } from '@/types'
@@ -160,8 +161,17 @@ const STATUS_FILTER_OPTIONS: DropdownOption[] = [
 ]
 const TYPE_FILTER_OPTIONS: DropdownOption[] = [
   { label: '전체 유형', value: '' },
-  ...Object.entries(TICKET_TYPE_LABEL).map(([value, label]) => ({ value, label })),
+  ...Object.entries(TICKET_TYPE_LABEL).flatMap(([value, label]) => (
+    value === 'PURCHASE_REQUEST'
+      ? [
+          { value, label },
+          { value: 'DIRECT_PURCHASE', label: '직접 구매 요청' },
+        ]
+      : [{ value, label }]
+  )),
 ]
+
+type TicketTypeFilter = TicketType | Extract<PurchaseRequestMethod, 'DIRECT_PURCHASE'>
 
 const route = useRoute()
 const router = useRouter()
@@ -171,7 +181,7 @@ const { canCreateTicket } = usePermission()
 const tickets = ref<TicketListItem[]>([])
 const filterForm = ref({
   status: '' as TicketStatus | '',
-  ticketType: '' as TicketType | '',
+  ticketType: '' as TicketTypeFilter | '',
 })
 const keywordInput = ref('')
 const appliedKeyword = ref('')
@@ -185,12 +195,18 @@ const filteredTickets = computed(() => {
   const keyword = appliedKeyword.value.trim().toLowerCase()
 
   return tickets.value.filter((ticket) => {
-    if (!keyword) return true
+    const matchesRequestMethod = filterForm.value.ticketType === 'DIRECT_PURCHASE'
+      ? ticket.requestMethod === 'DIRECT_PURCHASE'
+      : filterForm.value.ticketType === 'PURCHASE_REQUEST'
+        ? ticket.requestMethod !== 'DIRECT_PURCHASE'
+        : true
 
-    return [
+    const matchesKeyword = !keyword || [
       ticket.ticketNo,
-      ticket.assetItemName,
+      ticket.requestedItemName,
     ].some((value) => value?.toLowerCase().includes(keyword))
+
+    return matchesRequestMethod && matchesKeyword
   })
 })
 
@@ -237,8 +253,11 @@ async function fetchTickets() {
     const response = await ticketApi.getList({
       page: 0,
       size: 999,
-      status: filterForm.value.status || undefined,
-      ticketType: filterForm.value.ticketType || undefined,
+      ticketStatus: filterForm.value.status || undefined,
+      ticketType: filterForm.value.ticketType === 'DIRECT_PURCHASE'
+        ? 'PURCHASE_REQUEST'
+        : filterForm.value.ticketType || undefined,
+      keyword: appliedKeyword.value.trim() || undefined,
     })
     tickets.value = response.data.content
   } catch (error) {
@@ -272,14 +291,18 @@ function handlePageSizeChange(value: string | number) {
   page.value = 0
 }
 
-function handleStatusChange(value: string | number) {
+async function handleStatusChange(value: string | number) {
   if (typeof value !== 'string') return
   filterForm.value.status = value as TicketStatus | ''
+  page.value = 0
+  await fetchTickets()
 }
 
-function handleTicketTypeChange(value: string | number) {
+async function handleTicketTypeChange(value: string | number) {
   if (typeof value !== 'string') return
-  filterForm.value.ticketType = value as TicketType | ''
+  filterForm.value.ticketType = value as TicketTypeFilter | ''
+  page.value = 0
+  await fetchTickets()
 }
 
 function openRequestDrawer() {

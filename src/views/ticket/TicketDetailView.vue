@@ -47,51 +47,65 @@
             </div>
           </div>
           <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <TicketTypeBadge :type="ticket.ticketType" variant="badge" />
             <TicketStatusBadge :status="ticket.status" />
           </div>
         </header>
 
         <div class="space-y-4">
-          <TicketDetailCard title="기본 정보">
-            <template #icon>
-              <TicketCheck :size="18" class="text-primary" />
-            </template>
+          <div class="grid items-stretch gap-4 lg:grid-cols-2">
+            <TicketDetailCard title="티켓 상세 내역" class="h-full">
+              <template #icon>
+                <TicketCheck :size="18" class="text-primary" />
+              </template>
 
-            <dl class="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-              <div v-for="item in basicInfoItems" :key="item.label" class="border-b border-border pb-3">
-                <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
-              </div>
-            </dl>
-          </TicketDetailCard>
+              <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="item in ticketInfoItems"
+                  :key="item.label"
+                  class="border-b border-border pb-3"
+                >
+                  <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                  <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                </div>
+              </dl>
+            </TicketDetailCard>
+
+            <TicketDetailCard title="처리 및 상세 정보" class="h-full">
+              <template #icon>
+                <ClipboardCheck :size="18" class="text-primary" />
+              </template>
+
+              <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="item in processingInfoItems"
+                  :key="item.label"
+                  class="border-b border-border pb-3"
+                >
+                  <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                  <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                </div>
+              </dl>
+            </TicketDetailCard>
+          </div>
 
           <TicketDetailCard title="요청 상세 내역" padding="none">
             <template #icon>
               <ClipboardList :size="18" class="text-primary" />
             </template>
 
-            <div class="overflow-x-auto">
-              <div class="min-w-[640px]">
-                <div
-                  class="grid grid-cols-[minmax(160px,1fr)_minmax(420px,3fr)] border-b border-border bg-surface-secondary text-center text-xs font-semibold text-text-sub"
-                >
-                  <div class="px-5 py-3">요청 유형</div>
-                  <div class="border-l border-border px-5 py-3">요청 사유</div>
-                </div>
-                <div
-                  class="grid grid-cols-[minmax(160px,1fr)_minmax(420px,3fr)] items-center text-sm text-text-main"
-                >
-                  <div class="px-5 py-4 text-center font-semibold">
-                    {{ TICKET_TYPE_LABEL[ticket.ticketType] }}
-                  </div>
-                  <div class="border-l border-border px-5 py-4 font-medium">
-                    <p class="whitespace-pre-wrap leading-6">
-                      {{ ticket.requestReason || '-' }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <TicketRequestDetailTable
+              :columns="requestDetailColumns"
+              :rows="requestDetailRows"
+            />
+
+            <div
+              v-if="requestDetailReason"
+              class="border-t border-border bg-surface-secondary/40 px-5 py-4"
+            >
+              <p class="text-xs font-semibold text-text-muted">{{ requestDetailReason.label }}</p>
+              <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-text-main">
+                {{ requestDetailReason.value }}
+              </p>
             </div>
 
             <dl v-if="rejectionReason" class="border-t border-border p-4">
@@ -104,7 +118,6 @@
                 </dd>
               </div>
             </dl>
-            <!-- TODO: 상세 API에 자산 분류, 품목명, 수량 등 유형별 필드가 추가되면 표의 열을 확장한다. -->
           </TicketDetailCard>
 
           <div class="grid items-stretch gap-4 lg:grid-cols-2">
@@ -116,7 +129,6 @@
               :error-message="commentsErrorMessage"
               :submit-error-message="commentSubmitErrorMessage"
               :current-member-id="authStore.user?.memberId"
-              :current-member-no="authStore.user?.memberNo"
               :submit-version="commentSubmitVersion"
               @retry="loadComments"
               @submit="handleCommentSubmit"
@@ -132,6 +144,7 @@
 import {
   ArrowLeft,
   CircleAlert,
+  ClipboardCheck,
   ClipboardList,
   RefreshCw,
   TicketCheck,
@@ -144,13 +157,30 @@ import Button from '@/components/common/Button.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
+import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
 import TicketStatusBadge from '@/components/ticket/TicketStatusBadge.vue'
-import TicketTypeBadge from '@/components/ticket/TicketTypeBadge.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
-import type { TicketComment, TicketDetail } from '@/types'
-import { formatDate, TICKET_TYPE_LABEL } from '@/utils/labels'
+import type { AssetType, TicketComment, TicketDetail } from '@/types'
+import {
+  formatCurrency,
+  formatDate,
+  getTicketTypeLabel,
+  INTANGIBLE_STATUS_LABEL,
+  TANGIBLE_STATUS_LABEL,
+  TICKET_STATUS_LABEL,
+} from '@/utils/labels'
 
 interface DetailItem {
+  label: string
+  value: string
+}
+
+interface RequestDetailColumn {
+  key: string
+  label: string
+}
+
+interface RequestDetailReason {
   label: string
   value: string
 }
@@ -187,18 +217,243 @@ const rejectionReason = computed(() => (
   ?? ''
 ))
 
-const basicInfoItems = computed<DetailItem[]>(() => {
+const ticketInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
 
   return [
+    {
+      label: '티켓 유형',
+      value: getTicketTypeLabel(ticket.value.ticketType, ticket.value.requestMethod),
+    },
     { label: '요청자', value: ticket.value.requesterName },
     { label: '소속 부서', value: ticket.value.departmentName },
-    { label: '요청 일시', value: formatDate(ticket.value.createdAt, 'YYYY-MM-DD HH:mm') },
     { label: '부서 승인자', value: ticket.value.approverName ?? '미지정' },
     { label: '부서 처리 일시', value: formatDate(departmentDecisionAt.value, 'YYYY-MM-DD HH:mm') },
-    { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
+    { label: '요청 일시', value: formatDate(ticket.value.requestedAt, 'YYYY-MM-DD HH:mm') },
   ]
 })
+
+const processingInfoItems = computed<DetailItem[]>(() => {
+  if (!ticket.value) return []
+
+  const commonItems: DetailItem[] = [
+    { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
+    { label: '세부 상태', value: ticket.value.detailStatus ?? '-' },
+    { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
+  ]
+
+  switch (ticket.value.ticketType) {
+    case 'PURCHASE_REQUEST':
+      return [
+        ...commonItems,
+        { label: '발주 일시', value: formatDate(ticket.value.orderedAt, 'YYYY-MM-DD HH:mm') },
+        { label: '납품 확인일', value: formatDate(ticket.value.receivedAt, 'YYYY-MM-DD HH:mm') },
+        processingCompletedItem(ticket.value, '등록 일시', ticket.value.registeredAt),
+      ]
+    case 'RENTAL':
+      return [
+        ...commonItems,
+        { label: '대여 시작일', value: formatDate(ticket.value.rentalStartDate) },
+        { label: '반납 예정일', value: formatDate(ticket.value.rentalDueDate) },
+        processingCompletedItem(ticket.value),
+      ]
+    case 'RENTAL_EXTENSION':
+      return [
+        ...commonItems,
+        { label: '기존 반납 예정일', value: formatDate(ticket.value.previousDueDate) },
+        { label: '희망 대여 연장일', value: formatDate(ticket.value.requestedDueDate) },
+        processingCompletedItem(ticket.value, '변경 처리 일시', ticket.value.processedAt),
+      ]
+    case 'MAINTENANCE_REQUEST':
+      return [
+        ...commonItems,
+        { label: '자산 회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
+        {
+          label: '유지보수 완료 일시',
+          value: formatDate(ticket.value.maintenanceCompletedAt, 'YYYY-MM-DD HH:mm'),
+        },
+        processingCompletedItem(ticket.value),
+      ]
+    case 'ASSET_RETURN':
+      return [
+        ...commonItems,
+        { label: '자산 회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
+        { label: '반납·해지 처리 일시', value: formatDate(ticket.value.processedAt, 'YYYY-MM-DD HH:mm') },
+        processingCompletedItem(ticket.value),
+      ]
+    case 'PURCHASE_RETURN':
+      return [
+        ...commonItems,
+        { label: '자산 회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
+        { label: '반품 처리 일시', value: formatDate(ticket.value.processedAt, 'YYYY-MM-DD HH:mm') },
+        processingCompletedItem(ticket.value),
+      ]
+    case 'ASSET_REQUEST':
+    default:
+      return [
+        ...commonItems,
+        {
+          label: '자산팀 처리 일시',
+          value: formatDate(
+            ticket.value.purchaseApprovedAt ?? ticket.value.purchaseRejectedAt,
+            'YYYY-MM-DD HH:mm',
+          ),
+        },
+        { label: '자산 등록 일시', value: formatDate(ticket.value.registeredAt, 'YYYY-MM-DD HH:mm') },
+        processingCompletedItem(ticket.value),
+      ]
+  }
+})
+
+const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
+  if (!ticket.value) return []
+
+  switch (ticket.value.ticketType) {
+    case 'PURCHASE_REQUEST':
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'quantity', label: '수량' },
+        { key: 'expectedPrice', label: '예상 단가' },
+        { key: 'expectedAmount', label: '예상 합계 금액' },
+        { key: 'actualAmount', label: '실제 결제 금액' },
+      ]
+    case 'RENTAL':
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'quantity', label: '수량' },
+        { key: 'rentalStartDate', label: '희망 대여 시작일' },
+        { key: 'requestedDueDate', label: '희망 반납 예정일' },
+      ]
+    case 'RENTAL_EXTENSION':
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'quantity', label: '수량' },
+        { key: 'requestedDueDate', label: '희망 대여 연장일' },
+      ]
+    case 'MAINTENANCE_REQUEST':
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'assetId', label: '자산 ID' },
+        { key: 'maintenanceReason', label: '요청 내용' },
+        { key: 'processedAt', label: '처리 날짜' },
+        { key: 'maintenanceResult', label: '처리 상태' },
+      ]
+    case 'ASSET_RETURN':
+      return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'quantity', label: '수량' },
+        { key: 'startedAt', label: '사용 시작일' },
+        { key: 'assetStatus', label: '자산 상태' },
+      ]
+    case 'PURCHASE_RETURN':
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'assetId', label: '자산 ID' },
+        { key: 'returnReason', label: '반품 사유' },
+        { key: 'collected', label: '회수 여부' },
+        { key: 'refundAmount', label: '환불 금액' },
+      ]
+    case 'ASSET_REQUEST':
+    default:
+      return [
+        { key: 'category', label: '자산 분류' },
+        { key: 'itemName', label: '품목명' },
+        { key: 'quantity', label: '수량' },
+      ]
+  }
+})
+
+const requestDetailRows = computed<Array<Record<string, string>>>(() => {
+  if (!ticket.value) return []
+
+  const quantity = ticket.value.quantity ?? 1
+  const expectedAmount = ticket.value.expectedPrice === null
+    || ticket.value.expectedPrice === undefined
+    ? null
+    : ticket.value.expectedPrice * quantity
+
+  return [{
+    assetType: assetTypeLabel(ticket.value.assetType),
+    category: ticket.value.categoryName ?? '-',
+    itemName: requestItemName(ticket.value),
+    quantity: String(quantity),
+    expectedPrice: formatCurrency(ticket.value.expectedPrice),
+    expectedAmount: formatCurrency(expectedAmount),
+    actualAmount: formatCurrency(ticket.value.actualAmount),
+    assetId: ticket.value.assetId === null || ticket.value.assetId === undefined
+      ? '-'
+      : String(ticket.value.assetId),
+    startedAt: formatDate(ticket.value.startedAt),
+    assetStatus: assetStatusLabel(ticket.value.assetStatus),
+    rentalStartDate: formatDate(ticket.value.rentalStartDate),
+    requestedDueDate: formatDate(ticket.value.requestedDueDate),
+    maintenanceReason: ticket.value.maintenanceReason ?? ticket.value.requestReason ?? '-',
+    processedAt: formatDate(ticket.value.processedAt),
+    maintenanceResult: ticket.value.maintenanceResult ?? ticket.value.detailStatus ?? '-',
+    returnReason: ticket.value.returnReason ?? ticket.value.requestReason ?? '-',
+    collected: ticket.value.collectedAt ? 'Y' : 'N',
+    refundAmount: formatCurrency(ticket.value.refundAmount),
+  }]
+})
+
+const requestDetailReason = computed<RequestDetailReason | null>(() => {
+  if (!ticket.value || ticket.value.ticketType !== 'ASSET_RETURN') return null
+
+  return {
+    label: ticket.value.assetType === 'INTANGIBLE' ? '해지 신청 사유' : '반납 신청 사유',
+    value: ticket.value.returnReason ?? ticket.value.requestReason ?? '-',
+  }
+})
+
+function processingCompletedItem(
+  detail: TicketDetail,
+  pendingLabel = '처리 일시',
+  pendingValue?: string | null,
+): DetailItem {
+  return detail.completedAt
+    ? {
+        label: '완료 일시',
+        value: formatDate(detail.completedAt, 'YYYY-MM-DD HH:mm'),
+      }
+    : {
+        label: pendingLabel,
+        value: formatDate(pendingValue, 'YYYY-MM-DD HH:mm'),
+      }
+}
+
+function requestItemName(detail: TicketDetail): string {
+  return detail.requestedItemName
+    ?? detail.requestedItemDetail
+    ?? detail.productName
+    ?? '-'
+}
+
+function assetTypeLabel(assetType: AssetType | null | undefined): string {
+  if (assetType === 'TANGIBLE') return '유형자산'
+  if (assetType === 'INTANGIBLE') return '무형자산'
+  return '-'
+}
+
+function assetStatusLabel(status: string | null | undefined): string {
+  if (!status) return '-'
+
+  const statusLabels: Record<string, string> = {
+    ...TANGIBLE_STATUS_LABEL,
+    ...INTANGIBLE_STATUS_LABEL,
+    UNDER_MAINTENANCE: '유지보수 중',
+    RETURN_COLLECTED: '회수 완료',
+    RETURNED_TO_VENDOR: '공급처 반품 완료',
+  }
+
+  return statusLabels[status] ?? status
+}
 
 function detailErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
