@@ -5,7 +5,7 @@ import type { AssetType, TicketType, TicketStatus } from './common'
 // =====================================================
 
 export interface TicketListItem extends Record<string, unknown> {
-  ticketId: number
+  ticketId: string
   ticketNo: string
   ticketType: TicketType
   assetItemName: string | null
@@ -18,7 +18,7 @@ export interface TicketListItem extends Record<string, unknown> {
 }
 
 export interface TicketDetail {
-  ticketId: number
+  ticketId: string
   ticketNo: string
   ticketType: TicketType
   status: TicketStatus
@@ -119,13 +119,13 @@ export interface RentalRequestCreate {
 }
 
 export interface RentalExtensionRequestCreate {
-  assetId: number
+  assetId: string
   requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: number
+  assetId: string
   maintenanceReason: string
 }
 

@@ -9,7 +9,7 @@
     @row-click="handleRowClick"
   >
     <template #cell-ticketNo="{ value }">
-      <span class="font-semibold text-primary">{{ value }}</span>
+      <span class="text-text-main">{{ value }}</span>
     </template>
 
     <template #cell-ticketType="{ row }">
@@ -23,7 +23,7 @@
     </template>
 
     <template #cell-createdAt="{ value }">
-      <span class="text-text-sub">{{ formatDate(String(value), 'YYYY-MM-DD HH:mm') }}</span>
+      <span class="text-text-main">{{ formatDate(String(value), 'YYYY-MM-DD HH:mm') }}</span>
     </template>
 
     <template #cell-status="{ row }">
@@ -58,10 +58,10 @@ function handleRowClick(ticket: TicketListItem) {
 }
 
 const columns: Column<TicketListItem>[] = [
-  { key: 'ticketNo', label: '티켓 번호', width: '20%' },
-  { key: 'ticketType', label: '티켓 유형', width: '18%' },
-  { key: 'assetItemName', label: '품목명', width: '27%' },
-  { key: 'createdAt', label: '요청일시', width: '20%' },
+  { key: 'ticketNo', label: '티켓 번호', width: '20%', align: 'center' },
+  { key: 'ticketType', label: '티켓 유형', width: '18%', align: 'center' },
+  { key: 'assetItemName', label: '품목명', width: '27%', align: 'center' },
+  { key: 'createdAt', label: '요청일시', width: '20%', align: 'center' },
   { key: 'status', label: '진행 상태', width: '15%', align: 'center' },
 ]
 </script>

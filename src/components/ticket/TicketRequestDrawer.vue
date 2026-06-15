@@ -66,6 +66,7 @@
           >
             <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
               <input
+                v-model="selectionAssetType"
                 type="radio"
                 name="ticket-asset-type"
                 :value="option.value"
@@ -89,7 +90,7 @@
       <section class="space-y-3">
         <div class="space-y-2">
           <label class="text-sm font-semibold text-text-main" for="ticket-asset-category">
-            자산 분류 선택 <span class="text-primary">*</span>
+            자산 카테고리 선택 <span class="text-primary">*</span>
           </label>
           <Dropdown
             id="ticket-asset-category"
@@ -605,7 +606,7 @@ const ownedAssetOptions = ref<SelectableAsset[]>([])
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
-  assetUsageType: '' as '' | RequestedUsageType,
+  assetUsageType: 'TEAM' as RequestedUsageType,
   category: '',
   selectedAssetId: '',
   requestedItemName: '',
@@ -620,7 +621,7 @@ const form = reactive({
   reason: '',
 })
 const assetSearchForm = reactive({
-  assetUsageType: '' as '' | 'DEPARTMENT' | 'PERSONAL',
+  assetUsageType: 'DEPARTMENT' as 'DEPARTMENT' | 'PERSONAL',
   category: '',
   keyword: '',
 })
@@ -638,7 +639,7 @@ const requestTitleMap: Record<TicketRequestKind, string> = {
 
 const drawerTitle = computed(() => (
   isAssetSelectionStep.value
-    ? '표준 자산 선택'
+    ? '자산 선택'
     : selectedKind.value
       ? requestTitleMap[selectedKind.value]
       : '새 티켓 요청'
@@ -1092,14 +1093,14 @@ function resetForm() {
   hasSearchedAssets.value = false
   itemOptions.value = []
   Object.assign(assetSearchForm, {
-    assetUsageType: '',
+    assetUsageType: 'DEPARTMENT',
     category: '',
     keyword: '',
   })
   Object.assign(form, {
     assetType: 'TANGIBLE',
     assetServiceType: 'REPAIR',
-    assetUsageType: '',
+    assetUsageType: 'TEAM',
     category: '',
     selectedAssetId: '',
     requestedItemName: '',
@@ -1123,7 +1124,8 @@ function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
   form.assetType = 'TANGIBLE'
   form.assetServiceType = 'REPAIR'
-  form.assetUsageType = ''
+  form.assetUsageType = 'TEAM'
+  assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
   form.selectedAssetId = ''
   assetSearchKeyword.value = ''
