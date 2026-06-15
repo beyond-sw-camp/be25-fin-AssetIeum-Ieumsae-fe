@@ -90,13 +90,13 @@ export interface TangibleAssetCategoryDeleteResponse {
 // =====================================================
 
 export interface TangibleAsset {
-  assetId?: string | number | null
+  assetId?: string | null
   id?: string | number | null
-  tangibleAssetId?: string | number | null
-  tangibleAssetAssetId?: string | number | null
-  asset_id?: string | number | null
-  tangible_asset_id?: string | number | null
-  tangible_asset_asset_id?: string | number | null
+  tangibleAssetId?: string | null
+  tangibleAssetAssetId?: string | null
+  asset_id?: string | null
+  tangible_asset_id?: string | null
+  tangible_asset_asset_id?: string | null
   tangibleItemId?: string
   assetItemId?: string
   tangibleAssetItemId?: string
@@ -129,8 +129,6 @@ export interface TangibleAsset {
   warrantyExpiredAt?: string | null
   assetItemName?: string
   productName?: string
-  createdAt?: string
-  updatedAt?: string
 }
 
 export interface TangibleAssetCreateRequest {
@@ -189,7 +187,7 @@ export interface TangibleAssetUpdateRequest {
 export interface TangibleAssetListFilter {
   page?: number
   size?: number
-  assetId?: string | number | null
+  assetId?: string | null
   productName?: string
   assetCode?: string
   status?: TangibleAssetStatus
@@ -331,8 +329,6 @@ export interface IntangibleAsset {
   isAutoRenewal?: number
   purchaseDate?: string
   purchaseVendor?: string
-  createdAt?: string
-  updatedAt?: string
 }
 
 export interface IntangibleAssetCreateRequest {

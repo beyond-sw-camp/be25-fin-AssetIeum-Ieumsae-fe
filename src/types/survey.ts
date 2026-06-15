@@ -37,7 +37,7 @@ export interface SurveyCreateRequest {
 }
 
 export interface SurveyResponseItem {
-  assetId: number
+  assetId: string
   assetCode: string
   assetName: string
   currentOwnerName: string
@@ -50,7 +50,7 @@ export interface SurveyResponseItem {
 }
 
 export interface UserSurveyResponse {
-  assetId: number
+  assetId: string
   isOwned: boolean
   actualStatus: string
   note?: string

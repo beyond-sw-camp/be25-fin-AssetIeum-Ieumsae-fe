@@ -42,7 +42,7 @@ export interface TicketDetail {
   quantity?: number | null
   expectedPrice?: number | null
   actualAmount?: number | null
-  assetId?: string | number | null
+  assetId?: string | null
   assetStatus?: string | null
   startedAt?: string | null
   rentalStartDate?: string | null
@@ -154,25 +154,25 @@ export interface RentalRequestCreate {
 }
 
 export interface RentalExtensionRequestCreate {
-  assetId: number
+  assetId: string
   requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: number
+  assetId: string
   maintenanceReason: string
 }
 
 export interface ReturnRequestCreate {
   assetType: AssetType
-  assetId: number
+  assetId: string
   returnReason: string
 }
 
 export interface PurchaseReturnRequestCreate {
   assetType: AssetType
-  assetId: number
+  assetId: string
   type: 'EMPLOYEE' | 'PURCHASE_TEAM'
   returnReason: string
 }
@@ -183,19 +183,19 @@ export interface PurchaseReturnRequestCreate {
 
 export interface TicketApproveRequest {
   approver: 'DEPARTMENT_MANAGER' | 'ASSET_TEAM'
-  approverMemberId: number
+  approverMemberId: string
 }
 
 export interface TicketRejectRequest {
   rejectionType: 'DEPARTMENT_MANAGER' | 'ASSET_TEAM'
-  rejecterMemberId: number
+  rejecterMemberId: string
   rejectionReason: string
 }
 
 export interface AssetAssignRequest {
   assetType: AssetType
-  assetId: number
-  memberId: number
+  assetId: string
+  memberId: string
   returnDueDate?: string
 }
 

@@ -456,7 +456,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '가구',
     requestedItemName: '에어론 체어 풀 스펙 B사이즈',
-    assetId: 19,
+    assetId: '19',
     maintenanceReason: '사용 중인 장비 점검이 필요합니다.',
     maintenanceResult: '점검 완료',
   }],
@@ -465,7 +465,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '모바일 기기',
     requestedItemName: 'iPhone 15 Pro Max 512GB',
-    assetId: 11,
+    assetId: '11',
     quantity: 1,
     startedAt: '2025-07-03T00:00:00',
     assetStatus: 'IN_USE',
@@ -476,7 +476,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '전산장비 (PC)',
     requestedItemName: 'MacBook Pro 14인치 M3 Max',
-    assetId: 2,
+    assetId: '2',
     returnReason: '초기 불량으로 구매한 노트북의 반품을 요청합니다.',
     collectedAt: '2026-05-08T18:00:00',
     returnResult: 'REFUNDED',
@@ -512,7 +512,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     assetType: 'TANGIBLE',
     categoryName: '모바일 기기',
     requestedItemName: 'iPhone 15 Pro Max 512GB',
-    assetId: 11,
+    assetId: '11',
     quantity: 1,
     previousDueDate: '2026-06-20T18:00:00',
     requestedDueDate: '2026-07-10T18:00:00',
@@ -871,15 +871,13 @@ function getMockItemName(
 
 function getMockAssetName(
   assetType: ReturnRequestCreate['assetType'],
-  assetId: number,
+  assetId: string,
 ): string | null {
-  const targetAssetId = String(assetId)
-
   if (assetType === 'INTANGIBLE') {
-    return intangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+    return intangibleAssets.find((asset) => asset.assetId === assetId)?.assetItemName ?? null
   }
 
-  return tangibleAssets.find((asset) => asset.assetId === targetAssetId)?.assetItemName ?? null
+  return tangibleAssets.find((asset) => asset.assetId === assetId)?.assetItemName ?? null
 }
 
 function createMockTicket(
