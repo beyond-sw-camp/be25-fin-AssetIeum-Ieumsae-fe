@@ -15,7 +15,9 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  TicketActualAmountResponse,
   TicketComment,
+  TicketEvidenceUploadResponse,
   TicketStatus,
   TicketCommentDeleteResponse,
   PageResponse,
@@ -52,12 +54,12 @@ export const ticketApi = {
   uploadEvidence: (ticketId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.upload(`/tickets/${ticketId}/evidences`, formData)
+    return api.upload<TicketEvidenceUploadResponse>(`/tickets/${ticketId}/evidences`, formData)
   },
 
   /** 실제 결제 금액 입력 */
   setActualPrice: (ticketId: string, actualPrice: number) =>
-    api.post(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
+    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
 
   /** 댓글 목록 조회 */
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
