@@ -1,6 +1,6 @@
 <template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
-    <div class="min-h-0 flex-1 overflow-y-auto pb-4">
+    <div class="min-h-0 flex-1 overflow-y-auto pb-14">
       <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center gap-2">
           <button
@@ -40,7 +40,7 @@
         </div>
 
         <template v-else-if="ticket">
-          <header class="mb-4">
+          <header class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-xl font-semibold text-text-muted">#{{ ticket.ticketNo }}</span>
@@ -50,10 +50,40 @@
                 </h1>
               </div>
             </div>
+            <div v-if="isAssetTeamRole" class="w-full shrink-0 lg:w-60">
+              <div class="mb-1.5 flex items-center justify-between gap-2">
+                <label
+                  for="ticket-status-selector"
+                  class="text-xs font-semibold text-text-muted"
+                >
+                  상태 변경
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                  :loading="isChangingStatus"
+                  :disabled="!canChangeStatus"
+                  @click="handleChangeStatus"
+                >
+                  <Save :size="14" />
+                  상태 저장
+                </Button>
+              </div>
+              <Dropdown
+                id="ticket-status-selector"
+                :model-value="selectedTicketStatus"
+                :options="ticketStatusOptions"
+                :disabled="isActionSubmitting"
+                menu-align="right"
+                aria-label="티켓 상태"
+                @update:model-value="handleTicketStatusSelect"
+              />
+            </div>
           </header>
 
           <div class="space-y-4">
-            <TicketDetailCard v-if="shouldShowManagementCard" title="관리 액션">
+            <TicketDetailCard v-if="shouldShowManagementCard" title="관리 안내">
               <template #icon>
                 <ShieldCheck :size="18" class="text-primary" />
               </template>
@@ -64,61 +94,6 @@
                   class="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-text-sub"
                 >
                   현재 계정으로는 이 티켓을 처리할 수 없습니다. 티켓 관리는 부서책임자와 구매자산팀 권한에서만 가능합니다.
-                </div>
-
-                <div class="flex flex-wrap items-center gap-4">
-                  <Button
-                    v-if="canAssetReview"
-                    :loading="isApproving"
-                    :disabled="isActionSubmitting"
-                    @click="handleApprove('ASSET_TEAM')"
-                  >
-                    <CheckCircle2 :size="15" />
-                    승인
-                  </Button>
-                  <Button
-                    v-if="canAssetReview"
-                    variant="danger"
-                    :disabled="isActionSubmitting"
-                    @click="openRejectDrawer('ASSET_TEAM')"
-                  >
-                    <XCircle :size="15" />
-                    반려
-                  </Button>
-                  <Button
-                    v-if="canAssignAsset"
-                    variant="outline"
-                    :disabled="isActionSubmitting"
-                    @click="openAssetAssignDrawer"
-                  >
-                    <PackageCheck :size="15" />
-                    자산 검색 및 할당
-                  </Button>
-                </div>
-
-                <div
-                  v-if="isAssetTeamRole"
-                  class="grid gap-2 rounded-xl border border-border bg-surface-secondary/40 p-4 md:grid-cols-[220px_auto_1fr]"
-                >
-                  <Dropdown
-                    :model-value="selectedTicketStatus"
-                    :options="ticketStatusOptions"
-                    :disabled="isActionSubmitting"
-                    aria-label="티켓 상태"
-                    @update:model-value="handleTicketStatusSelect"
-                  />
-                  <Button
-                    variant="outline"
-                    :loading="isChangingStatus"
-                    :disabled="!canChangeStatus"
-                    @click="handleChangeStatus"
-                  >
-                    <Save :size="15" />
-                    상태 저장
-                  </Button>
-                  <p class="self-center text-xs text-text-sub">
-                    구매자산팀은 API 명세에 있는 상태 변경 endpoint로만 상태를 변경합니다.
-                  </p>
                 </div>
 
                 <div
@@ -222,10 +197,11 @@
     </div>
 
     <div
-      v-if="ticket && !isLoading && !errorMessage && canDepartmentReview"
-      class="absolute -inset-x-4 -bottom-4 z-20 flex h-14 items-center justify-end gap-4 border-t border-border bg-surface px-6"
+      v-if="shouldShowActionBottomBar"
+      class="absolute -inset-x-4 -bottom-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-6 py-2"
     >
       <Button
+        v-if="canDepartmentReview"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="isActionSubmitting"
@@ -235,10 +211,41 @@
         반려
       </Button>
       <Button
+        v-if="canDepartmentReview"
         class="shrink-0"
         :loading="isApproving"
         :disabled="isActionSubmitting"
         @click="handleApprove('DEPARTMENT_MANAGER')"
+      >
+        <CheckCircle2 :size="15" />
+        승인
+      </Button>
+      <Button
+        v-if="canAssignAsset"
+        variant="outline"
+        class="shrink-0"
+        :disabled="isActionSubmitting"
+        @click="openAssetAssignDrawer"
+      >
+        <PackageCheck :size="15" />
+        자산 검색 및 할당
+      </Button>
+      <Button
+        v-if="canAssetReview"
+        variant="outline"
+        class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
+        :disabled="isActionSubmitting"
+        @click="openRejectDrawer('ASSET_TEAM')"
+      >
+        <XCircle :size="15" />
+        반려
+      </Button>
+      <Button
+        v-if="canAssetReview"
+        class="shrink-0"
+        :loading="isApproving"
+        :disabled="isActionSubmitting"
+        @click="handleApprove('ASSET_TEAM')"
       >
         <CheckCircle2 :size="15" />
         승인
@@ -303,7 +310,6 @@ import TicketRejectDrawer from '@/components/ticket/TicketRejectDrawer.vue'
 import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
-  AssetAssignRequest,
   AssetType,
   DropdownOption,
   TicketComment,
@@ -335,6 +341,16 @@ interface RequestDetailReason {
 }
 
 type ApproverType = 'DEPARTMENT_MANAGER' | 'ASSET_TEAM'
+
+interface AssetItemAssignPayload {
+  assetType: AssetType
+  assetItemId: string
+  itemName: string
+  assetIds: string[]
+  quantity: number
+  memberId: string
+  returnDueDate?: string
+}
 
 const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'COMPLETED',
@@ -423,7 +439,7 @@ const canAssignAsset = computed(() => (
     ticket.value
     && isAssetTeamRole.value
     && ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)
-    && !TERMINAL_STATUSES.has(ticket.value.status),
+    && ticket.value.status === 'ASSET_APPROVED',
   )
 ))
 const canChangeStatus = computed(() => (
@@ -436,10 +452,19 @@ const canChangeStatus = computed(() => (
 ))
 const shouldShowManagementCard = computed(() => (
   !canManageCurrentTicket.value
-  || canAssetReview.value
-  || canAssignAsset.value
-  || isAssetTeamRole.value
   || Boolean(unsupportedActionMessage.value)
+))
+const shouldShowActionBottomBar = computed(() => (
+  Boolean(
+    ticket.value
+    && !isLoading.value
+    && !errorMessage.value
+    && (
+      canDepartmentReview.value
+      || canAssetReview.value
+      || canAssignAsset.value
+    ),
+  )
 ))
 const isActionSubmitting = computed(() => (
   isApproving.value
@@ -800,17 +825,25 @@ function closeAssetAssignDrawer() {
   assetAssignErrorMessage.value = ''
 }
 
-async function handleAssetAssign(payload: AssetAssignRequest) {
+async function handleAssetAssign(payload: AssetItemAssignPayload) {
   if (!ticket.value || isAssigningAsset.value) return
 
   isAssigningAsset.value = true
   assetAssignErrorMessage.value = ''
 
   try {
-    await ticketApi.assignAsset(ticket.value.ticketId, payload)
+    for (const assetId of payload.assetIds) {
+      await ticketApi.assignAsset(ticket.value.ticketId, {
+        assetType: payload.assetType,
+        assetId,
+        memberId: payload.memberId,
+        returnDueDate: payload.returnDueDate,
+      })
+    }
+    await ticketApi.changeStatus(ticket.value.ticketId, 'COMPLETED')
     assetAssignDrawerOpen.value = false
     await reloadAfterAction()
-    notificationStore.success('자산이 할당되었습니다.')
+    notificationStore.success(`${payload.itemName} ${payload.quantity}개가 할당되어 티켓이 처리 완료되었습니다.`)
   } catch (error) {
     const message = error instanceof Error ? error.message : '자산 할당에 실패했습니다.'
     assetAssignErrorMessage.value = message

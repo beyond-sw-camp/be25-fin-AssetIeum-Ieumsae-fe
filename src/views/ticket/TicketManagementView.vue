@@ -2,7 +2,7 @@
   <div
     :class="[
       'relative flex h-full min-h-0 flex-col bg-background text-text-main',
-      selectedTicketId ? 'overflow-visible' : 'overflow-hidden',
+      selectedTicketId ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden',
     ]"
   >
     <TicketManagementDetail
@@ -38,7 +38,7 @@
         </article>
       </section>
 
-      <section class="card relative z-10 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+      <section class="card relative z-10 flex min-h-[680px] flex-1 flex-col overflow-visible border border-border">
         <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
           <div class="flex shrink-0 items-center gap-2">
             <Dropdown
@@ -110,101 +110,104 @@
           </Button>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-auto py-4">
-          <Table
-            :columns="columns"
-            :rows="pagedTickets"
-            :loading="isLoading"
-            row-key="ticketId"
-            empty-text="조회된 티켓이 없습니다."
-            @row-click="openTicketDetail"
-          >
-            <template #cell-ticketNo="{ value }">
-              <span class="font-semibold text-text-main">{{ value }}</span>
-            </template>
-
-            <template #cell-ticketType="{ row }">
-              <span class="font-semibold text-text-main">
-                {{ getTicketTypeLabel(row) }}
-              </span>
-            </template>
-
-            <template #cell-requestedItemName="{ value }">
-              <span class="line-clamp-1 font-medium text-text-main">
-                {{ value || '-' }}
-              </span>
-            </template>
-
-            <template #cell-requester="{ row }">
-              <div class="min-w-0">
-                <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
-                <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
-              </div>
-            </template>
-
-            <template #cell-requestedAt="{ value }">
-              <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
-            </template>
-
-            <template #cell-ticketStatus="{ row }">
-              <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
-                {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
-              </span>
-            </template>
-
-            <template #cell-management="{ row }">
-              <Button
-                size="sm"
-                :variant="getManagementButtonVariant(row)"
-                @click.stop="openTicketDetail(row)"
-              >
-                {{ getManagementButtonLabel(row) }}
-              </Button>
-            </template>
-          </Table>
-        </div>
-
-        <div class="flex shrink-0 items-center justify-center border-t border-border pt-3">
-          <div class="flex items-center justify-center gap-1">
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-              :disabled="page === 0 || isLoading"
-              aria-label="이전 페이지"
-              @click="page -= 1"
+        <div class="mt-4 flex min-h-[520px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-surface xl:min-h-[600px]">
+          <div class="min-h-0 flex-1 overflow-auto">
+            <Table
+              :columns="columns"
+              :rows="pagedTickets"
+              :loading="isLoading"
+              row-key="ticketId"
+              empty-text="조회된 티켓이 없습니다."
+              class="rounded-none! border-0!"
+              @row-click="openTicketDetail"
             >
-              <ChevronLeft :size="16" />
-            </button>
-            <template v-for="item in paginationItems" :key="String(item)">
-              <span
-                v-if="item === 'ellipsis'"
-                class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-              >
-                ...
-              </span>
+              <template #cell-ticketNo="{ value }">
+                <span class="font-semibold text-text-main">{{ value }}</span>
+              </template>
+
+              <template #cell-ticketType="{ row }">
+                <span class="font-semibold text-text-main">
+                  {{ getTicketTypeLabel(row) }}
+                </span>
+              </template>
+
+              <template #cell-requestedItemName="{ value }">
+                <span class="line-clamp-1 font-medium text-text-main">
+                  {{ value || '-' }}
+                </span>
+              </template>
+
+              <template #cell-requester="{ row }">
+                <div class="min-w-0">
+                  <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
+                  <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
+                </div>
+              </template>
+
+              <template #cell-requestedAt="{ value }">
+                <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
+              </template>
+
+              <template #cell-ticketStatus="{ row }">
+                <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
+                  {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
+                </span>
+              </template>
+
+              <template #cell-management="{ row }">
+                <Button
+                  size="sm"
+                  :variant="getManagementButtonVariant(row)"
+                  @click.stop="openTicketDetail(row)"
+                >
+                  {{ getManagementButtonLabel(row) }}
+                </Button>
+              </template>
+            </Table>
+          </div>
+
+          <div class="flex shrink-0 items-center justify-center border-t border-border py-3">
+            <div class="flex items-center justify-center gap-1">
               <button
-                v-else
                 type="button"
-                :class="[
-                  'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                  page === item
-                    ? 'bg-primary text-white'
-                    : 'text-text-sub hover:bg-surface-secondary',
-                ]"
-                @click="page = item"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+                :disabled="page === 0 || isLoading"
+                aria-label="이전 페이지"
+                @click="page -= 1"
               >
-                {{ item + 1 }}
+                <ChevronLeft :size="16" />
               </button>
-            </template>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-              :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-              aria-label="다음 페이지"
-              @click="page += 1"
-            >
-              <ChevronRight :size="16" />
-            </button>
+              <template v-for="item in paginationItems" :key="String(item)">
+                <span
+                  v-if="item === 'ellipsis'"
+                  class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
+                >
+                  ...
+                </span>
+                <button
+                  v-else
+                  type="button"
+                  :class="[
+                    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
+                    page === item
+                      ? 'bg-primary text-white'
+                      : 'text-text-sub hover:bg-surface-secondary',
+                  ]"
+                  @click="page = item"
+                >
+                  {{ item + 1 }}
+                </button>
+              </template>
+              <button
+                type="button"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+                :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
+                aria-label="다음 페이지"
+                @click="page += 1"
+              >
+                <ChevronRight :size="16" />
+              </button>
+            </div>
           </div>
         </div>
       </section>
