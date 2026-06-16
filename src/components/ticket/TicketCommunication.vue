@@ -4,8 +4,8 @@
       <MessageSquareText :size="18" class="text-primary" />
     </template>
 
-    <div class="flex h-full min-h-80 flex-col">
-      <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+    <div class="flex min-h-0 flex-col">
+      <div class="h-80 space-y-4 overflow-y-auto pr-1">
         <div v-if="loading" class="flex min-h-40 items-center justify-center text-sm text-text-sub">
           <LoaderCircle :size="18" class="mr-2 animate-spin" />
           댓글을 불러오는 중입니다.
@@ -118,7 +118,7 @@
               <p
                 v-else
                 :class="[
-                  'inline-block whitespace-pre-wrap rounded-2xl px-4 py-3 text-left text-sm',
+                  'inline-block whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-left text-sm',
                   isMine(comment)
                     ? 'rounded-br-md bg-primary/15 text-text-main'
                     : 'rounded-bl-md bg-surface-secondary text-text-main',
