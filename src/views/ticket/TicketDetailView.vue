@@ -129,10 +129,16 @@
                 :submitting="isCommentSubmitting"
                 :error-message="commentsErrorMessage"
                 :submit-error-message="commentSubmitErrorMessage"
+                :action-error-message="commentActionErrorMessage"
                 :current-member-id="authStore.user?.memberId"
                 :submit-version="commentSubmitVersion"
+                :action-version="commentActionVersion"
+                :updating-comment-id="updatingCommentId"
+                :deleting-comment-id="deletingCommentId"
                 @retry="loadComments"
                 @submit="handleCommentSubmit"
+                @update="handleCommentUpdate"
+                @delete="handleCommentDeleteRequest"
               />
             </div>
           </div>
@@ -144,6 +150,16 @@
       v-if="ticket && !isLoading && !errorMessage"
       class="absolute -inset-x-4 -bottom-4 z-20 flex h-14 items-center justify-end border-t border-border bg-surface px-6"
     >
+      <Button
+        v-if="showsDirectPurchasePaymentAction"
+        class="mr-2 shrink-0 bg-orange-500! text-white! hover:bg-orange-600! focus:ring-orange-500/50!"
+        :disabled="!canRegisterDirectPurchasePayment || isPurchasePaymentSubmitting"
+        :title="directPurchasePaymentActionMessage"
+        @click="openPurchasePaymentDrawer"
+      >
+        <ReceiptText :size="15" />
+        결제 정보 등록
+      </Button>
       <Button
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
@@ -165,6 +181,26 @@
       @cancel="isCancelModalOpen = false"
       @confirm="handleCancelTicket"
     />
+
+    <DirectPurchasePaymentDrawer
+      v-if="ticket"
+      :is-open="isPurchasePaymentDrawerOpen"
+      :ticket="ticket"
+      :submitting="isPurchasePaymentSubmitting"
+      :error-message="purchasePaymentErrorMessage"
+      @close="closePurchasePaymentDrawer"
+      @submit="handlePurchasePaymentSubmit"
+    />
+
+    <ConfirmationModal
+      :is-open="Boolean(commentToDelete)"
+      title="댓글 삭제"
+      message="이 댓글을 삭제하시겠습니까? 삭제한 댓글은 복구할 수 없습니다."
+      confirm-text="삭제"
+      :loading="deletingCommentId !== null"
+      @cancel="handleCommentDeleteCancel"
+      @confirm="handleCommentDelete"
+    />
   </div>
 </template>
 
@@ -174,6 +210,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  ReceiptText,
   RefreshCw,
   TicketCheck,
 } from 'lucide-vue-next'
@@ -183,6 +220,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import DirectPurchasePaymentDrawer from '@/components/ticket/DirectPurchasePaymentDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
@@ -217,6 +255,10 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
   'DEPARTMENT_APPROVED',
 ])
+const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'ASSET_APPROVED',
+  'IN_PROGRESS',
+])
 
 const route = useRoute()
 const router = useRouter()
@@ -228,12 +270,21 @@ const comments = ref<TicketComment[]>([])
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
+const updatingCommentId = ref<number | null>(null)
+const deletingCommentId = ref<number | null>(null)
 const isCancelling = ref(false)
 const isCancelModalOpen = ref(false)
+const isPurchasePaymentDrawerOpen = ref(false)
+const isPurchasePaymentSubmitting = ref(false)
+const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
+const purchasePaymentErrorMessage = ref('')
+const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
+const commentActionVersion = ref(0)
+let commentActionRequestVersion = 0
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
@@ -254,6 +305,31 @@ const canCancelTicket = computed(() => (
     && isRequester.value
     && CANCELLABLE_TICKET_STATUSES.has(ticket.value.status),
   )
+))
+
+const canRegisterDirectPurchasePayment = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && isRequester.value
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+  )
+))
+
+const showsDirectPurchasePaymentAction = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+  )
+))
+
+const directPurchasePaymentActionMessage = computed(() => (
+  isRequester.value
+    ? '실제 결제 금액과 영수증 증빙을 등록합니다.'
+    : '요청자 본인만 결제 정보를 등록할 수 있습니다.'
 ))
 
 const cancelActionMessage = computed(() => {
@@ -630,6 +706,80 @@ async function handleCommentSubmit(content: string) {
   }
 }
 
+async function handleCommentUpdate(commentId: number, content: string) {
+  if (!ticketId.value || updatingCommentId.value !== null || deletingCommentId.value !== null) return
+
+  const requestVersion = ++commentActionRequestVersion
+  updatingCommentId.value = commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    const response = await ticketApi.updateComment(ticketId.value, commentId, content)
+    if (requestVersion !== commentActionRequestVersion) return
+
+    comments.value = comments.value.map((comment) => (
+      comment.commentId === commentId ? response.data : comment
+    ))
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 수정되었습니다.')
+  } catch (error) {
+    if (requestVersion !== commentActionRequestVersion) return
+
+    commentActionErrorMessage.value = error instanceof Error
+      ? error.message
+      : '댓글을 수정하지 못했습니다.'
+  } finally {
+    if (requestVersion === commentActionRequestVersion) {
+      updatingCommentId.value = null
+    }
+  }
+}
+
+function handleCommentDeleteRequest(comment: TicketComment) {
+  if (updatingCommentId.value !== null || deletingCommentId.value !== null) return
+
+  commentActionErrorMessage.value = ''
+  commentToDelete.value = comment
+}
+
+function handleCommentDeleteCancel() {
+  if (deletingCommentId.value !== null) return
+  commentToDelete.value = null
+}
+
+async function handleCommentDelete() {
+  const targetComment = commentToDelete.value
+  if (!ticketId.value || !targetComment || deletingCommentId.value !== null) return
+
+  const requestVersion = ++commentActionRequestVersion
+  deletingCommentId.value = targetComment.commentId
+  commentActionErrorMessage.value = ''
+
+  try {
+    await ticketApi.deleteComment(ticketId.value, targetComment.commentId)
+    if (requestVersion !== commentActionRequestVersion) return
+
+    comments.value = comments.value.filter(
+      (comment) => comment.commentId !== targetComment.commentId,
+    )
+    commentToDelete.value = null
+    commentActionVersion.value += 1
+    notificationStore.success('댓글이 삭제되었습니다.')
+  } catch (error) {
+    if (requestVersion !== commentActionRequestVersion) return
+
+    const message = error instanceof Error
+      ? error.message
+      : '댓글을 삭제하지 못했습니다.'
+    commentActionErrorMessage.value = message
+    notificationStore.error('댓글 삭제 실패', message)
+  } finally {
+    if (requestVersion === commentActionRequestVersion) {
+      deletingCommentId.value = null
+    }
+  }
+}
+
 async function handleCancelTicket() {
   if (!ticketId.value || !canCancelTicket.value || isCancelling.value) return
 
@@ -650,10 +800,67 @@ async function handleCancelTicket() {
   }
 }
 
+function openPurchasePaymentDrawer() {
+  if (!canRegisterDirectPurchasePayment.value) return
+  purchasePaymentErrorMessage.value = ''
+  isPurchasePaymentDrawerOpen.value = true
+}
+
+function closePurchasePaymentDrawer() {
+  if (isPurchasePaymentSubmitting.value) return
+  isPurchasePaymentDrawerOpen.value = false
+  purchasePaymentErrorMessage.value = ''
+}
+
+async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file: File }) {
+  if (
+    !ticketId.value
+    || !canRegisterDirectPurchasePayment.value
+    || isPurchasePaymentSubmitting.value
+  ) return
+
+  isPurchasePaymentSubmitting.value = true
+  purchasePaymentErrorMessage.value = ''
+
+  try {
+    await ticketApi.setActualPrice(ticketId.value, payload.actualPrice)
+    await ticketApi.uploadEvidence(ticketId.value, payload.file)
+    await loadTicketDetail()
+    isPurchasePaymentDrawerOpen.value = false
+    notificationStore.success('결제 정보가 저장되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '결제 정보를 저장하지 못했습니다.'
+    purchasePaymentErrorMessage.value = message
+    notificationStore.error('결제 정보 저장 실패', message)
+  } finally {
+    isPurchasePaymentSubmitting.value = false
+  }
+}
+
 async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(ticketId, loadPage)
+watch(ticketId, () => {
+  isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentSubmitting.value = false
+  purchasePaymentErrorMessage.value = ''
+  loadPage()
+})
+function resetCommentActionState() {
+  commentActionRequestVersion += 1
+  commentToDelete.value = null
+  updatingCommentId.value = null
+  deletingCommentId.value = null
+  commentActionErrorMessage.value = ''
+  commentActionVersion.value += 1
+}
+
+watch(ticketId, () => {
+  resetCommentActionState()
+  void loadPage()
+})
 onMounted(loadPage)
 </script>

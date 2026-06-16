@@ -15,8 +15,11 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  TicketActualAmountResponse,
   TicketComment,
+  TicketEvidenceUploadResponse,
   TicketStatus,
+  TicketCommentDeleteResponse,
   PageResponse,
 } from '@/types'
 
@@ -51,12 +54,12 @@ export const ticketApi = {
   uploadEvidence: (ticketId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.upload(`/tickets/${ticketId}/evidences`, formData)
+    return api.upload<TicketEvidenceUploadResponse>(`/tickets/${ticketId}/evidences`, formData)
   },
 
   /** 실제 결제 금액 입력 */
   setActualPrice: (ticketId: string, actualPrice: number) =>
-    api.post(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
+    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
 
   /** 댓글 목록 조회 */
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
@@ -65,6 +68,14 @@ export const ticketApi = {
   /** 댓글 작성 */
   addComment: (ticketId: string, content: string) =>
     api.post<TicketComment>(`/tickets/${ticketId}/comments`, { content }),
+
+  /** 댓글 수정 */
+  updateComment: (ticketId: string, commentId: number, content: string) =>
+    api.patch<TicketComment>(`/tickets/${ticketId}/comments/${commentId}`, { content }),
+
+  /** 댓글 삭제 */
+  deleteComment: (ticketId: string, commentId: number) =>
+    api.delete<TicketCommentDeleteResponse>(`/tickets/${ticketId}/comments/${commentId}`),
 }
 
 // ─── 티켓 종류별 생성 API ───────────────────────────────────────────────────

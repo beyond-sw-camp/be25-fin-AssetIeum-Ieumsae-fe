@@ -199,6 +199,21 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface TicketActualAmountResponse {
+  ticketId: string
+  expectedPrice: number
+  actualPrice: number
+  priceDifference: number
+  requiresReapproval: boolean
+  updatedAt: string
+}
+
+export interface TicketEvidenceUploadResponse {
+  ticketId: string
+  purchaseDate: string
+  updatedAt: string
+}
+
 // =====================================================
 // 댓글(Comment) 타입
 // =====================================================
@@ -212,4 +227,9 @@ export interface TicketComment {
   content: string
   createdAt: string
   updatedAt: string
+}
+
+export interface TicketCommentDeleteResponse {
+  commentId: number
+  deletedAt: string
 }
