@@ -84,7 +84,16 @@ const navItems = computed(() => {
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
-    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageCompany.value },
+    {
+      name: 'logs',
+      label: '로그',
+      icon: FileText,
+      show: canManageCompany.value,
+      children: [
+        { name: 'audit-logs', to: '/logs/audit', label: '감사로그', show: canManageCompany.value },
+        { name: 'activity-logs', to: '/logs/activity', label: '활동로그', show: canManageCompany.value },
+      ],
+    },
     { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
   ]
 
