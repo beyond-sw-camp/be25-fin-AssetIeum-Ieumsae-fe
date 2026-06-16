@@ -55,6 +55,8 @@ export type IntangibleAssetStatus =
   | 'EXPIRED'              // 만료
   | 'TERMINATION_REQUESTED'// 해지요청
   | 'TERMINATED'           // 해지
+  | 'CANCELED'             // 해지완료
+  | 'CANCELLED'            // 해지완료
 
 // =====================================================
 // 티켓 타입 / 상태

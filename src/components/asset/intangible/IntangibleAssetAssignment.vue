@@ -30,6 +30,7 @@
           <Input id="intangible-assignment-asset-code" :model-value="selectedAssetInfo.assetCode" label="자산 번호" disabled />
           <Input id="intangible-assignment-product-name" :model-value="selectedAssetInfo.productName" label="제품명" disabled />
           <Input id="intangible-assignment-status" :model-value="selectedAssetInfo.statusLabel" label="자산 상태" disabled />
+          <Input id="intangible-assignment-seat-count" :model-value="selectedAssetInfo.seatUsage" label="배정 가능 자리" disabled />
         </div>
       </section>
 
@@ -249,6 +250,10 @@ const getAssetStatus = (asset: IntangibleAsset) => (
   asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE'
 )
 
+const getAssetSeatCount = (asset: IntangibleAsset | null) => (
+  Math.max(1, Number(asset?.seatCount ?? 1) || 1)
+)
+
 const statusLabel = (status: string | null | undefined) => (
   status ? INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status : '-'
 )
@@ -349,6 +354,17 @@ const findMemberById = (id: string | number) => (
 
 const selectedMember = computed(() => findMemberById(memberId.value))
 
+const getAssignmentMemberId = (assignment: IntangibleAssetAssignmentResponse) => {
+  if (assignment.memberId) return assignment.memberId
+
+  const matchedMember = filteredMembers.value.find((member) => (
+    getMemberNo(member) === assignment.memberNo
+    || getMemberName(member) === assignment.memberName
+  ))
+
+  return matchedMember ? getMemberId(matchedMember) : ''
+}
+
 const memberInfo = (member: Member | null) => ({
   memberNo: member ? getMemberNo(member) : '-',
   departmentName: member ? getMemberDepartmentName(member) : '-',
@@ -357,7 +373,10 @@ const memberInfo = (member: Member | null) => ({
 const selectedMemberInfo = computed(() => memberInfo(selectedMember.value))
 
 const cancelableAssets = computed(() => props.assets.filter((asset) => getAssetStatus(asset) === 'IN_USE'))
-const assignableAssets = computed(() => props.assets.filter((asset) => getAssetStatus(asset) === 'AVAILABLE'))
+const assignableAssets = computed(() => props.assets.filter((asset) => {
+  const status = getAssetStatus(asset)
+  return status === 'AVAILABLE' || (status === 'IN_USE' && getAssetSeatCount(asset) > 1)
+}))
 const visibleAssets = computed(() => (mode.value === 'assign' ? assignableAssets.value : cancelableAssets.value))
 const assetOptions = computed(() => visibleAssets.value.map(getAssetLabel))
 const selectedAsset = computed(() => visibleAssets.value.find((asset) => getAssetLabel(asset) === assetLabel.value) ?? null)
@@ -366,10 +385,13 @@ const activeAssignments = computed(() => assignments.value.filter((assignment) =
   assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED'
 )))
 
-const assignedMemberIds = computed(() => new Set(activeAssignments.value.map((assignment) => assignment.memberId).filter(Boolean)))
+const assignedMemberIds = computed(() => new Set(activeAssignments.value.map(getAssignmentMemberId).filter(Boolean)))
+const activeSeatCount = computed(() => activeAssignments.value.length)
+const selectedAssetSeatCount = computed(() => getAssetSeatCount(selectedAsset.value))
+const hasAvailableSeat = computed(() => activeSeatCount.value < selectedAssetSeatCount.value)
 
 const assignableMemberOptions = computed(() => filteredMembers.value
-  .filter((member) => !assignedMemberIds.value.has(getMemberId(member)))
+  .filter((member) => hasAvailableSeat.value && !assignedMemberIds.value.has(getMemberId(member)))
   .map((member) => ({
     label: getMemberLabel(member),
     value: getMemberId(member),
@@ -379,7 +401,7 @@ const cancelTargetOptions = computed(() => [
   { label: '전체 해지', value: 'ALL' },
   ...activeAssignments.value.map((assignment) => ({
     label: `${assignment.memberName}(${assignment.memberNo})`,
-    value: assignment.memberId ?? '',
+    value: getAssignmentMemberId(assignment),
   })).filter((option) => option.value),
 ])
 
@@ -389,7 +411,7 @@ const selectedCancelMemberInfo = computed(() => {
   }
   
   const matchedAssignment = activeAssignments.value.find(
-    (assignment) => assignment.memberId === cancelTarget.value
+    (assignment) => getAssignmentMemberId(assignment) === cancelTarget.value
   )
   
   return {
@@ -402,6 +424,7 @@ const selectedAssetInfo = computed(() => ({
   assetCode: selectedAsset.value?.assetCode ?? '-',
   productName: selectedAsset.value ? getAssetProductName(selectedAsset.value) : '-',
   statusLabel: selectedAsset.value ? statusLabel(getAssetStatus(selectedAsset.value)) : '-',
+  seatUsage: selectedAsset.value ? `${activeSeatCount.value}/${selectedAssetSeatCount.value}` : '-',
   currentUser: selectedAsset.value ? getAssetMemberName(selectedAsset.value) : '-',
   currentDepartment: selectedAsset.value?.departmentName
     ?? findDepartmentNameById(selectedAsset.value?.departmentId)
@@ -415,8 +438,8 @@ const toServerDateTime = (value: string) => {
 
 const canSubmit = computed(() => {
   if (!selectedAsset.value) return false
-  if (mode.value === 'assign') return !!selectedMember.value
-  return true
+  if (mode.value === 'assign') return hasAvailableSeat.value && !!selectedMember.value
+  return activeAssignments.value.length > 0
 })
 
 const submitLabel = computed(() => (mode.value === 'assign' ? '배정하기' : '배정 해지하기'))

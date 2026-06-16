@@ -956,6 +956,13 @@ function applyIntangibleAssignmentToAsset(asset: IntangibleAsset, assignment: Mo
   asset.startedAt = assignment.assignedAt
 }
 
+function getActiveIntangibleAssignmentCount(assetId: string) {
+  return intangibleAssetAssignments.filter((assignment) => (
+    assignment.assetId === assetId
+    && (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+  )).length
+}
+
 function closeActiveIntangibleAssignments(
   assetId: string,
   memberId?: string | null,
@@ -2620,6 +2627,27 @@ export const handlers = [
       }, { status: 404 })
     }
 
+    const status = asset.intangibleAssetStatus ?? asset.status
+    const seatCount = Math.max(1, Number(asset.seatCount ?? 1) || 1)
+    const activeAssignmentCount = getActiveIntangibleAssignmentCount(assetId)
+    const alreadyAssigned = intangibleAssetAssignments.some((assignment) => (
+      assignment.assetId === assetId
+      && assignment.memberId === body.memberId
+      && (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+    ))
+    const isAssignableStatus = seatCount <= 1
+      ? status === 'AVAILABLE'
+      : status === 'AVAILABLE' || status === 'IN_USE'
+
+    if (!isAssignableStatus || activeAssignmentCount >= seatCount || alreadyAssigned) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INTANGIBLE_ASSET_NOT_ASSIGNABLE',
+        message: '배정할 수 없는 무형자산입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
     const assignment = createIntangibleAssignment(asset, body)
     intangibleAssetAssignments = [assignment, ...intangibleAssetAssignments]
     applyIntangibleAssignmentToAsset(asset, assignment)
@@ -2653,8 +2681,8 @@ export const handlers = [
     ))
 
     if (!hasActiveAssignment) {
-      asset.status = 'AVAILABLE'
-      asset.intangibleAssetStatus = 'AVAILABLE'
+      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELED'
+      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELED'
       asset.assignedMemberId = null
       asset.assignedMemberName = null
       asset.departmentId = null
