@@ -65,54 +65,51 @@ const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
 
 const auditLogs: AuditLog[] = [
   {
-    auditLogId: 1,
-    memberId: 1,
+    auditLogId: '1',
+    memberId: '1',
     memberName: '김관리',
     targetType: 'TICKET',
-    targetId: 101,
-    actionType: 'APPROVE',
+    targetId: '101',
+    logType: 'APPROVE',
     description: '자산 요청 티켓을 승인했습니다.',
-    ipAddress: '127.0.0.1',
     createdAt: '2026-06-01T10:00:00',
   },
   {
-    auditLogId: 2,
-    memberId: 2,
+    auditLogId: '2',
+    memberId: '2',
     memberName: '박자산',
     targetType: 'BUDGET',
-    targetId: 10,
-    actionType: 'BUDGET_DEDUCTION',
+    targetId: '10',
+    logType: 'BUDGET_DEDUCTION',
     description: '구매 예산이 차감되었습니다.',
-    ipAddress: '127.0.0.1',
     createdAt: '2026-06-01T11:00:00',
   },
   {
-    auditLogId: 3,
-    memberId: 1,
+    auditLogId: '3',
+    memberId: '1',
     memberName: '김관리',
     targetType: 'MEMBER',
-    targetId: 5,
-    actionType: 'ROLE_CHANGE',
+    targetId: '5',
+    logType: 'ROLE_CHANGE',
     description: '사원 권한을 변경했습니다.',
-    ipAddress: '127.0.0.1',
     createdAt: '2026-06-02T09:30:00',
   },
 ]
 
 const activityLogs: ActivityLog[] = [
   {
-    activityLogId: 1,
-    memberId: 5,
+    activityLogId: '1',
+    memberId: '5',
     memberName: '홍길동',
     activityType: 'VIEW',
     targetType: 'TICKET',
-    targetId: 101,
+    targetId: '101',
     description: '티켓 상세 화면을 조회했습니다.',
     createdAt: '2026-06-01T10:00:00',
   },
   {
-    activityLogId: 2,
-    memberId: 5,
+    activityLogId: '2',
+    memberId: '5',
     memberName: '홍길동',
     activityType: 'SEARCH',
     targetType: 'ASSET',
@@ -121,8 +118,8 @@ const activityLogs: ActivityLog[] = [
     createdAt: '2026-06-01T10:10:00',
   },
   {
-    activityLogId: 3,
-    memberId: 1,
+    activityLogId: '3',
+    memberId: '1',
     memberName: '김관리',
     activityType: 'LOGIN',
     targetType: 'AUTH',
@@ -154,7 +151,7 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
   }
 }
 
-function filterLogsByRequest<T extends { memberId: number; createdAt: string }>(logs: T[], request: Request) {
+function filterLogsByRequest<T extends { memberId: string | number; createdAt: string }>(logs: T[], request: Request) {
   const url = new URL(request.url)
   const memberId = url.searchParams.get('memberId')
   const startDate = url.searchParams.get('startDate')

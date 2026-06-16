@@ -19,24 +19,20 @@ const props = defineProps<{
 }>()
 
 interface AuditLogDisplayRow extends Record<string, unknown> {
-  auditLogId: number
+  auditLogId: string
   createdAt: string
-  actor: string
-  category: string
-  subject: string
+  memberInfo: string
+  targetSummary: string
   description: string
   action: string
-  note: string
 }
 
 const auditColumns: Column<AuditLogDisplayRow>[] = [
-  { key: 'createdAt', label: '생성일', align: 'left', width: '16%' },
-  { key: 'actor', label: '활동 사용자', align: 'left', width: '20%' },
-  { key: 'category', label: '카테고리', align: 'center', width: '10%' },
-  { key: 'subject', label: '로그 주체', align: 'left', width: '16%' },
-  { key: 'description', label: '상세 내용', align: 'left', width: '24%' },
-  { key: 'action', label: '로그 액션', align: 'center', width: '10%' },
-  { key: 'note', label: '비고 ?', align: 'center', width: '6%' },
+  { key: 'createdAt', label: '생성일', align: 'center', width: '19%' },
+  { key: 'memberInfo', label: '활동 사용자', align: 'center', width: '20%' },
+  { key: 'action', label: '로그 액션', align: 'center', width: '15%' },
+  { key: 'targetSummary', label: '로그유형(로그주체)', align: 'center', width: '24%' },
+  { key: 'description', label: '상세 내용', align: 'center', width: '27%' },
 ]
 
 const formatDateTime = (value: string) => {
@@ -54,14 +50,20 @@ const formatDateTime = (value: string) => {
   }).format(date).replace(/\. /g, '-').replace('.', '')
 }
 
-const displayRows = computed<AuditLogDisplayRow[]>(() => props.rows.map((row) => ({
-  auditLogId: row.auditLogId,
-  createdAt: formatDateTime(row.createdAt),
-  actor: row.memberName,
-  category: row.targetType,
-  subject: String(row.targetId),
-  description: row.description,
-  action: row.actionType,
-  note: '-',
-})))
+const displayRows = computed<AuditLogDisplayRow[]>(() => props.rows.map((row) => {
+  const auditRow = row as AuditLog & {
+    memberInfo?: string
+    logType?: string
+    actionType?: string
+  }
+
+  return {
+    auditLogId: String(auditRow.auditLogId),
+    createdAt: formatDateTime(auditRow.createdAt),
+    memberInfo: auditRow.memberInfo ?? `${auditRow.memberName}(${auditRow.memberId})`,
+    targetSummary: `${auditRow.targetType}(${auditRow.targetId})`,
+    description: auditRow.description,
+    action: auditRow.logType ?? auditRow.actionType ?? '-',
+  }
+}))
 </script>

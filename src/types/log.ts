@@ -1,30 +1,29 @@
 export interface LogListFilter {
   page?: number
   size?: number
-  memberId?: string | number
+  memberId?: string
   startDate?: string
   endDate?: string
 }
 
 export interface AuditLog extends Record<string, unknown> {
-  auditLogId: number
-  memberId: number
+  auditLogId: string
+  memberId: string
   memberName: string
   targetType: string
-  targetId: number
-  actionType: string
+  targetId: string
+  logType: string
   description: string
-  ipAddress: string
   createdAt: string
 }
 
 export interface ActivityLog extends Record<string, unknown> {
-  activityLogId: number
-  memberId: number
+  activityLogId: string
+  memberId: string
   memberName: string
   activityType: string
   targetType: string
-  targetId: number | null
+  targetId: string | null
   description: string
   createdAt: string
 }
