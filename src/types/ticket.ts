@@ -26,6 +26,10 @@ export interface TicketDetail {
   requestMethod?: PurchaseRequestMethod | null
   status: TicketStatus
   detailStatus?: string | null
+  // TODO: API 명세/백엔드 확인 필요 - 구매 계획 기능 확정 후 실제 응답 필드명에 맞춰 정리
+  linkedPurchasePlanId?: string | null
+  purchasePlanId?: string | null
+  purchaseId?: string | null
   requesterId: string | number
   requesterName: string
   departmentId: string | number
@@ -58,6 +62,10 @@ export interface TicketDetail {
   maintenanceResult?: string | null
   maintenanceCompletedAt?: string | null
   maintenanceCost?: number | null
+  // TODO: API 명세/백엔드 확인 필요 - 직접 구매 증빙 상세 응답 필드명 확정 후 정리
+  directPurchaseEvidenceFileName?: string | null
+  directPurchaseEvidenceUploadedAt?: string | null
+  directPurchaseEvidenceUrl?: string | null
   returnReason?: string | null
   returnResult?: string | null
   refundAmount?: number | null
@@ -210,6 +218,19 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface RentalExtensionProcessRequest {
+  changedDueDate: string
+}
+
+export interface RentalExtensionProcessResponse {
+  ticketId: string
+  assetId: string | null
+  changedDueDate: string
+  ticketStatus: TicketStatus
+  processedAt: string
+  completedAt: string
+}
+
 export interface TicketActualAmountResponse {
   ticketId: string
   expectedPrice: number
@@ -221,6 +242,7 @@ export interface TicketActualAmountResponse {
 
 export interface TicketEvidenceUploadResponse {
   ticketId: string
+  directPurchaseEvidenceFileName?: string | null
   purchaseDate: string
   updatedAt: string
 }

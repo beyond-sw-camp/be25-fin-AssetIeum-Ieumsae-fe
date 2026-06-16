@@ -28,6 +28,7 @@ import type {
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
   AssetAssignRequest,
+  AssetType,
   TicketApproveRequest,
   TicketCreateResponse,
   TicketComment,
@@ -677,6 +678,19 @@ const actionTestTickets: MockTicket[] = [
     requestedAt: '2026-06-13T10:20:00',
   },
   {
+    ticketId: '213',
+    ticketNo: 'TKT-20260613-AT13',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: '구매자산팀 테스트 - 관리 중인 비표준 모니터 구매',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(11),
+    requesterName: '송유진',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T11:00:00',
+  },
+  {
     ticketId: '210',
     ticketNo: 'TKT-20260613-AT10',
     ticketType: 'RENTAL',
@@ -708,7 +722,7 @@ const actionTestTickets: MockTicket[] = [
     ticketType: 'PURCHASE_REQUEST',
     requestMethod: 'DIRECT_PURCHASE',
     requestedItemName: '구매자산팀 테스트 - 직접 구매 취소 완료',
-    ticketStatus: 'CANCELLED',
+    ticketStatus: 'CANCELED',
     requesterId: mockMemberId(12),
     requesterName: '문도윤',
     departmentId: FRONTEND_DEPARTMENT_ID,
@@ -783,6 +797,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
   }],
   ['6', {
     detailStatus: '납품 확인 완료',
+    linkedPurchasePlanId: 'PO-20260507-001',
     requestedUsageType: 'PERSONAL',
     assetType: 'INTANGIBLE',
     categoryName: '개발 도구',
@@ -1009,6 +1024,16 @@ const actionTestTicketDetails = new Map<string, Partial<TicketDetail>>([
     requestedItemName: 'Dell XPS 15 9530',
     quantity: 1,
   }],
+  ['213', {
+    detailStatus: '구매자산팀 승인 완료 - 관리 중인 비표준 품목 할당 가능',
+    requestedUsageType: 'TEAM',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
+    requestedItemDetail: '디자인 검수용 비표준 모니터 구매 요청',
+    quantity: 1,
+    expectedPrice: 950000,
+  }],
   ['210', {
     detailStatus: '자산 할당 완료 - 대여 진행 중',
     requestedUsageType: 'TEAM',
@@ -1058,7 +1083,7 @@ const ticketApproverIds = new Map<string, string>()
 const ticketAssigneeIds = new Map<string, string>()
 const ticketDepartmentRejectionReasons = new Map<string, string>()
 const ticketAssetRejectionReasons = new Map<string, string>()
-const ticketCancelledAt = new Map<string, string>()
+const ticketCanceledAt = new Map<string, string>()
 const ticketcanceledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
 
@@ -1071,7 +1096,7 @@ for (const ticketId of ['209', '210', '211']) {
 }
 
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
-ticketCancelledAt.set('212', '2026-06-13T12:50:00')
+ticketCanceledAt.set('212', '2026-06-13T12:50:00')
 
 let ticketComments: TicketComment[] = [
   {
@@ -1271,6 +1296,107 @@ let intangibleItems: IntangibleItem[] = [
 ]
 
 // 유형자산 실물 데이터 (36개) - 모든 ID 필드를 string으로 정렬
+const MOCK_CATEGORY_MATCH_GROUPS = [
+  { requested: ['pc', '노트북'], items: ['노트북', 'pc'] },
+  { requested: ['모니터'], items: ['모니터'] },
+  { requested: ['주변기기'], items: ['주변기기', '키보드', '마우스', '웹캠', '저장장치'] },
+  { requested: ['태블릿'], items: ['태블릿'] },
+  { requested: ['모바일기기', '스마트폰'], items: ['스마트폰', '모바일기기'] },
+  { requested: ['가구'], items: ['가구', '사무가구', '의자', '책상', '테이블'] },
+  { requested: ['사무기기'], items: ['사무기기', '복합기', '프린터'] },
+  { requested: ['개발도구', '개발툴'], items: ['개발도구', '개발툴'] },
+  { requested: ['디자인도구', '디자인'], items: ['디자인도구', '디자인'] },
+]
+
+function normalizeMockCategory(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[\s()[\]{}·/_-]/g, '')
+}
+
+function isMockCategoryPlaceholder(categoryName: string) {
+  return !categoryName
+    || categoryName.includes('전체')
+    || categoryName.includes('보기')
+    || categoryName.includes('선택')
+}
+
+function matchesMockCategory(requestedCategory: string, itemCategory: string) {
+  if (isMockCategoryPlaceholder(requestedCategory)) return true
+
+  const requested = normalizeMockCategory(requestedCategory)
+  const item = normalizeMockCategory(itemCategory)
+  if (!requested || !item) return true
+  if (requested === item || requested.includes(item) || item.includes(requested)) return true
+
+  return MOCK_CATEGORY_MATCH_GROUPS.some((group) => (
+    group.requested.some((token) => requested.includes(token))
+    && group.items.some((token) => item.includes(token))
+  ))
+}
+
+function normalizeMockItemName(value: string | null | undefined) {
+  return (value ?? '')
+    .toLowerCase()
+    .replace(/\d+\s*(개|석|seat|seats|user|users|명)/g, '')
+    .replace(/[^a-z0-9가-힣]/g, '')
+}
+
+function isMockNonStandardItem(value: number | boolean | undefined) {
+  if (typeof value === 'boolean') return !value
+  return Number(value) === 0
+}
+
+function matchesMockRequestedItem(detail: Partial<TicketDetail>, itemName: string | null | undefined) {
+  const item = normalizeMockItemName(itemName)
+  if (!item) return false
+
+  return [
+    detail.requestedItemName,
+    detail.requestedItemDetail,
+    detail.productName,
+  ].some((name) => {
+    const requested = normalizeMockItemName(name)
+    return Boolean(requested && (requested.includes(item) || item.includes(requested)))
+  })
+}
+
+function isTicketAssetAssignmentCompatible(
+  ticketId: string,
+  assetType: AssetType,
+  assetItemId: string | null | undefined,
+) {
+  const detail = ticketDetailData.get(ticketId)
+  if (!detail) return true
+  if (detail.assetType && detail.assetType !== assetType) return false
+
+  const requestedCategory = detail.categoryName ?? ''
+  if (!requestedCategory) return true
+
+  const itemCategory = assetType === 'TANGIBLE'
+    ? tangibleItems.find((item) => item.assetItemId === assetItemId)?.category
+    : intangibleItems.find((item) => item.assetItemId === assetItemId)?.category
+
+  if (!itemCategory || !matchesMockCategory(requestedCategory, itemCategory)) return false
+  if (tickets.find((ticket) => ticket.ticketId === ticketId)?.ticketType !== 'PURCHASE_REQUEST') return true
+
+  if (assetType === 'TANGIBLE') {
+    const item = tangibleItems.find((entry) => entry.assetItemId === assetItemId)
+    return Boolean(
+      item
+      && isMockNonStandardItem(item.isStandard)
+      && matchesMockRequestedItem(detail, item.assetName),
+    )
+  }
+
+  const item = intangibleItems.find((entry) => entry.assetItemId === assetItemId)
+  return Boolean(
+    item
+    && isMockNonStandardItem(item.isStandard)
+    && matchesMockRequestedItem(detail, item.productName),
+  )
+}
+
 let tangibleAssets: TangibleAsset[] = [
   { assetId: '1', assetCode: 'NBC-0001', serialNo: 'NB-C-01', assetItemId: '31', assetItemName: 'ABC 노트북 커버', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: '2025-01-25', returnDueDate: null, createdAt: '2025-01-20T09:00:00' },
   { assetId: '2', assetCode: 'TNG-0002', serialNo: 'SN-TNG-M3-02', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: null, returnDueDate: null, createdAt: '2025-01-20T09:10:00' },
@@ -1889,6 +2015,11 @@ export const handlers = [
       assigneeName: assignee?.name ?? (hasAssetTeamAssignee ? '박자산' : null),
       requestReason: ticketReasons.get(ticketId) ?? null,
       ...requestDetail,
+      directPurchaseEvidenceFileName: requestDetail.directPurchaseEvidenceFileName
+        ?? ticketEvidenceFiles.get(ticketId)
+        ?? null,
+      directPurchaseEvidenceUploadedAt: requestDetail.directPurchaseEvidenceUploadedAt ?? null,
+      directPurchaseEvidenceUrl: requestDetail.directPurchaseEvidenceUrl ?? null,
       departmentApprovedAt: hasDepartmentDecision && !isDepartmentRejected
         ? departmentDecisionAt
         : null,
@@ -2093,6 +2224,14 @@ export const handlers = [
           data: null,
         }, { status: 409 })
       }
+      if (!isTicketAssetAssignmentCompatible(ticketId, 'TANGIBLE', asset.assetItemId)) {
+        return HttpResponse.json({
+          status: 400,
+          errorCode: 'INVALID_ASSET_ASSIGNMENT_REQUEST',
+          message: '요청한 자산 유형과 분류에 맞는 자산만 할당할 수 있습니다.',
+          data: null,
+        }, { status: 400 })
+      }
 
       asset.status = 'IN_USE'
       asset.assignedMemberId = requester.memberId
@@ -2110,6 +2249,14 @@ export const handlers = [
           message: '사용 가능한 무형 자산을 선택해주세요.',
           data: null,
         }, { status: 409 })
+      }
+      if (!isTicketAssetAssignmentCompatible(ticketId, 'INTANGIBLE', asset.assetItemId)) {
+        return HttpResponse.json({
+          status: 400,
+          errorCode: 'INVALID_ASSET_ASSIGNMENT_REQUEST',
+          message: '요청한 자산 유형과 분류에 맞는 자산만 할당할 수 있습니다.',
+          data: null,
+        }, { status: 400 })
       }
 
       asset.status = 'IN_USE'
@@ -2203,6 +2350,19 @@ export const handlers = [
     const previousStatus = ticket.ticketStatus
     const updatedAt = new Date().toISOString()
     ticket.ticketStatus = nextStatus
+    if (
+      ticket.ticketType === 'PURCHASE_REQUEST'
+      && previousStatus === 'ASSET_APPROVED'
+      && nextStatus === 'IN_PROGRESS'
+    ) {
+      const requestDetail = ticketDetailData.get(ticketId) ?? {}
+      ticketDetailData.set(ticketId, {
+        ...requestDetail,
+        detailStatus: '구매 계획 생성',
+        orderedAt: requestDetail.orderedAt ?? updatedAt,
+        processedAt: requestDetail.processedAt ?? updatedAt,
+      })
+    }
     if (nextStatus === 'CANCELED') {
       ticketcanceledAt.set(ticketId, updatedAt)
     }
@@ -2213,6 +2373,81 @@ export const handlers = [
       currentStatus: nextStatus,
       updatedAt,
     }, '티켓 상태 변경에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/rental-extension`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !isAssetTeamRole(actor)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 반납 예정일을 변경할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+    if (ticket.ticketType !== 'RENTAL_EXTENSION' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_RENTAL_EXTENSION_STATUS',
+        message: '구매자산팀 승인 후 대여 연장 티켓만 반납 예정일을 변경할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const body = await request.json() as {
+      changedDueDate?: string
+      requestedDueDate?: string
+      returnDueDate?: string
+    }
+    const changedDueDate = body.changedDueDate ?? body.requestedDueDate ?? body.returnDueDate ?? ''
+    if (!/^\d{4}-\d{2}-\d{2}/.test(changedDueDate)) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_CHANGED_DUE_DATE',
+        message: '변경할 반납 예정일을 올바르게 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const now = new Date().toISOString()
+    const detailData = ticketDetailData.get(ticketId) ?? {}
+    const normalizedChangedDueDate = changedDueDate.includes('T')
+      ? changedDueDate
+      : `${changedDueDate}T18:00:00`
+    ticketDetailData.set(ticketId, {
+      ...detailData,
+      detailStatus: '반납 예정일 변경 완료',
+      changedDueDate: normalizedChangedDueDate,
+      rentalDueDate: normalizedChangedDueDate,
+      processedAt: now,
+      completedAt: now,
+    })
+    if (detailData.assetId) {
+      const asset = tangibleAssets.find((item) => item.assetId === detailData.assetId)
+      if (asset) asset.returnDueDate = normalizedChangedDueDate
+    }
+    ticket.ticketStatus = 'COMPLETED'
+    ticketAssigneeIds.set(ticketId, actor.memberId)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetId: detailData.assetId ?? null,
+      changedDueDate: normalizedChangedDueDate,
+      ticketStatus: ticket.ticketStatus,
+      processedAt: now,
+      completedAt: now,
+    }, '반납 예정일 변경이 완료되었습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/:ticketId/actual-amount`, async ({ params, request }) => {
@@ -2325,9 +2560,19 @@ export const handlers = [
 
     const updatedAt = new Date().toISOString()
     ticketEvidenceFiles.set(ticketId, file.name)
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: requestDetail.actualAmount
+        ? '직접 구매 결제 증빙 등록 완료'
+        : requestDetail.detailStatus,
+      directPurchaseEvidenceFileName: file.name,
+      directPurchaseEvidenceUploadedAt: updatedAt,
+    })
 
     return HttpResponse.json(ok({
       ticketId,
+      directPurchaseEvidenceFileName: file.name,
       purchaseDate: updatedAt.slice(0, 10),
       updatedAt,
     }, '구매 증빙 업로드에 성공했습니다.'))
@@ -2957,8 +3202,8 @@ export const handlers = [
 
     let filteredItems = [...tangibleItems]
 
-    if (categoryName && categoryName !== '전체 자산 품목' && categoryName !== '전체 품목 보기') {
-      filteredItems = filteredItems.filter((item) => item.category === categoryName)
+    if (!isMockCategoryPlaceholder(categoryName)) {
+      filteredItems = filteredItems.filter((item) => matchesMockCategory(categoryName, item.category))
     }
 
     if (keyword) {
@@ -3126,14 +3371,14 @@ export const handlers = [
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
-    const category = url.searchParams.get('category') ?? ''
+    const category = url.searchParams.get('category') ?? url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
     const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...intangibleItems]
 
-    if (category && category !== '전체 소프트웨어 타입') {
-      filteredItems = filteredItems.filter((item) => item.category === category)
+    if (!isMockCategoryPlaceholder(category)) {
+      filteredItems = filteredItems.filter((item) => matchesMockCategory(category, item.category))
     }
 
     if (keyword) {
@@ -3264,9 +3509,9 @@ export const handlers = [
     if (status) {
       filteredAssets = filteredAssets.filter((asset) => asset.status === status)
     }
-    if (categoryName && categoryName !== '전체 품목 보기') {
+    if (!isMockCategoryPlaceholder(categoryName)) {
       const itemIds = tangibleItems
-        .filter((item) => item.category === categoryName)
+        .filter((item) => matchesMockCategory(categoryName, item.category))
         .map((item) => item.assetItemId)
       filteredAssets = filteredAssets.filter((asset) => itemIds.includes(asset.assetItemId ?? ''))
     }
