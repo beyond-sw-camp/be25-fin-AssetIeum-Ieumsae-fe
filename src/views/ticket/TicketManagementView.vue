@@ -552,7 +552,7 @@ function getManagementButtonVariant(ticket: TicketListItem) {
 
 function getStatusBadgeClass(status: TicketStatus) {
   if (status === 'COMPLETED') return 'bg-success/10 text-success'
-  if (status === 'DEPARTMENT_REJECTED' || status === 'ASSET_REJECTED' || status === 'CANCELLED') {
+  if (status === 'DEPARTMENT_REJECTED' || status === 'ASSET_REJECTED' || status === 'CANCELED') {
     return 'bg-danger/10 text-danger'
   }
   if (status === 'IN_PROGRESS' || status === 'ASSET_APPROVED') return 'bg-primary/10 text-primary'

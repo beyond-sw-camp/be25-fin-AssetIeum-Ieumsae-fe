@@ -6,10 +6,6 @@
     @close="handleClose"
   >
     <div class="space-y-4">
-      <div class="rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm text-text-sub">
-        반려 사유는 요청자에게 노출됩니다. 업무 판단 근거를 확인할 수 있게 구체적으로 입력해 주세요.
-      </div>
-
       <label class="block">
         <span class="mb-2 block text-sm font-semibold text-text-main">반려 사유</span>
         <textarea
@@ -19,6 +15,9 @@
           :disabled="submitting"
         />
       </label>
+      <div class="rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm text-text-sub">
+        반려 사유는 요청자에게 노출됩니다. 업무 판단 근거를 확인할 수 있게 구체적으로 입력해 주세요.
+      </div>
 
       <p v-if="validationMessage" class="text-sm text-danger">{{ validationMessage }}</p>
       <p v-if="errorMessage" class="text-sm text-danger">{{ errorMessage }}</p>

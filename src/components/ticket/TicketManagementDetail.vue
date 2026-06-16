@@ -118,7 +118,16 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                    <dd class="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-text-main">
+                      <span>{{ item.value }}</span>
+                      <RouterLink
+                        v-if="item.linkTo"
+                        :to="item.linkTo"
+                        class="text-xs font-semibold text-primary hover:underline"
+                      >
+                        {{ item.linkLabel }}
+                      </RouterLink>
+                    </dd>
                   </div>
                 </dl>
               </TicketDetailCard>
@@ -140,6 +149,38 @@
                 </dl>
               </TicketDetailCard>
             </div>
+
+            <TicketDetailCard v-if="shouldShowDirectPurchasePaymentCard" title="직접 구매 결제 증빙">
+              <template #icon>
+                <ReceiptText :size="18" class="text-orange-500" />
+              </template>
+
+              <div class="space-y-4">
+                <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    v-for="item in directPurchasePaymentInfoItems"
+                    :key="item.label"
+                    class="border-b border-border pb-3"
+                  >
+                    <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                      {{ item.value }}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div
+                  :class="[
+                    'rounded-xl border px-4 py-3 text-sm leading-6',
+                    isDirectPurchasePaymentReady
+                      ? 'border-success/30 bg-success/5 text-text-main'
+                      : 'border-warning/30 bg-warning/5 text-text-sub',
+                  ]"
+                >
+                  {{ directPurchasePaymentGuideMessage }}
+                </div>
+              </div>
+            </TicketDetailCard>
 
             <TicketDetailCard title="요청 상세 내역" padding="none">
               <template #icon>
@@ -231,6 +272,16 @@
         자산 검색 및 할당
       </Button>
       <Button
+        v-if="canChangeRentalExtensionDueDate"
+        variant="outline"
+        class="shrink-0"
+        :disabled="isActionSubmitting"
+        @click="openRentalExtensionDrawer"
+      >
+        <CalendarClock :size="15" />
+        반납 예정일 변경
+      </Button>
+      <Button
         v-if="canAssetReview"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
@@ -270,6 +321,70 @@
       @submit="handleAssetAssign"
     />
 
+    <BaseDrawer
+      :is-open="rentalExtensionDrawerOpen"
+      title="반납 예정일 변경"
+      panel-class="w-full max-w-[420px]"
+      @close="closeRentalExtensionDrawer"
+    >
+      <div class="space-y-5">
+        <section class="rounded-xl border border-border bg-surface-secondary p-4 text-sm">
+          <p class="font-semibold text-text-main">{{ ticket?.requesterName || '-' }}님의 대여 연장 요청</p>
+          <p class="mt-1 text-text-sub">{{ requestItemName(ticket) }}</p>
+          <dl class="mt-4 grid gap-3 text-xs">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-text-muted">기존 반납 예정일</dt>
+              <dd class="font-semibold text-text-main">{{ formatDate(ticket?.previousDueDate) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-text-muted">희망 연장일</dt>
+              <dd class="font-semibold text-text-main">{{ formatDate(ticket?.requestedDueDate) }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <Input
+          id="rental-extension-changed-due-date"
+          v-model="rentalExtensionDueDate"
+          type="date"
+          label="변경 반납 예정일"
+          required
+          :disabled="isChangingRentalExtensionDueDate"
+          :error="Boolean(rentalExtensionDueDateError)"
+          :error-message="rentalExtensionDueDateError"
+        />
+
+        <p
+          v-if="rentalExtensionSubmitErrorMessage"
+          class="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
+          role="alert"
+        >
+          {{ rentalExtensionSubmitErrorMessage }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="m"
+            :disabled="isChangingRentalExtensionDueDate"
+            @click="closeRentalExtensionDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            size="m"
+            :loading="isChangingRentalExtensionDueDate"
+            :disabled="!rentalExtensionDueDate"
+            @click="handleRentalExtensionDueDateChange"
+          >
+            변경 완료
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <ConfirmationModal
       :is-open="Boolean(commentToDelete)"
       title="댓글 삭제"
@@ -285,12 +400,14 @@
 <script setup lang="ts">
 import {
   ArrowLeft,
+  CalendarClock,
   CheckCircle2,
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
   PackageCheck,
   RefreshCw,
+  ReceiptText,
   Save,
   ShieldCheck,
   TicketCheck,
@@ -298,10 +415,12 @@ import {
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { ApiError, ticketApi } from '@/api'
+import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import Input from '@/components/common/Input.vue'
 import TicketAssetAssignDrawer from '@/components/ticket/TicketAssetAssignDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -312,6 +431,8 @@ import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
   DropdownOption,
+  IntangibleItem,
+  TangibleAssetItem,
   TicketComment,
   TicketDetail,
   TicketStatus,
@@ -328,6 +449,11 @@ import {
 interface DetailItem {
   label: string
   value: string
+  linkLabel?: string
+  linkTo?: {
+    name: string
+    query?: Record<string, string>
+  }
 }
 
 interface RequestDetailColumn {
@@ -354,7 +480,7 @@ interface AssetItemAssignPayload {
 
 const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'COMPLETED',
-  'CANCELLED',
+  'CANCELED',
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
@@ -388,11 +514,14 @@ const isApproving = ref(false)
 const isRejecting = ref(false)
 const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
+const isChangingRentalExtensionDueDate = ref(false)
+const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
 const deletingCommentId = ref<number | null>(null)
 const rejectDrawerOpen = ref(false)
 const rejectTarget = ref<ApproverType | null>(null)
 const assetAssignDrawerOpen = ref(false)
+const rentalExtensionDrawerOpen = ref(false)
 const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
@@ -400,6 +529,10 @@ const commentSubmitErrorMessage = ref('')
 const commentActionErrorMessage = ref('')
 const rejectErrorMessage = ref('')
 const assetAssignErrorMessage = ref('')
+const rentalExtensionDueDate = ref('')
+const rentalExtensionDueDateError = ref('')
+const rentalExtensionSubmitErrorMessage = ref('')
+const purchaseRequestAssignable = ref(false)
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
@@ -434,11 +567,64 @@ const canDepartmentReview = computed(() => (
 const canAssetReview = computed(() => (
   Boolean(ticket.value && isAssetTeamRole.value && ticket.value.status === 'DEPARTMENT_APPROVED')
 ))
+const isDirectPurchaseTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE',
+  )
+))
+const shouldShowDirectPurchasePaymentCard = computed(() => (
+  Boolean(
+    isDirectPurchaseTicket.value
+    && ticket.value
+    && ['ASSET_APPROVED', 'IN_PROGRESS', 'COMPLETED'].includes(ticket.value.status),
+  )
+))
+const hasDirectPurchasePaymentInfo = computed(() => (
+  Boolean(
+    ticket.value
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && typeof ticket.value.actualAmount === 'number'
+    && ticket.value.actualAmount > 0,
+  )
+))
+const directPurchaseEvidenceFileName = computed(() => (
+  ticket.value?.directPurchaseEvidenceFileName ?? ''
+))
+const hasDirectPurchaseEvidence = computed(() => (
+  Boolean(directPurchaseEvidenceFileName.value || ticket.value?.directPurchaseEvidenceUploadedAt)
+))
+const isDirectPurchasePaymentReady = computed(() => (
+  hasDirectPurchasePaymentInfo.value && hasDirectPurchaseEvidence.value
+))
 const canAssignAsset = computed(() => (
   Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)
+    && (
+      ticket.value.ticketType === 'PURCHASE_REQUEST'
+        ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
+        : ticket.value.status === 'ASSET_APPROVED'
+    )
+    && (
+      ticket.value.ticketType !== 'PURCHASE_REQUEST'
+      || (
+        purchaseRequestAssignable.value
+        && (
+          ticket.value.requestMethod !== 'DIRECT_PURCHASE'
+          || isDirectPurchasePaymentReady.value
+        )
+      )
+    )
+  )
+))
+const canChangeRentalExtensionDueDate = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && ticket.value.ticketType === 'RENTAL_EXTENSION'
     && ticket.value.status === 'ASSET_APPROVED',
   )
 ))
@@ -463,6 +649,7 @@ const shouldShowActionBottomBar = computed(() => (
       canDepartmentReview.value
       || canAssetReview.value
       || canAssignAsset.value
+      || canChangeRentalExtensionDueDate.value
     ),
   )
 ))
@@ -471,14 +658,102 @@ const isActionSubmitting = computed(() => (
   || isRejecting.value
   || isChangingStatus.value
   || isAssigningAsset.value
+  || isChangingRentalExtensionDueDate.value
 ))
 const rejectDrawerTitle = computed(() => '반려')
+const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
+  if (!ticket.value) return []
+
+  const quantity = ticket.value.quantity
+  const expectedAmount = ticket.value.expectedPrice === null
+    || ticket.value.expectedPrice === undefined
+    || quantity === null
+    || quantity === undefined
+    ? null
+    : ticket.value.expectedPrice * quantity
+  const actualAmount = ticket.value.actualAmount
+  const difference = actualAmount === null
+    || actualAmount === undefined
+    || expectedAmount === null
+    || expectedAmount === undefined
+    ? null
+    : actualAmount - expectedAmount
+
+  return [
+    { label: '예상 합계 금액', value: formatCurrency(expectedAmount) },
+    { label: '실제 결제 금액', value: formatCurrency(actualAmount) },
+    { label: '차액', value: formatCurrency(difference) },
+    { label: '증빙 파일', value: directPurchaseEvidenceFileName.value || '-' },
+    {
+      label: '증빙 업로드 일시',
+      value: formatDate(ticket.value.directPurchaseEvidenceUploadedAt, 'YYYY-MM-DD HH:mm'),
+    },
+    {
+      label: '확인 상태',
+      value: isDirectPurchasePaymentReady.value ? '결제 증빙 등록 완료' : '결제 증빙 대기',
+    },
+  ]
+})
+const directPurchasePaymentGuideMessage = computed(() => {
+  if (!hasDirectPurchasePaymentInfo.value) {
+    return '사원이 실제 결제 금액과 영수증 증빙을 등록하면 구매자산팀에서 확인할 수 있습니다.'
+  }
+  if (!hasDirectPurchaseEvidence.value) {
+    return '실제 결제 금액은 등록되었지만 영수증 증빙 파일이 아직 없습니다.'
+  }
+  if (!purchaseRequestAssignable.value) {
+    return '결제 증빙이 등록되었습니다. 금액과 증빙을 확인한 뒤 자산을 등록하면 자산 검색 및 할당으로 티켓을 처리 완료할 수 있습니다.'
+  }
+  return '결제 증빙이 등록되었습니다. 자산 검색 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
+})
 const unsupportedActionMessage = computed(() => {
   if (!ticket.value || !isAssetTeamRole.value) return ''
+  if (
+    ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
+    && !isDirectPurchasePaymentReady.value
+  ) {
+    return directPurchasePaymentGuideMessage.value
+  }
+  if (
+    ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
+    && isDirectPurchasePaymentReady.value
+    && !purchaseRequestAssignable.value
+  ) {
+    if (isCheckingPurchaseAssignable.value) {
+      return '직접 구매 증빙 확인 후 할당할 자산을 확인하고 있습니다.'
+    }
+    return directPurchasePaymentGuideMessage.value
+  }
+  if (
+    ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod !== 'DIRECT_PURCHASE'
+    && ticket.value.status === 'ASSET_APPROVED'
+    && !purchaseRequestAssignable.value
+  ) {
+    if (isCheckingPurchaseAssignable.value) {
+      return '관리 중인 같은 비표준 품목을 확인하고 있습니다.'
+    }
+    return '자산팀 승인 완료 상태입니다. 할당 가능한 같은 비표준 품목이 없으므로 구매 계획 생성 화면의 대상 목록에 표시됩니다.'
+  }
+  if (
+    ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod !== 'DIRECT_PURCHASE'
+    && ticket.value.status === 'IN_PROGRESS'
+    && !purchaseRequestAssignable.value
+  ) {
+    if (isCheckingPurchaseAssignable.value) {
+      return '구매 완료 후 등록된 품목을 확인하고 있습니다.'
+    }
+    return '구매 계획 처리 중입니다. 구매 완료 후 품목과 자산을 등록하면 자산 할당으로 티켓을 완료할 수 있습니다.'
+  }
   if (!UNIMPLEMENTED_WORKFLOW_TYPES.has(ticket.value.ticketType)) return ''
   if (TERMINAL_STATUSES.has(ticket.value.status)) return ''
 
-  return 'TODO: API 명세/백엔드 확인 필요 - 이 유형의 자산 회수, 유지보수 결과 처리, 반납/해지 처리 endpoint가 확정되면 관리 액션을 연결해야 합니다.'
+  return ''
 })
 const departmentDecisionAt = computed(() => (
   ticket.value?.departmentApprovedAt
@@ -490,6 +765,27 @@ const rejectionReason = computed(() => (
   ?? ticket.value?.purchaseRejectionReason
   ?? ''
 ))
+const isPurchasePlanLinkableTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && (
+      ticket.value.ticketType === 'ASSET_REQUEST'
+      || (
+        ticket.value.ticketType === 'PURCHASE_REQUEST'
+        && ticket.value.requestMethod !== 'DIRECT_PURCHASE'
+      )
+    ),
+  )
+))
+const linkedPurchasePlanId = computed(() => {
+  const detail = ticket.value
+  if (!detail) return ''
+
+  return detail.linkedPurchasePlanId
+    ?? detail.purchasePlanId
+    ?? detail.purchaseId
+    ?? ''
+})
 const ticketInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
 
@@ -508,9 +804,26 @@ const ticketInfoItems = computed<DetailItem[]>(() => {
 const processingInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
 
+  const purchasePlanItem: DetailItem = linkedPurchasePlanId.value
+    ? {
+        label: '연결된 구매 id',
+        value: linkedPurchasePlanId.value,
+        linkLabel: '구매 계획으로 가기',
+        linkTo: {
+          name: 'Purchase',
+          query: { purchasePlanId: linkedPurchasePlanId.value },
+        },
+      }
+    : {
+        label: '연결된 구매 id',
+        value: '',
+      }
+
   return [
     { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
-    { label: '내부 상태', value: ticket.value.detailStatus ?? '-' },
+    isPurchasePlanLinkableTicket.value
+      ? purchasePlanItem
+      : { label: '내부 상태', value: ticket.value.detailStatus ?? '-' },
     { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
     {
       label: '구매자산팀 처리 일시',
@@ -653,10 +966,10 @@ function hasRequestDetailData(detail: TicketDetail): boolean {
   ].some((value) => value !== null && value !== undefined && value !== '')
 }
 
-function requestItemName(detail: TicketDetail): string {
-  return detail.requestedItemName
-    ?? detail.requestedItemDetail
-    ?? detail.productName
+function requestItemName(detail: TicketDetail | null | undefined): string {
+  return detail?.requestedItemName
+    ?? detail?.requestedItemDetail
+    ?? detail?.productName
     ?? '-'
 }
 
@@ -703,12 +1016,96 @@ async function loadTicketDetail() {
     const response = await ticketApi.getDetail(props.ticketId)
     ticket.value = response.data
     selectedTicketStatus.value = response.data.status
+    await resolvePurchaseRequestAssignability(response.data)
   } catch (error) {
     ticket.value = null
+    purchaseRequestAssignable.value = false
     errorMessage.value = detailErrorMessage(error)
   } finally {
     isLoading.value = false
   }
+}
+
+async function resolvePurchaseRequestAssignability(detail: TicketDetail) {
+  purchaseRequestAssignable.value = false
+  if (
+    detail.ticketType !== 'PURCHASE_REQUEST'
+    || !['ASSET_APPROVED', 'IN_PROGRESS'].includes(detail.status)
+  ) return
+
+  isCheckingPurchaseAssignable.value = true
+  try {
+    if (detail.assetType === 'TANGIBLE') {
+      const response = await tangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        categoryName: detail.categoryName ?? undefined,
+      })
+      purchaseRequestAssignable.value = response.data.content.some((item) => (
+        isNonStandardItem(item.isStandard)
+        && numberValue(item.availableCount) >= requestedQuantity(detail)
+        && isSameRequestedItem(detail, tangibleItemName(item))
+      ))
+      return
+    }
+
+    if (detail.assetType === 'INTANGIBLE') {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        category: detail.categoryName ?? undefined,
+      })
+      purchaseRequestAssignable.value = response.data.content.some((item) => (
+        isNonStandardItem(item.isStandard)
+        && numberValue(item.availableCount) >= requestedQuantity(detail)
+        && isSameRequestedItem(detail, item.productName)
+      ))
+    }
+  } catch {
+    purchaseRequestAssignable.value = false
+  } finally {
+    isCheckingPurchaseAssignable.value = false
+  }
+}
+
+function requestedQuantity(detail: TicketDetail) {
+  const quantity = Number(detail.quantity)
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : 1
+}
+
+function isNonStandardItem(value: TangibleAssetItem['isStandard'] | IntangibleItem['isStandard']) {
+  if (typeof value === 'boolean') return !value
+  return Number(value) === 0
+}
+
+function tangibleItemName(item: TangibleAssetItem) {
+  const aliases = item as TangibleAssetItem & { assetName?: string }
+  return item.name ?? item.productName ?? aliases.assetName ?? item.itemCode ?? ''
+}
+
+function isSameRequestedItem(detail: TicketDetail, itemName: string | null | undefined) {
+  const item = normalizeItemName(itemName)
+  if (!item) return false
+
+  return [
+    detail.requestedItemName,
+    detail.requestedItemDetail,
+    detail.productName,
+  ].some((name) => {
+    const requested = normalizeItemName(name)
+    return Boolean(requested && (requested.includes(item) || item.includes(requested)))
+  })
+}
+
+function normalizeItemName(value: string | null | undefined) {
+  return (value ?? '')
+    .toLowerCase()
+    .replace(/\d+\s*(개|석|seat|seats|user|users|명)/g, '')
+    .replace(/[^a-z0-9가-힣]/g, '')
+}
+
+function numberValue(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 async function loadComments() {
@@ -823,6 +1220,88 @@ function closeAssetAssignDrawer() {
   if (isAssigningAsset.value) return
   assetAssignDrawerOpen.value = false
   assetAssignErrorMessage.value = ''
+}
+
+function openRentalExtensionDrawer() {
+  if (!ticket.value || !canChangeRentalExtensionDueDate.value) return
+
+  rentalExtensionDueDate.value = toDateInputValue(
+    ticket.value.changedDueDate
+      ?? ticket.value.requestedDueDate
+      ?? ticket.value.rentalDueDate
+      ?? '',
+  )
+  rentalExtensionDueDateError.value = ''
+  rentalExtensionSubmitErrorMessage.value = ''
+  rentalExtensionDrawerOpen.value = true
+}
+
+function closeRentalExtensionDrawer() {
+  if (isChangingRentalExtensionDueDate.value) return
+
+  rentalExtensionDrawerOpen.value = false
+  rentalExtensionDueDateError.value = ''
+  rentalExtensionSubmitErrorMessage.value = ''
+}
+
+function toDateInputValue(value: string | null | undefined) {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10)
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function validateRentalExtensionDueDate() {
+  if (!ticket.value) return false
+
+  if (!rentalExtensionDueDate.value) {
+    rentalExtensionDueDateError.value = '변경할 반납 예정일을 선택해주세요.'
+    return false
+  }
+
+  const previousDueDate = toDateInputValue(ticket.value.previousDueDate)
+  if (previousDueDate && rentalExtensionDueDate.value < previousDueDate) {
+    rentalExtensionDueDateError.value = '변경 반납 예정일은 기존 반납 예정일보다 빠를 수 없습니다.'
+    return false
+  }
+
+  rentalExtensionDueDateError.value = ''
+  return true
+}
+
+async function handleRentalExtensionDueDateChange() {
+  if (
+    !ticket.value
+    || !canChangeRentalExtensionDueDate.value
+    || isChangingRentalExtensionDueDate.value
+    || !validateRentalExtensionDueDate()
+  ) return
+
+  isChangingRentalExtensionDueDate.value = true
+  rentalExtensionSubmitErrorMessage.value = ''
+
+  try {
+    await ticketApi.changeRentalExtensionDueDate(ticket.value.ticketId, {
+      changedDueDate: rentalExtensionDueDate.value,
+    })
+    rentalExtensionDrawerOpen.value = false
+    await reloadAfterAction()
+    notificationStore.success('반납 예정일이 변경되고 티켓이 처리 완료되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '반납 예정일 변경에 실패했습니다.'
+    rentalExtensionSubmitErrorMessage.value = message
+    notificationStore.error('반납 예정일 변경 실패', message)
+  } finally {
+    isChangingRentalExtensionDueDate.value = false
+  }
 }
 
 async function handleAssetAssign(payload: AssetItemAssignPayload) {
@@ -958,10 +1437,15 @@ function resetTicketActionState() {
   rejectErrorMessage.value = ''
   assetAssignDrawerOpen.value = false
   assetAssignErrorMessage.value = ''
+  rentalExtensionDrawerOpen.value = false
+  rentalExtensionDueDate.value = ''
+  rentalExtensionDueDateError.value = ''
+  rentalExtensionSubmitErrorMessage.value = ''
   isApproving.value = false
   isRejecting.value = false
   isChangingStatus.value = false
   isAssigningAsset.value = false
+  isChangingRentalExtensionDueDate.value = false
 }
 
 async function loadPage() {
