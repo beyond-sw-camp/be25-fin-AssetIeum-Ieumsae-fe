@@ -90,6 +90,13 @@ export interface TicketListFilter {
   departmentId?: string
 }
 
+export interface TicketStatistics {
+  totalCount: number
+  newOrPendingReviewCount: number
+  inProgressCount: number
+  completedCount: number
+}
+
 // =====================================================
 // 티켓 생성 요청 타입들
 // =====================================================

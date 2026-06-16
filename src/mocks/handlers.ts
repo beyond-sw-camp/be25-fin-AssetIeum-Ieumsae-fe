@@ -34,6 +34,7 @@ import type {
   TicketDetail,
   TicketListItem,
   TicketRejectRequest,
+  TicketStatistics,
   TicketStatus,
   TicketType,
 } from '@/types'
@@ -1380,6 +1381,24 @@ function canAccessTicket(member: Member | undefined, ticket: MockTicket): boolea
   return false
 }
 
+function createTicketStatistics(items: MockTicket[], member: Member | undefined): TicketStatistics {
+  const pendingReviewStatus: TicketStatus = (
+    member?.role === 'ADMIN' || member?.role === 'SUPER_ADMIN' || isAssetTeamRole(member)
+      ? 'DEPARTMENT_APPROVED'
+      : 'REQUESTED'
+  )
+
+  return {
+    totalCount: items.length,
+    newOrPendingReviewCount: items.filter((ticket) => ticket.ticketStatus === pendingReviewStatus).length,
+    inProgressCount: items.filter((ticket) => (
+      ticket.ticketStatus === 'ASSET_APPROVED'
+      || ticket.ticketStatus === 'IN_PROGRESS'
+    )).length,
+    completedCount: items.filter((ticket) => ticket.ticketStatus === 'COMPLETED').length,
+  }
+}
+
 function getTicketApprover(ticket: MockTicket): Member | undefined {
   const assignedApproverId = ticketApproverIds.get(ticket.ticketId)
   if (assignedApproverId) {
@@ -1596,6 +1615,16 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/statistics`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const accessibleTickets = tickets.filter((ticket) => canAccessTicket(requester, ticket))
+
+    return HttpResponse.json(ok(
+      createTicketStatistics(accessibleTickets, requester),
+      '티켓 통계 조회에 성공했습니다.',
+    ))
   }),
 
   http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params, request }) => {

@@ -3,6 +3,7 @@ import type {
   TicketListItem,
   TicketDetail,
   TicketListFilter,
+  TicketStatistics,
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
@@ -29,6 +30,9 @@ export const ticketApi = {
   /** 티켓 목록 조회 */
   getList: (params?: TicketListFilter) =>
     api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
+
+  getStatistics: () =>
+    api.get<TicketStatistics>('/tickets/statistics'),
 
   /** 티켓 상세 조회 */
   getDetail: (ticketId: string) =>
