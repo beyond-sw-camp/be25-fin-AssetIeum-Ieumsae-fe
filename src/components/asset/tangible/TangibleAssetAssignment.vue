@@ -1,163 +1,165 @@
 <template>
-  <div class="space-y-6">
-    <div class="grid grid-cols-3 gap-2 rounded-lg bg-surface-secondary p-1">
-      <button
-        v-for="option in modeOptions"
-        :key="option.value"
-        type="button"
-        class="rounded-md px-3 py-2 text-sm font-semibold transition"
-        :class="mode === option.value ? 'bg-surface text-primary shadow-sm' : 'text-text-sub hover:text-text-main'"
-        @click="mode = option.value"
-      >
-        {{ option.label }}
-      </button>
+  <div class="flex min-h-full flex-col">
+    <div class="flex-1 space-y-6 p-6 pb-8">
+      <div class="grid grid-cols-3 gap-2 rounded-lg bg-surface-secondary p-1">
+        <button
+          v-for="option in modeOptions"
+          :key="option.value"
+          type="button"
+          class="rounded-md px-3 py-2 text-sm font-semibold transition"
+          :class="mode === option.value ? 'bg-surface text-primary shadow-sm' : 'text-text-sub hover:text-text-main'"
+          @click="mode = option.value"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
+      <section v-if="mode !== 'bulk'" class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          자산 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="대상 자산" required>
+            <Dropdown
+              v-model="assetLabel"
+              :options="assetOptions"
+              placeholder="자산을 선택하세요"
+            />
+          </FormField>
+
+          <Input id="assignment-asset-code" v-model="selectedAssetInfo.assetCode" label="자산 번호" disabled />
+          <Input id="assignment-product-name" v-model="selectedAssetInfo.productName" label="제품명" disabled />
+          <Input id="assignment-status" v-model="selectedAssetInfo.statusLabel" label="자산 상태" disabled />
+        </div>
+      </section>
+
+      <section v-if="mode === 'assign'" class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          신규 배정 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="사용자" required>
+            <Dropdown
+              v-model="memberId"
+              :options="memberOptions"
+              placeholder="사용자를 선택하세요"
+            />
+          </FormField>
+
+          <Input id="assignment-department-name" :model-value="selectedMemberInfo.departmentName" label="부서" disabled />
+
+          <FormField label="사용 유형" required>
+            <Dropdown v-model="usageTypeLabel" :options="usageTypeOptions" />
+          </FormField>
+
+          <FormField label="자산 사용 범위" required>
+            <Dropdown v-model="assetUsageTypeLabel" :options="assetUsageTypeOptions" />
+          </FormField>
+
+          <Input
+            id="assignment-ended-at"
+            v-model="endedAt"
+            type="datetime-local"
+            label="반납 예정 일시"
+            :disabled="usageTypeLabel === '정식 배정'"
+          />
+        </div>
+        <p v-if="usageTypeLabel === '정식 배정'" class="text-xs text-text-sub">
+          정식 배정은 반납 예정 일시 없이 요청합니다.
+        </p>
+      </section>
+
+      <section v-if="mode === 'reassign'" class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          재배정 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input id="assignment-current-member" v-model="selectedAssetInfo.currentUser" label="현재 사용자" disabled />
+
+          <FormField label="새 사용자" required>
+            <Dropdown
+              v-model="newMemberId"
+              :options="reassignMemberOptions"
+              placeholder="새 사용자를 선택하세요"
+            />
+          </FormField>
+
+          <Input id="assignment-current-department-name" :model-value="selectedAssetInfo.currentDepartment" label="현재 부서" disabled />
+          <Input id="assignment-new-department-name" :model-value="selectedNewMemberInfo.departmentName" label="새 부서" disabled />
+        </div>
+      </section>
+
+      <section v-if="mode === 'bulk'" class="space-y-4">
+        <div class="flex gap-2">
+          <h2 class="text-sm font-bold text-text-main">
+            사용자 기준 일괄 재배정
+          </h2>
+          <p class="text-sm text-text-sub">
+            (같은 부서의 사용자에게만 배정이 가능합니다.)
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="현재 사용자" required>
+            <Dropdown
+              v-model="currentMemberId"
+              :options="memberOptions"
+              placeholder="현재 사용자를 선택하세요"
+            />
+          </FormField>
+
+          <FormField label="새 사용자" required>
+            <Dropdown
+              v-model="bulkNewMemberId"
+              :options="bulkReassignMemberOptions"
+              placeholder="새 사용자를 선택하세요"
+            />
+          </FormField>
+
+          <Input id="bulk-current-member-no" :model-value="selectedCurrentMemberInfo.memberNo" label="현재 사번" disabled />
+          <Input id="bulk-new-member-no" :model-value="selectedBulkNewMemberInfo.memberNo" label="새 사번" disabled />
+          <Input id="bulk-current-department" :model-value="selectedCurrentMemberInfo.departmentName" label="현재 부서" disabled />
+          <Input id="bulk-new-department" :model-value="selectedBulkNewMemberInfo.departmentName" label="새 부서" disabled />
+        </div>
+      </section>
+
+      <section v-if="mode !== 'bulk'" class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-text-main">
+            배정 이력
+          </h2>
+          <Button variant="outline" size="sm" :disabled="!selectedAsset" :loading="isLoadingAssignments" @click="loadAssignments">
+            새로고침
+          </Button>
+        </div>
+
+        <Table
+          :columns="assignmentColumns"
+          :rows="assignmentRows"
+          :loading="isLoadingAssignments"
+          row-key="assignmentId"
+          empty-text="배정 이력이 없습니다."
+        >
+          <template #cell-memberInfo="{ row }">
+            <span>{{ row.memberName }}({{ row.memberNo }})</span>
+          </template>
+
+          <template #cell-assignmentType="{ value }">
+            <span>{{ usageTypeText(value as string) }}</span>
+          </template>
+          <template #cell-assignmentStatus="{ value }">
+            <span class="rounded-full px-2 py-1 text-xs font-bold" :class="assignmentStatusClass(value as string)">
+              {{ assignmentStatusText(value as string) }}
+            </span>
+          </template>
+        </Table>
+      </section>
+
+      <p v-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger">
+        {{ errorMessage }}
+      </p>
     </div>
 
-    <section v-if="mode !== 'bulk'" class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        자산 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="대상 자산" required>
-          <Dropdown
-            v-model="assetLabel"
-            :options="assetOptions"
-            placeholder="자산을 선택하세요"
-          />
-        </FormField>
-
-        <Input id="assignment-asset-code" v-model="selectedAssetInfo.assetCode" label="자산 번호" disabled />
-        <Input id="assignment-product-name" v-model="selectedAssetInfo.productName" label="제품명" disabled />
-        <Input id="assignment-status" v-model="selectedAssetInfo.statusLabel" label="자산 상태" disabled />
-      </div>
-    </section>
-
-    <section v-if="mode === 'assign'" class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        신규 배정 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="사용자" required>
-          <Dropdown
-            v-model="memberId"
-            :options="memberOptions"
-            placeholder="사용자를 선택하세요"
-          />
-        </FormField>
-
-        <Input id="assignment-department-name" :model-value="selectedMemberInfo.departmentName" label="부서" disabled />
-
-        <FormField label="사용 유형" required>
-          <Dropdown v-model="usageTypeLabel" :options="usageTypeOptions" />
-        </FormField>
-
-        <FormField label="자산 사용 범위" required>
-          <Dropdown v-model="assetUsageTypeLabel" :options="assetUsageTypeOptions" />
-        </FormField>
-
-        <Input
-          id="assignment-ended-at"
-          v-model="endedAt"
-          type="datetime-local"
-          label="반납 예정 일시"
-          :disabled="usageTypeLabel === '정식 배정'"
-        />
-      </div>
-      <p v-if="usageTypeLabel === '정식 배정'" class="text-xs text-text-sub">
-        정식 배정은 반납 예정 일시 없이 요청합니다.
-      </p>
-    </section>
-
-    <section v-if="mode === 'reassign'" class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        재배정 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Input id="assignment-current-member" v-model="selectedAssetInfo.currentUser" label="현재 사용자" disabled />
-
-        <FormField label="새 사용자" required>
-          <Dropdown
-            v-model="newMemberId"
-            :options="reassignMemberOptions"
-            placeholder="새 사용자를 선택하세요"
-          />
-        </FormField>
-
-        <Input id="assignment-current-department-name" :model-value="selectedAssetInfo.currentDepartment" label="현재 부서" disabled />
-        <Input id="assignment-new-department-name" :model-value="selectedNewMemberInfo.departmentName" label="새 부서" disabled />
-      </div>
-    </section>
-
-    <section v-if="mode === 'bulk'" class="space-y-4">
-      <div class="flex gap-2">
-        <h2 class="text-sm font-bold text-text-main">
-          사용자 기준 일괄 재배정
-        </h2>
-        <p class="text-sm text-text-sub">
-          (같은 부서의 사용자에게만 배정이 가능합니다.)
-        </p>
-      </div>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="현재 사용자" required>
-          <Dropdown
-            v-model="currentMemberId"
-            :options="memberOptions"
-            placeholder="현재 사용자를 선택하세요"
-          />
-        </FormField>
-
-        <FormField label="새 사용자" required>
-          <Dropdown
-            v-model="bulkNewMemberId"
-            :options="bulkReassignMemberOptions"
-            placeholder="새 사용자를 선택하세요"
-          />
-        </FormField>
-
-        <Input id="bulk-current-member-no" :model-value="selectedCurrentMemberInfo.memberNo" label="현재 사번" disabled />
-        <Input id="bulk-new-member-no" :model-value="selectedBulkNewMemberInfo.memberNo" label="새 사번" disabled />
-        <Input id="bulk-current-department" :model-value="selectedCurrentMemberInfo.departmentName" label="현재 부서" disabled />
-        <Input id="bulk-new-department" :model-value="selectedBulkNewMemberInfo.departmentName" label="새 부서" disabled />
-      </div>
-    </section>
-
-    <section v-if="mode !== 'bulk'" class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold text-text-main">
-          배정 이력
-        </h2>
-        <Button variant="outline" size="sm" :disabled="!selectedAsset" :loading="isLoadingAssignments" @click="loadAssignments">
-          새로고침
-        </Button>
-      </div>
-
-      <Table
-        :columns="assignmentColumns"
-        :rows="assignmentRows"
-        :loading="isLoadingAssignments"
-        row-key="assignmentId"
-        empty-text="배정 이력이 없습니다."
-      >
-        <template #cell-memberInfo="{ row }">
-          <span>{{ row.memberName }}({{ row.memberNo }})</span>
-        </template>
-
-        <template #cell-assignmentType="{ value }">
-          <span>{{ usageTypeText(value as string) }}</span>
-        </template>
-        <template #cell-assignmentStatus="{ value }">
-          <span class="rounded-full px-2 py-1 text-xs font-bold" :class="assignmentStatusClass(value as string)">
-            {{ assignmentStatusText(value as string) }}
-          </span>
-        </template>
-      </Table>
-    </section>
-
-    <p v-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger">
-      {{ errorMessage }}
-    </p>
-
-    <div class="flex gap-2">
+    <div class="sticky bottom-0 z-10 flex gap-2 border-t border-border bg-surface px-6 py-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
       <Button variant="outline" class="flex-1" :disabled="isSubmitting" @click="resetForm">
         초기화
       </Button>
@@ -179,7 +181,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch } from 'vue'
+
+import { computed, defineComponent, h, ref } from 'vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
@@ -499,7 +502,6 @@ const filteredMembers = computed(() => {
     
     if (!rawRole) return true
 
-    // 💡 복잡한 if-else 대입 과정을 생략하고 삼항 연산자로 즉시 값을 초기화합니다.
     const roleStr = typeof rawRole === 'object'
       ? (typeof (rawRole as Record<string, unknown>).name === 'string' ? String((rawRole as Record<string, unknown>).name) : '')
       : String(rawRole)
@@ -514,22 +516,28 @@ const memberOptions = computed(() => filteredMembers.value.map((member) => ({
   value: getMemberId(member),
 })))
 
-const memberOptionsExcept = (excludedMemberId?: string) => (
-  filteredMembers.value
+const reassignMemberOptions = computed(() => {
+  const currentMemberId = selectedAsset.value ? getAssetMemberId(selectedAsset.value) : ''
+  const currentMember = currentMemberId ? findMemberById(currentMemberId) : null
+  const currentDepartmentName = currentMember
+    ? getMemberDepartmentName(currentMember)
+    : selectedAsset.value
+      ? getAssetDepartmentName(selectedAsset.value)
+      : ''
+  const normalizedCurrentDepartmentName = normalizeText(currentDepartmentName)
+
+  if (!normalizedCurrentDepartmentName || normalizedCurrentDepartmentName === '-') return []
+
+  return filteredMembers.value
     .filter((member) => {
       const candidateMemberId = getMemberId(member)
-      if (excludedMemberId && candidateMemberId === excludedMemberId) return false
-      return true
+      if (currentMemberId && candidateMemberId === currentMemberId) return false
+      return normalizeText(getMemberDepartmentName(member)) === normalizedCurrentDepartmentName
     })
     .map((member) => ({
       label: getMemberLabel(member),
       value: getMemberId(member),
     }))
-)
-
-const reassignMemberOptions = computed(() => {
-  const currentMemberId = selectedAsset.value ? getAssetMemberId(selectedAsset.value) : ''
-  return memberOptionsExcept(currentMemberId)
 })
 
 const bulkReassignMemberOptions = computed(() => {
@@ -609,10 +617,6 @@ const usageTypeText = (value: string) => {
 const assignmentStatusText = (value: string) => {
   if (value === 'ACTIVE') return '배정 중'
   if (value === 'ENDED') return '종료'
-  if (value === 'ASSIGNED') return '배정 중'
-  if (value === 'RETURNED') return '반납 완료'
-  if (value === 'CANCELED') return '취소'
-  if (value === 'EXPIRED') return '만료'
   return value || '-'
 }
 
@@ -736,23 +740,4 @@ const returnSelectedAsset = async () => {
     isSubmitting.value = false
   }
 }
-
-watch(mode, () => resetForm())
-watch(assetLabel, () => {
-  newMemberId.value = ''
-  void loadAssignments()
-})
-watch(currentMemberId, () => {
-  bulkNewMemberId.value = ''
-})
-watch(usageTypeLabel, (value) => {
-  if (value === '정식 배정') endedAt.value = ''
-})
-
-// script setup 최하단에 추가해서 콘솔을 확인해보세요!
-watch(selectedMember, (newMember) => {
-  if (newMember) {
-    console.log('선택된 사용자 상세 데이터:', JSON.parse(JSON.stringify(newMember)))
-  }
-})
 </script>

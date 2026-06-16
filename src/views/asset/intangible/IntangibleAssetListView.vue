@@ -173,7 +173,6 @@ import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
-import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
 
 import { usePermission } from '@/composables/usePermission.ts'
 import { useAuthStore } from '@/stores/auth.store'

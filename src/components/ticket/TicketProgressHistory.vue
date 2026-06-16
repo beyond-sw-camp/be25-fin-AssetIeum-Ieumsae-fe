@@ -206,7 +206,16 @@ function stepDescription(ticket: TicketDetail, key: ProcessStepKey, state: Proce
 
 const processSteps = computed<ProcessStep[]>(() => {
   const ticket = props.ticket
-  const definitions = PROCESS_BY_TICKET_TYPE[ticket.ticketType]
+  const definitions = ticket.ticketType === 'PURCHASE_REQUEST'
+    && ticket.requestMethod === 'DIRECT_PURCHASE'
+    ? [
+        { key: 'created', label: '직접 구매 요청 생성' },
+        { key: 'department', label: '부서 승인' },
+        { key: 'review', label: '구매자산팀 승인' },
+        { key: 'action', label: '직접 구매 및 결제 정보 입력' },
+        { key: 'completed', label: '구매 처리 완료' },
+      ] satisfies ProcessDefinition[]
+    : PROCESS_BY_TICKET_TYPE[ticket.ticketType]
   const failureIndex = failureStepIndex(ticket.status)
   const isCompleted = ticket.status === 'COMPLETED'
   const currentIndex = STATUS_PROGRESS_INDEX[ticket.status] ?? 0
