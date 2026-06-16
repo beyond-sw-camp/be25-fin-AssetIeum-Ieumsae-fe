@@ -71,13 +71,15 @@ const router = createRouter({
               path: '',
               name: 'TicketList',
               component: () => import('@/views/ticket/TicketListView.vue'),
-              meta: { title: '티켓 목록' },
+              meta: {
+                title: '나의 요청',
+              },
             },
             {
               path: 'create',
               name: 'TicketCreate',
-              component: () => import('@/views/ticket/TicketCreateView.vue'),
-              meta: { title: '티켓 생성' },
+              redirect: { name: 'TicketList', query: { create: '1' } },
+              meta: { title: '새 요청', roles: ['EMPLOYEE'] },
             },
             {
               path: ':ticketId',
@@ -140,7 +142,7 @@ const router = createRouter({
             {
               path: ':assetId',
               name: 'IntangibleAssetDetail',
-              component: () => import('@/views/asset/intangible/IntangibleAssetDetailView.vue'),
+              component: () => import('@/components/asset/intangible/IntangibleAssetDetailView.vue'),
               meta: { title: '무형자산 상세' },
             },
           ],
@@ -184,9 +186,19 @@ const router = createRouter({
         // ─── 로그 ─────────────────────────────────────
         {
           path: 'logs',
-          name: 'Logs',
+          redirect: { name: 'AuditLog' },
+        },
+        {
+          path: 'logs/audit',
+          name: 'AuditLog',
           component: () => import('@/views/log/LogView.vue'),
-          meta: { title: '감사/활동 로그', roles: ['ADMIN'] },
+          meta: { title: '감사로그', roles: ['ADMIN'] },
+        },
+        {
+          path: 'logs/activity',
+          name: 'ActivityLog',
+          component: () => import('@/views/log/LogView.vue'),
+          meta: { title: '활동로그', roles: ['ADMIN'] },
         },
 
         // ─── 내 정보 ─────────────────────────────────

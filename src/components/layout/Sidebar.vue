@@ -1,5 +1,5 @@
 <template>
-  <div class="relative h-[calc(100vh-64px)] min-h-0">
+  <div class="relative h-full min-h-0">
     <aside
       :class="[
         'flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
@@ -38,8 +38,10 @@
                 v-for="child in item.children"
                 :key="child.name"
                 :to="child.to"
-                class="flex items-center rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary"
-                exact-active-class="bg-primary/10! text-primary! font-semibold"
+                :class="[
+                  'flex items-center rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary',
+                  isRouteActive(child.to) && 'bg-primary/10! font-semibold text-primary!',
+                ]"
               >
                 {{ child.label }}
               </RouterLink>
@@ -108,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -144,14 +146,25 @@ const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const roleLabel = computed(() => user.value ? ROLE_LABEL[user.value.role] : '')
 
-defineProps<{
+const props = defineProps<{
   navItems: NavItem[]
 }>()
 
-const openMenus = ref<Record<string, boolean>>({
-  tangible: true,
-  intangible: false,
-})
+function updateOpenMenus() {
+  const matchedParent = props.navItems.find((item) =>
+    item.children?.some((child) =>
+      route.path === child.to ||
+      route.path.startsWith(`${child.to}/`),
+    ),
+  )
+
+  openMenus.value = matchedParent
+    ? { [matchedParent.name]: true }
+    : {}
+}
+
+const openMenus = ref<Record<string, boolean>>({})
+updateOpenMenus()
 
 function handleParentClick(item: NavItem) {
   if (!item.children || item.children.length === 0) return
@@ -171,11 +184,16 @@ function handleParentClick(item: NavItem) {
 }
 
 function isMenuOpen(menuName: string) {
-  return Boolean(openMenus.value[menuName])
+  const menu = props.navItems.find((item) => item.name === menuName)
+  return Boolean(openMenus.value[menuName] || (menu?.children && isParentActive(menu.children)))
 }
 
 function isParentActive(children: Array<{ to: string }>) {
-  return children.some((child) => route.path === child.to)
+  return children.some((child) => isRouteActive(child.to))
+}
+
+function isRouteActive(path: string) {
+  return route.path === path || (path !== '/' && route.path.startsWith(`${path}/`))
 }
 
 async function handleLogout() {
@@ -186,4 +204,12 @@ async function handleLogout() {
     console.error('로그아웃 중 오류 발생:', error)
   }
 }
+
+watch(
+  () => route.path,
+  () => {
+    updateOpenMenus()
+  },
+  { immediate: true },
+)
 </script>

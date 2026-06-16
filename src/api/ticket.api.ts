@@ -5,14 +5,21 @@ import type {
   TicketListFilter,
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
+  DirectPurchaseRequestCreate,
   RentalRequestCreate,
+  RentalExtensionRequestCreate,
   MaintenanceRequestCreate,
   ReturnRequestCreate,
-  TerminationRequestCreate,
+  PurchaseReturnRequestCreate,
+  TicketCreateResponse,
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  TicketActualAmountResponse,
   TicketComment,
+  TicketEvidenceUploadResponse,
+  TicketStatus,
+  TicketCommentDeleteResponse,
   PageResponse,
 } from '@/types'
 
@@ -24,43 +31,51 @@ export const ticketApi = {
     api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
 
   /** 티켓 상세 조회 */
-  getDetail: (ticketId: number) =>
+  getDetail: (ticketId: string) =>
     api.get<TicketDetail>(`/tickets/${ticketId}`),
 
   /** 티켓 승인 */
-  approve: (ticketId: number, body: TicketApproveRequest) =>
+  approve: (ticketId: string, body: TicketApproveRequest) =>
     api.patch(`/tickets/${ticketId}/approve`, body),
 
   /** 티켓 반려 */
-  reject: (ticketId: number, body: TicketRejectRequest) =>
+  reject: (ticketId: string, body: TicketRejectRequest) =>
     api.patch(`/tickets/${ticketId}/reject`, body),
 
   /** 티켓 상태 변경 */
-  changeStatus: (ticketId: number, status: string) =>
+  changeStatus: (ticketId: string, status: TicketStatus) =>
     api.patch(`/tickets/${ticketId}/status`, { status }),
 
   /** 자산 할당 */
-  assignAsset: (ticketId: number, body: AssetAssignRequest) =>
+  assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
 
   /** 구매 증빙 업로드 */
-  uploadEvidence: (ticketId: number, file: File) => {
+  uploadEvidence: (ticketId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.upload(`/tickets/${ticketId}/evidence`, formData)
+    return api.upload<TicketEvidenceUploadResponse>(`/tickets/${ticketId}/evidences`, formData)
   },
 
   /** 실제 결제 금액 입력 */
-  setActualPrice: (ticketId: number, actualPrice: number) =>
-    api.patch(`/tickets/${ticketId}/actual-price`, { actualPrice }),
+  setActualPrice: (ticketId: string, actualPrice: number) =>
+    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
 
   /** 댓글 목록 조회 */
-  getComments: (ticketId: number) =>
-    api.get<TicketComment[]>(`/tickets/${ticketId}/comments`),
+  getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
+    api.get<PageResponse<TicketComment>>(`/tickets/${ticketId}/comments`, params),
 
   /** 댓글 작성 */
-  addComment: (ticketId: number, content: string) =>
+  addComment: (ticketId: string, content: string) =>
     api.post<TicketComment>(`/tickets/${ticketId}/comments`, { content }),
+
+  /** 댓글 수정 */
+  updateComment: (ticketId: string, commentId: number, content: string) =>
+    api.patch<TicketComment>(`/tickets/${ticketId}/comments/${commentId}`, { content }),
+
+  /** 댓글 삭제 */
+  deleteComment: (ticketId: string, commentId: number) =>
+    api.delete<TicketCommentDeleteResponse>(`/tickets/${ticketId}/comments/${commentId}`),
 }
 
 // ─── 티켓 종류별 생성 API ───────────────────────────────────────────────────
@@ -68,37 +83,33 @@ export const ticketApi = {
 export const ticketCreateApi = {
   /** 표준 자산 요청 */
   createStandardRequest: (body: StandardAssetRequestCreate) =>
-    api.post('/tickets/asset-requests/standard', body),
+    api.post<TicketCreateResponse>('/tickets/asset-requests/standard', body),
 
   /** 비표준 자산 요청 */
   createNonStandardRequest: (body: NonStandardAssetRequestCreate) =>
-    api.post('/tickets/asset-requests/non-standard', body),
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/non-standard', body),
+
+  /** 직접 구매 자산 요청 */
+  createDirectPurchaseRequest: (body: DirectPurchaseRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/direct-purchase', body),
 
   /** 대여 요청 */
   createRentalRequest: (body: RentalRequestCreate) =>
-    api.post('/tickets/rental-requests', body),
+    api.post<TicketCreateResponse>('/tickets/rentals', body),
 
   /** 대여 연장 요청 */
-  createRentalExtension: (body: { assetId: number; newReturnDueDate: string }) =>
-    api.post('/tickets/rental-extensions', body),
+  createRentalExtension: (body: RentalExtensionRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/rental-extensions', body),
 
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>
-    api.post('/tickets/maintenance-requests', body),
+    api.post<TicketCreateResponse>('/tickets/maintenance-requests', body),
 
   /** 반납 요청 */
   createReturnRequest: (body: ReturnRequestCreate) =>
-    api.post('/tickets/return-requests', body),
+    api.post<TicketCreateResponse>('/tickets/returns', body),
 
-  /** 무형자산 해지 요청 */
-  createTerminationRequest: (body: TerminationRequestCreate) =>
-    api.post('/tickets/termination-requests', body),
-
-  /** 구매 요청 (구매자산팀) */
-  createPurchaseRequest: (body: unknown) =>
-    api.post('/tickets/purchase-requests', body),
-
-  /** 반품 요청 */
-  createReturnProductRequest: (body: unknown) =>
-    api.post('/tickets/return-product-requests', body),
+  /** 반품/환불 요청 */
+  createPurchaseReturnRequest: (body: PurchaseReturnRequestCreate) =>
+    api.post<TicketCreateResponse>('/tickets/purchase-returns', body),
 }

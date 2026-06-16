@@ -55,6 +55,7 @@ export type IntangibleAssetStatus =
   | 'EXPIRED'              // 만료
   | 'TERMINATION_REQUESTED'// 해지요청
   | 'TERMINATED'           // 해지
+  | 'CANCELED'             // 해지완료
 
 // =====================================================
 // 티켓 타입 / 상태
@@ -62,25 +63,22 @@ export type IntangibleAssetStatus =
 
 export type TicketType =
   | 'ASSET_REQUEST'          // 표준 자산 요청
-  | 'NON_STANDARD_REQUEST'   // 비표준 자산 요청
-  | 'DIRECT_PURCHASE'        // 직접 구매 요청
-  | 'RENTAL_REQUEST'         // 대여 요청
+  | 'RENTAL'                 // 대여 요청
   | 'RENTAL_EXTENSION'       // 대여 연장
   | 'MAINTENANCE_REQUEST'    // 유지보수 요청
-  | 'RETURN_REQUEST'         // 반납 요청
-  | 'TERMINATION_REQUEST'    // 해지 요청
-  | 'PURCHASE_REQUEST'       // 구매 요청 (구매자산팀)
-  | 'RETURN_PRODUCT_REQUEST'  // 반품 요청
+  | 'ASSET_RETURN'           // 반납/해지 요청
+  | 'PURCHASE_REQUEST'       // 구매/직접 구매 요청
+  | 'PURCHASE_RETURN'        // 반품 요청
 
 export type TicketStatus =
   | 'REQUESTED'              // 접수 대기
   | 'DEPARTMENT_APPROVED'    // 부서 승인
   | 'DEPARTMENT_REJECTED'    // 부서 반려
-  | 'ASSET_TEAM_REVIEWING'   // 검토 중
-  | 'ASSET_TEAM_REJECTED'    // 구매자산팀 반려
-  | 'PROCESSING'             // 처리 중
+  | 'ASSET_APPROVED'         // 구매자산팀 승인
+  | 'ASSET_REJECTED'         // 구매자산팀 반려
+  | 'IN_PROGRESS'            // 처리 중
   | 'COMPLETED'              // 처리 완료
-  | 'CANCELLED'              // 취소
+  | 'CANCELED'              // 취소
 
 // =====================================================
 // 사원 상태

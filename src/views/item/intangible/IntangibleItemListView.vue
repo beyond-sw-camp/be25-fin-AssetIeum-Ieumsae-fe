@@ -21,7 +21,6 @@
           type="file"
           accept=".csv,.xlsx"
           class="hidden"
-          @change="handleUploadFile"
         />
 
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
@@ -277,8 +276,8 @@ import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 }
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
 
-import IntangibleItemCategory from './IntangibleItemCategory.vue'
-import IntangibleItemRegister from './IntangibleItemRegister.vue'
+import IntangibleItemCategory from '../../../components/item/intangible/IntangibleItemCategory.vue'
+import IntangibleItemRegister from '../../../components/item/intangible/IntangibleItemRegister.vue'
 import Input from '@/components/common/Input.vue'
 
 interface SoftwareTypeGroup {
@@ -312,6 +311,7 @@ interface ItemEditForm {
 type IntangibleItemResponse = IntangibleItem & {
   intangibleAssetItemId?: string
   intangibleItemId?: string
+  name?: string
   assetItemCount?: number
   intangibleAssetCount?: number
   totalAssetCount?: number
@@ -462,22 +462,22 @@ const handleUploadClick = () => {
   uploadInputRef.value?.click()
 }
 
-const handleUploadFile = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+// const handleUploadFile = async (event: Event) => {
+//   const target = event.target as HTMLInputElement
+//   const file = target.files?.[0]
+//   if (!file) return
 
-  try {
-    await intangibleItemApi.bulkCreate(file)
-    alert('업로드가 완료되었습니다.')
-    handleSearch()
-  } catch (error) {
-    console.error(error)
-    alert('업로드 중 오류가 발생했습니다.')
-  } finally {
-    target.value = ''
-  }
-}
+//   try {
+//     await intangibleItemApi.bulkCreate(file)
+//     alert('업로드가 완료되었습니다.')
+//     handleSearch()
+//   } catch (error) {
+//     console.error(error)
+//     alert('업로드 중 오류가 발생했습니다.')
+//   } finally {
+//     target.value = ''
+//   }
+// }
 
 const serverAssetList = ref<IntangibleItem[]>([])
 const totalElements = ref(0)

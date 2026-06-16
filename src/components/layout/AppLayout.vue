@@ -1,16 +1,16 @@
 <template>
-  <div class="flex h-screen w-screen flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
+  <div class="flex h-dvh w-full max-w-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <Header class="h-16 shrink-0" />
     <ToastContainer />
 
-    <div class="mt-16 flex min-h-0 w-full flex-1">
+    <div class="mt-16 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-full flex-none overflow-hidden">
       <Sidebar
         v-model:collapsed="collapsed"
         :nav-items="navItems"
         class="shrink-0"
       />
 
-      <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
         <RouterView />
       </main>
     </div>
@@ -39,7 +39,13 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
-const { canManageCompany, canManageDepartment, canManageAsset, canPurchase } = usePermission()
+const {
+  canManageCompany,
+  canManageDepartment,
+  canManageAsset,
+  canPurchase,
+  canViewMyTickets,
+} = usePermission()
 
 const navItems = computed(() => {
   const menuConfig = [
@@ -64,13 +70,30 @@ const navItems = computed(() => {
         { name: 'intangible-list', to: '/assets/intangible', label: '무형자산 관리', show: true },
       ],
     },
-    { name: 'tickets', to: '/tickets', label: '서비스 데스크', icon: Ticket, show: true },
+    {
+      name: 'serviceDesk',
+      label: '서비스 데스크',
+      icon: Ticket,
+      show: canViewMyTickets.value,
+      children: [
+        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
+      ],
+    },
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
-    { name: 'logs', to: '/logs', label: '로그', icon: FileText, show: canManageCompany.value },
+    {
+      name: 'logs',
+      label: '로그',
+      icon: FileText,
+      show: canManageCompany.value,
+      children: [
+        { name: 'audit-logs', to: '/logs/audit', label: '감사로그', show: canManageCompany.value },
+        { name: 'activity-logs', to: '/logs/activity', label: '활동로그', show: canManageCompany.value },
+      ],
+    },
     { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
   ]
 

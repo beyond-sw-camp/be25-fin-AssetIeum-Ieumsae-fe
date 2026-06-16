@@ -1,3 +1,5 @@
+<!-- TODO: 필수 입력란 표시 방법 변경 (필수 요소라는 문구 포함하기) -->
+
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
     <!-- 페이지 헤더 -->
@@ -12,7 +14,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="openRegisterDrawer">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
@@ -24,6 +26,27 @@
           @close="isRegisterDrawerOpen = false"
           @registered="handleAssetRegistered"
         />
+
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="무형자산 배정"
+          body-class="p-0 !overflow-hidden"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <IntangibleAssetAssignment
+            :assets="serverAssetList"
+            :departments="departments"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
+          자산 배정
+        </Button>
       </div>
     </div>
 
@@ -139,17 +162,53 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Search, ChevronLeft, ChevronRight, Layers, Plus } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag } from 'lucide-vue-next'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
-import IntangibleAssetDetailView from './IntangibleAssetDetailView.vue'
-import IntangibleAssetRegister from './IntangibleAssetRegister.vue'
+import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
+import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
+import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
+
+import { usePermission } from '@/composables/usePermission.ts'
+import { useAuthStore } from '@/stores/auth.store'
+
+const { canRegisterAsset, role } = usePermission()
+const auth = useAuthStore()
+
+const currentMemberId = computed(() => {
+  const user = auth.user as {
+    memberId?: string
+    id?: string
+    member_id?: string
+    employeeId?: string
+    employee_id?: string
+  } | null
+
+  return user?.memberId
+    ?? user?.id
+    ?? user?.member_id
+    ?? user?.employeeId
+    ?? user?.employee_id
+    ?? null
+})
+
+const currentDepartmentId = computed(() => {
+  const user = auth.user as {
+    departmentId?: string
+    department_id?: string
+  } | null
+
+  return user?.departmentId
+    ?? user?.department_id
+    ?? null
+})
 
 interface CategoryGroup {
   categoryId?: string
@@ -188,6 +247,22 @@ type IntangibleAssetResponse = IntangibleAsset & {
   memberName?: string | null
   userName?: string | null
   provider?: string
+  assignedMemberCount?: number
+  currentUserCount?: number
+  activeAssignmentCount?: number
+  assignmentCount?: number
+  assignedMembers?: unknown[]
+  currentUsers?: unknown[]
+  members?: unknown[]
+}
+
+type NamedAssignmentLike = {
+  memberName?: string | null
+  name?: string | null
+  userName?: string | null
+  currentUserName?: string | null
+  memberNo?: string | null
+  currentUserMemberNo?: string | null
 }
 
 type ApiFailure = {
@@ -211,6 +286,7 @@ type StoredAuthUser = {
 const rowsPerPageOptions = ['10개씩 보기', '20개씩 보기', '50개씩 보기', '100개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
 const isRegisterDrawerOpen = ref(false)
+const isAssignmentDrawerOpen = ref(false)
 const isDetailDrawerOpen = ref(false)
 const selectedAsset = ref<IntangibleAsset | null>(null)
 const ALL_CATEGORY = '전체 품목 보기'
@@ -227,25 +303,33 @@ const serverAssetList = ref<IntangibleAsset[]>([])
 const assetItemOptions = ref<AssetItemOption[]>([])
 const departments = ref<Department[]>([])
 const members = ref<Member[]>([])
+const multiAssignedAssetIds = ref(new Set<string>())
 const totalElements = ref(0)
 const totalPages = ref(0)
 const isLoading = ref(false)
 
 const tableColumns: Column<IntangibleAsset>[] = [
-  { key: 'assetItemName', label: '제품명', align: 'center', width: '28%' },
+  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%' },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '22%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '16%' },
-  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '18%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '16%' },
+  { key: 'departmentName', label: '부서', align: 'center', width: '16%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '22%' },
 ]
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status
+  return INTANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
-const assetIdOf = (asset: IntangibleAsset) => (
-  asset.assetId ?? ''
+const assetIdOf = (asset: IntangibleAsset) => {
+  const assetWithAliases = asset as IntangibleAssetResponse
+  return asset.assetId ?? assetWithAliases.intangibleAssetId ?? ''
+}
+
+const assetGroupKeyOf = (asset: IntangibleAssetResponse) => (
+  asset.assetId
+  ?? asset.intangibleAssetId
+  ?? asset.assetCode
 )
 
 const itemIdOf = (item: IntangibleItem) => (
@@ -272,27 +356,129 @@ const toAssetItemOption = (item: IntangibleItem): AssetItemOption | null => {
   }
 }
 
-const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => ({
-  ...asset,
-  assetId: asset.assetId ?? asset.intangibleAssetId,
-  assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
-  assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
-  status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
-  assignedMemberId: asset.assignedMemberId ?? asset.currentUserId ?? null,
-  assignedMemberName: asset.assignedMemberName
+const assignmentCountOf = (asset: IntangibleAssetResponse) => {
+  const count = asset.assignedMemberCount
+    ?? asset.currentUserCount
+    ?? asset.activeAssignmentCount
+    ?? asset.assignmentCount
+
+  if (typeof count === 'number') return count
+
+  return asset.assignedMembers?.length
+    ?? asset.currentUsers?.length
+    ?? asset.members?.length
+    ?? 0
+}
+
+const isNamedAssignmentLike = (value: unknown): value is NamedAssignmentLike => (
+  typeof value === 'object' && value !== null
+)
+
+const memberLabelFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value.trim()
+  if (!isNamedAssignmentLike(value)) return ''
+
+  const name = value.memberName
+    ?? value.name
+    ?? value.userName
+    ?? value.currentUserName
+    ?? ''
+  const memberNo = value.memberNo ?? value.currentUserMemberNo ?? ''
+
+  if (!name) return ''
+  return memberNo ? `${name}(${memberNo})` : name
+}
+
+const singleAssignedMemberNameOf = (asset: IntangibleAssetResponse) => {
+  const directName = asset.assignedMemberName
     ?? asset.memberName
     ?? asset.userName
     ?? (asset.currentUserName
       ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
-      : null),
-  departmentId: asset.departmentId ?? null,
-  departmentName: asset.departmentName ?? null,
-  startedAt: asset.startedAt ?? null,
-  expiredAt: asset.expiredAt ?? null,
-  vendor: asset.provider ?? asset.vendor,
-})
+      : '')
 
-const handleAssetRegistered = () => {
+  if (directName && directName !== '-') return directName
+
+  return asset.assignedMembers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.currentUsers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.members?.map(memberLabelFromUnknown).find(Boolean)
+    ?? ''
+}
+
+const assignedMemberSummaryOf = (asset: IntangibleAssetResponse, assignedMemberCount: number) => {
+  const firstMemberName = singleAssignedMemberNameOf(asset)
+  if (assignedMemberCount > 1) {
+    return firstMemberName ? `${firstMemberName} 외 ${assignedMemberCount - 1}명` : `${assignedMemberCount}명`
+  }
+
+  return firstMemberName || '-'
+}
+
+const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => {
+  const assetId = asset.assetId ?? asset.intangibleAssetId ?? ''
+  const assignedMemberCount = assignmentCountOf(asset)
+  const hasMultipleAssignedUsers = assignedMemberCount > 1
+    || Boolean(assetId && multiAssignedAssetIds.value.has(assetId))
+
+  return {
+    ...asset,
+    assetId,
+    assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
+    assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
+    status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
+    assignedMemberId: hasMultipleAssignedUsers ? null : asset.assignedMemberId ?? asset.currentUserId ?? null,
+    assignedMemberName: assignedMemberSummaryOf(asset, hasMultipleAssignedUsers ? Math.max(assignedMemberCount, 2) : assignedMemberCount),
+    departmentId: hasMultipleAssignedUsers ? null : asset.departmentId ?? null,
+    departmentName: hasMultipleAssignedUsers ? '-' : asset.departmentName ?? '-',
+    startedAt: asset.startedAt ?? null,
+    expiredAt: asset.expiredAt ?? null,
+    vendor: asset.provider ?? asset.vendor,
+  }
+}
+
+const toGroupedAssetRows = (assets: IntangibleAssetResponse[]) => {
+  const groupedAssets = new Map<string, { asset: IntangibleAssetResponse; rowCount: number }>()
+
+  for (const asset of assets) {
+    const groupKey = assetGroupKeyOf(asset)
+    const assignmentCount = assignmentCountOf(asset)
+    const rowCount = Math.max(assignmentCount, 1)
+
+    if (!groupKey) {
+      groupedAssets.set(crypto.randomUUID(), { asset, rowCount })
+      continue
+    }
+
+    const existing = groupedAssets.get(groupKey)
+    if (!existing) {
+      groupedAssets.set(groupKey, { asset, rowCount })
+      continue
+    }
+
+    existing.rowCount += rowCount
+  }
+
+  return Array.from(groupedAssets.values()).map(({ asset, rowCount }) => (
+    toAssetRow({
+      ...asset,
+      assignedMemberCount: rowCount > 1 ? rowCount : assignmentCountOf(asset),
+    })
+  ))
+}
+
+const handleAssetRegistered = (asset?: IntangibleAsset) => {
+  if (asset && assignmentCountOf(asset as IntangibleAssetResponse) > 1) {
+    const assetId = assetIdOf(asset)
+    if (assetId) {
+      multiAssignedAssetIds.value = new Set([...multiAssignedAssetIds.value, assetId])
+    }
+  }
+
+  handleSearch()
+}
+
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
   handleSearch()
 }
 
@@ -308,6 +494,11 @@ const openRegisterDrawer = () => {
     'GET /members?size=999',
   ])
   void loadRegisterReferenceData()
+}
+
+const openAssignmentDrawer = async () => {
+  await loadRegisterReferenceData()
+  isAssignmentDrawerOpen.value = true
 }
 
 const handleSearch = () => {
@@ -618,6 +809,14 @@ const loadServerData = async () => {
       params.keyword = searchParams.value.keyword.trim()
     }
 
+    if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+      params.currentUserId = currentMemberId.value
+    }
+
+    if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+      params.departmentId = currentDepartmentId.value
+    }
+
     console.log('무형자산 목록 조회 요청 params', params)
     const response = await intangibleAssetApi.getList(params)
     console.log('무형자산 목록 조회 성공', {
@@ -625,9 +824,13 @@ const loadServerData = async () => {
       response,
     })
 
-    serverAssetList.value = response.data.content.map((asset) => toAssetRow(asset as IntangibleAssetResponse))
-    totalElements.value = response.data.totalElements
-    totalPages.value = response.data.totalPages
+    const groupedRows = toGroupedAssetRows(response.data.content as IntangibleAssetResponse[])
+    const duplicateCountOnPage = response.data.content.length - groupedRows.length
+    const adjustedTotalElements = Math.max(groupedRows.length, response.data.totalElements - duplicateCountOnPage)
+
+    serverAssetList.value = groupedRows
+    totalElements.value = adjustedTotalElements
+    totalPages.value = Math.max(1, Math.ceil(adjustedTotalElements / searchParams.value.size))
   } catch (error) {
     console.error('무형자산 목록 조회 실패', error)
   } finally {

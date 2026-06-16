@@ -26,7 +26,6 @@ export interface TangibleAssetItem {
   stockCount: number    // 재고수량
   availableCount: number
   isStandard?: number | boolean
-  createdAt: string
 }
 
 export interface TangibleAssetItemCreateRequest {
@@ -91,13 +90,13 @@ export interface TangibleAssetCategoryDeleteResponse {
 // =====================================================
 
 export interface TangibleAsset {
-  assetId?: string | number | null
+  assetId?: string | null
   id?: string | number | null
-  tangibleAssetId?: string | number | null
-  tangibleAssetAssetId?: string | number | null
-  asset_id?: string | number | null
-  tangible_asset_id?: string | number | null
-  tangible_asset_asset_id?: string | number | null
+  tangibleAssetId?: string | null
+  tangibleAssetAssetId?: string | null
+  asset_id?: string | null
+  tangible_asset_id?: string | null
+  tangible_asset_asset_id?: string | null
   tangibleItemId?: string
   assetItemId?: string
   tangibleAssetItemId?: string
@@ -106,9 +105,9 @@ export interface TangibleAsset {
   serialNo?: string
   usageType?: TangibleAssetUsageType | null
   assetUsageType?: TangibleAssetUsageScope | null
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  tangibleAssetstatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -130,7 +129,7 @@ export interface TangibleAsset {
   warrantyExpiredAt?: string | null
   assetItemName?: string
   productName?: string
-  createdAt: string
+  createdAt?: string
 }
 
 export interface TangibleAssetCreateRequest {
@@ -140,8 +139,9 @@ export interface TangibleAssetCreateRequest {
   serialNo?: string
   usageType?: TangibleAssetUsageType | null
   assetUsageType?: TangibleAssetUsageScope
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -165,9 +165,9 @@ export interface TangibleAssetUpdateRequest {
   assetCode?: string
   assetItemName?: string
   serialNo?: string
-  tangibleAssetStatus?: TangibleAssetStatus | null
-  tangibleAssetstatus?: TangibleAssetStatus | null
-  status?: TangibleAssetStatus | null
+  tangibleAssetStatus?: TangibleAssetStatus | string | null
+  tangibleAssetstatus?: TangibleAssetStatus | string | null
+  status?: TangibleAssetStatus | string | null
   memberId?: string | null
   assignedMemberId?: string | null
   assignedMemberName?: string | null
@@ -189,11 +189,12 @@ export interface TangibleAssetUpdateRequest {
 export interface TangibleAssetListFilter {
   page?: number
   size?: number
-  assetId?: string | number | null
+  assetId?: string | null
   productName?: string
   assetCode?: string
-  status?: TangibleAssetStatus
-  tangibleAssetStatus?: TangibleAssetStatus
+  status?: TangibleAssetStatus | string
+  tangibleAssetStatus?: TangibleAssetStatus | string
+  tangibleAssetstatus?: TangibleAssetStatus | string
   departmentId?: string
   memberId?: string
   currentUserId?: string
@@ -259,7 +260,6 @@ export interface IntangibleAssetItem {
   softwareType: string   // 소프트웨어 종류
   stockCount: number
   availableCount: number
-  createdAt: string
 }
 
 export interface IntangibleItem {
@@ -326,27 +326,27 @@ export interface IntangibleAsset {
   expiredAt: string | null
   vendor?: string
   purchasePrice?: number
-  createdAt: string
   billingCycle?: BillingCycle
   seatCount?: number
   intangibleAssetStatus?: IntangibleAssetStatus
-  isAutoRenewal?: number
+  isAutoRenewal?: boolean
   purchaseDate?: string
   purchaseVendor?: string
+  createdAt?: string
 }
 
 export interface IntangibleAssetCreateRequest {
-  intangibleItemId: string
+  intangibleItemId?: string
   assetItemId?: string
-  licenseCode: string
   licenseType?: LicenseType
+  licenseCode?: string
   licenseKey?: string
-  seatCount: number
-  isAutoRenewal: number
-  purchaseDate: string
-  purchasePrice: number
-  purchaseVendor: string
-  intangibleAssetStatus: IntangibleAssetStatus
+  seatCount?: number
+  isAutoRenewal?: boolean
+  purchaseDate?: string
+  purchasePrice?: number
+  purchaseVendor?: string
+  intangibleAssetStatus?: IntangibleAssetStatus
   status?: IntangibleAssetStatus
   memberId?: string | null
   departmentId?: string | null
@@ -365,22 +365,10 @@ export interface IntangibleAssetListFilter {
   departmentId?: string
 }
 
-export interface IntangibleAssetUpdateRequest{
-  intangibleAssetId: string
-  intangibleItemId: string
-  assetCode: string
-  licenseCode: string 
-  seatCount: number
-  isAutoRenewal: number
-  purchaseDate: string
-  purchasePrice: number
-  purchaseVendor: string
+export interface IntangibleAssetUpdateRequest {
   intangibleAssetStatus?: IntangibleAssetStatus
-  memberId?: string | null
-  departmentId?: string | null
+  seatCount?: number
+  isAutoRenewal: number | boolean
   startedAt?: string | null
   expiredAt?: string | null
-  billingCycle?: BillingCycle
-  createdAt: string
-  updatedAt: string
 }

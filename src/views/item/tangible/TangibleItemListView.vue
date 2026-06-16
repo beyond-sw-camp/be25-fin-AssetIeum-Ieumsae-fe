@@ -66,19 +66,19 @@
           </label>
           <div class="flex gap-8 mt-2">
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-              <div class="relative flex items-center justify-center">
+              <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <input v-model="itemEditForm.isStandard" type="radio" :value="1" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
-                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+                <div class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"></div>
               </div>
               <span>표준 자산</span>
             </label>
 
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-              <div class="relative flex items-center justify-center">
+              <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <input v-model="itemEditForm.isStandard" type="radio" :value="0" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
-                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+                <div class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"></div>
               </div>
               <span>비표준 자산</span>
             </label>
@@ -245,8 +245,8 @@ import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'l
 import { tangibleItemApi } from '@/api/asset.api'
 import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
-import TangibleItemCategory from './TangibleItemCategory.vue';
-import TangibleItemRegister from './TangibleItemRegister.vue';
+import TangibleItemCategory from '../../../components/item/tangible/TangibleItemCategory.vue';
+import TangibleItemRegister from '../../../components/item/tangible/TangibleItemRegister.vue';
 import Input from '@/components/common/Input.vue';
 
 interface Asset {

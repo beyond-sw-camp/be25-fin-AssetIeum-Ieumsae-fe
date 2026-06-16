@@ -5,52 +5,64 @@ import type {
   TicketType,
   Role,
   MemberStatus,
+  PurchaseRequestMethod,
 } from '@/types'
 
 // =====================================================
 // 상태 코드 → 한국어 레이블 변환
 // =====================================================
 
-export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus, string> = {
+export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus | string, string> = {
   AVAILABLE: '사용가능',
   IN_USE: '사용중',
   REPAIR_REQUESTED: '수리요청',
   REPAIRING: '수리중',
   RETURN_REQUESTED: '반납요청',
   DISPOSED: '폐기완료',
+  LOST: '분실',
+  CANCELED: '취소',
 }
 
-export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus, string> = {
+export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus | string, string> = {
   AVAILABLE: '사용가능',
   IN_USE: '사용중',
   EXPIRING_SOON: '만료예정',
   EXPIRED: '만료',
   TERMINATION_REQUESTED: '해지요청',
   TERMINATED: '해지',
+  CANCELED: '해지완료',
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
-  REQUESTED: '접수 대기',
-  DEPARTMENT_APPROVED: '부서 승인',
+  REQUESTED: '부서 승인 대기',
+  DEPARTMENT_APPROVED: '자산팀 검토 대기',
   DEPARTMENT_REJECTED: '부서 반려',
-  ASSET_TEAM_REVIEWING: '검토 중',
-  ASSET_TEAM_REJECTED: '구매자산팀 반려',
-  PROCESSING: '처리 중',
+  ASSET_APPROVED: '자산팀 승인',
+  ASSET_REJECTED: '자산팀 반려',
+  IN_PROGRESS: '처리 중',
   COMPLETED: '처리 완료',
-  CANCELLED: '취소',
+  CANCELED: '요청 취소',
 }
 
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
-  ASSET_REQUEST: '표준 자산 요청',
-  NON_STANDARD_REQUEST: '비표준 자산 요청',
-  DIRECT_PURCHASE: '직접 구매 요청',
-  RENTAL_REQUEST: '대여 요청',
+  ASSET_REQUEST: '자산 요청',
+  RENTAL: '대여 요청',
   RENTAL_EXTENSION: '대여 연장',
   MAINTENANCE_REQUEST: '유지보수 요청',
-  RETURN_REQUEST: '반납 요청',
-  TERMINATION_REQUEST: '해지 요청',
+  ASSET_RETURN: '반납·해지 요청',
   PURCHASE_REQUEST: '구매 요청',
-  RETURN_PRODUCT_REQUEST: '반품 요청',
+  PURCHASE_RETURN: '반품 요청',
+}
+
+export function getTicketTypeLabel(
+  ticketType: TicketType,
+  requestMethod?: PurchaseRequestMethod | null,
+): string {
+  if (ticketType === 'PURCHASE_REQUEST' && requestMethod === 'DIRECT_PURCHASE') {
+    return '직접 구매 요청'
+  }
+
+  return TICKET_TYPE_LABEL[ticketType]
 }
 
 export const ROLE_LABEL: Record<Role, string> = {

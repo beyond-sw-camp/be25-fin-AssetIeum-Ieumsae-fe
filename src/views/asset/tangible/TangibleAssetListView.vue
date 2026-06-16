@@ -10,8 +10,9 @@
         </h1>
       </div>
 
+      <!-- TODO: 자산 등록 시 부서, 사용자 에러 고치기 -->
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="openRegisterDrawer">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
@@ -23,6 +24,27 @@
           @close="isRegisterDrawerOpen = false"
           @registered="handleAssetRegistered"
         />
+
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="유형자산 배정"
+          body-class="p-0"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <TangibleAssetAssignment
+            :assets="serverAssetList"
+            :departments="departments"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
+          자산 배정
+        </Button>
       </div>
     </div>
 
@@ -154,7 +176,8 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import { Plus, Layers, ChevronLeft, ChevronRight, Search, Tag } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
@@ -168,8 +191,11 @@ import type {
 } from '@/types'
 
 import Input from '@/components/common/Input.vue';
-import TangibleAssetDetailView from './TangibleAssetDetailView.vue';
-import TangibleAssetRegister from './TangibleAssetRegister.vue';
+import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
+import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
+import TangibleAssetAssignment from '@/components/asset/tangible/TangibleAssetAssignment.vue';
+import { usePermission } from '@/composables/usePermission.ts';
+import { useAuthStore } from '@/stores/auth.store'
 
 interface AssetItemOption {
   id: string
@@ -190,10 +216,41 @@ interface TangibleAssetRow extends TangibleAsset {
 }
 
 const isRegisterDrawerOpen = ref(false);
+const isAssignmentDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
 const isReferenceDataLoaded = ref(false)
 const referenceDataPromise = ref<Promise<void> | null>(null)
+const { canRegisterAsset, role } = usePermission()
+const auth = useAuthStore()
+
+const currentMemberId = computed(() => {
+  const user = auth.user as {
+    memberId?: string
+    id?: string
+    member_id?: string
+    employeeId?: string
+    employee_id?: string
+  } | null
+
+  return user?.memberId
+    ?? user?.id
+    ?? user?.member_id
+    ?? user?.employeeId
+    ?? user?.employee_id
+    ?? null
+})
+
+const currentDepartmentId = computed(() => {
+  const user = auth.user as {
+    departmentId?: string
+    department_id?: string
+  } | null
+
+  return user?.departmentId
+    ?? user?.department_id
+    ?? null
+})
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
@@ -258,6 +315,11 @@ const openRegisterDrawer = () => {
   void loadReferenceData()
 }
 
+const openAssignmentDrawer = async () => {
+  await loadReferenceData()
+  isAssignmentDrawerOpen.value = true
+}
+
 const openAssetDetail = async (row: TangibleAssetRow) => {
   const assetId = getAssetId(row)
   selectedAsset.value = { ...row, assetId }
@@ -295,6 +357,11 @@ const handleAssetSaved = () => {
   loadServerData()
 };
 
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
+  loadServerData()
+}
+
 const serverAssetList = ref<TangibleAssetRow[]>([]);
 const totalElements = ref(0);
 const totalPages = ref(0);
@@ -305,13 +372,13 @@ const tableColumns: Column<TangibleAssetRow>[] = [
   { key: 'productName', label: '제품명', align: 'center', width: '25%' },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '20%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '18%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '18%' },
-  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '19%' }
+  { key: 'departmentName', label: '부서', align: 'center', width: '14%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '23%' }
 ];
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return TANGIBLE_STATUS_LABEL[status as keyof typeof TANGIBLE_STATUS_LABEL] ?? status
+  return TANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
 const getSelectedCategoryId = () => {
@@ -628,10 +695,25 @@ const loadServerData = async () => {
 
   try {
     const selectedCategoryId = getSelectedCategoryId()
-    const params: { page: number; size: number; categoryId?: string; keyword?: string } = {
+    const params: {
+      page: number
+      size: number
+      categoryId?: string
+      keyword?: string
+      currentUserId?: string
+      departmentId?: string
+    } = {
       page: searchParams.value.page,
       size: searchParams.value.size,
-    };
+    }
+
+    if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+      params.currentUserId = currentMemberId.value
+    }
+
+    if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+      params.departmentId = currentDepartmentId.value
+    }
 
     if (selectedCategoryId) {
       params.categoryId = selectedCategoryId;
