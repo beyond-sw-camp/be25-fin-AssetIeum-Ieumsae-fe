@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch } from 'vue'
+import { computed, defineComponent, h, ref } from 'vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
@@ -501,7 +501,6 @@ const filteredMembers = computed(() => {
     
     if (!rawRole) return true
 
-    // 💡 복잡한 if-else 대입 과정을 생략하고 삼항 연산자로 즉시 값을 초기화합니다.
     const roleStr = typeof rawRole === 'object'
       ? (typeof (rawRole as Record<string, unknown>).name === 'string' ? String((rawRole as Record<string, unknown>).name) : '')
       : String(rawRole)
@@ -617,10 +616,6 @@ const usageTypeText = (value: string) => {
 const assignmentStatusText = (value: string) => {
   if (value === 'ACTIVE') return '배정 중'
   if (value === 'ENDED') return '종료'
-  if (value === 'ASSIGNED') return '배정 중'
-  if (value === 'RETURNED') return '반납 완료'
-  if (value === 'CANCELED') return '취소'
-  if (value === 'EXPIRED') return '만료'
   return value || '-'
 }
 
@@ -744,23 +739,4 @@ const returnSelectedAsset = async () => {
     isSubmitting.value = false
   }
 }
-
-watch(mode, () => resetForm())
-watch(assetLabel, () => {
-  newMemberId.value = ''
-  void loadAssignments()
-})
-watch(currentMemberId, () => {
-  bulkNewMemberId.value = ''
-})
-watch(usageTypeLabel, (value) => {
-  if (value === '정식 배정') endedAt.value = ''
-})
-
-// script setup 최하단에 추가해서 콘솔을 확인해보세요!
-watch(selectedMember, (newMember) => {
-  if (newMember) {
-    console.log('선택된 사용자 상세 데이터:', JSON.parse(JSON.stringify(newMember)))
-  }
-})
 </script>
