@@ -1,117 +1,72 @@
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
-    <div class="page-header px-3 pt-3">
-      <p class="page-subtitle mb-1">
-        로그 > 감사/활동 로그
-      </p>
-      <h1 class="page-title">
-        감사/활동 로그
-      </h1>
+    <div class="flex shrink-0 items-center justify-between px-1 pb-6 pt-3">
+      <div class="flex items-center gap-3">
+        <h1 class="text-4xl font-black leading-none text-text-main">
+          {{ currentTabLabel }}
+        </h1>
+        <span class="rounded-full bg-primary/20 px-4 py-2 text-xl font-black text-primary">
+          {{ totalElements }}
+        </span>
+      </div>
+
+      <Button variant="outline" size="lg" disabled title="TODO: 로그 엑셀 다운로드 API 확정 후 연결">
+        <Download :size="18" />
+        엑셀 다운로드
+      </Button>
     </div>
 
-    <div class="card mb-4 flex min-h-0 flex-1 flex-col border border-border">
-      <div class="shrink-0 rounded-t-2xl border-b border-border bg-surface px-3 pb-3">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div class="grid grid-cols-2 gap-2 rounded-lg bg-surface-secondary p-1 lg:w-72">
-            <button
-              v-for="tab in logTabs"
-              :key="tab.value"
-              type="button"
-              class="rounded-md px-3 py-2 text-sm font-semibold transition"
-              :class="activeTab === tab.value ? 'bg-surface text-primary shadow-sm' : 'text-text-sub hover:text-text-main'"
-              @click="changeTab(tab.value)"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <Input
-              id="log-member-id"
-              v-model="filters.memberId"
-              class="w-36"
-              placeholder="회원 ID"
-              autocomplete="off"
-              @keyup.enter="handleSearch"
-            />
-            <Input
-              id="log-start-date"
-              v-model="filters.startDate"
-              class="w-40"
-              type="date"
-              label="시작일"
-            />
-            <Input
-              id="log-end-date"
-              v-model="filters.endDate"
-              class="w-40"
-              type="date"
-              label="종료일"
-            />
-            <Button variant="outline" :disabled="isLoading" @click="resetFilters">
-              초기화
-            </Button>
-            <Button variant="primary" :loading="isLoading" @click="handleSearch">
-              <Search :size="14" />
-              조회하기
-            </Button>
-          </div>
-        </div>
-
-        <p class="mt-3 text-xs text-text-muted">
-          TODO: API 명세에 actionType/activityType 필터가 확정되면 필터를 추가합니다.
-        </p>
+    <div class="mb-6 shrink-0">
+      <div class="relative">
+        <Search :size="22" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+        <input
+          id="log-keyword"
+          v-model="filters.keyword"
+          class="h-14 w-full rounded-xl border border-border bg-surface py-3 pl-12 pr-4 text-base font-medium text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/15"
+          placeholder="로그 검색"
+          autocomplete="off"
+          @keyup.enter="handleSearch"
+        />
       </div>
+      <p class="mt-2 text-xs text-text-muted">
+        TODO: API 명세에 keyword/actionType/activityType 필터가 확정되면 서버 검색으로 연결합니다.
+      </p>
+    </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
-        <Table
+    <div class="mb-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <AuditLogTableCard
           v-if="activeTab === 'audit'"
-          :columns="auditColumns"
-          :rows="auditRows"
+          :rows="filteredAuditRows"
           :loading="isLoading"
-          row-key="auditLogId"
-          empty-text="감사 로그가 없습니다."
-        >
-          <template #cell-targetId="{ value }">
-            <span>{{ value ?? '-' }}</span>
-          </template>
-          <template #cell-createdAt="{ value }">
-            <span>{{ formatDateTime(value as string) }}</span>
-          </template>
-        </Table>
+        />
 
-        <Table
+        <ActivityLogTableCard
           v-else
-          :columns="activityColumns"
-          :rows="activityRows"
+          :rows="filteredActivityRows"
           :loading="isLoading"
-          row-key="activityLogId"
-          empty-text="활동 로그가 없습니다."
-        >
-          <template #cell-targetId="{ value }">
-            <span>{{ value ?? '-' }}</span>
-          </template>
-          <template #cell-createdAt="{ value }">
-            <span>{{ formatDateTime(value as string) }}</span>
-          </template>
-        </Table>
+        />
       </div>
 
-      <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 py-3">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-2 text-xs text-text-sub">
-            <Dropdown
-              v-model="rowsPerPageText"
-              :options="rowsPerPageOptions"
-              class="w-36"
-            />
-            <span>총 {{ totalElements }}개 항목 중 {{ itemRangeText }}</span>
-          </div>
+      <div class="shrink-0 px-0 pt-6">
+        <div class="grid grid-cols-3 items-center">
+          <Dropdown
+            v-model="rowsPerPageText"
+            :options="rowsPerPageOptions"
+            class="w-36"
+          />
 
           <div class="flex items-center justify-center gap-2">
             <button
               :disabled="page === 0 || isLoading"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-surface"
+              @click="changePage(0)"
+            >
+              <ChevronsLeft :size="16" />
+            </button>
+            <button
+              :disabled="page === 0 || isLoading"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-surface"
               @click="changePage(page - 1)"
             >
               <ChevronLeft :size="16" />
@@ -123,10 +78,10 @@
               type="button"
               :disabled="isLoading"
               :class="[
-                'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
+                'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm font-semibold transition-all',
                 page === pageNumber - 1
                   ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                  : 'text-text-sub hover:bg-surface-secondary'
+                  : 'bg-surface text-text-main hover:bg-surface-secondary'
               ]"
               @click="changePage(pageNumber - 1)"
             >
@@ -135,12 +90,23 @@
 
             <button
               :disabled="page >= totalPages - 1 || isLoading"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-surface"
               @click="changePage(page + 1)"
             >
               <ChevronRight :size="16" />
             </button>
+            <button
+              :disabled="page >= totalPages - 1 || isLoading"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-text-sub transition-colors hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-surface"
+              @click="changePage(totalPages - 1)"
+            >
+              <ChevronsRight :size="16" />
+            </button>
           </div>
+
+          <span class="justify-self-end text-xs text-text-sub">
+            총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
+          </span>
         </div>
       </div>
     </div>
@@ -152,14 +118,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Search } from 'lucide-vue-next'
+import { useRoute } from 'vue-router'
 
 import { logApi } from '@/api/log.api'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import Input from '@/components/common/Input.vue'
-import Table, { type Column } from '@/components/common/Table.vue'
+import ActivityLogTableCard from '@/components/log/ActivityLogTableCard.vue'
+import AuditLogTableCard from '@/components/log/AuditLogTableCard.vue'
 import type { ActivityLog, AuditLog, LogListFilter } from '@/types'
 
 type LogTab = 'audit' | 'activity'
@@ -170,6 +137,7 @@ const logTabs: Array<{ value: LogTab; label: string }> = [
 ]
 
 const rowsPerPageOptions = ['10개씩 보기', '20개씩 보기', '50개씩 보기']
+const route = useRoute()
 const rowsPerPageText = ref('20개씩 보기')
 const activeTab = ref<LogTab>('audit')
 const page = ref(0)
@@ -180,31 +148,44 @@ const errorMessage = ref('')
 const auditRows = ref<AuditLog[]>([])
 const activityRows = ref<ActivityLog[]>([])
 const filters = reactive({
+  keyword: '',
   memberId: '',
   startDate: '',
   endDate: '',
 })
 
-const auditColumns: Column<AuditLog>[] = [
-  { key: 'auditLogId', label: 'ID', align: 'center', width: '7%' },
-  { key: 'memberName', label: '사용자', align: 'center', width: '12%' },
-  { key: 'targetType', label: '대상', align: 'center', width: '12%' },
-  { key: 'targetId', label: '대상 ID', align: 'center', width: '10%' },
-  { key: 'actionType', label: '액션', align: 'center', width: '14%' },
-  { key: 'description', label: '설명', align: 'left', width: '28%' },
-  { key: 'ipAddress', label: 'IP', align: 'center', width: '11%' },
-  { key: 'createdAt', label: '일시', align: 'center', width: '16%' },
-]
+const currentTabLabel = computed(() => (
+  logTabs.find((tab) => tab.value === activeTab.value)?.label ?? '로그'
+))
 
-const activityColumns: Column<ActivityLog>[] = [
-  { key: 'activityLogId', label: 'ID', align: 'center', width: '7%' },
-  { key: 'memberName', label: '사용자', align: 'center', width: '12%' },
-  { key: 'activityType', label: '활동', align: 'center', width: '14%' },
-  { key: 'targetType', label: '대상', align: 'center', width: '12%' },
-  { key: 'targetId', label: '대상 ID', align: 'center', width: '10%' },
-  { key: 'description', label: '설명', align: 'left', width: '29%' },
-  { key: 'createdAt', label: '일시', align: 'center', width: '16%' },
-]
+const normalizedKeyword = computed(() => filters.keyword.trim().toLowerCase())
+
+const filteredAuditRows = computed(() => {
+  if (!normalizedKeyword.value) return auditRows.value
+
+  return auditRows.value.filter((row) => [
+    row.memberName,
+    row.targetType,
+    String(row.targetId),
+    row.actionType,
+    row.description,
+    row.ipAddress,
+    row.createdAt,
+  ].some((value) => value.toLowerCase().includes(normalizedKeyword.value)))
+})
+
+const filteredActivityRows = computed(() => {
+  if (!normalizedKeyword.value) return activityRows.value
+
+  return activityRows.value.filter((row) => [
+    row.memberName,
+    row.activityType,
+    row.targetType,
+    row.targetId === null ? '' : String(row.targetId),
+    row.description,
+    row.createdAt,
+  ].some((value) => value.toLowerCase().includes(normalizedKeyword.value)))
+})
 
 const pageSize = computed(() => {
   const matches = rowsPerPageText.value.match(/\d+/)
@@ -238,10 +219,9 @@ const requestParams = (): LogListFilter => ({
   endDate: filters.endDate || undefined,
 })
 
-const formatDateTime = (value: string) => {
-  if (!value) return '-'
-  return value.replace('T', ' ').slice(0, 16)
-}
+const tabFromRoute = (): LogTab => (
+  route.name === 'ActivityLog' ? 'activity' : 'audit'
+)
 
 const loadLogs = async () => {
   isLoading.value = true
@@ -273,21 +253,6 @@ const handleSearch = () => {
   void loadLogs()
 }
 
-const resetFilters = () => {
-  filters.memberId = ''
-  filters.startDate = ''
-  filters.endDate = ''
-  page.value = 0
-  void loadLogs()
-}
-
-const changeTab = (tab: LogTab) => {
-  if (activeTab.value === tab) return
-  activeTab.value = tab
-  page.value = 0
-  void loadLogs()
-}
-
 const changePage = (targetPage: number) => {
   if (targetPage < 0 || targetPage >= totalPages.value) return
   page.value = targetPage
@@ -299,5 +264,13 @@ watch(rowsPerPageText, () => {
   void loadLogs()
 })
 
-onMounted(loadLogs)
+watch(
+  () => route.name,
+  () => {
+    activeTab.value = tabFromRoute()
+    page.value = 0
+    void loadLogs()
+  },
+  { immediate: true },
+)
 </script>

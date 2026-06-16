@@ -6,7 +6,7 @@ export interface LogListFilter {
   endDate?: string
 }
 
-export interface AuditLog {
+export interface AuditLog extends Record<string, unknown> {
   auditLogId: number
   memberId: number
   memberName: string
@@ -18,7 +18,7 @@ export interface AuditLog {
   createdAt: string
 }
 
-export interface ActivityLog {
+export interface ActivityLog extends Record<string, unknown> {
   activityLogId: number
   memberId: number
   memberName: string
