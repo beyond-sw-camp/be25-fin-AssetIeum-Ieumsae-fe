@@ -1,3 +1,5 @@
+<!-- TODO: 필수 입력란 표시 방법 변경 (필수 요소라는 문구 포함하기) -->
+
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
     <!-- 페이지 헤더 -->
@@ -28,7 +30,6 @@
         <BaseDrawer
           :is-open="isAssignmentDrawerOpen"
           title="무형자산 배정"
-          body-class="p-0"
           hide-footer
           @close="isAssignmentDrawerOpen = false"
         >
