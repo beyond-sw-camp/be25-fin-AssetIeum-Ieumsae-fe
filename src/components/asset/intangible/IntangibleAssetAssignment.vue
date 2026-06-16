@@ -36,7 +36,7 @@
 
       <section v-if="mode === 'assign'" class="space-y-4">
         <h2 class="text-sm font-bold text-text-main">
-          신규 배정 정보
+          배정 정보
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FormField label="부서">
@@ -278,7 +278,7 @@ const FormField = defineComponent({
 })
 
 const modeOptions: Array<{ value: AssignmentMode; label: string }> = [
-  { value: 'assign', label: '신규 배정' },
+  { value: 'assign', label: '배정' },
   { value: 'cancel', label: '배정 해지' },
 ]
 
