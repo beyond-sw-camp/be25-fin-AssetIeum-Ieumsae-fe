@@ -41,7 +41,7 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   ASSET_REJECTED: '자산팀 반려',
   IN_PROGRESS: '처리 중',
   COMPLETED: '처리 완료',
-  canceled: '요청 취소',
+  CANCELED: '요청 취소',
 }
 
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {

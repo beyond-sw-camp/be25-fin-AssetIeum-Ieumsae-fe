@@ -50,7 +50,7 @@ const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_REJECTED',
   'IN_PROGRESS',
   'COMPLETED',
-  'canceled',
+  'CANCELED',
 ])
 const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
@@ -1306,7 +1306,7 @@ export const handlers = [
       registeredAt: requestDetail.registeredAt ?? null,
       completedAt: requestDetail.completedAt
         ?? (ticket.ticketStatus === 'COMPLETED' ? updatedAt : null),
-      canceledAt: ticket.ticketStatus === 'canceled' ? updatedAt : null,
+      canceledAt: ticket.ticketStatus === 'CANCELED' ? updatedAt : null,
       requestedAt: ticket.requestedAt,
       updatedAt,
     }
@@ -1339,7 +1339,7 @@ export const handlers = [
     }
 
     const nextStatus = body.status as TicketStatus
-    if (nextStatus === 'canceled') {
+    if (nextStatus === 'CANCELED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
           status: 403,
@@ -1351,7 +1351,7 @@ export const handlers = [
       if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
-          errorCode: 'TICKET_CANNOT_BE_canceled',
+          errorCode: 'TICKET_CANNOT_BE_CANCELED',
           message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
           data: null,
         }, { status: 409 })
@@ -1361,7 +1361,7 @@ export const handlers = [
     const previousStatus = ticket.ticketStatus
     const updatedAt = new Date().toISOString()
     ticket.ticketStatus = nextStatus
-    if (nextStatus === 'canceled') {
+    if (nextStatus === 'CANCELED') {
       ticketcanceledAt.set(ticketId, updatedAt)
     }
 

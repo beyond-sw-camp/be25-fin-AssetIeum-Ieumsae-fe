@@ -78,7 +78,7 @@ export type TicketStatus =
   | 'ASSET_REJECTED'         // 구매자산팀 반려
   | 'IN_PROGRESS'            // 처리 중
   | 'COMPLETED'              // 처리 완료
-  | 'canceled'              // 취소
+  | 'CANCELED'              // 취소
 
 // =====================================================
 // 사원 상태

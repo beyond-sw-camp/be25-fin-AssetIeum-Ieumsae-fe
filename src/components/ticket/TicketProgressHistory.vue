@@ -189,7 +189,7 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
 function failureStepIndex(status: TicketStatus) {
   if (status === 'DEPARTMENT_REJECTED') return 1
   if (status === 'ASSET_REJECTED') return 2
-  if (status === 'canceled') return 1
+  if (status === 'CANCELED') return 1
   return -1
 }
 
@@ -228,7 +228,7 @@ const processSteps = computed<ProcessStep[]>(() => {
     } else if (index < failureIndex) {
       state = 'completed'
     } else if (index === failureIndex) {
-      state = ticket.status === 'canceled' ? 'canceled' : 'rejected'
+      state = ticket.status === 'CANCELED' ? 'canceled' : 'rejected'
     } else if (failureIndex >= 0) {
       state = 'pending'
     } else if (index < currentIndex) {
