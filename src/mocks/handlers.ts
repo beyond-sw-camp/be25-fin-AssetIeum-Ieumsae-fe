@@ -50,7 +50,7 @@ const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_REJECTED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELLED',
+  'CANCELED',
 ])
 const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
@@ -526,7 +526,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
 ])
 
 const ticketApproverIds = new Map<string, string>()
-const ticketCancelledAt = new Map<string, string>()
+const ticketcanceledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
 
 let ticketComments: TicketComment[] = [
@@ -586,6 +586,7 @@ interface IntangibleItem {
   assetItemId: string
   productName: string
   category: string
+  categoryId?: string
   licenseType: string
   vendor: string
   isStandard: number
@@ -832,6 +833,19 @@ interface MockTangibleAssetAssignment {
   assignmentStatus: MockAssignmentStatus
 }
 
+interface MockIntangibleAssetAssignment {
+  assignmentId: string
+  assetId: string
+  memberId: string
+  memberName: string
+  memberNo: string
+  departmentId: string
+  departmentName: string
+  assignedAt: string
+  endedAt: string | null
+  assignmentStatus: MockAssignmentStatus | 'ACTIVE' | 'ENDED'
+}
+
 const memberById = (memberId: string) => members.find((member) => member.memberId === memberId)
 
 let tangibleAssignmentSequence = 1
@@ -896,6 +910,78 @@ function closeActiveAssignments(assetId: string, endedAt = new Date().toISOStrin
       ? { ...assignment, assignmentStatus: 'RETURNED', endedAt: assignment.endedAt ?? endedAt }
       : assignment
   ))
+}
+
+let intangibleAssignmentSequence = 1
+let intangibleAssetAssignments: MockIntangibleAssetAssignment[] = intangibleAssets
+  .filter((asset) => asset.assignedMemberId)
+  .map((asset) => {
+    const member = memberById(asset.assignedMemberId ?? '')
+    return {
+      assignmentId: `intangible-assignment-${intangibleAssignmentSequence++}`,
+      assetId: String(asset.assetId),
+      memberId: asset.assignedMemberId ?? '',
+      memberName: member?.name ?? asset.assignedMemberName ?? '-',
+      memberNo: member?.memberNo ?? '-',
+      departmentId: member?.departmentId ?? asset.departmentId ?? '',
+      departmentName: member?.departmentName ?? asset.departmentName ?? '-',
+      assignedAt: asset.startedAt?.includes('T') ? asset.startedAt : `${asset.startedAt ?? '2026-06-01'}T09:00:00`,
+      endedAt: asset.expiredAt ? (asset.expiredAt.includes('T') ? asset.expiredAt : `${asset.expiredAt}T18:00:00`) : null,
+      assignmentStatus: 'ACTIVE',
+    }
+  })
+
+function createIntangibleAssignment(asset: IntangibleAsset, body: {
+  memberId: string
+  endedAt?: string | null
+}): MockIntangibleAssetAssignment {
+  const member = memberById(body.memberId)
+
+  return {
+    assignmentId: `intangible-assignment-${intangibleAssignmentSequence++}`,
+    assetId: String(asset.assetId),
+    memberId: body.memberId,
+    memberName: member?.name ?? '-',
+    memberNo: member?.memberNo ?? '-',
+    departmentId: member?.departmentId ?? '',
+    departmentName: member?.departmentName ?? '-',
+    assignedAt: new Date().toISOString().slice(0, 19),
+    endedAt: body.endedAt ?? null,
+    assignmentStatus: 'ACTIVE',
+  }
+}
+
+function applyIntangibleAssignmentToAsset(asset: IntangibleAsset, assignment: MockIntangibleAssetAssignment) {
+  asset.status = 'IN_USE'
+  asset.intangibleAssetStatus = 'IN_USE'
+  asset.assignedMemberId = assignment.memberId
+  asset.assignedMemberName = assignment.memberName
+  asset.departmentId = assignment.departmentId || null
+  asset.departmentName = assignment.departmentName
+  asset.startedAt = assignment.assignedAt
+}
+
+function getActiveIntangibleAssignmentCount(assetId: string) {
+  return intangibleAssetAssignments.filter((assignment) => (
+    assignment.assetId === assetId
+    && (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+  )).length
+}
+
+function closeActiveIntangibleAssignments(
+  assetId: string,
+  memberId?: string | null,
+  endedAt = new Date().toISOString().slice(0, 19),
+) {
+  intangibleAssetAssignments = intangibleAssetAssignments.map((assignment) => {
+    const isTargetAsset = assignment.assetId === assetId
+    const isTargetMember = !memberId || assignment.memberId === memberId
+    const isActive = assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED'
+
+    return isTargetAsset && isTargetMember && isActive
+      ? { ...assignment, assignmentStatus: 'ENDED', endedAt: assignment.endedAt ?? endedAt }
+      : assignment
+  })
 }
 
 function toLoginResponse(member: Member): LoginResponse {
@@ -1182,7 +1268,7 @@ export const handlers = [
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
-    const cancellationDate = ticketCancelledAt.get(ticketId)
+    const cancellationDate = ticketcanceledAt.get(ticketId)
     const updatedAt = cancellationDate
       ?? (ticket.ticketStatus === 'REQUESTED'
         ? ticket.requestedAt
@@ -1220,7 +1306,7 @@ export const handlers = [
       registeredAt: requestDetail.registeredAt ?? null,
       completedAt: requestDetail.completedAt
         ?? (ticket.ticketStatus === 'COMPLETED' ? updatedAt : null),
-      cancelledAt: ticket.ticketStatus === 'CANCELLED' ? updatedAt : null,
+      canceledAt: ticket.ticketStatus === 'CANCELED' ? updatedAt : null,
       requestedAt: ticket.requestedAt,
       updatedAt,
     }
@@ -1253,7 +1339,7 @@ export const handlers = [
     }
 
     const nextStatus = body.status as TicketStatus
-    if (nextStatus === 'CANCELLED') {
+    if (nextStatus === 'CANCELED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
           status: 403,
@@ -1265,7 +1351,7 @@ export const handlers = [
       if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
-          errorCode: 'TICKET_CANNOT_BE_CANCELLED',
+          errorCode: 'TICKET_CANNOT_BE_CANCELED',
           message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
           data: null,
         }, { status: 409 })
@@ -1275,8 +1361,8 @@ export const handlers = [
     const previousStatus = ticket.ticketStatus
     const updatedAt = new Date().toISOString()
     ticket.ticketStatus = nextStatus
-    if (nextStatus === 'CANCELLED') {
-      ticketCancelledAt.set(ticketId, updatedAt)
+    if (nextStatus === 'CANCELED') {
+      ticketcanceledAt.set(ticketId, updatedAt)
     }
 
     return HttpResponse.json(ok({
@@ -2633,6 +2719,54 @@ export const handlers = [
     }))
   }),
 
+  http.get(`${API_PREFIX}/intangible-asset/assets`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const status = url.searchParams.get('status') ?? ''
+    const departmentId = url.searchParams.get('departmentId') ?? ''
+    const memberId = url.searchParams.get('memberId') ?? url.searchParams.get('currentUserId') ?? ''
+    const assetItemId = url.searchParams.get('assetItemId') ?? ''
+    const categoryId = url.searchParams.get('categoryId') ?? ''
+    const keyword = (url.searchParams.get('keyword') ?? '').toLowerCase()
+
+    let filteredAssets = [...intangibleAssets]
+
+    if (status) {
+      filteredAssets = filteredAssets.filter((asset) => asset.status === status || asset.intangibleAssetStatus === status)
+    }
+    if (departmentId) {
+      filteredAssets = filteredAssets.filter((asset) => asset.departmentId === departmentId)
+    }
+    if (memberId) {
+      filteredAssets = filteredAssets.filter((asset) => asset.assignedMemberId === memberId)
+    }
+    if (assetItemId) {
+      filteredAssets = filteredAssets.filter((asset) => asset.assetItemId === assetItemId)
+    }
+    if (categoryId) {
+      const itemIds = intangibleItems
+        .filter((item) => item.categoryId === categoryId)
+        .map((item) => item.assetItemId)
+      filteredAssets = filteredAssets.filter((asset) => itemIds.includes(asset.assetItemId))
+    }
+    if (keyword) {
+      filteredAssets = filteredAssets.filter((asset) => (
+        asset.assetItemName.toLowerCase().includes(keyword)
+        || asset.assetCode.toLowerCase().includes(keyword)
+        || (asset.assignedMemberName?.toLowerCase().includes(keyword) ?? false)
+      ))
+    }
+
+    return HttpResponse.json(ok({
+      content: filteredAssets.slice(page * size, page * size + size),
+      page,
+      size,
+      totalElements: filteredAssets.length,
+      totalPages: Math.ceil(filteredAssets.length / size),
+    }))
+  }),
+
   http.post(`${API_PREFIX}/assets/intangible`, async ({ request }) => {
     const body = await request.json() as IntangibleAssetCreateRequest
     const assetItemId = body.assetItemId ?? body.intangibleItemId ?? ''
@@ -2683,6 +2817,103 @@ export const handlers = [
 
     asset.status = 'TERMINATED'
     return HttpResponse.json(ok(asset, '무형자산 해지 처리가 완료되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/intangible-asset/assets/:assetId/assignments`, ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const url = new URL(request.url)
+    const assignmentStatus = url.searchParams.get('assignmentStatus')
+
+    let assignments = intangibleAssetAssignments.filter((assignment) => assignment.assetId === assetId)
+    if (assignmentStatus) {
+      assignments = assignments.filter((assignment) => assignment.assignmentStatus === assignmentStatus)
+    }
+
+    return HttpResponse.json(ok(assignments, '무형자산 배정 이력 조회에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/intangible-asset/assets/:assetId/assign`, async ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const body = await request.json() as {
+      memberId: string
+      endedAt?: string | null
+    }
+    const asset = intangibleAssets.find((item) => String(item.assetId) === assetId)
+    const member = memberById(body.memberId)
+
+    if (!asset || !member) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'INTANGIBLE_ASSIGNMENT_TARGET_NOT_FOUND',
+        message: '배정 대상 무형자산 또는 사용자를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const status = asset.intangibleAssetStatus ?? asset.status
+    const seatCount = Math.max(1, Number(asset.seatCount ?? 1) || 1)
+    const activeAssignmentCount = getActiveIntangibleAssignmentCount(assetId)
+    const alreadyAssigned = intangibleAssetAssignments.some((assignment) => (
+      assignment.assetId === assetId
+      && assignment.memberId === body.memberId
+      && (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+    ))
+    const isAssignableStatus = seatCount <= 1
+      ? status === 'AVAILABLE'
+      : status === 'AVAILABLE' || status === 'IN_USE'
+
+    if (!isAssignableStatus || activeAssignmentCount >= seatCount || alreadyAssigned) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INTANGIBLE_ASSET_NOT_ASSIGNABLE',
+        message: '배정할 수 없는 무형자산입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const assignment = createIntangibleAssignment(asset, body)
+    intangibleAssetAssignments = [assignment, ...intangibleAssetAssignments]
+    applyIntangibleAssignmentToAsset(asset, assignment)
+
+    return HttpResponse.json(ok(assignment, '무형자산이 배정되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/intangible-asset/assets/:assetId/cancel`, async ({ params, request }) => {
+    const assetId = String(params.assetId)
+    const body = await request.json() as { memberId?: string | null }
+    const asset = intangibleAssets.find((item) => String(item.assetId) === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'INTANGIBLE_ASSET_NOT_FOUND',
+        message: '무형자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    closeActiveIntangibleAssignments(assetId, body.memberId)
+    const endedAssignments = intangibleAssetAssignments.filter((assignment) => (
+      assignment.assetId === assetId
+      && (!body.memberId || assignment.memberId === body.memberId)
+      && assignment.assignmentStatus === 'ENDED'
+    ))
+    const hasActiveAssignment = intangibleAssetAssignments.some((assignment) => (
+      assignment.assetId === assetId
+      && (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+    ))
+
+    if (!hasActiveAssignment) {
+      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELED'
+      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELED'
+      asset.assignedMemberId = null
+      asset.assignedMemberName = null
+      asset.departmentId = null
+      asset.departmentName = null
+      asset.startedAt = null
+    }
+
+    return HttpResponse.json(ok(endedAssignments, '무형자산 배정이 해지되었습니다.'))
   }),
 
   http.get(`${API_PREFIX}/assets/intangible/categories`, () => {

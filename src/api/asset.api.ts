@@ -83,6 +83,29 @@ export interface TangibleAssetAssignmentResponse extends Record<string, unknown>
   assignmentStatus: TangibleAssetAssignmentStatus
 }
 
+export type IntangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
+
+export interface IntangibleAssetAssignmentRequest {
+  memberId: string
+  endedAt?: string | null
+}
+
+export interface IntangibleAssetCancelRequest {
+  memberId?: string | null
+}
+
+export interface IntangibleAssetAssignmentResponse extends Record<string, unknown> {
+  assignmentId: string
+  memberId?: string
+  memberName: string
+  memberNo: string
+  departmentId?: string
+  departmentName: string
+  assignedAt: string
+  endedAt?: string | null
+  assignmentStatus: IntangibleAssetAssignmentStatus
+}
+
 const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactBody({
   categoryId: body.categoryId,
   productName: body.productName ?? body.name ?? body.assetName ?? body.itemCode ?? body.itemNo,
@@ -134,6 +157,11 @@ const toTangibleAssetAssignmentBody = (body: TangibleAssetAssignmentRequest) => 
   endedAt: toLocalDateTime(body.endedAt),
 })
 
+const toIntangibleAssetAssignmentBody = (body: IntangibleAssetAssignmentRequest) => compactBody({
+  memberId: body.memberId,
+  endedAt: toLocalDateTime(body.endedAt),
+})
+
 const toIntangibleItemBody = (body: IntangibleAssetItemCreateRequest | IntangibleAssetItemUpdateRequest) => compactBody({
   categoryId: body.categoryId,
   productName: body.productName,
@@ -160,12 +188,10 @@ const toIntangibleAssetCreateBody = (body: IntangibleAssetCreateRequest) => comp
 
 const toIntangibleAssetUpdateBody = (body: Partial<IntangibleAssetUpdateRequest>) => compactBody({
   intangibleAssetStatus: body.intangibleAssetStatus,
-  licenseCode: body.licenseCode,
   seatCount: body.seatCount,
-  isAutoRenewal: body.isAutoRenewal,
+  isAutoRenewal: toBoolean(body.isAutoRenewal),
   startedAt: toLocalDateTime(body.startedAt),
   expiredAt: toLocalDateTime(body.expiredAt),
-  billingCycle: body.billingCycle,
 })
 
 // ─── 유형자산 품목 API ───────────────────────────────────────────────────────
@@ -321,6 +347,27 @@ export const intangibleAssetApi = {
   /** 무형자산 해지 처리 */
   terminate: (assetId: string) =>
     api.patch(`/intangible-asset/assets/${assetId}/terminate`),
+
+  /** 무형자산 배정 이력 조회 */
+  getAssignments: (assetId: string, params?: { assignmentStatus?: IntangibleAssetAssignmentStatus }) =>
+    api.get<IntangibleAssetAssignmentResponse[]>(
+      `/intangible-asset/assets/${assetId}/assignments`,
+      compactParams(params),
+    ),
+
+  /** 무형자산 배정 */
+  assign: (assetId: string, body: IntangibleAssetAssignmentRequest) =>
+    api.post<IntangibleAssetAssignmentResponse>(
+      `/intangible-asset/assets/${assetId}/assign`,
+      toIntangibleAssetAssignmentBody(body),
+    ),
+
+  /** 무형자산 배정 해지 */
+  cancelAssignment: (assetId: string, body: IntangibleAssetCancelRequest = {}) =>
+    api.post<IntangibleAssetAssignmentResponse[]>(
+      `/intangible-asset/assets/${assetId}/cancel`,
+      compactBody(body),
+    ),
 
   // TODO: 무형자산 일괄 등록 
   // /** 무형자산 일괄 등록 (CSV/Excel) */
