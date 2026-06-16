@@ -40,7 +40,7 @@
                 :to="child.to"
                 :class="[
                   'flex items-center rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary',
-                  isRouteActive(child.to) && 'bg-primary/10! font-semibold text-primary!',
+                  isChildActive(child.to, item.children) && 'bg-primary/10! font-semibold text-primary!',
                 ]"
               >
                 {{ child.label }}
@@ -179,11 +179,21 @@ function isMenuOpen(menuName: string) {
 }
 
 function isParentActive(children: Array<{ to: string }>) {
-  return children.some((child) => isRouteActive(child.to))
+  return Boolean(getActiveChild(children))
 }
 
-function isRouteActive(path: string) {
+function isRouteMatch(path: string) {
   return route.path === path || (path !== '/' && route.path.startsWith(`${path}/`))
+}
+
+function getActiveChild(children: Array<{ to: string }>) {
+  return children
+    .filter((child) => isRouteMatch(child.to))
+    .sort((current, next) => next.to.length - current.to.length)[0]
+}
+
+function isChildActive(path: string, siblings: Array<{ to: string }>) {
+  return getActiveChild(siblings)?.to === path
 }
 
 async function handleLogout() {
