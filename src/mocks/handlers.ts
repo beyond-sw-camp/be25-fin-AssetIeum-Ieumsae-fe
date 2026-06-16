@@ -58,6 +58,10 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
   'DEPARTMENT_APPROVED',
 ])
+const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
+  'ASSET_APPROVED',
+  'IN_PROGRESS',
+])
 
 const auditLogs: AuditLog[] = [
   {
@@ -485,7 +489,7 @@ let tickets: MockTicket[] = [
     ticketType: 'PURCHASE_REQUEST',
     requestMethod: 'DIRECT_PURCHASE',
     requestedItemName: 'MX Keys S 무선 키보드',
-    ticketStatus: 'DEPARTMENT_APPROVED',
+    ticketStatus: 'IN_PROGRESS',
     requesterId: mockMemberId(5),
     requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
@@ -583,7 +587,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     receivedAt: '2026-05-08T11:30:00',
   }],
   ['7', {
-    detailStatus: '구매자산팀 검토 대기',
+    detailStatus: '직접 구매 진행 중',
     requestedUsageType: 'PERSONAL',
     assetType: 'TANGIBLE',
     categoryName: '전산장비 (주변기기)',
@@ -608,6 +612,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
 
 const ticketApproverIds = new Map<string, string>()
 const ticketCancelledAt = new Map<string, string>()
+const ticketEvidenceFiles = new Map<string, string>()
 
 let ticketComments: TicketComment[] = [
   {
@@ -1470,6 +1475,124 @@ export const handlers = [
     }, '티켓 상태 변경에 성공했습니다.'))
   }),
 
+  http.post(`${API_PREFIX}/tickets/:ticketId/actual-amount`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!requester || requester.memberId !== ticket.requesterId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '요청자 본인만 실제 결제 금액을 입력할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+    if (
+      ticket.ticketType !== 'PURCHASE_REQUEST'
+      || ticket.requestMethod !== 'DIRECT_PURCHASE'
+      || !DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.ticketStatus)
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_DIRECT_PURCHASE_STATUS',
+        message: '구매자산팀 승인 후 직접 구매 티켓에만 결제 금액을 입력할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const body = await request.json() as { actualPrice?: number }
+    if (!Number.isInteger(body.actualPrice) || Number(body.actualPrice) <= 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_ACTUAL_PRICE',
+        message: '실제 결제 금액을 올바르게 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const actualPrice = Number(body.actualPrice)
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const expectedPrice = requestDetail.expectedPrice ?? 0
+    const updatedAt = new Date().toISOString()
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      actualAmount: actualPrice,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      expectedPrice,
+      actualPrice,
+      priceDifference: actualPrice - expectedPrice,
+      requiresReapproval: false,
+      updatedAt,
+    }, '실제 결제 금액 입력에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/:ticketId/evidences`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!requester || requester.memberId !== ticket.requesterId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '요청자 본인만 구매 증빙을 업로드할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+    if (
+      ticket.ticketType !== 'PURCHASE_REQUEST'
+      || ticket.requestMethod !== 'DIRECT_PURCHASE'
+      || !DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.ticketStatus)
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_DIRECT_PURCHASE_STATUS',
+        message: '구매자산팀 승인 후 직접 구매 티켓에만 증빙을 업로드할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('file')
+    if (!(file instanceof File) || file.size === 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_EVIDENCE_FILE',
+        message: '업로드할 증빙 파일을 선택해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    ticketEvidenceFiles.set(ticketId, file.name)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      purchaseDate: updatedAt.slice(0, 10),
+      updatedAt,
+    }, '구매 증빙 업로드에 성공했습니다.'))
+  }),
+
   http.get(`${API_PREFIX}/tickets/:ticketId/comments`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const url = new URL(request.url)
@@ -1527,6 +1650,106 @@ export const handlers = [
     ticketComments = [...ticketComments, comment]
 
     return HttpResponse.json(ok(comment, '티켓 댓글 등록에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const commentId = Number(params.commentId)
+    const writer = getAuthenticatedMember(request)
+    const commentIndex = ticketComments.findIndex((comment) => (
+      comment.ticketId === ticketId && comment.commentId === commentId
+    ))
+
+    if (!writer) {
+      return HttpResponse.json({
+        status: 401,
+        errorCode: 'UNAUTHORIZED',
+        message: '인증되지 않은 요청입니다.',
+        data: null,
+      }, { status: 401 })
+    }
+    if (commentIndex < 0) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'COMMENT_NOT_FOUND',
+        message: '댓글을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const currentComment = ticketComments[commentIndex]
+    if (!currentComment || currentComment.writerId !== writer.memberId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'COMMENT_FORBIDDEN',
+        message: '본인이 작성한 댓글만 수정할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as { content?: string }
+    const content = body.content?.trim()
+    if (!content) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_COMMENT',
+        message: '댓글 내용을 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const updatedComment: TicketComment = {
+      ...currentComment,
+      content,
+      updatedAt: new Date().toISOString(),
+    }
+    ticketComments[commentIndex] = updatedComment
+
+    return HttpResponse.json(ok(updatedComment, '티켓 댓글 수정에 성공했습니다.'))
+  }),
+
+  http.delete(`${API_PREFIX}/tickets/:ticketId/comments/:commentId`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const commentId = Number(params.commentId)
+    const writer = getAuthenticatedMember(request)
+    const commentIndex = ticketComments.findIndex((comment) => (
+      comment.ticketId === ticketId && comment.commentId === commentId
+    ))
+
+    if (!writer) {
+      return HttpResponse.json({
+        status: 401,
+        errorCode: 'UNAUTHORIZED',
+        message: '인증되지 않은 요청입니다.',
+        data: null,
+      }, { status: 401 })
+    }
+    if (commentIndex < 0) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'COMMENT_NOT_FOUND',
+        message: '댓글을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const comment = ticketComments[commentIndex]
+    if (!comment || comment.writerId !== writer.memberId) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'COMMENT_FORBIDDEN',
+        message: '본인이 작성한 댓글만 삭제할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const deletedAt = new Date().toISOString()
+    ticketComments.splice(commentIndex, 1)
+
+    return HttpResponse.json(ok(
+      { commentId, deletedAt },
+      '티켓 댓글 삭제에 성공했습니다.',
+    ))
   }),
 
   http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
