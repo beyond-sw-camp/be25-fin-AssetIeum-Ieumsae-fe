@@ -1,111 +1,113 @@
 <template>
-  <div class="space-y-6">
-    <div class="grid grid-cols-2 gap-2 rounded-lg bg-surface-secondary p-1">
-      <button
-        v-for="option in modeOptions"
-        :key="option.value"
-        type="button"
-        class="rounded-md px-3 py-2 text-sm font-semibold transition"
-        :class="mode === option.value ? 'bg-surface text-primary shadow-sm' : 'text-text-sub hover:text-text-main'"
-        @click="mode = option.value"
-      >
-        {{ option.label }}
-      </button>
+  <div class="flex min-h-full flex-col">
+    <div class="flex-1 space-y-6 p-6 pb-8">
+      <div class="grid grid-cols-2 gap-2 rounded-lg bg-surface-secondary p-1">
+        <button
+          v-for="option in modeOptions"
+          :key="option.value"
+          type="button"
+          class="rounded-md px-3 py-2 text-sm font-semibold transition"
+          :class="mode === option.value ? 'bg-surface text-primary shadow-sm' : 'text-text-sub hover:text-text-main'"
+          @click="mode = option.value"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
+      <section class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          자산 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="대상 자산" required>
+            <Dropdown
+              v-model="assetLabel"
+              :options="assetOptions"
+              placeholder="자산을 선택하세요"
+            />
+          </FormField>
+
+          <Input id="intangible-assignment-asset-code" :model-value="selectedAssetInfo.assetCode" label="자산 번호" disabled />
+          <Input id="intangible-assignment-product-name" :model-value="selectedAssetInfo.productName" label="제품명" disabled />
+          <Input id="intangible-assignment-status" :model-value="selectedAssetInfo.statusLabel" label="자산 상태" disabled />
+        </div>
+      </section>
+
+      <section v-if="mode === 'assign'" class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          신규 배정 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="사용자" required>
+            <Dropdown
+              v-model="memberId"
+              :options="assignableMemberOptions"
+              placeholder="사용자를 선택하세요"
+            />
+          </FormField>
+
+          <Input id="intangible-assignment-member-department" :model-value="selectedMemberInfo.departmentName" label="부서" disabled />
+          <Input id="intangible-assignment-member-no" :model-value="selectedMemberInfo.memberNo" label="사번" disabled />
+          <Input
+            id="intangible-assignment-ended-at"
+            v-model="endedAt"
+            type="datetime-local"
+            label="사용 종료 예정 일시"
+          />
+        </div>
+      </section>
+
+      <section v-if="mode === 'cancel'" class="space-y-4">
+        <h2 class="text-sm font-bold text-text-main">
+          배정 해지 정보
+        </h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="해지 대상">
+            <Dropdown
+              v-model="cancelTarget"
+              :options="cancelTargetOptions"
+              placeholder="해지 대상을 선택하세요"
+            />
+          </FormField>
+
+          <Input id="intangible-cancel-department" :model-value="selectedCancelMemberInfo.departmentName" label="부서" disabled />
+        </div>
+        <p class="text-xs text-text-sub">
+          전체 해지를 선택하면 해당 무형자산의 활성 배정 이력이 모두 해지됩니다.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-text-main">
+            배정 이력
+          </h2>
+          <Button variant="outline" size="sm" :disabled="!selectedAsset" :loading="isLoadingAssignments" @click="loadAssignments">
+            새로고침
+          </Button>
+        </div>
+
+        <Table
+          :columns="assignmentColumns"
+          :rows="assignmentRows"
+          :loading="isLoadingAssignments"
+          row-key="assignmentId"
+          empty-text="배정 이력이 없습니다."
+        >
+          <template #cell-assignmentStatus="{ value }">
+            <span class="rounded-full px-2 py-1 text-xs font-bold" :class="assignmentStatusClass(value as string)">
+              {{ assignmentStatusText(value as string) }}
+            </span>
+          </template>
+        </Table>
+      </section>
+
+      <p v-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger">
+        {{ errorMessage }}
+      </p>
     </div>
 
-    <section class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        자산 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="대상 자산" required>
-          <Dropdown
-            v-model="assetLabel"
-            :options="assetOptions"
-            placeholder="자산을 선택하세요"
-          />
-        </FormField>
-
-        <Input id="intangible-assignment-asset-code" :model-value="selectedAssetInfo.assetCode" label="자산 번호" disabled />
-        <Input id="intangible-assignment-product-name" :model-value="selectedAssetInfo.productName" label="제품명" disabled />
-        <Input id="intangible-assignment-status" :model-value="selectedAssetInfo.statusLabel" label="자산 상태" disabled />
-      </div>
-    </section>
-
-    <section v-if="mode === 'assign'" class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        신규 배정 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="사용자" required>
-          <Dropdown
-            v-model="memberId"
-            :options="assignableMemberOptions"
-            placeholder="사용자를 선택하세요"
-          />
-        </FormField>
-
-        <Input id="intangible-assignment-member-department" :model-value="selectedMemberInfo.departmentName" label="부서" disabled />
-        <Input id="intangible-assignment-member-no" :model-value="selectedMemberInfo.memberNo" label="사번" disabled />
-        <Input
-          id="intangible-assignment-ended-at"
-          v-model="endedAt"
-          type="datetime-local"
-          label="사용 종료 예정 일시"
-        />
-      </div>
-    </section>
-
-    <section v-if="mode === 'cancel'" class="space-y-4">
-      <h2 class="text-sm font-bold text-text-main">
-        배정 해지 정보
-      </h2>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField label="해지 대상">
-          <Dropdown
-            v-model="cancelTarget"
-            :options="cancelTargetOptions"
-            placeholder="해지 대상을 선택하세요"
-          />
-        </FormField>
-
-        <Input id="intangible-cancel-department" :model-value="selectedCancelMemberInfo.departmentName" label="부서" disabled />
-      </div>
-      <p class="text-xs text-text-sub">
-        전체 해지를 선택하면 해당 무형자산의 활성 배정 이력이 모두 해지됩니다.
-      </p>
-    </section>
-
-    <section class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold text-text-main">
-          배정 이력
-        </h2>
-        <Button variant="outline" size="sm" :disabled="!selectedAsset" :loading="isLoadingAssignments" @click="loadAssignments">
-          새로고침
-        </Button>
-      </div>
-
-      <Table
-        :columns="assignmentColumns"
-        :rows="assignmentRows"
-        :loading="isLoadingAssignments"
-        row-key="assignmentId"
-        empty-text="배정 이력이 없습니다."
-      >
-        <template #cell-assignmentStatus="{ value }">
-          <span class="rounded-full px-2 py-1 text-xs font-bold" :class="assignmentStatusClass(value as string)">
-            {{ assignmentStatusText(value as string) }}
-          </span>
-        </template>
-      </Table>
-    </section>
-
-    <p v-if="errorMessage" class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger">
-      {{ errorMessage }}
-    </p>
-
-    <div class="flex gap-2">
+    <div class="sticky bottom-0 z-10 flex gap-2 border-t border-border bg-surface px-6 py-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
       <Button variant="outline" class="flex-1" :disabled="isSubmitting" @click="resetForm">
         초기화
       </Button>
