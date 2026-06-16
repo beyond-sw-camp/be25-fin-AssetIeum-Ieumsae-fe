@@ -1,6 +1,8 @@
 import { http, HttpResponse } from 'msw'
 import type {
   ApiResponse,
+  ActivityLog,
+  AuditLog,
   Department,
   DepartmentChangeRequest,
   DepartmentCreateRequest,
@@ -57,6 +59,75 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_APPROVED',
 ])
 
+const auditLogs: AuditLog[] = [
+  {
+    auditLogId: 1,
+    memberId: 1,
+    memberName: '김관리',
+    targetType: 'TICKET',
+    targetId: 101,
+    actionType: 'APPROVE',
+    description: '자산 요청 티켓을 승인했습니다.',
+    ipAddress: '127.0.0.1',
+    createdAt: '2026-06-01T10:00:00',
+  },
+  {
+    auditLogId: 2,
+    memberId: 2,
+    memberName: '박자산',
+    targetType: 'BUDGET',
+    targetId: 10,
+    actionType: 'BUDGET_DEDUCTION',
+    description: '구매 예산이 차감되었습니다.',
+    ipAddress: '127.0.0.1',
+    createdAt: '2026-06-01T11:00:00',
+  },
+  {
+    auditLogId: 3,
+    memberId: 1,
+    memberName: '김관리',
+    targetType: 'MEMBER',
+    targetId: 5,
+    actionType: 'ROLE_CHANGE',
+    description: '사원 권한을 변경했습니다.',
+    ipAddress: '127.0.0.1',
+    createdAt: '2026-06-02T09:30:00',
+  },
+]
+
+const activityLogs: ActivityLog[] = [
+  {
+    activityLogId: 1,
+    memberId: 5,
+    memberName: '홍길동',
+    activityType: 'VIEW',
+    targetType: 'TICKET',
+    targetId: 101,
+    description: '티켓 상세 화면을 조회했습니다.',
+    createdAt: '2026-06-01T10:00:00',
+  },
+  {
+    activityLogId: 2,
+    memberId: 5,
+    memberName: '홍길동',
+    activityType: 'SEARCH',
+    targetType: 'ASSET',
+    targetId: null,
+    description: '자산 목록을 검색했습니다.',
+    createdAt: '2026-06-01T10:10:00',
+  },
+  {
+    activityLogId: 3,
+    memberId: 1,
+    memberName: '김관리',
+    activityType: 'LOGIN',
+    targetType: 'AUTH',
+    targetId: null,
+    description: '로그인했습니다.',
+    createdAt: '2026-06-02T08:55:00',
+  },
+]
+
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
   return {
     status: 200,
@@ -77,6 +148,20 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
     totalElements: content.length,
     totalPages: Math.ceil(content.length / size),
   }
+}
+
+function filterLogsByRequest<T extends { memberId: number; createdAt: string }>(logs: T[], request: Request) {
+  const url = new URL(request.url)
+  const memberId = url.searchParams.get('memberId')
+  const startDate = url.searchParams.get('startDate')
+  const endDate = url.searchParams.get('endDate')
+
+  return logs.filter((log) => {
+    if (memberId && String(log.memberId) !== memberId) return false
+    if (startDate && log.createdAt.slice(0, 10) < startDate) return false
+    if (endDate && log.createdAt.slice(0, 10) > endDate) return false
+    return true
+  })
 }
 
 let departments: Department[] = [
@@ -1106,6 +1191,30 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
 }
 
 export const handlers = [
+  http.get(`${API_PREFIX}/logs/audit`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 20)
+    const filteredLogs = filterLogsByRequest(auditLogs, request)
+
+    return HttpResponse.json(ok(
+      pageOf(filteredLogs, page, size),
+      '감사 로그 목록 조회에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/logs/activity`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 20)
+    const filteredLogs = filterLogsByRequest(activityLogs, request)
+
+    return HttpResponse.json(ok(
+      pageOf(filteredLogs, page, size),
+      '활동 로그 목록 조회에 성공했습니다.',
+    ))
+  }),
+
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
     const member = members.find((item) => item.memberNo === credentials.memberNo)
