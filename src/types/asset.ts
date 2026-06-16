@@ -322,7 +322,6 @@ export interface IntangibleAsset {
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
-  memberIds?: string[]
   startedAt: string | null
   expiredAt: string | null
   vendor?: string
@@ -350,7 +349,6 @@ export interface IntangibleAssetCreateRequest {
   intangibleAssetStatus?: IntangibleAssetStatus
   status?: IntangibleAssetStatus
   memberId?: string | null
-  memberIds?: string[]
   departmentId?: string | null
   startedAt?: string | null
   expiredAt?: string | null
