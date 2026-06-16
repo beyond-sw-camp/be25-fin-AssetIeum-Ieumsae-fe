@@ -1,212 +1,226 @@
 <template>
-  <div class="flex h-full min-h-0 flex-col overflow-hidden bg-background text-text-main">
-    <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="page-subtitle mb-1">서비스데스크 &gt; 티켓 관리</p>
-        <h1 class="page-title">{{ pageTitle }}</h1>
-      </div>
-    </header>
+  <div
+    :class="[
+      'relative flex h-full min-h-0 flex-col bg-background text-text-main',
+      selectedTicketId ? 'overflow-visible' : 'overflow-hidden',
+    ]"
+  >
+    <TicketManagementDetail
+      v-if="selectedTicketId"
+      :ticket-id="selectedTicketId"
+      @back="closeTicketDetail"
+      @updated="handleTicketUpdated"
+    />
 
-    <section class="card mb-4 grid shrink-0 grid-cols-1 gap-3 border border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
-      <article
-        v-for="card in statCards"
-        :key="card.label"
-        :class="[
-          'rounded-2xl border bg-surface p-4 shadow-sm transition-colors duration-300',
-          card.highlight ? 'border-rose-300/70 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-950/10' : 'border-border',
-        ]"
-      >
-        <p :class="['text-xs font-semibold', card.highlight ? 'text-rose-600 dark:text-rose-300' : 'text-text-sub']">
-          {{ card.label }}
-        </p>
-        <p :class="['mt-2 text-2xl font-bold', card.highlight ? 'text-rose-600 dark:text-rose-300' : 'text-text-main']">
-          {{ card.value }}건
-        </p>
-      </article>
-    </section>
-
-    <section class="card relative z-10 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
-      <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
-        <div class="flex shrink-0 items-center gap-2">
-          <Dropdown
-            :model-value="pageSize"
-            :options="PAGE_SIZE_OPTIONS"
-            class="w-30! shrink-0"
-            menu-direction="down"
-            aria-label="페이지 표시 개수"
-            @update:model-value="handlePageSizeChange"
-          />
-          <span class="whitespace-nowrap text-xs text-text-sub">
-            총 {{ tickets.length }}건 중 {{ rangeText }}
-          </span>
+    <template v-else>
+      <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p class="page-subtitle mb-1">서비스데스크 &gt; 티켓 관리</p>
+          <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
+      </header>
 
-        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-          <Dropdown
-            v-if="isAssetTeamRole"
-            :model-value="filterForm.departmentId"
-            :options="departmentOptions"
-            class="w-40! shrink-0"
-            menu-align="right"
-            menu-direction="down"
-            aria-label="부서"
-            @update:model-value="handleDepartmentChange"
-          />
-          <Dropdown
-            :model-value="filterForm.requesterId"
-            :options="memberOptions"
-            class="w-40! shrink-0"
-            menu-align="right"
-            menu-direction="down"
-            aria-label="사원"
-            @update:model-value="handleRequesterChange"
-          />
-          <Dropdown
-            :model-value="filterForm.status"
-            :options="STATUS_FILTER_OPTIONS"
-            class="w-32! shrink-0"
-            menu-align="right"
-            menu-direction="down"
-            aria-label="진행 상태"
-            @update:model-value="handleStatusChange"
-          />
-          <Dropdown
-            :model-value="filterForm.ticketType"
-            :options="TYPE_FILTER_OPTIONS"
-            class="w-40! shrink-0"
-            menu-align="right"
-            menu-direction="down"
-            aria-label="티켓 유형"
-            @update:model-value="handleTicketTypeChange"
-          />
-          <TicketSearchBar
-            v-model="keywordInput"
-            @search="handleSearch"
-          />
-        </div>
-      </div>
-
-      <div
-        v-if="errorMessage"
-        class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
-      >
-        <p class="text-sm text-danger">{{ errorMessage }}</p>
-        <Button variant="outline" size="sm" @click="fetchTickets">
-          <RefreshCw :size="15" />
-          다시 시도
-        </Button>
-      </div>
-
-      <div class="min-h-0 flex-1 overflow-auto py-4">
-        <Table
-          :columns="columns"
-          :rows="pagedTickets"
-          :loading="isLoading"
-          row-key="ticketId"
-          empty-text="조회된 티켓이 없습니다."
-          @row-click="openTicketDetail"
+      <section class="mb-4 grid shrink-0 grid-cols-1 gap-3 px-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article
+          v-for="card in statCards"
+          :key="card.label"
+          :class="[
+            'rounded-2xl border bg-surface p-4 shadow-sm transition-colors duration-300',
+            card.highlight ? 'border-orange-300/70 bg-orange-50/60 dark:border-orange-500/30 dark:bg-orange-950/10' : 'border-border',
+          ]"
         >
-          <template #cell-ticketNo="{ value }">
-            <span class="font-semibold text-text-main">{{ value }}</span>
-          </template>
+          <p :class="['text-xs font-semibold', card.highlight ? 'text-orange-600 dark:text-rose-300' : 'text-text-sub']">
+            {{ card.label }}
+          </p>
+          <p :class="['mt-2 text-2xl font-bold', card.highlight ? 'text-orange-600 dark:text-rose-300' : 'text-text-main']">
+            {{ card.value }}건
+          </p>
+        </article>
+      </section>
 
-          <template #cell-ticketType="{ row }">
-            <span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-              {{ getTicketTypeLabel(row) }}
+      <section class="card relative z-10 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+        <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
+          <div class="flex shrink-0 items-center gap-2">
+            <Dropdown
+              :model-value="pageSize"
+              :options="PAGE_SIZE_OPTIONS"
+              class="w-30! shrink-0"
+              menu-direction="down"
+              aria-label="페이지 표시 개수"
+              @update:model-value="handlePageSizeChange"
+            />
+            <span class="whitespace-nowrap text-xs text-text-sub">
+              총 {{ tickets.length }}건 중 {{ rangeText }}
             </span>
-          </template>
+          </div>
 
-          <template #cell-requestedItemName="{ value }">
-            <span class="line-clamp-1 font-medium text-text-main">
-              {{ value || '-' }}
-            </span>
-          </template>
-
-          <template #cell-requester="{ row }">
-            <div class="min-w-0">
-              <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
-              <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
-            </div>
-          </template>
-
-          <template #cell-requestedAt="{ value }">
-            <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
-          </template>
-
-          <template #cell-ticketStatus="{ row }">
-            <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
-              {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
-            </span>
-          </template>
-
-          <template #cell-management="{ row }">
-            <Button
-              size="sm"
-              :variant="getManagementButtonVariant(row)"
-              @click.stop="openTicketDetail(row)"
-            >
-              {{ getManagementButtonLabel(row) }}
-            </Button>
-          </template>
-        </Table>
-      </div>
-
-      <div class="flex shrink-0 items-center justify-center border-t border-border pt-3">
-        <div class="flex items-center justify-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="page === 0 || isLoading"
-            aria-label="이전 페이지"
-            @click="page -= 1"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <template v-for="item in paginationItems" :key="String(item)">
-            <span
-              v-if="item === 'ellipsis'"
-              class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-            >
-              ...
-            </span>
-            <button
-              v-else
-              type="button"
-              :class="[
-                'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                page === item
-                  ? 'bg-primary text-white'
-                  : 'text-text-sub hover:bg-surface-secondary',
-              ]"
-              @click="page = item"
-            >
-              {{ item + 1 }}
-            </button>
-          </template>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-            aria-label="다음 페이지"
-            @click="page += 1"
-          >
-            <ChevronRight :size="16" />
-          </button>
+          <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+            <Dropdown
+              v-if="isAssetTeamRole"
+              :model-value="filterForm.departmentId"
+              :options="departmentOptions"
+              class="w-40! shrink-0"
+              menu-align="right"
+              menu-direction="down"
+              aria-label="부서"
+              @update:model-value="handleDepartmentChange"
+            />
+            <Dropdown
+              :model-value="filterForm.requesterId"
+              :options="memberOptions"
+              class="w-40! shrink-0"
+              menu-align="right"
+              menu-direction="down"
+              aria-label="사원"
+              @update:model-value="handleRequesterChange"
+            />
+            <Dropdown
+              :model-value="filterForm.status"
+              :options="STATUS_FILTER_OPTIONS"
+              class="w-32! shrink-0"
+              menu-align="right"
+              menu-direction="down"
+              aria-label="진행 상태"
+              @update:model-value="handleStatusChange"
+            />
+            <Dropdown
+              :model-value="filterForm.ticketType"
+              :options="TYPE_FILTER_OPTIONS"
+              class="w-40! shrink-0"
+              menu-align="right"
+              menu-direction="down"
+              aria-label="티켓 유형"
+              @update:model-value="handleTicketTypeChange"
+            />
+            <TicketSearchBar
+              v-model="keywordInput"
+              @search="handleSearch"
+            />
+          </div>
         </div>
-      </div>
-    </section>
+
+        <div
+          v-if="errorMessage"
+          class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+        >
+          <p class="text-sm text-danger">{{ errorMessage }}</p>
+          <Button variant="outline" size="sm" @click="fetchTickets">
+            <RefreshCw :size="15" />
+            다시 시도
+          </Button>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-auto py-4">
+          <Table
+            :columns="columns"
+            :rows="pagedTickets"
+            :loading="isLoading"
+            row-key="ticketId"
+            empty-text="조회된 티켓이 없습니다."
+            @row-click="openTicketDetail"
+          >
+            <template #cell-ticketNo="{ value }">
+              <span class="font-semibold text-text-main">{{ value }}</span>
+            </template>
+
+            <template #cell-ticketType="{ row }">
+              <span class="font-semibold text-text-main">
+                {{ getTicketTypeLabel(row) }}
+              </span>
+            </template>
+
+            <template #cell-requestedItemName="{ value }">
+              <span class="line-clamp-1 font-medium text-text-main">
+                {{ value || '-' }}
+              </span>
+            </template>
+
+            <template #cell-requester="{ row }">
+              <div class="min-w-0">
+                <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
+                <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
+              </div>
+            </template>
+
+            <template #cell-requestedAt="{ value }">
+              <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
+            </template>
+
+            <template #cell-ticketStatus="{ row }">
+              <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
+                {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
+              </span>
+            </template>
+
+            <template #cell-management="{ row }">
+              <Button
+                size="sm"
+                :variant="getManagementButtonVariant(row)"
+                @click.stop="openTicketDetail(row)"
+              >
+                {{ getManagementButtonLabel(row) }}
+              </Button>
+            </template>
+          </Table>
+        </div>
+
+        <div class="flex shrink-0 items-center justify-center border-t border-border pt-3">
+          <div class="flex items-center justify-center gap-1">
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+              :disabled="page === 0 || isLoading"
+              aria-label="이전 페이지"
+              @click="page -= 1"
+            >
+              <ChevronLeft :size="16" />
+            </button>
+            <template v-for="item in paginationItems" :key="String(item)">
+              <span
+                v-if="item === 'ellipsis'"
+                class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
+              >
+                ...
+              </span>
+              <button
+                v-else
+                type="button"
+                :class="[
+                  'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
+                  page === item
+                    ? 'bg-primary text-white'
+                    : 'text-text-sub hover:bg-surface-secondary',
+                ]"
+                @click="page = item"
+              >
+                {{ item + 1 }}
+              </button>
+            </template>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+              :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
+              aria-label="다음 페이지"
+              @click="page += 1"
+            >
+              <ChevronRight :size="16" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { ApiError, departmentApi, memberApi, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table from '@/components/common/Table.vue'
+import TicketManagementDetail from '@/components/ticket/TicketManagementDetail.vue'
 import TicketSearchBar from '@/components/ticket/TicketSearchBar.vue'
 import { useAuthStore } from '@/stores'
 import type {
@@ -215,6 +229,7 @@ import type {
   Member,
   PurchaseRequestMethod,
   TicketListItem,
+  TicketStatistics,
   TicketStatus,
   TicketType,
 } from '@/types'
@@ -256,14 +271,19 @@ const columns: TableColumn<TicketListItem>[] = [
   { key: 'ticketStatus', label: '상태', width: '150px', align: 'center' },
   { key: 'management', label: '관리', width: '110px', align: 'center' },
 ]
-const IN_PROGRESS_STATUSES: TicketStatus[] = ['ASSET_APPROVED', 'IN_PROGRESS']
+const DEFAULT_TICKET_STATISTICS: TicketStatistics = {
+  totalCount: 0,
+  newOrPendingReviewCount: 0,
+  inProgressCount: 0,
+  completedCount: 0,
+}
 
 type TicketTypeFilter = TicketType | Extract<PurchaseRequestMethod, 'DIRECT_PURCHASE'>
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const tickets = ref<TicketListItem[]>([])
+const ticketStatistics = ref<TicketStatistics>({ ...DEFAULT_TICKET_STATISTICS })
 const departments = ref<Department[]>([])
 const members = ref<Member[]>([])
 const filterForm = ref({
@@ -278,6 +298,7 @@ const page = ref(0)
 const pageSize = ref(20)
 const isLoading = ref(false)
 const errorMessage = ref('')
+const selectedTicketId = ref<string | null>(null)
 
 const isAssetTeamRole = computed(() => (
   authStore.currentRole === 'ADMIN'
@@ -320,30 +341,28 @@ const rangeText = computed(() => {
   return `${start}-${end}건`
 })
 const statCards = computed(() => {
-  const pendingStatus: TicketStatus = isAssetTeamRole.value ? 'DEPARTMENT_APPROVED' : 'REQUESTED'
-
   return [
     {
       label: '총 신청 건수',
-      value: tickets.value.length,
+      value: ticketStatistics.value.totalCount,
       description: isAssetTeamRole.value ? '전체 티켓 기준' : '담당 부서 티켓 기준',
       highlight: false,
     },
     {
       label: '신규 요청 / 검토 대기',
-      value: tickets.value.filter((ticket) => ticket.ticketStatus === pendingStatus).length,
+      value: ticketStatistics.value.newOrPendingReviewCount,
       description: isAssetTeamRole.value ? '구매자산팀 검토 대기' : '부서책임자 검토 대기',
       highlight: true,
     },
     {
       label: '처리 중',
-      value: tickets.value.filter((ticket) => IN_PROGRESS_STATUSES.includes(ticket.ticketStatus)).length,
+      value: ticketStatistics.value.inProgressCount,
       description: '승인 후 진행 중인 티켓',
       highlight: false,
     },
     {
       label: '처리 완료',
-      value: tickets.value.filter((ticket) => ticket.ticketStatus === 'COMPLETED').length,
+      value: ticketStatistics.value.completedCount,
       description: '완료된 티켓',
       highlight: false,
     },
@@ -412,6 +431,15 @@ async function fetchTickets() {
       : '티켓 목록을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function fetchTicketStatistics() {
+  try {
+    const response = await ticketApi.getStatistics()
+    ticketStatistics.value = response.data
+  } catch {
+    ticketStatistics.value = { ...DEFAULT_TICKET_STATISTICS }
   }
 }
 
@@ -490,7 +518,18 @@ async function handleTicketTypeChange(value: string | number) {
 }
 
 function openTicketDetail(ticket: TicketListItem) {
-  router.push({ name: 'TicketDetail', params: { ticketId: ticket.ticketId } })
+  selectedTicketId.value = ticket.ticketId
+}
+
+function closeTicketDetail() {
+  selectedTicketId.value = null
+}
+
+async function handleTicketUpdated() {
+  await Promise.all([
+    fetchTickets(),
+    fetchTicketStatistics(),
+  ])
 }
 
 function getTicketTypeLabel(ticket: TicketListItem) {
@@ -542,6 +581,9 @@ onMounted(async () => {
     errorMessage.value = '필터 정보를 불러오지 못했습니다.'
   }
 
-  await fetchTickets()
+  await Promise.all([
+    fetchTickets(),
+    fetchTicketStatistics(),
+  ])
 })
 </script>

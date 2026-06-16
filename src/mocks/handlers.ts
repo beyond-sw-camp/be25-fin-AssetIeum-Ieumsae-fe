@@ -663,6 +663,58 @@ const actionTestTickets: MockTicket[] = [
     departmentName: '프론트엔드팀',
     requestedAt: '2026-06-13T10:10:00',
   },
+  {
+    ticketId: '209',
+    ticketNo: 'TKT-20260613-AT09',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 승인 완료 후 자산 할당 대기',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:20:00',
+  },
+  {
+    ticketId: '210',
+    ticketNo: 'TKT-20260613-AT10',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 자산 할당 후 대여 진행',
+    ticketStatus: 'IN_PROGRESS',
+    requesterId: mockMemberId(6),
+    requesterName: '강개발',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:30:00',
+  },
+  {
+    ticketId: '211',
+    ticketNo: 'TKT-20260613-AT11',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: '구매자산팀 테스트 - 팀 구매 반려 완료',
+    ticketStatus: 'ASSET_REJECTED',
+    requesterId: mockMemberId(11),
+    requesterName: '송유진',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:40:00',
+  },
+  {
+    ticketId: '212',
+    ticketNo: 'TKT-20260613-AT12',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'DIRECT_PURCHASE',
+    requestedItemName: '구매자산팀 테스트 - 직접 구매 취소 완료',
+    ticketStatus: 'CANCELLED',
+    requesterId: mockMemberId(12),
+    requesterName: '문도윤',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:50:00',
+  },
 ]
 
 tickets = [...actionTestTickets, ...tickets]
@@ -784,6 +836,10 @@ const actionTestTicketReasons = new Map<string, string>([
   ['206', '박자산 구매자산팀 승인/반려/상태변경 테스트용 팀 구매 요청입니다.'],
   ['207', '박자산 구매자산팀 승인/반려/상태변경 테스트용 직접 구매 요청입니다.'],
   ['208', '박자산 구매자산팀 상태변경 테스트용 구매 반품 요청입니다.'],
+  ['209', '박자산 구매자산팀 승인 완료 이후 자산 할당과 상태변경을 확인하는 표준 자산 요청입니다.'],
+  ['210', '박자산 구매자산팀 자산 할당 후 진행 중 상태와 대여 반납예정일 표시를 확인하는 요청입니다.'],
+  ['211', '박자산 구매자산팀 반려 완료 상태와 반려 사유 표시를 확인하는 팀 구매 요청입니다.'],
+  ['212', '박자산 구매자산팀 취소 완료 상태와 터미널 상태 표시를 확인하는 직접 구매 요청입니다.'],
 ])
 
 const actionTestTicketDetails = new Map<string, Partial<TicketDetail>>([
@@ -945,6 +1001,49 @@ const actionTestTicketDetails = new Map<string, Partial<TicketDetail>>([
     returnReason: '수령 직후 키 입력 불량으로 구매 반품 처리가 필요합니다.',
     refundAmount: 159000,
   }],
+  ['209', {
+    detailStatus: '구매자산팀 승인 완료 - 자산 할당 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'Dell XPS 15 9530',
+    quantity: 1,
+  }],
+  ['210', {
+    detailStatus: '자산 할당 완료 - 대여 진행 중',
+    requestedUsageType: 'TEAM',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
+    quantity: 1,
+    assetId: '17',
+    assetStatus: 'IN_USE',
+    rentalStartDate: '2026-06-14T09:00:00',
+    requestedDueDate: '2026-07-14T18:00:00',
+    rentalDueDate: '2026-07-14T18:00:00',
+    registeredAt: '2026-06-13T12:30:00',
+    processedAt: '2026-06-13T12:30:00',
+  }],
+  ['211', {
+    detailStatus: '구매자산팀 반려 완료',
+    requestedUsageType: 'TEAM',
+    assetType: 'INTANGIBLE',
+    categoryName: '개발 도구',
+    requestedItemName: 'JetBrains All Products Pack 10석',
+    requestedItemDetail: '팀 구매 반려 상태 표시 테스트용',
+    quantity: 10,
+    expectedPrice: 3000000,
+  }],
+  ['212', {
+    detailStatus: '취소 완료',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (주변기기)',
+    requestedItemName: 'Logitech MX Master 3S',
+    requestedItemDetail: '직접 구매 취소 상태 표시 테스트용',
+    quantity: 1,
+    expectedPrice: 139000,
+  }],
 ])
 
 for (const [ticketId, reason] of actionTestTicketReasons) {
@@ -962,9 +1061,16 @@ const ticketAssetRejectionReasons = new Map<string, string>()
 const ticketCancelledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
 
-for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208']) {
+for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212']) {
   ticketApproverIds.set(ticketId, mockMemberId(3))
 }
+
+for (const ticketId of ['209', '210', '211']) {
+  ticketAssigneeIds.set(ticketId, mockMemberId(2))
+}
+
+ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
+ticketCancelledAt.set('212', '2026-06-13T12:50:00')
 
 let ticketComments: TicketComment[] = [
   {
