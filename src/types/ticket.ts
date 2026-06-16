@@ -10,6 +10,10 @@ export interface TicketListItem extends Record<string, unknown> {
   ticketType: TicketType
   requestMethod: PurchaseRequestMethod | null
   requestedItemName: string | null
+  requesterId?: string | number
+  requesterName?: string
+  departmentId?: string | number
+  departmentName?: string
   requestedAt: string
   ticketStatus: TicketStatus
 }

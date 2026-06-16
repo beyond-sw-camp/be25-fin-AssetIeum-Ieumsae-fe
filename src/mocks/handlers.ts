@@ -27,10 +27,13 @@ import type {
   TangibleCategoryGroup,
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
+  AssetAssignRequest,
+  TicketApproveRequest,
   TicketCreateResponse,
   TicketComment,
   TicketDetail,
   TicketListItem,
+  TicketRejectRequest,
   TicketStatus,
   TicketType,
 } from '@/types'
@@ -301,6 +304,17 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
     status: 'ACTIVE',
     createdAt: '2026-01-19T09:00:00',
   },
+  {
+    memberId: mockMemberId(16),
+    memberNo: 'EMP0016',
+    name: '플랫폼사원',
+    email: 'platform.member@ieumtech.com',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    role: 'EMPLOYEE',
+    status: 'ACTIVE',
+    createdAt: '2026-01-20T09:00:00',
+  },
 ]
 
 let members: Member[] = memberSeeds.map((member) => ({
@@ -426,6 +440,232 @@ let tickets: MockTicket[] = [
   },
 ]
 
+const actionTestTickets: MockTicket[] = [
+  {
+    ticketId: '301',
+    ticketNo: 'TKT-20260614-MY01',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: '이부장 본인 요청 - 회의용 태블릿',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-14T09:00:00',
+  },
+  {
+    ticketId: '101',
+    ticketNo: 'TKT-20260612-DM01',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - 표준 노트북 요청',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(16),
+    requesterName: '플랫폼사원',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-12T09:00:00',
+  },
+  {
+    ticketId: '102',
+    ticketNo: 'TKT-20260612-DM02',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - 교육용 모니터 대여',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(16),
+    requesterName: '플랫폼사원',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-12T09:10:00',
+  },
+  {
+    ticketId: '103',
+    ticketNo: 'TKT-20260612-DM03',
+    ticketType: 'RENTAL_EXTENSION',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - iPhone 대여 연장',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(7),
+    requesterName: '오프론트',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T09:20:00',
+  },
+  {
+    ticketId: '104',
+    ticketNo: 'TKT-20260612-DM04',
+    ticketType: 'MAINTENANCE_REQUEST',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - ThinkPad 화면 점검',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(8),
+    requesterName: '서지민',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T09:30:00',
+  },
+  {
+    ticketId: '105',
+    ticketNo: 'TKT-20260612-DM05',
+    ticketType: 'ASSET_RETURN',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - 모니터 반납',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(9),
+    requesterName: '오서준',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T09:40:00',
+  },
+  {
+    ticketId: '106',
+    ticketNo: 'TKT-20260612-DM06',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: '부서장 테스트 - 팀 구매 Figma 라이선스',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(11),
+    requesterName: '송유진',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T09:50:00',
+  },
+  {
+    ticketId: '107',
+    ticketNo: 'TKT-20260612-DM07',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'DIRECT_PURCHASE',
+    requestedItemName: '부서장 테스트 - 직접 구매 마우스',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(12),
+    requesterName: '문도윤',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T10:00:00',
+  },
+  {
+    ticketId: '108',
+    ticketNo: 'TKT-20260612-DM08',
+    ticketType: 'PURCHASE_RETURN',
+    requestMethod: null,
+    requestedItemName: '부서장 테스트 - 구매 자산 반품',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(13),
+    requesterName: '배수현',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-12T10:10:00',
+  },
+  {
+    ticketId: '201',
+    ticketNo: 'TKT-20260613-AT01',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 표준 노트북 제공',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:00:00',
+  },
+  {
+    ticketId: '202',
+    ticketNo: 'TKT-20260613-AT02',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 프로젝트 모니터 대여',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(6),
+    requesterName: '강개발',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:10:00',
+  },
+  {
+    ticketId: '203',
+    ticketNo: 'TKT-20260613-AT03',
+    ticketType: 'RENTAL_EXTENSION',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 대여 기간 연장',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(7),
+    requesterName: '오프론트',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:20:00',
+  },
+  {
+    ticketId: '204',
+    ticketNo: 'TKT-20260613-AT04',
+    ticketType: 'MAINTENANCE_REQUEST',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 노트북 유지보수',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(8),
+    requesterName: '서지민',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:30:00',
+  },
+  {
+    ticketId: '205',
+    ticketNo: 'TKT-20260613-AT05',
+    ticketType: 'ASSET_RETURN',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 사용 종료 자산 반납',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(9),
+    requesterName: '오서준',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:40:00',
+  },
+  {
+    ticketId: '206',
+    ticketNo: 'TKT-20260613-AT06',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: '구매자산팀 테스트 - 비표준 SaaS 구매',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(11),
+    requesterName: '송유진',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T09:50:00',
+  },
+  {
+    ticketId: '207',
+    ticketNo: 'TKT-20260613-AT07',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'DIRECT_PURCHASE',
+    requestedItemName: '구매자산팀 테스트 - 직접 구매 키보드',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(12),
+    requesterName: '문도윤',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:00:00',
+  },
+  {
+    ticketId: '208',
+    ticketNo: 'TKT-20260613-AT08',
+    ticketType: 'PURCHASE_RETURN',
+    requestMethod: null,
+    requestedItemName: '구매자산팀 테스트 - 불량 구매품 반품',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(13),
+    requesterName: '배수현',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-13T10:10:00',
+  },
+]
+
+tickets = [...actionTestTickets, ...tickets]
+
 const ticketReasons = new Map<string, string>([
   ['1', '업무용 표준 자산이 필요합니다.'],
   ['2', '외부 교육 기간 동안 사용할 장비가 필요합니다.'],
@@ -525,9 +765,205 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
   }],
 ])
 
+const actionTestTicketReasons = new Map<string, string>([
+  ['301', '부서책임자 본인이 올린 요청입니다. 나의 요청에서는 보이지만 승인/반려 액션은 노출되면 안 됩니다.'],
+  ['101', '이부장 부서 승인/반려 테스트용 표준 자산 요청입니다.'],
+  ['102', '이부장 부서 승인/반려 테스트용 대여 요청입니다.'],
+  ['103', '이부장 부서 승인/반려 테스트용 대여 연장 요청입니다.'],
+  ['104', '이부장 부서 승인/반려 테스트용 유지보수 요청입니다.'],
+  ['105', '이부장 부서 승인/반려 테스트용 반납 요청입니다.'],
+  ['106', '이부장 부서 승인/반려 테스트용 팀 구매 요청입니다.'],
+  ['107', '이부장 부서 승인/반려 테스트용 직접 구매 요청입니다.'],
+  ['108', '이부장 부서 승인/반려 테스트용 구매 반품 요청입니다.'],
+  ['201', '박자산 구매자산팀 승인/반려/상태변경 테스트용 표준 자산 요청입니다.'],
+  ['202', '박자산 구매자산팀 승인/반려/상태변경 테스트용 대여 요청입니다.'],
+  ['203', '박자산 구매자산팀 상태변경 테스트용 대여 연장 요청입니다.'],
+  ['204', '박자산 구매자산팀 상태변경 테스트용 유지보수 요청입니다.'],
+  ['205', '박자산 구매자산팀 상태변경 테스트용 반납 요청입니다.'],
+  ['206', '박자산 구매자산팀 승인/반려/상태변경 테스트용 팀 구매 요청입니다.'],
+  ['207', '박자산 구매자산팀 승인/반려/상태변경 테스트용 직접 구매 요청입니다.'],
+  ['208', '박자산 구매자산팀 상태변경 테스트용 구매 반품 요청입니다.'],
+])
+
+const actionTestTicketDetails = new Map<string, Partial<TicketDetail>>([
+  ['301', {
+    detailStatus: '요청 접수',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (태블릿)',
+    requestedItemName: 'iPad Pro 13인치',
+    quantity: 1,
+  }],
+  ['101', {
+    detailStatus: '부서책임자 검토 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'MacBook Pro 16인치 M3 Max',
+    quantity: 1,
+  }],
+  ['102', {
+    detailStatus: '부서책임자 검토 대기',
+    requestedUsageType: 'TEAM',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'Dell UltraSharp 27인치 4K',
+    quantity: 2,
+    rentalStartDate: '2026-06-20T09:00:00',
+    requestedDueDate: '2026-07-04T18:00:00',
+  }],
+  ['103', {
+    detailStatus: '부서책임자 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '모바일 기기',
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    assetId: '11',
+    previousDueDate: '2026-06-20T18:00:00',
+    requestedDueDate: '2026-07-10T18:00:00',
+  }],
+  ['104', {
+    detailStatus: '부서책임자 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    assetId: '4',
+    assetStatus: 'IN_USE',
+    maintenanceReason: '화면 깜빡임과 발열 증상이 있어 점검이 필요합니다.',
+  }],
+  ['105', {
+    detailStatus: '부서책임자 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'Dell UltraSharp 27인치 4K',
+    assetId: '8',
+    assetStatus: 'IN_USE',
+    returnReason: '프로젝트 종료로 대여 장비를 반납합니다.',
+  }],
+  ['106', {
+    detailStatus: '부서책임자 검토 대기',
+    requestedUsageType: 'TEAM',
+    assetType: 'INTANGIBLE',
+    categoryName: '디자인 도구',
+    requestedItemName: 'Figma Professional Seat 5개',
+    requestedItemDetail: '프론트엔드 디자인 협업용 Figma Professional Seat',
+    quantity: 5,
+    expectedPrice: 1500000,
+  }],
+  ['107', {
+    detailStatus: '부서책임자 검토 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (주변기기)',
+    requestedItemName: 'Logitech MX Master 3S',
+    requestedItemDetail: '직접 구매 후 결제 금액 및 영수증 증빙 등록 테스트용',
+    quantity: 1,
+    expectedPrice: 139000,
+  }],
+  ['108', {
+    detailStatus: '부서책임자 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (주변기기)',
+    requestedItemName: 'Keychron K8 Pro',
+    assetId: '15',
+    assetStatus: 'IN_USE',
+    returnReason: '초기 불량으로 구매 반품 검토가 필요합니다.',
+    refundAmount: 159000,
+  }],
+  ['201', {
+    detailStatus: '구매자산팀 검토 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'MacBook Pro 16인치 M3 Max',
+    quantity: 1,
+  }],
+  ['202', {
+    detailStatus: '구매자산팀 검토 대기',
+    requestedUsageType: 'TEAM',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'Dell UltraSharp 27인치 4K',
+    quantity: 1,
+    rentalStartDate: '2026-06-21T09:00:00',
+    requestedDueDate: '2026-07-05T18:00:00',
+  }],
+  ['203', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '모바일 기기',
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    assetId: '11',
+    previousDueDate: '2026-06-20T18:00:00',
+    requestedDueDate: '2026-07-15T18:00:00',
+  }],
+  ['204', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    assetId: '4',
+    assetStatus: 'IN_USE',
+    maintenanceReason: '배터리 사용 시간이 급격히 줄어 점검이 필요합니다.',
+  }],
+  ['205', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (모니터)',
+    requestedItemName: 'Dell UltraSharp 27인치 4K',
+    assetId: '8',
+    assetStatus: 'IN_USE',
+    returnReason: '팀 공용 모니터 사용 종료로 회수 처리가 필요합니다.',
+  }],
+  ['206', {
+    detailStatus: '구매자산팀 검토 대기',
+    requestedUsageType: 'TEAM',
+    assetType: 'INTANGIBLE',
+    categoryName: '개발 도구',
+    requestedItemName: 'JetBrains All Products Pack 3석',
+    requestedItemDetail: '백오피스 개발 생산성 향상을 위한 비표준 SaaS 구매',
+    quantity: 3,
+    expectedPrice: 900000,
+  }],
+  ['207', {
+    detailStatus: '구매자산팀 검토 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (주변기기)',
+    requestedItemName: 'MX Keys S 무선 키보드',
+    requestedItemDetail: '직접 구매 승인 이후 결제 증빙 등록까지 테스트하기 위한 티켓',
+    quantity: 1,
+    expectedPrice: 159000,
+  }],
+  ['208', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (주변기기)',
+    requestedItemName: 'Keychron K8 Pro',
+    assetId: '15',
+    assetStatus: 'IN_USE',
+    returnReason: '수령 직후 키 입력 불량으로 구매 반품 처리가 필요합니다.',
+    refundAmount: 159000,
+  }],
+])
+
+for (const [ticketId, reason] of actionTestTicketReasons) {
+  ticketReasons.set(ticketId, reason)
+}
+
+for (const [ticketId, detail] of actionTestTicketDetails) {
+  ticketDetailData.set(ticketId, detail)
+}
+
 const ticketApproverIds = new Map<string, string>()
+const ticketAssigneeIds = new Map<string, string>()
+const ticketDepartmentRejectionReasons = new Map<string, string>()
+const ticketAssetRejectionReasons = new Map<string, string>()
 const ticketCancelledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
+
+for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208']) {
+  ticketApproverIds.set(ticketId, mockMemberId(3))
+}
 
 let ticketComments: TicketComment[] = [
   {
@@ -847,6 +1283,20 @@ function getDepartmentManager(departmentId: string): Member | undefined {
   ))
 }
 
+function isAssetTeamRole(member: Member | undefined): boolean {
+  return member?.role === 'ASSET_TEAM' || member?.role === 'ASSET_MANAGER'
+}
+
+function canAccessTicket(member: Member | undefined, ticket: MockTicket): boolean {
+  if (!member) return false
+  if (member.role === 'ADMIN' || isAssetTeamRole(member)) return true
+  if (member.role === 'EMPLOYEE') return ticket.requesterId === member.memberId
+  if (member.role === 'DEPARTMENT_MANAGER') {
+    return ticket.departmentId === member.departmentId
+  }
+  return false
+}
+
 function getTicketApprover(ticket: MockTicket): Member | undefined {
   const assignedApproverId = ticketApproverIds.get(ticket.ticketId)
   if (assignedApproverId) {
@@ -943,6 +1393,10 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
     ticketType: ticket.ticketType,
     requestMethod: ticket.requestMethod,
     requestedItemName: ticket.requestedItemName,
+    requesterId: ticket.requesterId,
+    requesterName: ticket.requesterName,
+    departmentId: ticket.departmentId,
+    departmentName: ticket.departmentName,
     requestedAt: ticket.requestedAt,
     ticketStatus: ticket.ticketStatus,
   }
@@ -1037,14 +1491,7 @@ export const handlers = [
     const departmentId = url.searchParams.get('departmentId')
     const requester = getAuthenticatedMember(request)
 
-    let filteredTickets = [...tickets]
-    if (requester?.role === 'EMPLOYEE') {
-      filteredTickets = tickets.filter((ticket) => ticket.requesterId === requester.memberId)
-    } else if (requester?.role === 'DEPARTMENT_MANAGER') {
-      filteredTickets = tickets.filter((ticket) => (
-        ticket.departmentId === requester.departmentId
-      ))
-    }
+    let filteredTickets = tickets.filter((ticket) => canAccessTicket(requester, ticket))
 
     if (ticketType) {
       filteredTickets = filteredTickets.filter((ticket) => ticket.ticketType === ticketType)
@@ -1068,9 +1515,10 @@ export const handlers = [
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
   }),
 
-  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params }) => {
+  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
 
     if (!ticket) {
       return HttpResponse.json({
@@ -1079,6 +1527,15 @@ export const handlers = [
         message: '티켓을 찾을 수 없습니다.',
         data: null,
       }, { status: 404 })
+    }
+
+    if (!canAccessTicket(requester, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓을 조회할 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
     }
 
     const isDepartmentRejected = ticket.ticketStatus === 'DEPARTMENT_REJECTED'
@@ -1106,6 +1563,9 @@ export const handlers = [
         : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString())
     const assetDecisionAt = isAssetApproved || isAssetRejected ? updatedAt : null
     const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assignee = ticketAssigneeIds.has(ticketId)
+      ? members.find((member) => member.memberId === ticketAssigneeIds.get(ticketId))
+      : undefined
 
     const detail: TicketDetail = {
       ticketId: ticket.ticketId,
@@ -1120,18 +1580,22 @@ export const handlers = [
       departmentName: ticket.departmentName,
       approverId: departmentApprover ? memberSequence(departmentApprover) : null,
       approverName: departmentApprover?.name ?? null,
-      assigneeId: hasAssetTeamAssignee ? 2 : null,
-      assigneeName: hasAssetTeamAssignee ? '박자산' : null,
+      assigneeId: assignee?.memberId ?? (hasAssetTeamAssignee ? mockMemberId(2) : null),
+      assigneeName: assignee?.name ?? (hasAssetTeamAssignee ? '박자산' : null),
       requestReason: ticketReasons.get(ticketId) ?? null,
       ...requestDetail,
       departmentApprovedAt: hasDepartmentDecision && !isDepartmentRejected
         ? departmentDecisionAt
         : null,
       departmentRejectedAt: isDepartmentRejected ? departmentDecisionAt : null,
-      departmentRejectionReason: isDepartmentRejected ? '요청 사유를 보완해주세요.' : null,
+      departmentRejectionReason: isDepartmentRejected
+        ? ticketDepartmentRejectionReasons.get(ticketId) ?? '요청 사유를 보완해주세요.'
+        : null,
       purchaseApprovedAt: isAssetApproved ? assetDecisionAt : null,
       purchaseRejectedAt: isAssetRejected ? assetDecisionAt : null,
-      purchaseRejectionReason: isAssetRejected ? '구매자산팀 검토 결과 반려되었습니다.' : null,
+      purchaseRejectionReason: isAssetRejected
+        ? ticketAssetRejectionReasons.get(ticketId) ?? '구매자산팀 검토 결과 반려되었습니다.'
+        : null,
       orderedAt: requestDetail.orderedAt ?? null,
       receivedAt: requestDetail.receivedAt ?? null,
       registeredAt: requestDetail.registeredAt ?? null,
@@ -1143,6 +1607,241 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(detail))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/approve`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !canAccessTicket(actor, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓 승인 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as TicketApproveRequest
+    const updatedAt = new Date().toISOString()
+
+    if (body.approver === 'DEPARTMENT_MANAGER') {
+      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '부서책임자 검토 대기 상태에서만 승인할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'DEPARTMENT_APPROVED'
+      ticketApproverIds.set(ticketId, actor.memberId)
+    } else if (body.approver === 'ASSET_TEAM') {
+      if (!isAssetTeamRole(actor) || ticket.ticketStatus !== 'DEPARTMENT_APPROVED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '구매자산팀 검토 대기 상태에서만 승인할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'ASSET_APPROVED'
+      ticketAssigneeIds.set(ticketId, actor.memberId)
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_APPROVER_TYPE',
+        message: '올바르지 않은 승인자 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt,
+    }, '티켓 승인에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/reject`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !canAccessTicket(actor, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓 반려 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as TicketRejectRequest
+    if (!body.rejectionReason?.trim()) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'REJECTION_REASON_REQUIRED',
+        message: '반려 사유를 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    if (body.rejectionType === 'DEPARTMENT_MANAGER') {
+      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '부서책임자 검토 대기 상태에서만 반려할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'DEPARTMENT_REJECTED'
+      ticketDepartmentRejectionReasons.set(ticketId, body.rejectionReason.trim())
+    } else if (body.rejectionType === 'ASSET_TEAM') {
+      if (!isAssetTeamRole(actor) || ticket.ticketStatus !== 'DEPARTMENT_APPROVED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '구매자산팀 검토 대기 상태에서만 반려할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'ASSET_REJECTED'
+      ticketAssetRejectionReasons.set(ticketId, body.rejectionReason.trim())
+      ticketAssigneeIds.set(ticketId, actor.memberId)
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_REJECTION_TYPE',
+        message: '올바르지 않은 반려 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt,
+    }, '티켓 반려에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/:ticketId/asset-assignment`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !isAssetTeamRole(actor)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '자산 할당 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as AssetAssignRequest
+    const requester = members.find((member) => member.memberId === body.memberId)
+    if (!requester) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'MEMBER_NOT_FOUND',
+        message: '할당 대상 사원을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const now = new Date().toISOString()
+    if (body.assetType === 'TANGIBLE') {
+      const asset = tangibleAssets.find((item) => item.assetId === body.assetId)
+      if (!asset || asset.status !== 'AVAILABLE') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'ASSET_NOT_AVAILABLE',
+          message: '사용 가능한 유형 자산을 선택해주세요.',
+          data: null,
+        }, { status: 409 })
+      }
+
+      asset.status = 'IN_USE'
+      asset.assignedMemberId = requester.memberId
+      asset.assignedMemberName = requester.name
+      asset.departmentId = requester.departmentId
+      asset.departmentName = requester.departmentName
+      asset.startedAt = now
+      asset.returnDueDate = body.returnDueDate ?? asset.returnDueDate ?? null
+    } else if (body.assetType === 'INTANGIBLE') {
+      const asset = intangibleAssets.find((item) => item.assetId === body.assetId)
+      if (!asset || asset.status !== 'AVAILABLE') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'ASSET_NOT_AVAILABLE',
+          message: '사용 가능한 무형 자산을 선택해주세요.',
+          data: null,
+        }, { status: 409 })
+      }
+
+      asset.status = 'IN_USE'
+      asset.assignedMemberId = requester.memberId
+      asset.assignedMemberName = requester.name
+      asset.departmentId = requester.departmentId
+      asset.departmentName = requester.departmentName
+      asset.startedAt = now
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_ASSET_TYPE',
+        message: '올바르지 않은 자산 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const detailData = ticketDetailData.get(ticketId) ?? {}
+    ticketDetailData.set(ticketId, {
+      ...detailData,
+      assetType: body.assetType,
+      assetId: body.assetId,
+      assetStatus: 'IN_USE',
+      registeredAt: now,
+      processedAt: detailData.processedAt ?? now,
+    })
+    ticket.ticketStatus = 'IN_PROGRESS'
+    ticketAssigneeIds.set(ticketId, actor.memberId)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType: body.assetType,
+      assetId: body.assetId,
+      memberId: requester.memberId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt: now,
+    }, '자산 할당에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
@@ -1171,7 +1870,7 @@ export const handlers = [
 
     const nextStatus = body.status as TicketStatus
     if (nextStatus === 'CANCELLED') {
-      if (!requester || requester.memberId !== ticket.requesterId) {
+      if (!requester || (requester.memberId !== ticket.requesterId && !isAssetTeamRole(requester))) {
         return HttpResponse.json({
           status: 403,
           errorCode: 'FORBIDDEN',
@@ -1179,7 +1878,7 @@ export const handlers = [
           data: null,
         }, { status: 403 })
       }
-      if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
+      if (!isAssetTeamRole(requester) && !CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'TICKET_CANNOT_BE_CANCELLED',
@@ -1187,6 +1886,13 @@ export const handlers = [
           data: null,
         }, { status: 409 })
       }
+    } else if (!isAssetTeamRole(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 티켓 상태를 변경할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
     }
 
     const previousStatus = ticket.ticketStatus
