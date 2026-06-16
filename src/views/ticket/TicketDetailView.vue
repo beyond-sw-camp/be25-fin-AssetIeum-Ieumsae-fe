@@ -348,7 +348,7 @@ const cancelActionMessage = computed(() => {
     case 'DEPARTMENT_REJECTED':
     case 'ASSET_REJECTED':
       return '반려된 요청은 취소할 수 없습니다.'
-    case 'CANCELLED':
+    case 'canceled':
       return '이미 취소된 요청입니다.'
     default:
       return '현재 상태에서는 요청을 취소할 수 없습니다.'
@@ -786,7 +786,7 @@ async function handleCancelTicket() {
   isCancelling.value = true
 
   try {
-    await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
+    await ticketApi.changeStatus(ticketId.value, 'canceled')
     isCancelModalOpen.value = false
     await loadTicketDetail()
     notificationStore.success('요청이 취소되었습니다.')

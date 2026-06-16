@@ -17,7 +17,7 @@
           ]"
         >
           <Check v-if="step.state === 'completed'" :size="13" />
-          <X v-else-if="step.state === 'rejected' || step.state === 'cancelled'" :size="13" />
+          <X v-else-if="step.state === 'rejected' || step.state === 'canceled'" :size="13" />
           <Clock3 v-else-if="step.state === 'current'" :size="13" />
           <Circle v-else :size="10" />
         </span>
@@ -38,7 +38,7 @@
           v-if="step.description"
           :class="[
             'mt-2 rounded-lg px-3 py-2 text-xs',
-            step.state === 'rejected' || step.state === 'cancelled'
+            step.state === 'rejected' || step.state === 'canceled'
               ? 'bg-danger/5 text-danger'
               : 'bg-surface-secondary text-text-sub',
           ]"
@@ -58,7 +58,7 @@ import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import type { TicketDetail, TicketStatus, TicketType } from '@/types'
 import { formatDate } from '@/utils/labels'
 
-type ProcessStepState = 'completed' | 'current' | 'pending' | 'rejected' | 'cancelled'
+type ProcessStepState = 'completed' | 'current' | 'pending' | 'rejected' | 'canceled'
 type ProcessStepKey = 'created' | 'department' | 'review' | 'action' | 'result' | 'completed'
 
 interface ProcessDefinition {
@@ -139,7 +139,7 @@ const stepStateClass: Record<ProcessStepState, string> = {
   current: 'bg-primary/15 text-primary',
   pending: 'border border-border bg-surface-secondary text-text-muted',
   rejected: 'bg-danger/15 text-danger',
-  cancelled: 'bg-danger/15 text-danger',
+  canceled: 'bg-danger/15 text-danger',
 }
 
 const stepTextClass: Record<ProcessStepState, string> = {
@@ -147,7 +147,7 @@ const stepTextClass: Record<ProcessStepState, string> = {
   current: 'text-primary',
   pending: 'text-text-muted',
   rejected: 'text-danger',
-  cancelled: 'text-danger',
+  canceled: 'text-danger',
 }
 
 const stepStateLabel: Record<ProcessStepState, string> = {
@@ -155,7 +155,7 @@ const stepStateLabel: Record<ProcessStepState, string> = {
   current: '진행 중',
   pending: '대기',
   rejected: '반려',
-  cancelled: '취소',
+  canceled: '취소',
 }
 
 const stepDateFallback: Record<ProcessStepState, string> = {
@@ -163,7 +163,7 @@ const stepDateFallback: Record<ProcessStepState, string> = {
   current: '현재 단계',
   pending: '대기 중',
   rejected: '반려 처리',
-  cancelled: '취소 처리',
+  canceled: '취소 처리',
 }
 
 const props = defineProps<{
@@ -181,7 +181,7 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
       ?? (state === 'current' ? ticket.updatedAt : undefined)
   }
   if (key === 'completed') {
-    return ticket.completedAt ?? ticket.cancelledAt ?? undefined
+    return ticket.completedAt ?? ticket.canceledAt ?? undefined
   }
   return state === 'current' ? ticket.updatedAt : undefined
 }
@@ -189,7 +189,7 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
 function failureStepIndex(status: TicketStatus) {
   if (status === 'DEPARTMENT_REJECTED') return 1
   if (status === 'ASSET_REJECTED') return 2
-  if (status === 'CANCELLED') return 1
+  if (status === 'canceled') return 1
   return -1
 }
 
@@ -200,7 +200,7 @@ function stepDescription(ticket: TicketDetail, key: ProcessStepKey, state: Proce
       ? ticket.departmentRejectionReason ?? undefined
       : ticket.purchaseRejectionReason ?? undefined
   }
-  if (state === 'cancelled') return '요청이 취소되었습니다.'
+  if (state === 'canceled') return '요청이 취소되었습니다.'
   return undefined
 }
 
@@ -228,7 +228,7 @@ const processSteps = computed<ProcessStep[]>(() => {
     } else if (index < failureIndex) {
       state = 'completed'
     } else if (index === failureIndex) {
-      state = ticket.status === 'CANCELLED' ? 'cancelled' : 'rejected'
+      state = ticket.status === 'canceled' ? 'canceled' : 'rejected'
     } else if (failureIndex >= 0) {
       state = 'pending'
     } else if (index < currentIndex) {

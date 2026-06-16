@@ -56,7 +56,6 @@ export type IntangibleAssetStatus =
   | 'TERMINATION_REQUESTED'// 해지요청
   | 'TERMINATED'           // 해지
   | 'CANCELED'             // 해지완료
-  | 'CANCELLED'            // 해지완료
 
 // =====================================================
 // 티켓 타입 / 상태
@@ -79,7 +78,7 @@ export type TicketStatus =
   | 'ASSET_REJECTED'         // 구매자산팀 반려
   | 'IN_PROGRESS'            // 처리 중
   | 'COMPLETED'              // 처리 완료
-  | 'CANCELLED'              // 취소
+  | 'canceled'              // 취소
 
 // =====================================================
 // 사원 상태
