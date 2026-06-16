@@ -28,6 +28,7 @@
         <BaseDrawer
           :is-open="isAssignmentDrawerOpen"
           title="유형자산 배정"
+          body-class="p-0"
           hide-footer
           @close="isAssignmentDrawerOpen = false"
         >

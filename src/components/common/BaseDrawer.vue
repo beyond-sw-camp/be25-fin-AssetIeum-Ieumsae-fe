@@ -26,11 +26,11 @@
         </button>
       </div>
 
-      <div class="p-6 flex-1 overflow-y-auto">
+      <div :class="['flex-1 overflow-y-auto', bodyClass]">
         <slot></slot>
       </div>
 
-      <div class="p-4 mb-3 shrink-0">
+      <div v-if="!hideFooter" class="p-4 mb-3 shrink-0">
         <slot name="footer">
           <Button
             class="w-full"
@@ -54,6 +54,8 @@ defineProps({
   title: { type: String, default: '타이틀' },
   submitText: { type: String, default: '저장하기' },
   panelClass: { type: String, default: 'w-[50%]' },
+  bodyClass: { type: String, default: 'p-6' },
+  hideFooter: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['close', 'submit']);
