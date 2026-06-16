@@ -1,8 +1,8 @@
 <template>
-  <div class="relative rounded-xl border border-border bg-surface">
+  <div class="relative rounded-xl">
     <button
       type="button"
-      class="flex h-10 w-full items-center justify-between gap-3 px-3.5 text-left text-sm disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
+      class="w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
       :disabled="disabled"
       @click="toggleOpen"
     >

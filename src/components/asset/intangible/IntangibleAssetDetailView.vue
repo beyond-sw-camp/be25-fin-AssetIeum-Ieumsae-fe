@@ -109,6 +109,7 @@ interface AssetEditForm {
   purchaseVendor: string
 }
 
+
 const { canUpdateAsset } = usePermission()
 
 const props = withDefaults(defineProps<{

@@ -110,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -150,11 +150,21 @@ const props = defineProps<{
   navItems: NavItem[]
 }>()
 
-const openMenus = ref<Record<string, boolean>>({
-  tangible: true,
-  intangible: false,
-  serviceDesk: false,
-})
+function updateOpenMenus() {
+  const matchedParent = props.navItems.find((item) =>
+    item.children?.some((child) =>
+      route.path === child.to ||
+      route.path.startsWith(`${child.to}/`),
+    ),
+  )
+
+  openMenus.value = matchedParent
+    ? { [matchedParent.name]: true }
+    : {}
+}
+
+const openMenus = ref<Record<string, boolean>>({})
+updateOpenMenus()
 
 function handleParentClick(item: NavItem) {
   if (!item.children || item.children.length === 0) return
@@ -194,4 +204,12 @@ async function handleLogout() {
     console.error('로그아웃 중 오류 발생:', error)
   }
 }
+
+watch(
+  () => route.path,
+  () => {
+    updateOpenMenus()
+  },
+  { immediate: true },
+)
 </script>
