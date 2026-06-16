@@ -21,7 +21,6 @@ export const TANGIBLE_STATUS_LABEL: Record<TangibleAssetStatus | string, string>
   DISPOSED: '폐기완료',
   LOST: '분실',
   CANCELED: '취소',
-  CANCELLED: '취소',
 }
 
 export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus | string, string> = {
@@ -32,7 +31,6 @@ export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus | string, str
   TERMINATION_REQUESTED: '해지요청',
   TERMINATED: '해지',
   CANCELED: '해지완료',
-  CANCELLED: '해지완료',
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
@@ -43,7 +41,7 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   ASSET_REJECTED: '자산팀 반려',
   IN_PROGRESS: '처리 중',
   COMPLETED: '처리 완료',
-  CANCELLED: '요청 취소',
+  CANCELED: '요청 취소',
 }
 
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {

@@ -71,7 +71,7 @@ export interface TicketDetail {
   receivedAt?: string | null
   registeredAt?: string | null
   completedAt: string | null
-  cancelledAt: string | null
+  canceledAt: string | null
   requestedAt: string
   updatedAt: string
 }
