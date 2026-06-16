@@ -226,7 +226,12 @@ import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
 import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
-import type { AssetType, TicketComment, TicketDetail, TicketStatus } from '@/types'
+import type {
+  AssetType,
+  TicketComment,
+  TicketDetail,
+  TicketStatus,
+} from '@/types'
 import {
   formatCurrency,
   formatDate,
@@ -843,12 +848,6 @@ async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(ticketId, () => {
-  isPurchasePaymentDrawerOpen.value = false
-  isPurchasePaymentSubmitting.value = false
-  purchasePaymentErrorMessage.value = ''
-  loadPage()
-})
 function resetCommentActionState() {
   commentActionRequestVersion += 1
   commentToDelete.value = null
@@ -858,7 +857,14 @@ function resetCommentActionState() {
   commentActionVersion.value += 1
 }
 
+function resetTicketActionState() {
+  isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentSubmitting.value = false
+  purchasePaymentErrorMessage.value = ''
+}
+
 watch(ticketId, () => {
+  resetTicketActionState()
   resetCommentActionState()
   void loadPage()
 })

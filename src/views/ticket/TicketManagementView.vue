@@ -7,15 +7,21 @@
       </div>
     </header>
 
-    <section class="mb-4 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section class="card mb-4 grid shrink-0 grid-cols-1 gap-3 border border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
       <article
         v-for="card in statCards"
         :key="card.label"
-        class="rounded-2xl border border-border bg-surface p-4 shadow-sm transition-colors duration-300"
+        :class="[
+          'rounded-2xl border bg-surface p-4 shadow-sm transition-colors duration-300',
+          card.highlight ? 'border-rose-300/70 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-950/10' : 'border-border',
+        ]"
       >
-        <p class="text-xs font-semibold text-text-sub">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-bold text-text-main">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-text-muted">{{ card.description }}</p>
+        <p :class="['text-xs font-semibold', card.highlight ? 'text-rose-600 dark:text-rose-300' : 'text-text-sub']">
+          {{ card.label }}
+        </p>
+        <p :class="['mt-2 text-2xl font-bold', card.highlight ? 'text-rose-600 dark:text-rose-300' : 'text-text-main']">
+          {{ card.value }}건
+        </p>
       </article>
     </section>
 
@@ -274,7 +280,10 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 
 const isAssetTeamRole = computed(() => (
-  authStore.currentRole === 'ASSET_TEAM' || authStore.currentRole === 'ASSET_MANAGER'
+  authStore.currentRole === 'ADMIN'
+  || authStore.currentRole === 'SUPER_ADMIN'
+  || authStore.currentRole === 'ASSET_TEAM'
+  || authStore.currentRole === 'ASSET_MANAGER'
 ))
 const pageTitle = computed(() => (isAssetTeamRole.value ? '전체 티켓 관리' : '티켓 관리'))
 const departmentOptions = computed<DropdownOption[]>(() => [
@@ -284,14 +293,17 @@ const departmentOptions = computed<DropdownOption[]>(() => [
     value: department.departmentId,
   })),
 ])
-const managedDepartmentIds = computed(() => {
-  if (isAssetTeamRole.value || !authStore.user?.departmentId) return []
-
-  return getDepartmentAndDescendantIds(authStore.user.departmentId, departments.value)
+const selectableDepartmentIds = computed(() => {
+  if (isAssetTeamRole.value) return []
+  return authStore.user?.departmentId ? [authStore.user.departmentId] : []
+})
+const selectableMembers = computed(() => {
+  if (isAssetTeamRole.value) return members.value
+  return members.value.filter((member) => selectableDepartmentIds.value.includes(member.departmentId))
 })
 const memberOptions = computed<DropdownOption[]>(() => [
   { label: '전체 사원', value: '' },
-  ...members.value.map((member) => ({
+  ...selectableMembers.value.map((member) => ({
     label: `${member.name} (${member.departmentName})`,
     value: member.memberId,
   })),
@@ -315,21 +327,25 @@ const statCards = computed(() => {
       label: '총 신청 건수',
       value: tickets.value.length,
       description: isAssetTeamRole.value ? '전체 티켓 기준' : '담당 부서 티켓 기준',
+      highlight: false,
     },
     {
       label: '신규 요청 / 검토 대기',
       value: tickets.value.filter((ticket) => ticket.ticketStatus === pendingStatus).length,
       description: isAssetTeamRole.value ? '구매자산팀 검토 대기' : '부서책임자 검토 대기',
+      highlight: true,
     },
     {
       label: '처리 중',
       value: tickets.value.filter((ticket) => IN_PROGRESS_STATUSES.includes(ticket.ticketStatus)).length,
       description: '승인 후 진행 중인 티켓',
+      highlight: false,
     },
     {
       label: '처리 완료',
       value: tickets.value.filter((ticket) => ticket.ticketStatus === 'COMPLETED').length,
       description: '완료된 티켓',
+      highlight: false,
     },
   ]
 })
@@ -357,15 +373,6 @@ function flattenDepartments(items: Department[]): Department[] {
   ])
 }
 
-function getDepartmentAndDescendantIds(departmentId: string, items: Department[]): string[] {
-  const allDepartments = flattenDepartments(items)
-  const childIds = allDepartments
-    .filter((department) => department.parentDepartmentId === departmentId)
-    .flatMap((department) => getDepartmentAndDescendantIds(department.departmentId, items))
-
-  return [departmentId, ...childIds]
-}
-
 async function fetchTickets() {
   isLoading.value = true
   errorMessage.value = ''
@@ -379,7 +386,9 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
-      departmentId: isAssetTeamRole.value ? filterForm.value.departmentId || undefined : undefined,
+      departmentId: isAssetTeamRole.value
+        ? filterForm.value.departmentId || undefined
+        : authStore.user?.departmentId,
       requesterId: filterForm.value.requesterId || undefined,
     })
 
@@ -417,12 +426,18 @@ async function loadMembers() {
     size: 200,
     departmentId: isAssetTeamRole.value
       ? filterForm.value.departmentId || undefined
-      : undefined,
+      : authStore.user?.departmentId,
     status: 'ACTIVE',
   })
-  members.value = isAssetTeamRole.value
-    ? response.data.content
-    : response.data.content.filter((member) => managedDepartmentIds.value.includes(member.departmentId))
+  members.value = response.data.content
+
+  if (
+    !isAssetTeamRole.value
+    && filterForm.value.requesterId
+    && !selectableMembers.value.some((member) => member.memberId === filterForm.value.requesterId)
+  ) {
+    filterForm.value.requesterId = ''
+  }
 }
 
 function handleSearch() {
@@ -446,7 +461,16 @@ async function handleDepartmentChange(value: string | number) {
 }
 
 async function handleRequesterChange(value: string | number) {
-  filterForm.value.requesterId = String(value)
+  const requesterId = String(value)
+  if (
+    !isAssetTeamRole.value
+    && requesterId
+    && !selectableMembers.value.some((member) => member.memberId === requesterId)
+  ) {
+    return
+  }
+
+  filterForm.value.requesterId = requesterId
   page.value = 0
   await fetchTickets()
 }
@@ -512,7 +536,8 @@ watch(totalPages, (nextTotalPages) => {
 
 onMounted(async () => {
   try {
-    await Promise.all([loadDepartments(), loadMembers()])
+    await loadDepartments()
+    await loadMembers()
   } catch {
     errorMessage.value = '필터 정보를 불러오지 못했습니다.'
   }
