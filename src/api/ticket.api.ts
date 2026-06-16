@@ -17,6 +17,7 @@ import type {
   AssetAssignRequest,
   TicketComment,
   TicketStatus,
+  TicketCommentDeleteResponse,
   PageResponse,
 } from '@/types'
 
@@ -65,6 +66,14 @@ export const ticketApi = {
   /** 댓글 작성 */
   addComment: (ticketId: string, content: string) =>
     api.post<TicketComment>(`/tickets/${ticketId}/comments`, { content }),
+
+  /** 댓글 수정 */
+  updateComment: (ticketId: string, commentId: number, content: string) =>
+    api.patch<TicketComment>(`/tickets/${ticketId}/comments/${commentId}`, { content }),
+
+  /** 댓글 삭제 */
+  deleteComment: (ticketId: string, commentId: number) =>
+    api.delete<TicketCommentDeleteResponse>(`/tickets/${ticketId}/comments/${commentId}`),
 }
 
 // ─── 티켓 종류별 생성 API ───────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 <template>
-  <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+  <section class="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
     <header class="flex min-h-12 items-center justify-between gap-3 border-b border-border px-5 py-3">
       <div class="flex items-center gap-2">
         <slot name="icon" />
@@ -23,9 +23,12 @@ const props = withDefaults(defineProps<{
   padding: 'md',
 })
 
-const contentClass = computed(() => ({
-  none: '',
-  sm: 'p-4',
-  md: 'p-5',
-})[props.padding])
+const contentClass = computed(() => [
+  'min-h-0 flex-1',
+  {
+    none: '',
+    sm: 'p-4',
+    md: 'p-5',
+  }[props.padding],
+])
 </script>
