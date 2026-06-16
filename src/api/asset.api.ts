@@ -46,9 +46,41 @@ function toLocalDateTime(value?: string | null) {
   return value
 }
 
+
 const toBoolean = (value: number | boolean | undefined) => {
   if (typeof value === 'number') return value === 1
   return value
+}
+
+export type TangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
+export type TangibleAssetAssignmentUsageType = 'TEMPORARY' | 'PERMANENT' | string
+export type TangibleAssetAssignmentAssetUsageType = 'PERSONAL' | 'DEPARTMENT' | string
+
+export interface TangibleAssetAssignmentRequest {
+  memberId: string
+  usageType: TangibleAssetAssignmentUsageType
+  assetUsageType: TangibleAssetAssignmentAssetUsageType
+  endedAt?: string | null
+}
+
+export interface TangibleAssetReassignmentRequest {
+  newMemberId: string
+}
+
+export interface TangibleAssetReassignBulkRequest {
+  currentMemberId: string
+  newMemberId: string
+}
+
+export interface TangibleAssetAssignmentResponse extends Record<string, unknown> {
+  assignmentId: string
+  memberName: string
+  memberNo: string
+  departmentName: string
+  assignmentType: TangibleAssetAssignmentUsageType
+  assignedAt: string
+  endedAt?: string | null
+  assignmentStatus: TangibleAssetAssignmentStatus
 }
 
 const toTangibleItemCreateBody = (body: TangibleAssetItemCreateRequest) => compactBody({
@@ -84,6 +116,7 @@ const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactB
   purchaseVendor: body.purchaseVendor ?? body.vendor,
 })
 
+
 const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactBody({
   tangibleAssetStatus: body.tangibleAssetStatus ?? body.tangibleAssetstatus ?? body.status,
   memberId: body.memberId ?? body.assignedMemberId,
@@ -92,6 +125,13 @@ const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactB
   usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
   returnDueDate: toLocalDateTime(body.returnDueDate),
   usageType: body.usageType,
+})
+
+const toTangibleAssetAssignmentBody = (body: TangibleAssetAssignmentRequest) => compactBody({
+  memberId: body.memberId,
+  usageType: body.usageType,
+  assetUsageType: body.assetUsageType,
+  endedAt: toLocalDateTime(body.endedAt),
 })
 
 const toIntangibleItemBody = (body: IntangibleAssetItemCreateRequest | IntangibleAssetItemUpdateRequest) => compactBody({
@@ -187,6 +227,32 @@ export const tangibleAssetApi = {
   /** 유형자산 수정 */
   update: (assetId: string, body: TangibleAssetUpdateRequest) =>
     api.patch<TangibleAsset>(`/tangible-asset/assets/${assetId}`, toTangibleAssetUpdateBody(body)),
+
+  /** 유형자산 배정 이력 조회 */
+  getAssignments: (assetId: string, params?: { assignmentStatus?: TangibleAssetAssignmentStatus }) =>
+    api.get<TangibleAssetAssignmentResponse[]>(
+      `/tangible-asset/assets/${assetId}/assignments`,
+      compactParams(params),
+    ),
+
+  /** 유형자산 배정 */
+  assign: (assetId: string, body: TangibleAssetAssignmentRequest) =>
+    api.post<TangibleAssetAssignmentResponse>(
+      `/tangible-asset/assets/${assetId}/assign`,
+      toTangibleAssetAssignmentBody(body),
+    ),
+
+  /** 유형자산 반납/해지 */
+  returnAsset: (assetId: string) =>
+    api.post<TangibleAssetAssignmentResponse>(`/tangible-asset/assets/${assetId}/return`),
+
+  /** 유형자산 사용자 변경 */
+  reassign: (assetId: string, body: TangibleAssetReassignmentRequest) =>
+    api.post<TangibleAssetAssignmentResponse>(`/tangible-asset/assets/${assetId}/reassign`, body),
+
+  /** 유형자산 사용자 일괄 변경 */
+  reassignBulk: (body: TangibleAssetReassignBulkRequest) =>
+    api.post<TangibleAssetAssignmentResponse[]>('/tangible-asset/assets/reassign-bulk', body),
 }
 
 // ─── 무형자산 품목 API ───────────────────────────────────────────────────────
