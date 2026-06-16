@@ -188,12 +188,10 @@ const toIntangibleAssetCreateBody = (body: IntangibleAssetCreateRequest) => comp
 
 const toIntangibleAssetUpdateBody = (body: Partial<IntangibleAssetUpdateRequest>) => compactBody({
   intangibleAssetStatus: body.intangibleAssetStatus,
-  licenseCode: body.licenseCode,
   seatCount: body.seatCount,
-  isAutoRenewal: body.isAutoRenewal,
+  isAutoRenewal: toBoolean(body.isAutoRenewal),
   startedAt: toLocalDateTime(body.startedAt),
   expiredAt: toLocalDateTime(body.expiredAt),
-  billingCycle: body.billingCycle,
 })
 
 // ─── 유형자산 품목 API ───────────────────────────────────────────────────────

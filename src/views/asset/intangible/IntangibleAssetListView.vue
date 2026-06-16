@@ -30,6 +30,7 @@
         <BaseDrawer
           :is-open="isAssignmentDrawerOpen"
           title="무형자산 배정"
+          body-class="p-0 !overflow-hidden"
           hide-footer
           @close="isAssignmentDrawerOpen = false"
         >
@@ -173,6 +174,7 @@ import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
+import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
 
 import { usePermission } from '@/composables/usePermission.ts'
 import { useAuthStore } from '@/stores/auth.store'
@@ -245,6 +247,22 @@ type IntangibleAssetResponse = IntangibleAsset & {
   memberName?: string | null
   userName?: string | null
   provider?: string
+  assignedMemberCount?: number
+  currentUserCount?: number
+  activeAssignmentCount?: number
+  assignmentCount?: number
+  assignedMembers?: unknown[]
+  currentUsers?: unknown[]
+  members?: unknown[]
+}
+
+type NamedAssignmentLike = {
+  memberName?: string | null
+  name?: string | null
+  userName?: string | null
+  currentUserName?: string | null
+  memberNo?: string | null
+  currentUserMemberNo?: string | null
 }
 
 type ApiFailure = {
@@ -285,6 +303,7 @@ const serverAssetList = ref<IntangibleAsset[]>([])
 const assetItemOptions = ref<AssetItemOption[]>([])
 const departments = ref<Department[]>([])
 const members = ref<Member[]>([])
+const multiAssignedAssetIds = ref(new Set<string>())
 const totalElements = ref(0)
 const totalPages = ref(0)
 const isLoading = ref(false)
@@ -302,8 +321,15 @@ const statusLabel = (status: string | null | undefined) => {
   return INTANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
-const assetIdOf = (asset: IntangibleAsset) => (
-  asset.assetId ?? ''
+const assetIdOf = (asset: IntangibleAsset) => {
+  const assetWithAliases = asset as IntangibleAssetResponse
+  return asset.assetId ?? assetWithAliases.intangibleAssetId ?? ''
+}
+
+const assetGroupKeyOf = (asset: IntangibleAssetResponse) => (
+  asset.assetId
+  ?? asset.intangibleAssetId
+  ?? asset.assetCode
 )
 
 const itemIdOf = (item: IntangibleItem) => (
@@ -330,27 +356,124 @@ const toAssetItemOption = (item: IntangibleItem): AssetItemOption | null => {
   }
 }
 
-const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => ({
-  ...asset,
-  assetId: asset.assetId ?? asset.intangibleAssetId,
-  assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
-  assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
-  status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
-  assignedMemberId: asset.assignedMemberId ?? asset.currentUserId ?? null,
-  assignedMemberName: asset.assignedMemberName
+const assignmentCountOf = (asset: IntangibleAssetResponse) => {
+  const count = asset.assignedMemberCount
+    ?? asset.currentUserCount
+    ?? asset.activeAssignmentCount
+    ?? asset.assignmentCount
+
+  if (typeof count === 'number') return count
+
+  return asset.assignedMembers?.length
+    ?? asset.currentUsers?.length
+    ?? asset.members?.length
+    ?? 0
+}
+
+const isNamedAssignmentLike = (value: unknown): value is NamedAssignmentLike => (
+  typeof value === 'object' && value !== null
+)
+
+const memberLabelFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value.trim()
+  if (!isNamedAssignmentLike(value)) return ''
+
+  const name = value.memberName
+    ?? value.name
+    ?? value.userName
+    ?? value.currentUserName
+    ?? ''
+  const memberNo = value.memberNo ?? value.currentUserMemberNo ?? ''
+
+  if (!name) return ''
+  return memberNo ? `${name}(${memberNo})` : name
+}
+
+const singleAssignedMemberNameOf = (asset: IntangibleAssetResponse) => {
+  const directName = asset.assignedMemberName
     ?? asset.memberName
     ?? asset.userName
     ?? (asset.currentUserName
       ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
-      : null),
-  departmentId: asset.departmentId ?? null,
-  departmentName: asset.departmentName ?? null,
-  startedAt: asset.startedAt ?? null,
-  expiredAt: asset.expiredAt ?? null,
-  vendor: asset.provider ?? asset.vendor,
-})
+      : '')
 
-const handleAssetRegistered = () => {
+  if (directName && directName !== '-') return directName
+
+  return asset.assignedMembers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.currentUsers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.members?.map(memberLabelFromUnknown).find(Boolean)
+    ?? ''
+}
+
+const assignedMemberSummaryOf = (asset: IntangibleAssetResponse, assignedMemberCount: number) => {
+  const firstMemberName = singleAssignedMemberNameOf(asset)
+  if (assignedMemberCount > 1) {
+    return firstMemberName ? `${firstMemberName} 외 ${assignedMemberCount - 1}명` : `${assignedMemberCount}명`
+  }
+
+  return firstMemberName || '-'
+}
+
+const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => {
+  const assetId = asset.assetId ?? asset.intangibleAssetId ?? ''
+  const assignedMemberCount = assignmentCountOf(asset)
+  const hasMultipleAssignedUsers = assignedMemberCount > 1
+    || Boolean(assetId && multiAssignedAssetIds.value.has(assetId))
+
+  return {
+    ...asset,
+    assetId,
+    assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
+    assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
+    status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
+    assignedMemberId: hasMultipleAssignedUsers ? null : asset.assignedMemberId ?? asset.currentUserId ?? null,
+    assignedMemberName: assignedMemberSummaryOf(asset, hasMultipleAssignedUsers ? Math.max(assignedMemberCount, 2) : assignedMemberCount),
+    departmentId: hasMultipleAssignedUsers ? null : asset.departmentId ?? null,
+    departmentName: hasMultipleAssignedUsers ? '-' : asset.departmentName ?? '-',
+    startedAt: asset.startedAt ?? null,
+    expiredAt: asset.expiredAt ?? null,
+    vendor: asset.provider ?? asset.vendor,
+  }
+}
+
+const toGroupedAssetRows = (assets: IntangibleAssetResponse[]) => {
+  const groupedAssets = new Map<string, { asset: IntangibleAssetResponse; rowCount: number }>()
+
+  for (const asset of assets) {
+    const groupKey = assetGroupKeyOf(asset)
+    const assignmentCount = assignmentCountOf(asset)
+    const rowCount = Math.max(assignmentCount, 1)
+
+    if (!groupKey) {
+      groupedAssets.set(crypto.randomUUID(), { asset, rowCount })
+      continue
+    }
+
+    const existing = groupedAssets.get(groupKey)
+    if (!existing) {
+      groupedAssets.set(groupKey, { asset, rowCount })
+      continue
+    }
+
+    existing.rowCount += rowCount
+  }
+
+  return Array.from(groupedAssets.values()).map(({ asset, rowCount }) => (
+    toAssetRow({
+      ...asset,
+      assignedMemberCount: rowCount > 1 ? rowCount : assignmentCountOf(asset),
+    })
+  ))
+}
+
+const handleAssetRegistered = (asset?: IntangibleAsset) => {
+  if (asset && assignmentCountOf(asset as IntangibleAssetResponse) > 1) {
+    const assetId = assetIdOf(asset)
+    if (assetId) {
+      multiAssignedAssetIds.value = new Set([...multiAssignedAssetIds.value, assetId])
+    }
+  }
+
   handleSearch()
 }
 
@@ -701,9 +824,13 @@ const loadServerData = async () => {
       response,
     })
 
-    serverAssetList.value = response.data.content.map((asset) => toAssetRow(asset as IntangibleAssetResponse))
-    totalElements.value = response.data.totalElements
-    totalPages.value = response.data.totalPages
+    const groupedRows = toGroupedAssetRows(response.data.content as IntangibleAssetResponse[])
+    const duplicateCountOnPage = response.data.content.length - groupedRows.length
+    const adjustedTotalElements = Math.max(groupedRows.length, response.data.totalElements - duplicateCountOnPage)
+
+    serverAssetList.value = groupedRows
+    totalElements.value = adjustedTotalElements
+    totalPages.value = Math.max(1, Math.ceil(adjustedTotalElements / searchParams.value.size))
   } catch (error) {
     console.error('무형자산 목록 조회 실패', error)
   } finally {

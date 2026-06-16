@@ -322,6 +322,7 @@ export interface IntangibleAsset {
   assignedMemberName: string | null
   departmentId: string | null
   departmentName: string | null
+  memberIds?: string[]
   startedAt: string | null
   expiredAt: string | null
   vendor?: string
@@ -329,7 +330,7 @@ export interface IntangibleAsset {
   billingCycle?: BillingCycle
   seatCount?: number
   intangibleAssetStatus?: IntangibleAssetStatus
-  isAutoRenewal?: number
+  isAutoRenewal?: boolean
   purchaseDate?: string
   purchaseVendor?: string
   createdAt?: string
@@ -342,13 +343,14 @@ export interface IntangibleAssetCreateRequest {
   licenseCode?: string
   licenseKey?: string
   seatCount?: number
-  isAutoRenewal?: number
+  isAutoRenewal?: boolean
   purchaseDate?: string
   purchasePrice?: number
   purchaseVendor?: string
   intangibleAssetStatus?: IntangibleAssetStatus
   status?: IntangibleAssetStatus
   memberId?: string | null
+  memberIds?: string[]
   departmentId?: string | null
   startedAt?: string | null
   expiredAt?: string | null
@@ -365,20 +367,10 @@ export interface IntangibleAssetListFilter {
   departmentId?: string
 }
 
-export interface IntangibleAssetUpdateRequest{
-  intangibleAssetId: string
-  intangibleItemId: string
-  assetCode: string
-  licenseCode: string 
-  seatCount: number
-  isAutoRenewal: number
-  purchaseDate: string
-  purchasePrice: number
-  purchaseVendor: string
+export interface IntangibleAssetUpdateRequest {
   intangibleAssetStatus?: IntangibleAssetStatus
-  memberId?: string | null
-  departmentId?: string | null
+  seatCount?: number
+  isAutoRenewal: number | boolean
   startedAt?: string | null
   expiredAt?: string | null
-  billingCycle?: BillingCycle
 }

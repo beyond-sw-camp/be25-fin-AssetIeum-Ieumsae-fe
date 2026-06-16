@@ -66,11 +66,47 @@
           </FormField>
           <!-- 사용자 -->
           <FormField label="사용자" :required="requiresAssignmentInfo">
-            <Dropdown
-              v-model="formData.memberName"
-              :options="memberOptions"
-              root-option="사용자 선택"
-            />
+            <div class="space-y-2">
+              <div class="flex gap-2">
+                <Dropdown
+                  v-model="formData.memberName"
+                  :options="memberOptions"
+                  root-option="사용자 선택"
+                  class="flex-1"
+                  :disabled="selectedMembers.length >= maxSelectableMemberCount"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  :disabled="!pendingSelectedMember || selectedMembers.length >= maxSelectableMemberCount"
+                  @click="addSelectedMember"
+                >
+                  추가
+                </Button>
+              </div>
+
+              <p class="text-xs text-text-sub">
+                선택된 사용자 {{ selectedMembers.length }} / {{ maxSelectableMemberCount }}명
+              </p>
+
+              <div v-if="selectedMembers.length" class="flex flex-wrap gap-2 rounded-xl border border-border bg-surface-secondary p-2">
+                <span
+                  v-for="member in selectedMembers"
+                  :key="getMemberId(member)"
+                  class="inline-flex items-center gap-1 rounded-full bg-surface px-3 py-1 text-xs text-text-main shadow-sm"
+                >
+                  {{ getMemberLabel(member) }}
+                  <button
+                    type="button"
+                    class="text-text-sub hover:text-danger"
+                    @click="removeSelectedMember(getMemberId(member))"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            </div>
           </FormField>
           <!-- 사용 시작일 -->
           <Input
@@ -179,6 +215,7 @@ interface RegisterForm {
   statusLabel: string
   departmentId: string | null
   memberName: string
+  selectedMemberIds: string[]
   startedAt: string
   expiredAt: string
   purchaseDate: string
@@ -202,6 +239,10 @@ interface MemberAliases extends Member {
     departmentName?: string
     departmentNamePath?: string
   }
+}
+
+type CreatedIntangibleAsset = IntangibleAsset & {
+  intangibleAssetId?: string
 }
 
 const props = defineProps<{
@@ -242,9 +283,9 @@ const statusByLabel = Object.entries(INTANGIBLE_STATUS_LABEL).reduce(
 )
 
 const autoRenewalOptions = ['자동 갱신', '자동 갱신 안 함']
-const autoRenewalValueByLabel: Record<string, number> = {
-  '자동 갱신': 1,
-  '자동 갱신 안 함': 0,
+const autoRenewalValueByLabel: Record<string, boolean> = {
+  '자동 갱신': true,
+  '자동 갱신 안 함': false,
 }
 
 const billingCycleOptions = ['월간', '연간', '일회성']
@@ -262,6 +303,7 @@ const createEmptyForm = (): RegisterForm => ({
   statusLabel: INTANGIBLE_STATUS_LABEL.AVAILABLE,
   departmentId: null,
   memberName: '사용자 선택',
+  selectedMemberIds: [],
   startedAt: '',
   expiredAt: '',
   purchaseDate: '',
@@ -347,6 +389,11 @@ const getMemberNo = (member: Member) => {
   return aliases.memberNo ?? aliases.employeeNo ?? aliases.employee_no ?? ''
 }
 
+const getMemberId = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.memberId ?? aliases.id ?? aliases.member_id ?? ''
+}
+
 const getMemberLabel = (member: Member) => `${member.name}(${getMemberNo(member)})`
 
 const getMemberDepartmentId = (member: Member) => {
@@ -400,25 +447,29 @@ const memberBelongsToSelectedDepartment = (member: Member) => {
     || memberDepartmentPathContainsSelectedDepartment(member)
 }
 
+
+const toLocalDateTimeRequestValue = (value: string) => {
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return null
+  return trimmedValue.length === 16 ? `${trimmedValue}:00` : trimmedValue
+}
+
 const filteredMembers = computed(() => (
   props.members.filter(memberBelongsToSelectedDepartment)
 ))
 
-const selectedMemberDepartment = computed(() => {
-  const member = selectedMember.value
-  if (!member) return null
+const selectedMembers = computed(() => (
+  props.members.filter((member) => formData.value.selectedMemberIds.includes(getMemberId(member)))
+))
 
-  const departmentId = getMemberDepartmentId(member)
-  const departmentName = getMemberDepartmentName(member)
-  if (!departmentId && !departmentName) return null
+const availableMembers = computed(() => (
+  filteredMembers.value.filter((member) => !formData.value.selectedMemberIds.includes(getMemberId(member)))
+))
 
-  return flatDepartments.value.find((department) => department.departmentId === departmentId)
-    ?? flatDepartments.value.find((department) => department.name === departmentName)
-    ?? null
-})
-const memberOptions = computed(() => filteredMembers.value.map(getMemberLabel))
-const selectedMember = computed(() => (
-  props.members.find((member) => getMemberLabel(member) === formData.value.memberName)
+const memberOptions = computed(() => availableMembers.value.map(getMemberLabel))
+
+const pendingSelectedMember = computed(() => (
+  availableMembers.value.find((member) => getMemberLabel(member) === formData.value.memberName)
 ))
 
 const selectedStatus = computed(() => (
@@ -429,14 +480,34 @@ const requiresAssignmentInfo = computed(() => (
   selectedStatus.value !== 'AVAILABLE' && selectedStatus.value !== 'TERMINATED'
 ))
 
-const effectiveDepartment = computed(() => (
-  selectedMemberDepartment.value
-  ?? selectedDepartment.value
-))
-
 const positiveNumberValue = (value: string) => {
   const numberValue = Number(value)
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null
+}
+
+const maxSelectableMemberCount = computed(() => (
+  positiveNumberValue(formData.value.seatCount) ?? 1
+))
+
+const addSelectedMember = () => {
+  const member = pendingSelectedMember.value
+  if (!member) return
+  const memberId = getMemberId(member)
+  if (!memberId) return
+  if (formData.value.selectedMemberIds.includes(memberId)) return
+  if (formData.value.selectedMemberIds.length >= maxSelectableMemberCount.value) return
+
+  formData.value.selectedMemberIds = [...formData.value.selectedMemberIds, memberId]
+  formData.value.memberName = '사용자 선택'
+}
+
+const removeSelectedMember = (memberId: string) => {
+  formData.value.selectedMemberIds = formData.value.selectedMemberIds.filter((selectedMemberId) => selectedMemberId !== memberId)
+}
+
+const getCreatedAssetId = (asset: IntangibleAsset) => {
+  const createdAsset = asset as CreatedIntangibleAsset
+  return createdAsset.assetId ?? createdAsset.intangibleAssetId ?? ''
 }
 
 const isRegisterReady = computed(() => (
@@ -447,8 +518,7 @@ const isRegisterReady = computed(() => (
     !requiresAssignmentInfo.value ||
     (
       Boolean(formData.value.startedAt.trim()) &&
-      Boolean(effectiveDepartment.value) &&
-      Boolean(selectedMember.value)
+      selectedMembers.value.length > 0
     )
   ) &&
   Boolean(formData.value.purchaseDate.trim()) &&
@@ -461,8 +531,7 @@ const handleSave = async () => {
   if (!isRegisterReady.value || isSaving.value) return
 
   const item = selectedItem.value
-  const member = selectedMember.value
-  const department = effectiveDepartment.value
+  const members = selectedMembers.value
   const seatCount = positiveNumberValue(formData.value.seatCount)
   const purchasePrice = positiveNumberValue(formData.value.purchasePrice)
   const isAutoRenewal = autoRenewalValueByLabel[formData.value.autoRenewalLabel]
@@ -472,8 +541,8 @@ const handleSave = async () => {
     return
   }
 
-  if (requiresAssignmentInfo.value && (!member || !department || !formData.value.startedAt.trim())) {
-    console.error('사용중/만료예정/만료/해지요청 상태의 무형자산 등록에는 사용자, 부서, 사용 시작일이 필요합니다.', formData.value)
+  if (requiresAssignmentInfo.value && (!members.length || !formData.value.startedAt.trim())) {
+    console.error('사용중/만료예정/만료/해지요청 상태의 무형자산 등록에는 사용자와 사용 시작일이 필요합니다.', formData.value)
     return
   }
 
@@ -492,6 +561,20 @@ const handleSave = async () => {
     return
   }
 
+  if (members.length > seatCount) {
+    console.error('선택한 사용자 수가 최대 사용 가능 인원 수를 초과했습니다.', {
+      seatCount,
+      selectedMemberIds: formData.value.selectedMemberIds,
+    })
+    return
+  }
+
+  const purchaseDate = toLocalDateTimeRequestValue(formData.value.purchaseDate)
+  if (!purchaseDate) {
+    console.error('무형자산 등록에 필요한 구매 일시가 없습니다.', formData.value)
+    return
+  }
+
   isSaving.value = true
 
   const payload: IntangibleAssetCreateRequest = {
@@ -499,14 +582,14 @@ const handleSave = async () => {
     licenseCode: formData.value.licenseCode.trim(),
     seatCount,
     isAutoRenewal,
-    purchaseDate: formData.value.purchaseDate,
+    purchaseDate,
     purchasePrice,
     purchaseVendor: formData.value.purchaseVendor.trim(),
-    intangibleAssetStatus: selectedStatus.value,
-    memberId: member?.memberId ?? null,
-    departmentId: department?.departmentId ?? null,
-    startedAt: formData.value.startedAt.trim() || null,
-    expiredAt: formData.value.expiredAt.trim() || null,
+    intangibleAssetStatus: members.length > 0 ? 'AVAILABLE' : selectedStatus.value,
+    memberId: null,
+    departmentId: null,
+    startedAt: toLocalDateTimeRequestValue(formData.value.startedAt),
+    expiredAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
     billingCycle: billingCycleValueByLabel[formData.value.billingCycleLabel],
   }
 
@@ -514,12 +597,32 @@ const handleSave = async () => {
 
   try {
     const response = await intangibleAssetApi.create(payload)
+
+    const createdAssetId = getCreatedAssetId(response.data)
+
+    if (members.length > 0) {
+      if (!createdAssetId) {
+        throw new Error('생성된 무형자산 ID를 응답에서 찾을 수 없어 사용자 배정을 진행할 수 없습니다.')
+      }
+
+      for (const memberId of formData.value.selectedMemberIds) {
+        await intangibleAssetApi.assign(createdAssetId, {
+          memberId,
+          endedAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
+        })
+      }
+    }
+
     console.log('무형자산 등록 성공', {
       status: response.status,
+      assignedMemberCount: members.length,
       response,
     })
 
-    emit('registered', response.data)
+    emit('registered', {
+      ...response.data,
+      assignedMemberCount: members.length,
+    } as IntangibleAsset)
     emit('close')
   } catch (error) {
     const failure = typeof error === 'object' && error !== null
@@ -545,19 +648,10 @@ watch(() => props.isOpen, (isOpen) => {
 })
 
 watch(() => formData.value.departmentId, () => {
-  const member = selectedMember.value
-  if (!member) return
-  if (memberBelongsToSelectedDepartment(member)) return
-
   formData.value.memberName = '사용자 선택'
 })
 
-watch(selectedMember, (member) => {
-  if (!member) return
-
-  const department = selectedMemberDepartment.value
-  if (department) {
-    formData.value.departmentId = department.departmentId
-  }
+watch(() => formData.value.seatCount, () => {
+  formData.value.selectedMemberIds = formData.value.selectedMemberIds.slice(0, maxSelectableMemberCount.value)
 })
 </script>
