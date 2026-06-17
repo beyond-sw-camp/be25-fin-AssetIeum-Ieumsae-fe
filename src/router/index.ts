@@ -189,7 +189,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 관리', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+          meta: { title: '구매 계획', roles: ['SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
         },
 
         // ─── 로그 ─────────────────────────────────────
