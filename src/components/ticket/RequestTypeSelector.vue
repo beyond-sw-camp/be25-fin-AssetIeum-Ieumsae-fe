@@ -36,7 +36,7 @@ const options: Array<{
   {
     value: 'STANDARD_ASSET_REQUEST',
     label: '자산 요청',
-    description: '등록된 표준 품목을 선택해 자산을 요청합니다.',
+    description: '등록된 품목을 선택해 자산을 요청합니다.',
     icon: Box,
   },
   {

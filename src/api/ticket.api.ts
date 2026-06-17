@@ -24,6 +24,7 @@ import type {
   RentalExtensionProcessRequest,
   RentalExtensionProcessResponse,
   TicketActualAmountResponse,
+  DirectPurchasePaymentRequest,
   TicketComment,
   TicketEvidenceUploadResponse,
   TicketStatus,
@@ -96,8 +97,8 @@ export const ticketApi = {
   },
 
   /** 실제 결제 금액 입력 */
-  setActualPrice: (ticketId: string, actualPrice: number) =>
-    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
+  setActualPrice: (ticketId: string, body: DirectPurchasePaymentRequest) =>
+    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, body),
 
   /** 댓글 목록 조회 */
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>

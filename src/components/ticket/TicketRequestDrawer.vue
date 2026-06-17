@@ -128,7 +128,7 @@
         </div>
 
         <div class="flex items-center justify-between">
-          <p class="text-sm font-semibold text-text-main">자산 목록</p>
+          <p class="text-sm font-semibold text-text-main">조회 결과</p>
           <span v-if="hasSearchedAssets" class="text-xs text-text-muted">
             {{ itemOptions.length }}개
           </span>
@@ -137,10 +137,11 @@
         <AssetRadioList
           v-model="pendingSelectedAssetId"
           :items="itemOptions"
+          :item-groups="itemOptionGroups"
           :loading="isAssetsLoading"
           :error-message="assetErrorMessage"
-          :empty-text="hasSearchedAssets ? '조회 조건에 맞는 자산이 없습니다.' : '조회 조건을 선택하고 확인을 눌러주세요.'"
-          name="standard-request-asset"
+          :empty-text="hasSearchedAssets ? '조회 조건에 맞는 품목이 없습니다.' : '조회 조건을 선택하고 확인을 눌러주세요.'"
+          name="asset-request-item"
         />
       </section>
     </div>
@@ -535,7 +536,7 @@ import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import AssetRadioList from '@/components/ticket/AssetRadioList.vue'
-import type { AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
+import type { AssetRadioGroup, AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
 import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
 import { useAuthStore } from '@/stores'
 import type {
@@ -554,6 +555,7 @@ import { formatDate } from '@/utils/labels'
 
 interface SelectableAsset extends AssetRadioItem {
   assetType: AssetType
+  isStandard?: number | boolean
   usageType?: TangibleAssetUsageType | null
   returnDueDate?: string | null
 }
@@ -685,7 +687,7 @@ const showsPurchaseQuantityAndPrice = computed(() => (
 ))
 
 const assetSelectionLabel = computed(() => {
-  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '표준 자산 선택'
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '품목 선택'
   if (selectedKind.value === 'RENTAL') return '대여할 품목 선택'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장할 대여 자산 선택'
   if (selectedKind.value === 'MAINTENANCE') {
@@ -702,7 +704,7 @@ const assetSelectionEmptyText = computed(() => (
 ))
 
 const nestedAssetLabel = computed(() => (
-  selectedKind.value === 'RENTAL' ? '대여 자산' : '표준 자산'
+  selectedKind.value === 'RENTAL' ? '대여 자산' : '요청 품목'
 ))
 
 const visibleAssetOptions = computed(() => {
@@ -764,6 +766,18 @@ const filteredAssetOptions = computed(() => {
   return visibleAssetOptions.value.filter((item) => (
     `${item.name} ${item.description ?? ''}`.toLowerCase().includes(keyword)
   ))
+})
+
+const itemOptionGroups = computed<AssetRadioGroup[]>(() => {
+  if (selectedKind.value !== 'STANDARD_ASSET_REQUEST') return []
+
+  const standardItems = itemOptions.value.filter((item) => isStandardItem(item.isStandard))
+  const nonStandardItems = itemOptions.value.filter((item) => !isStandardItem(item.isStandard))
+
+  return [
+    { label: '표준 품목', items: standardItems },
+    { label: '비표준 품목', items: nonStandardItems },
+  ]
 })
 
 const reasonLabel = computed(() => {
@@ -860,6 +874,7 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
       .filter(Boolean)
       .join(' · '),
     assetType: 'TANGIBLE',
+    isStandard: item.isStandard,
   }
 }
 
@@ -879,7 +894,14 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
       item.licenseType,
     ].filter(Boolean).join(' · '),
     assetType: 'INTANGIBLE',
+    isStandard: item.isStandard,
   }
+}
+
+function isStandardItem(value: number | boolean | undefined) {
+  if (typeof value === 'boolean') return value
+  if (value === undefined) return true
+  return Number(value) !== 0
 }
 
 function getTangibleAssetId(asset: TangibleAsset) {
@@ -1066,7 +1088,6 @@ async function handleAssetSearch() {
         size: 100,
         categoryName: assetSearchForm.category || undefined,
         keyword: assetSearchForm.keyword.trim() || undefined,
-        assetUsageType: assetSearchForm.assetUsageType || undefined,
       })
       itemOptions.value = response.data.content.map(toTangibleItemOption).filter((item) => item.id)
     }

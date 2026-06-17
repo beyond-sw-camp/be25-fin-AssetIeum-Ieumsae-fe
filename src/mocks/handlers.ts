@@ -932,6 +932,14 @@ const toMockStandardValue = (value: number | boolean | undefined, fallback = 1) 
   return value ?? fallback
 }
 
+function matchesMockStandardFilter(itemValue: number | boolean | undefined, filterValue: string) {
+  if (!filterValue) return true
+  const normalizedFilter = filterValue === 'true' ? 1 : filterValue === 'false' ? 0 : Number(filterValue)
+  if (!Number.isFinite(normalizedFilter)) return true
+  const normalizedItem = typeof itemValue === 'boolean' ? (itemValue ? 1 : 0) : Number(itemValue)
+  return normalizedItem === normalizedFilter
+}
+
 interface IntangibleItem {
   assetItemId: string
   productName: string
@@ -2614,8 +2622,12 @@ export const handlers = [
       }, { status: 409 })
     }
 
-    const body = await request.json() as { actualPrice?: number }
-    if (!Number.isInteger(body.actualPrice) || Number(body.actualPrice) <= 0) {
+    const body = await request.json() as Record<string, unknown>
+    if (
+      !body.actualPrice
+      || !Number.isInteger(Number(body.actualPrice))
+      || Number(body.actualPrice) <= 0
+    ) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'INVALID_ACTUAL_PRICE',
@@ -2631,6 +2643,13 @@ export const handlers = [
     ticketDetailData.set(ticketId, {
       ...requestDetail,
       actualAmount: actualPrice,
+      purchaseVendor: String(body.purchaseVendor ?? ''),
+      purchaseDate: String(body.purchaseDate ?? ''),
+      serialNumber: String(body.serialNumber ?? ''),
+      warrantyEndDate: String(body.warrantyEndDate ?? ''),
+      isAutoRenewal: body.isAutoRenewal === null ? null : Boolean(body.isAutoRenewal),
+      paymentCycle: String(body.paymentCycle ?? ''),
+      expirationDate: String(body.expirationDate ?? ''),
     })
 
     return HttpResponse.json(ok({
@@ -3328,6 +3347,7 @@ export const handlers = [
     const size = Number(url.searchParams.get('size') ?? 10)
     const categoryName = url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
     const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...tangibleItems]
@@ -3343,6 +3363,10 @@ export const handlers = [
           item.manufacturer.toLowerCase().includes(keyword) ||
           item.modelName.toLowerCase().includes(keyword),
       )
+    }
+
+    if (isStandard) {
+      filteredItems = filteredItems.filter((item) => matchesMockStandardFilter(item.isStandard, isStandard))
     }
 
     if (assetUsageType) {
@@ -3503,6 +3527,7 @@ export const handlers = [
     const size = Number(url.searchParams.get('size') ?? 10)
     const category = url.searchParams.get('category') ?? url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
     const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...intangibleItems]
@@ -3519,6 +3544,10 @@ export const handlers = [
           item.category.toLowerCase().includes(keyword) ||
           item.licenseType.toLowerCase().includes(keyword),
       )
+    }
+
+    if (isStandard) {
+      filteredItems = filteredItems.filter((item) => matchesMockStandardFilter(item.isStandard, isStandard))
     }
 
     if (assetUsageType) {

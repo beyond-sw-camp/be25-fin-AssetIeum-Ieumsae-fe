@@ -881,7 +881,17 @@ function closePurchasePaymentDrawer() {
   purchasePaymentErrorMessage.value = ''
 }
 
-async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file: File }) {
+async function handlePurchasePaymentSubmit(payload: {
+  actualPrice: number
+  file: File
+  purchaseVendor?: string
+  purchaseDate?: string
+  serialNumber?: string
+  warrantyEndDate?: string
+  isAutoRenewal?: boolean
+  paymentCycle?: string
+  expirationDate?: string
+}) {
   if (
     !ticketId.value
     || !canRegisterDirectPurchasePayment.value
@@ -892,8 +902,9 @@ async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file:
   purchasePaymentErrorMessage.value = ''
 
   try {
-    await ticketApi.setActualPrice(ticketId.value, payload.actualPrice)
-    await ticketApi.uploadEvidence(ticketId.value, payload.file)
+    const { file, ...paymentData } = payload
+    await ticketApi.setActualPrice(ticketId.value, paymentData)
+    await ticketApi.uploadEvidence(ticketId.value, file)
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
     notificationStore.success('결제 정보가 저장되었습니다.')

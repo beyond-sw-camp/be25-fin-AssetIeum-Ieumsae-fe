@@ -328,6 +328,28 @@
         <PackageCheck :size="15" />
         자산 검색 및 할당
       </Button>
+
+      <Button
+        v-if="canConfirmDirectPurchasePayment"
+        variant="outline"
+        class="shrink-0"
+        :disabled="isActionSubmitting"
+        @click="handleConfirmDirectPurchasePayment"
+      >
+        <CheckCircle2 :size="15" />
+        구매 증빙 승인 (구매 진행 처리)
+      </Button>
+
+      <Button
+        v-if="canGoToAssetRegistration"
+        variant="outline"
+        class="shrink-0"
+        :disabled="isActionSubmitting"
+        @click="handleGoToAssetRegistration"
+      >
+        <Save :size="15" />
+        신규 품목/자산 등록하러 가기
+      </Button>
       <Button
         v-if="canChangeRentalExtensionDueDate"
         variant="outline"
@@ -566,6 +588,7 @@ import {
   XCircle,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -649,9 +672,10 @@ const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
 ])
 
 const props = defineProps<{
-  ticketId: string
+  ticketId?: string
 }>()
 
+const router = useRouter()
 const emit = defineEmits<{
   back: []
   updated: []
@@ -671,6 +695,7 @@ const isRejecting = ref(false)
 const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
 const isAssigningMe = ref(false)
+const isConfirmingDirectPurchasePayment = ref(false)
 const isCollectingAsset = ref(false)
 const isCompletingMaintenance = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
@@ -797,6 +822,26 @@ const canAssignAsset = computed(() => (
     )
   )
 ))
+const canConfirmDirectPurchasePayment = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && isDirectPurchasePaymentReady.value
+    && ticket.value.status === 'ASSET_APPROVED',
+  )
+))
+const canGoToAssetRegistration = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && ticket.value.ticketType === 'PURCHASE_REQUEST'
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
+    && ticket.value.status === 'IN_PROGRESS'
+    && !purchaseRequestAssignable.value,
+  )
+))
 const canChangeRentalExtensionDueDate = computed(() => (
   Boolean(
     ticket.value
@@ -857,6 +902,8 @@ const shouldShowActionBottomBar = computed(() => (
       || canAssetReview.value
       || canAssignAsset.value
       || canChangeRentalExtensionDueDate.value
+      || canConfirmDirectPurchasePayment.value
+      || canGoToAssetRegistration.value
     ),
   )
 ))
@@ -869,6 +916,7 @@ const isActionSubmitting = computed(() => (
   || isCollectingAsset.value
   || isCompletingMaintenance.value
   || isChangingRentalExtensionDueDate.value
+  || isConfirmingDirectPurchasePayment.value
 ))
 const rejectDrawerTitle = computed(() => '반려')
 const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
@@ -902,6 +950,17 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
       label: '확인 상태',
       value: isDirectPurchasePaymentReady.value ? '결제 증빙 등록 완료' : '결제 증빙 대기',
     },
+    { label: '구매처', value: ticket.value.purchaseVendor || '-' },
+    { label: '구매 일시', value: formatDate(ticket.value.purchaseDate) || '-' },
+    ...(ticket.value.assetType === 'TANGIBLE' ? [
+      { label: '시리얼 번호', value: ticket.value.serialNumber || '-' },
+      { label: '보증 만료 일시', value: formatDate(ticket.value.warrantyEndDate) || '-' },
+    ] : []),
+    ...(ticket.value.assetType === 'INTANGIBLE' ? [
+      { label: '자동 연장 여부', value: ticket.value.isAutoRenewal === true ? '자동 갱신' : (ticket.value.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
+      { label: '결제 주기', value: ticket.value.paymentCycle || '-' },
+      { label: '만료 일시', value: formatDate(ticket.value.expirationDate) || '-' },
+    ] : []),
   ]
 })
 const directPurchasePaymentGuideMessage = computed(() => {
@@ -1657,6 +1716,33 @@ async function handleRentalExtensionDueDateChange() {
     notificationStore.error('반납 예정일 변경 실패', message)
   } finally {
     isChangingRentalExtensionDueDate.value = false
+  }
+}
+
+async function handleConfirmDirectPurchasePayment() {
+  if (!ticket.value || !canConfirmDirectPurchasePayment.value) return
+
+  isConfirmingDirectPurchasePayment.value = true
+  try {
+    await ticketApi.changeStatus(ticket.value.ticketId, 'IN_PROGRESS')
+    notificationStore.success('구매 증빙을 승인하고 처리 중으로 변경했습니다.')
+    await loadTicketDetail()
+  } catch (error) {
+    notificationStore.error(
+      '상태 변경 실패',
+      error instanceof Error ? error.message : '문제가 발생했습니다.',
+    )
+  } finally {
+    isConfirmingDirectPurchasePayment.value = false
+  }
+}
+
+function handleGoToAssetRegistration() {
+  if (!ticket.value) return
+  if (ticket.value.assetType === 'INTANGIBLE') {
+    router.push({ name: 'IntangibleItemList' })
+  } else {
+    router.push({ name: 'TangibleAssetItemList' })
   }
 }
 

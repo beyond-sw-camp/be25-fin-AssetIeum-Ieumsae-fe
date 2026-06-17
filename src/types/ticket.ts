@@ -63,6 +63,13 @@ export interface TicketDetail {
   maintenanceCompletedAt?: string | null
   maintenanceCost?: number | null
   // TODO: API 명세/백엔드 확인 필요 - 직접 구매 증빙 상세 응답 필드명 확정 후 정리
+  purchaseVendor?: string | null
+  purchaseDate?: string | null
+  serialNumber?: string | null
+  warrantyEndDate?: string | null
+  isAutoRenewal?: boolean | null
+  paymentCycle?: string | null
+  expirationDate?: string | null
   directPurchaseEvidenceFileName?: string | null
   directPurchaseEvidenceUploadedAt?: string | null
   directPurchaseEvidenceUrl?: string | null
@@ -284,6 +291,17 @@ export interface TicketActualAmountResponse {
   priceDifference: number
   requiresReapproval: boolean
   updatedAt: string
+}
+
+export interface DirectPurchasePaymentRequest {
+  actualPrice: number
+  purchaseVendor?: string
+  purchaseDate?: string
+  serialNumber?: string
+  warrantyEndDate?: string
+  isAutoRenewal?: boolean
+  paymentCycle?: string
+  expirationDate?: string
 }
 
 export interface TicketEvidenceUploadResponse {

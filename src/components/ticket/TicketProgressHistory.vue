@@ -74,10 +74,10 @@ interface ProcessStep extends ProcessDefinition {
 
 const PROCESS_BY_TICKET_TYPE: Record<TicketType, ProcessDefinition[]> = {
   ASSET_REQUEST: [
-    { key: 'created', label: '티켓 생성 및 상신' },
+    { key: 'created', label: '품목 선택 및 요청 생성' },
     { key: 'department', label: '부서 승인' },
     { key: 'review', label: '구매자산팀 검토' },
-    { key: 'action', label: '요청 처리 및 자산 배정' },
+    { key: 'action', label: '품목 확인 및 자산 배정' },
     { key: 'completed', label: '처리 완료' },
   ],
   RENTAL: [
