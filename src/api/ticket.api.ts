@@ -3,6 +3,7 @@ import type {
   TicketListItem,
   TicketDetail,
   TicketListFilter,
+  TicketStatistics,
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
@@ -15,7 +16,15 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  MaintenanceCollectResponse,
+  AssetCollectResponse,
+  MaintenanceCompleteRequest,
+  MaintenanceCompleteResponse,
+  TicketAssignMeResponse,
+  RentalExtensionProcessRequest,
+  RentalExtensionProcessResponse,
   TicketActualAmountResponse,
+  DirectPurchasePaymentRequest,
   TicketComment,
   TicketEvidenceUploadResponse,
   TicketStatus,
@@ -29,6 +38,9 @@ export const ticketApi = {
   /** 티켓 목록 조회 */
   getList: (params?: TicketListFilter) =>
     api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
+
+  getStatistics: () =>
+    api.get<TicketStatistics>('/tickets/statistics'),
 
   /** 티켓 상세 조회 */
   getDetail: (ticketId: string) =>
@@ -50,6 +62,33 @@ export const ticketApi = {
   assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
 
+  /** 유지보수 대상 자산 회수 처리 */
+  collectMaintenanceAsset: (ticketId: string) =>
+    api.patch<MaintenanceCollectResponse>(`/tickets/${ticketId}/maintence/collect`, {}),
+
+  /** 반납/해지 대상 자산 회수 처리 */
+  collectReturnAsset: (ticketId: string) =>
+    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/returns/collect`, {}),
+
+  /** 반품 대상 자산 회수 처리 */
+  collectPurchaseReturnAsset: (ticketId: string) =>
+    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/purchase-returns/collect`, {}),
+
+  /** 구매자산팀 티켓 담당자 나에게 배정 */
+  completeMaintenance: (maintenanceTicketId: string, body: MaintenanceCompleteRequest) =>
+    api.patch<MaintenanceCompleteResponse>(`/maintenance-tickets/${maintenanceTicketId}/complete`, {
+      maintenance_result: body.maintenanceResult,
+      maintenance_completed_at: body.maintenanceCompletedAt,
+      maintenance_cost: body.maintenanceCost,
+    }),
+
+  assignMe: (ticketId: string) =>
+    api.patch<TicketAssignMeResponse>(`/tickets/${ticketId}/assign-me`, {}),
+
+  /** 대여 연장 반납 예정일 변경 처리 */
+  changeRentalExtensionDueDate: (ticketId: string, body: RentalExtensionProcessRequest) =>
+    api.patch<RentalExtensionProcessResponse>(`/tickets/${ticketId}/rental-extension`, body),
+
   /** 구매 증빙 업로드 */
   uploadEvidence: (ticketId: string, file: File) => {
     const formData = new FormData()
@@ -58,8 +97,8 @@ export const ticketApi = {
   },
 
   /** 실제 결제 금액 입력 */
-  setActualPrice: (ticketId: string, actualPrice: number) =>
-    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, { actualPrice }),
+  setActualPrice: (ticketId: string, body: DirectPurchasePaymentRequest) =>
+    api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, body),
 
   /** 댓글 목록 조회 */
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>

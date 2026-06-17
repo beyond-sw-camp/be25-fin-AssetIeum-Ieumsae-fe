@@ -43,6 +43,7 @@ const {
   canManageCompany,
   canManageDepartment,
   canManageAsset,
+  canManageTickets,
   canPurchase,
   canViewMyTickets,
 } = usePermission()
@@ -77,6 +78,7 @@ const navItems = computed(() => {
       show: canViewMyTickets.value,
       children: [
         { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
+        { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },
       ],
     },
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },

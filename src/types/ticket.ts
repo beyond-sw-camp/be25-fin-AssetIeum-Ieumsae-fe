@@ -10,6 +10,10 @@ export interface TicketListItem extends Record<string, unknown> {
   ticketType: TicketType
   requestMethod: PurchaseRequestMethod | null
   requestedItemName: string | null
+  requesterId?: string | number
+  requesterName?: string
+  departmentId?: string | number
+  departmentName?: string
   requestedAt: string
   ticketStatus: TicketStatus
 }
@@ -22,6 +26,10 @@ export interface TicketDetail {
   requestMethod?: PurchaseRequestMethod | null
   status: TicketStatus
   detailStatus?: string | null
+  // TODO: API 명세/백엔드 확인 필요 - 구매 계획 기능 확정 후 실제 응답 필드명에 맞춰 정리
+  linkedPurchasePlanId?: string | null
+  purchasePlanId?: string | null
+  purchaseId?: string | null
   requesterId: string | number
   requesterName: string
   departmentId: string | number
@@ -35,6 +43,8 @@ export interface TicketDetail {
   // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
   requestedUsageType?: RequestedUsageType | null
   assetType?: AssetType | null
+  assetItemId?: string | null
+  isStandard?: number | boolean | null
   categoryName?: string | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
@@ -54,6 +64,17 @@ export interface TicketDetail {
   maintenanceResult?: string | null
   maintenanceCompletedAt?: string | null
   maintenanceCost?: number | null
+  // TODO: API 명세/백엔드 확인 필요 - 직접 구매 증빙 상세 응답 필드명 확정 후 정리
+  purchaseVendor?: string | null
+  purchaseDate?: string | null
+  serialNumber?: string | null
+  warrantyEndDate?: string | null
+  isAutoRenewal?: boolean | null
+  paymentCycle?: string | null
+  expirationDate?: string | null
+  directPurchaseEvidenceFileName?: string | null
+  directPurchaseEvidenceUploadedAt?: string | null
+  directPurchaseEvidenceUrl?: string | null
   returnReason?: string | null
   returnResult?: string | null
   refundAmount?: number | null
@@ -84,6 +105,13 @@ export interface TicketListFilter {
   keyword?: string
   requesterId?: string
   departmentId?: string
+}
+
+export interface TicketStatistics {
+  totalCount: number
+  newOrPendingReviewCount: number
+  inProgressCount: number
+  completedCount: number
 }
 
 // =====================================================
@@ -199,6 +227,65 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface MaintenanceCollectResponse {
+  ticketId: string
+  tangibleAssetId: string | number
+  assetStatus: string
+  collectedAt: string
+}
+
+export interface AssetCollectResponse {
+  ticketId: string | number
+  assetType: AssetType
+  assetId: string | number
+  status?: string
+  ticketStatus?: string
+  assetStatus: string
+  collectedAt: string
+}
+
+export interface MaintenanceCompleteRequest {
+  maintenanceResult: string
+  maintenanceCompletedAt: string
+  maintenanceCost: number
+}
+
+export interface MaintenanceCompleteResponse {
+  maintenanceTicketId?: string | number
+  maintenance_ticket_id?: string | number
+  ticketId?: string | number
+  status: string
+  tangibleAssetId?: string | number
+  tangible_asset_id?: string | number
+  maintenanceResult?: string
+  maintenance_result?: string
+  maintenanceCompletedAt?: string
+  maintenance_completed_at?: string
+  maintenanceCost?: number
+  maintenance_cost?: number
+}
+
+export interface TicketAssignMeResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  assigneeId: string
+  assigneeName: string
+}
+
+export interface RentalExtensionProcessRequest {
+  changedDueDate: string
+}
+
+export interface RentalExtensionProcessResponse {
+  ticketId: string
+  assetId: string | null
+  changedDueDate: string
+  ticketStatus: TicketStatus
+  processedAt: string
+  completedAt: string
+}
+
 export interface TicketActualAmountResponse {
   ticketId: string
   expectedPrice: number
@@ -208,8 +295,13 @@ export interface TicketActualAmountResponse {
   updatedAt: string
 }
 
+export interface DirectPurchasePaymentRequest {
+  actualPrice: number
+}
+
 export interface TicketEvidenceUploadResponse {
   ticketId: string
+  directPurchaseEvidenceFileName?: string | null
   purchaseDate: string
   updatedAt: string
 }

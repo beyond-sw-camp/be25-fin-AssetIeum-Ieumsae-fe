@@ -74,10 +74,10 @@ interface ProcessStep extends ProcessDefinition {
 
 const PROCESS_BY_TICKET_TYPE: Record<TicketType, ProcessDefinition[]> = {
   ASSET_REQUEST: [
-    { key: 'created', label: '티켓 생성 및 상신' },
+    { key: 'created', label: '품목 선택 및 요청 생성' },
     { key: 'department', label: '부서 승인' },
     { key: 'review', label: '구매자산팀 검토' },
-    { key: 'action', label: '요청 처리 및 자산 배정' },
+    { key: 'action', label: '품목 확인 및 자산 배정' },
     { key: 'completed', label: '처리 완료' },
   ],
   RENTAL: [
@@ -183,6 +183,12 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
   if (key === 'completed') {
     return ticket.completedAt ?? ticket.canceledAt ?? undefined
   }
+  if (key === 'action' && ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    return ticket.collectedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
+  }
+  if (key === 'result' && ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    return ticket.maintenanceCompletedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
+  }
   return state === 'current' ? ticket.updatedAt : undefined
 }
 
@@ -191,6 +197,15 @@ function failureStepIndex(status: TicketStatus) {
   if (status === 'ASSET_REJECTED') return 2
   if (status === 'CANCELED') return 1
   return -1
+}
+
+function progressIndex(ticket: TicketDetail) {
+  if (ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    if (ticket.status === 'IN_PROGRESS' && ticket.maintenanceCompletedAt) return 5
+    if (ticket.status === 'IN_PROGRESS' && ticket.assetStatus === 'REPAIRING') return 4
+  }
+
+  return STATUS_PROGRESS_INDEX[ticket.status] ?? 0
 }
 
 function stepDescription(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
@@ -208,17 +223,17 @@ const processSteps = computed<ProcessStep[]>(() => {
   const ticket = props.ticket
   const definitions = ticket.ticketType === 'PURCHASE_REQUEST'
     && ticket.requestMethod === 'DIRECT_PURCHASE'
-    ? [
-        { key: 'created', label: '직접 구매 요청 생성' },
+      ? [
+        { key: 'created', label: '품목 구분 및 직접 구매 요청 생성' },
         { key: 'department', label: '부서 승인' },
         { key: 'review', label: '구매자산팀 승인' },
-        { key: 'action', label: '직접 구매 및 결제 정보 입력' },
-        { key: 'completed', label: '구매 처리 완료' },
+        { key: 'action', label: '직접 구매 및 증빙 등록' },
+        { key: 'completed', label: '구매 완료 및 자산 등록' },
       ] satisfies ProcessDefinition[]
     : PROCESS_BY_TICKET_TYPE[ticket.ticketType]
   const failureIndex = failureStepIndex(ticket.status)
   const isCompleted = ticket.status === 'COMPLETED'
-  const currentIndex = STATUS_PROGRESS_INDEX[ticket.status] ?? 0
+  const currentIndex = progressIndex(ticket)
 
   return definitions.map((definition, index) => {
     let state: ProcessStepState

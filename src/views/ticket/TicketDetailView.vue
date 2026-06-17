@@ -161,6 +161,17 @@
         결제 정보 등록
       </Button>
       <Button
+        v-if="canCollectMaintenanceAsset"
+        variant="outline"
+        class="mr-2 shrink-0"
+        :loading="isCollectingMaintenanceAsset"
+        :disabled="isCancelling || isPurchasePaymentSubmitting"
+        @click="isMaintenanceCollectModalOpen = true"
+      >
+        <PackageCheck :size="15" />
+        유지보수 자산 회수
+      </Button>
+      <Button
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="!canCancelTicket"
@@ -180,6 +191,16 @@
       :loading="isCancelling"
       @cancel="isCancelModalOpen = false"
       @confirm="handleCancelTicket"
+    />
+
+    <ConfirmationModal
+      :is-open="isMaintenanceCollectModalOpen"
+      title="유지보수 자산 회수"
+      message="유지보수 대상 자산을 회수 처리하시겠습니까? 처리 후 자산 상태가 수리중으로 변경됩니다."
+      confirm-text="회수 처리"
+      :loading="isCollectingMaintenanceAsset"
+      @cancel="isMaintenanceCollectModalOpen = false"
+      @confirm="handleCollectMaintenanceAsset"
     />
 
     <DirectPurchasePaymentDrawer
@@ -210,6 +231,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  PackageCheck,
   ReceiptText,
   RefreshCw,
   TicketCheck,
@@ -226,7 +248,12 @@ import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import TicketProgressHistory from '@/components/ticket/TicketProgressHistory.vue'
 import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTable.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
-import type { AssetType, TicketComment, TicketDetail, TicketStatus } from '@/types'
+import type {
+  AssetType,
+  TicketComment,
+  TicketDetail,
+  TicketStatus,
+} from '@/types'
 import {
   formatCurrency,
   formatDate,
@@ -274,6 +301,8 @@ const updatingCommentId = ref<number | null>(null)
 const deletingCommentId = ref<number | null>(null)
 const isCancelling = ref(false)
 const isCancelModalOpen = ref(false)
+const isCollectingMaintenanceAsset = ref(false)
+const isMaintenanceCollectModalOpen = ref(false)
 const isPurchasePaymentDrawerOpen = ref(false)
 const isPurchasePaymentSubmitting = ref(false)
 const commentToDelete = ref<TicketComment | null>(null)
@@ -314,6 +343,23 @@ const canRegisterDirectPurchasePayment = computed(() => (
     && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && isRequester.value
     && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+  )
+))
+
+const isAssetTeamRole = computed(() => (
+  authStore.currentRole === 'ADMIN'
+  || authStore.currentRole === 'SUPER_ADMIN'
+  || authStore.currentRole === 'ASSET_TEAM'
+  || authStore.currentRole === 'ASSET_MANAGER'
+))
+
+const canCollectMaintenanceAsset = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && ticket.value.ticketType === 'MAINTENANCE_REQUEST'
+    && ticket.value.status === 'ASSET_APPROVED'
+    && !ticket.value.collectedAt,
   )
 ))
 
@@ -629,7 +675,6 @@ function assetStatusLabel(status: string | null | undefined): string {
   const statusLabels: Record<string, string> = {
     ...TANGIBLE_STATUS_LABEL,
     ...INTANGIBLE_STATUS_LABEL,
-    UNDER_MAINTENANCE: '유지보수 중',
     RETURN_COLLECTED: '회수 완료',
     RETURNED_TO_VENDOR: '공급처 반품 완료',
   }
@@ -800,6 +845,30 @@ async function handleCancelTicket() {
   }
 }
 
+async function handleCollectMaintenanceAsset() {
+  if (
+    !ticketId.value
+    || !canCollectMaintenanceAsset.value
+    || isCollectingMaintenanceAsset.value
+  ) return
+
+  isCollectingMaintenanceAsset.value = true
+
+  try {
+    await ticketApi.collectMaintenanceAsset(ticketId.value)
+    isMaintenanceCollectModalOpen.value = false
+    await loadTicketDetail()
+    notificationStore.success('유지보수 대상 자산을 회수 처리했습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '유지보수 대상 자산 회수 처리에 실패했습니다.'
+    notificationStore.error('유지보수 자산 회수 실패', message)
+  } finally {
+    isCollectingMaintenanceAsset.value = false
+  }
+}
+
 function openPurchasePaymentDrawer() {
   if (!canRegisterDirectPurchasePayment.value) return
   purchasePaymentErrorMessage.value = ''
@@ -812,7 +881,10 @@ function closePurchasePaymentDrawer() {
   purchasePaymentErrorMessage.value = ''
 }
 
-async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file: File }) {
+async function handlePurchasePaymentSubmit(payload: {
+  actualPrice: number
+  file: File
+}) {
   if (
     !ticketId.value
     || !canRegisterDirectPurchasePayment.value
@@ -823,8 +895,9 @@ async function handlePurchasePaymentSubmit(payload: { actualPrice: number; file:
   purchasePaymentErrorMessage.value = ''
 
   try {
-    await ticketApi.setActualPrice(ticketId.value, payload.actualPrice)
-    await ticketApi.uploadEvidence(ticketId.value, payload.file)
+    const { file, actualPrice } = payload
+    await ticketApi.setActualPrice(ticketId.value, { actualPrice })
+    await ticketApi.uploadEvidence(ticketId.value, file)
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
     notificationStore.success('결제 정보가 저장되었습니다.')
@@ -843,12 +916,6 @@ async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(ticketId, () => {
-  isPurchasePaymentDrawerOpen.value = false
-  isPurchasePaymentSubmitting.value = false
-  purchasePaymentErrorMessage.value = ''
-  loadPage()
-})
 function resetCommentActionState() {
   commentActionRequestVersion += 1
   commentToDelete.value = null
@@ -858,7 +925,19 @@ function resetCommentActionState() {
   commentActionVersion.value += 1
 }
 
+function resetTicketActionState() {
+  isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentSubmitting.value = false
+  purchasePaymentErrorMessage.value = ''
+}
+
 watch(ticketId, () => {
+  isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentSubmitting.value = false
+  purchasePaymentErrorMessage.value = ''
+  isMaintenanceCollectModalOpen.value = false
+  isCollectingMaintenanceAsset.value = false
+  resetTicketActionState()
   resetCommentActionState()
   void loadPage()
 })

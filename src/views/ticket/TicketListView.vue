@@ -139,7 +139,7 @@ import TicketRequestDrawer from '@/components/ticket/TicketRequestDrawer.vue'
 import TicketSearchBar from '@/components/ticket/TicketSearchBar.vue'
 import TicketTable from '@/components/ticket/TicketTable.vue'
 import { usePermission } from '@/composables'
-import { useNotificationStore } from '@/stores'
+import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   DropdownOption,
   TicketCreateResponse,
@@ -175,6 +175,7 @@ type TicketTypeFilter = TicketType | Extract<PurchaseRequestMethod, 'DIRECT_PURC
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
 const { canCreateTicket } = usePermission()
 
@@ -258,6 +259,7 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
+      requesterId: authStore.user?.memberId,
     })
     tickets.value = response.data.content
   } catch (error) {
