@@ -1546,6 +1546,34 @@ function getMockItemName(
   return tangibleItems.find((item) => item.assetItemId === itemId)?.assetName ?? null
 }
 
+function getMockItemCategory(
+  assetType: AssetType,
+  assetItemId: string | number | undefined,
+): string | null {
+  if (!assetItemId) return null
+  const itemId = String(assetItemId)
+
+  if (assetType === 'INTANGIBLE') {
+    return intangibleItems.find((item) => item.assetItemId === itemId)?.category ?? null
+  }
+
+  return tangibleItems.find((item) => item.assetItemId === itemId)?.category ?? null
+}
+
+function getMockItemStandardValue(
+  assetType: AssetType,
+  assetItemId: string | number | undefined,
+): number | null {
+  if (!assetItemId) return null
+  const itemId = String(assetItemId)
+
+  if (assetType === 'INTANGIBLE') {
+    return intangibleItems.find((item) => item.assetItemId === itemId)?.isStandard ?? null
+  }
+
+  return tangibleItems.find((item) => item.assetItemId === itemId)?.isStandard ?? null
+}
+
 function getMockAssetName(
   assetType: ReturnRequestCreate['assetType'],
   assetId: string,
@@ -2928,6 +2956,7 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tickets/purchase-requests/direct-purchase`, async ({ request }) => {
     const body = await request.json() as DirectPurchaseRequestCreate
+    const categoryName = getMockItemCategory(body.assetType, body.assetItemId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
@@ -2938,6 +2967,9 @@ export const handlers = [
         {
           requestedUsageType: body.requestedUsageType,
           assetType: body.assetType,
+          assetItemId: body.assetItemId ?? null,
+          isStandard: getMockItemStandardValue(body.assetType, body.assetItemId),
+          categoryName: categoryName ?? body.categoryId,
           requestedItemDetail: body.requestedItemDetail,
           quantity: body.quantity,
           expectedPrice: body.expectedPrice,

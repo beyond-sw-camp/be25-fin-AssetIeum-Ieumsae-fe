@@ -43,6 +43,8 @@ export interface TicketDetail {
   // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
   requestedUsageType?: RequestedUsageType | null
   assetType?: AssetType | null
+  assetItemId?: string | null
+  isStandard?: number | boolean | null
   categoryName?: string | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
@@ -161,6 +163,8 @@ export interface NonStandardAssetRequestCreate {
 export interface DirectPurchaseRequestCreate {
   requestedUsageType: RequestedUsageType
   assetType: AssetType
+  // TODO: API 명세/백엔드 확인 필요 - 직접 구매 표준 품목 요청에서 선택 품목 ID를 받을지 확정 필요
+  assetItemId?: string
   categoryId: string
   requestedItemDetail: string
   manufacturer: string
