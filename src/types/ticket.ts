@@ -218,6 +218,13 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface MaintenanceCollectResponse {
+  ticketId: string
+  tangibleAssetId: string | number
+  assetStatus: string
+  collectedAt: string
+}
+
 export interface RentalExtensionProcessRequest {
   changedDueDate: string
 }

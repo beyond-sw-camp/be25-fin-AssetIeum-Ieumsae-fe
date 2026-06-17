@@ -440,298 +440,176 @@ let tickets: MockTicket[] = [
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-02T11:10:00',
   },
-]
-
-const actionTestTickets: MockTicket[] = [
   {
-    ticketId: '301',
-    ticketNo: 'TKT-20260614-MY01',
-    ticketType: 'ASSET_REQUEST',
-    requestMethod: null,
-    requestedItemName: '이부장 본인 요청 - 회의용 태블릿',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(3),
-    requesterName: '이부장',
-    departmentId: PLATFORM_DEPARTMENT_ID,
-    departmentName: '플랫폼개발본부',
-    requestedAt: '2026-06-14T09:00:00',
-  },
-  {
-    ticketId: '101',
-    ticketNo: 'TKT-20260612-DM01',
-    ticketType: 'ASSET_REQUEST',
-    requestMethod: null,
-    requestedItemName: '부서장 테스트 - 표준 노트북 요청',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(16),
-    requesterName: '플랫폼사원',
-    departmentId: PLATFORM_DEPARTMENT_ID,
-    departmentName: '플랫폼개발본부',
-    requestedAt: '2026-06-12T09:00:00',
-  },
-  {
-    ticketId: '102',
-    ticketNo: 'TKT-20260612-DM02',
-    ticketType: 'RENTAL',
-    requestMethod: null,
-    requestedItemName: '부서장 테스트 - 교육용 모니터 대여',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(16),
-    requesterName: '플랫폼사원',
-    departmentId: PLATFORM_DEPARTMENT_ID,
-    departmentName: '플랫폼개발본부',
-    requestedAt: '2026-06-12T09:10:00',
-  },
-  {
-    ticketId: '103',
-    ticketNo: 'TKT-20260612-DM03',
-    ticketType: 'RENTAL_EXTENSION',
-    requestMethod: null,
-    requestedItemName: '부서장 테스트 - iPhone 대여 연장',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(7),
-    requesterName: '오프론트',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T09:20:00',
-  },
-  {
-    ticketId: '104',
-    ticketNo: 'TKT-20260612-DM04',
+    ticketId: '9',
+    ticketNo: 'TKT-20260610-009',
     ticketType: 'MAINTENANCE_REQUEST',
     requestMethod: null,
-    requestedItemName: '부서장 테스트 - ThinkPad 화면 점검',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(8),
-    requesterName: '서지민',
+    requestedItemName: 'Dell XPS 15 9530',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T09:30:00',
-  },
-  {
-    ticketId: '105',
-    ticketNo: 'TKT-20260612-DM05',
-    ticketType: 'ASSET_RETURN',
-    requestMethod: null,
-    requestedItemName: '부서장 테스트 - 모니터 반납',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(9),
-    requesterName: '오서준',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T09:40:00',
-  },
-  {
-    ticketId: '106',
-    ticketNo: 'TKT-20260612-DM06',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'TEAM_PURCHASE',
-    requestedItemName: '부서장 테스트 - 팀 구매 Figma 라이선스',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(11),
-    requesterName: '송유진',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T09:50:00',
-  },
-  {
-    ticketId: '107',
-    ticketNo: 'TKT-20260612-DM07',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'DIRECT_PURCHASE',
-    requestedItemName: '부서장 테스트 - 직접 구매 마우스',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(12),
-    requesterName: '문도윤',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T10:00:00',
-  },
-  {
-    ticketId: '108',
-    ticketNo: 'TKT-20260612-DM08',
-    ticketType: 'PURCHASE_RETURN',
-    requestMethod: null,
-    requestedItemName: '부서장 테스트 - 구매 자산 반품',
-    ticketStatus: 'REQUESTED',
-    requesterId: mockMemberId(13),
-    requesterName: '배수현',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-12T10:10:00',
+    requestedAt: '2026-06-10T09:30:00',
   },
   {
     ticketId: '201',
-    ticketNo: 'TKT-20260613-AT01',
+    ticketNo: 'TKT-20260615-201',
     ticketType: 'ASSET_REQUEST',
     requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 표준 노트북 제공',
-    ticketStatus: 'DEPARTMENT_APPROVED',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    ticketStatus: 'REQUESTED',
     requesterId: mockMemberId(5),
     requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:00:00',
+    requestedAt: '2026-06-15T09:00:00',
   },
   {
     ticketId: '202',
-    ticketNo: 'TKT-20260613-AT02',
-    ticketType: 'RENTAL',
+    ticketNo: 'TKT-20260615-202',
+    ticketType: 'ASSET_REQUEST',
     requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 프로젝트 모니터 대여',
+    requestedItemName: '시디즈 T80 하이엔드 의자',
     ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(6),
-    requesterName: '강개발',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:10:00',
+    requestedAt: '2026-06-15T09:30:00',
   },
   {
     ticketId: '203',
-    ticketNo: 'TKT-20260613-AT03',
-    ticketType: 'RENTAL_EXTENSION',
-    requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 대여 기간 연장',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(7),
-    requesterName: '오프론트',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:20:00',
-  },
-  {
-    ticketId: '204',
-    ticketNo: 'TKT-20260613-AT04',
-    ticketType: 'MAINTENANCE_REQUEST',
-    requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 노트북 유지보수',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(8),
-    requesterName: '서지민',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:30:00',
-  },
-  {
-    ticketId: '205',
-    ticketNo: 'TKT-20260613-AT05',
-    ticketType: 'ASSET_RETURN',
-    requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 사용 종료 자산 반납',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(9),
-    requesterName: '오서준',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:40:00',
-  },
-  {
-    ticketId: '206',
-    ticketNo: 'TKT-20260613-AT06',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'TEAM_PURCHASE',
-    requestedItemName: '구매자산팀 테스트 - 비표준 SaaS 구매',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(11),
-    requesterName: '송유진',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T09:50:00',
-  },
-  {
-    ticketId: '207',
-    ticketNo: 'TKT-20260613-AT07',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'DIRECT_PURCHASE',
-    requestedItemName: '구매자산팀 테스트 - 직접 구매 키보드',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(12),
-    requesterName: '문도윤',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:00:00',
-  },
-  {
-    ticketId: '208',
-    ticketNo: 'TKT-20260613-AT08',
-    ticketType: 'PURCHASE_RETURN',
-    requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 불량 구매품 반품',
-    ticketStatus: 'DEPARTMENT_APPROVED',
-    requesterId: mockMemberId(13),
-    requesterName: '배수현',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:10:00',
-  },
-  {
-    ticketId: '209',
-    ticketNo: 'TKT-20260613-AT09',
+    ticketNo: 'TKT-20260615-203',
     ticketType: 'ASSET_REQUEST',
     requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 승인 완료 후 자산 할당 대기',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
     ticketStatus: 'ASSET_APPROVED',
     requesterId: mockMemberId(5),
     requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:20:00',
+    requestedAt: '2026-06-15T10:00:00',
   },
   {
-    ticketId: '213',
-    ticketNo: 'TKT-20260613-AT13',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'TEAM_PURCHASE',
-    requestedItemName: '구매자산팀 테스트 - 관리 중인 비표준 모니터 구매',
+    ticketId: '204',
+    ticketNo: 'TKT-20260615-204',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
     ticketStatus: 'ASSET_APPROVED',
-    requesterId: mockMemberId(11),
-    requesterName: '송유진',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T11:00:00',
+    requestedAt: '2026-06-15T10:30:00',
+  },
+  {
+    ticketId: '205',
+    ticketNo: 'TKT-20260615-205',
+    ticketType: 'RENTAL_EXTENSION',
+    requestMethod: null,
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T11:00:00',
+  },
+  {
+    ticketId: '206',
+    ticketNo: 'TKT-20260615-206',
+    ticketType: 'MAINTENANCE_REQUEST',
+    requestMethod: null,
+    requestedItemName: 'MX Master 3S 무소음 마우스',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T11:30:00',
+  },
+  {
+    ticketId: '207',
+    ticketNo: 'TKT-20260615-207',
+    ticketType: 'ASSET_RETURN',
+    requestMethod: null,
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T12:00:00',
+  },
+  {
+    ticketId: '208',
+    ticketNo: 'TKT-20260615-208',
+    ticketType: 'PURCHASE_RETURN',
+    requestMethod: null,
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T12:30:00',
+  },
+  {
+    ticketId: '209',
+    ticketNo: 'TKT-20260615-209',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T13:00:00',
   },
   {
     ticketId: '210',
-    ticketNo: 'TKT-20260613-AT10',
-    ticketType: 'RENTAL',
-    requestMethod: null,
-    requestedItemName: '구매자산팀 테스트 - 자산 할당 후 대여 진행',
-    ticketStatus: 'IN_PROGRESS',
-    requesterId: mockMemberId(6),
-    requesterName: '강개발',
+    ticketNo: 'TKT-20260615-210',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'DIRECT_PURCHASE',
+    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:30:00',
+    requestedAt: '2026-06-15T13:30:00',
   },
   {
     ticketId: '211',
-    ticketNo: 'TKT-20260613-AT11',
+    ticketNo: 'TKT-20260615-211',
     ticketType: 'PURCHASE_REQUEST',
     requestMethod: 'TEAM_PURCHASE',
-    requestedItemName: '구매자산팀 테스트 - 팀 구매 반려 완료',
+    requestedItemName: 'Surface Studio 2+',
     ticketStatus: 'ASSET_REJECTED',
-    requesterId: mockMemberId(11),
-    requesterName: '송유진',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:40:00',
+    requestedAt: '2026-06-15T14:00:00',
   },
   {
     ticketId: '212',
-    ticketNo: 'TKT-20260613-AT12',
-    ticketType: 'PURCHASE_REQUEST',
-    requestMethod: 'DIRECT_PURCHASE',
-    requestedItemName: '구매자산팀 테스트 - 직접 구매 취소 완료',
+    ticketNo: 'TKT-20260615-212',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
     ticketStatus: 'CANCELED',
-    requesterId: mockMemberId(12),
-    requesterName: '문도윤',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
     departmentName: '프론트엔드팀',
-    requestedAt: '2026-06-13T10:50:00',
+    requestedAt: '2026-06-15T14:30:00',
   },
 ]
-
-tickets = [...actionTestTickets, ...tickets]
 
 const ticketReasons = new Map<string, string>([
   ['1', '업무용 표준 자산이 필요합니다.'],
@@ -742,6 +620,19 @@ const ticketReasons = new Map<string, string>([
   ['6', '백엔드 개발 업무용 IDE 라이선스가 필요합니다.'],
   ['7', '재택근무 시 사용할 무선 키보드가 필요합니다.'],
   ['8', '프로젝트 일정 연장으로 대여 기간 연장이 필요합니다.'],
+  ['9', '배터리 팽창 증상이 있어 유지보수 점검이 필요합니다.'],
+  ['201', '신규 프로젝트 개발 환경 구성을 위해 표준 노트북이 필요합니다.'],
+  ['202', '장시간 회의와 페어 프로그래밍을 위한 표준 의자가 필요합니다.'],
+  ['203', '승인된 표준 노트북을 실제 자산으로 배정하는 테스트 요청입니다.'],
+  ['204', '외부 세미나 기간 동안 사용할 모니터 대여가 필요합니다.'],
+  ['205', '프로젝트 종료 일정이 늦어져 대여 중인 모바일 기기 반납 예정일 연장이 필요합니다.'],
+  ['206', '마우스 휠 동작 불량으로 유지보수 점검을 요청합니다.'],
+  ['207', '장비 교체로 기존 노트북을 반납합니다.'],
+  ['208', '초기 불량으로 구매 자산 반품을 요청합니다.'],
+  ['209', '비표준 노트북 구매 후 자산 할당까지 테스트하기 위한 요청입니다.'],
+  ['210', '직접 구매 증빙 확인 후 자산 할당까지 테스트하기 위한 요청입니다.'],
+  ['211', '구매자산팀 반려 상태 확인용 테스트 요청입니다.'],
+  ['212', '요청자가 취소한 대여 요청 테스트 데이터입니다.'],
 ])
 
 const ticketDetailData = new Map<string, Partial<TicketDetail>>([
@@ -831,253 +722,134 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     changedDueDate: '2026-07-10T18:00:00',
     processedAt: '2026-05-02T15:30:00',
   }],
-])
-
-const actionTestTicketReasons = new Map<string, string>([
-  ['301', '부서책임자 본인이 올린 요청입니다. 나의 요청에서는 보이지만 승인/반려 액션은 노출되면 안 됩니다.'],
-  ['101', '이부장 부서 승인/반려 테스트용 표준 자산 요청입니다.'],
-  ['102', '이부장 부서 승인/반려 테스트용 대여 요청입니다.'],
-  ['103', '이부장 부서 승인/반려 테스트용 대여 연장 요청입니다.'],
-  ['104', '이부장 부서 승인/반려 테스트용 유지보수 요청입니다.'],
-  ['105', '이부장 부서 승인/반려 테스트용 반납 요청입니다.'],
-  ['106', '이부장 부서 승인/반려 테스트용 팀 구매 요청입니다.'],
-  ['107', '이부장 부서 승인/반려 테스트용 직접 구매 요청입니다.'],
-  ['108', '이부장 부서 승인/반려 테스트용 구매 반품 요청입니다.'],
-  ['201', '박자산 구매자산팀 승인/반려/상태변경 테스트용 표준 자산 요청입니다.'],
-  ['202', '박자산 구매자산팀 승인/반려/상태변경 테스트용 대여 요청입니다.'],
-  ['203', '박자산 구매자산팀 상태변경 테스트용 대여 연장 요청입니다.'],
-  ['204', '박자산 구매자산팀 상태변경 테스트용 유지보수 요청입니다.'],
-  ['205', '박자산 구매자산팀 상태변경 테스트용 반납 요청입니다.'],
-  ['206', '박자산 구매자산팀 승인/반려/상태변경 테스트용 팀 구매 요청입니다.'],
-  ['207', '박자산 구매자산팀 승인/반려/상태변경 테스트용 직접 구매 요청입니다.'],
-  ['208', '박자산 구매자산팀 상태변경 테스트용 구매 반품 요청입니다.'],
-  ['209', '박자산 구매자산팀 승인 완료 이후 자산 할당과 상태변경을 확인하는 표준 자산 요청입니다.'],
-  ['210', '박자산 구매자산팀 자산 할당 후 진행 중 상태와 대여 반납예정일 표시를 확인하는 요청입니다.'],
-  ['211', '박자산 구매자산팀 반려 완료 상태와 반려 사유 표시를 확인하는 팀 구매 요청입니다.'],
-  ['212', '박자산 구매자산팀 취소 완료 상태와 터미널 상태 표시를 확인하는 직접 구매 요청입니다.'],
-])
-
-const actionTestTicketDetails = new Map<string, Partial<TicketDetail>>([
-  ['301', {
-    detailStatus: '요청 접수',
-    requestedUsageType: 'PERSONAL',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (태블릿)',
-    requestedItemName: 'iPad Pro 13인치',
-    quantity: 1,
-  }],
-  ['101', {
-    detailStatus: '부서책임자 검토 대기',
-    requestedUsageType: 'PERSONAL',
+  ['9', {
+    detailStatus: '구매자산팀 승인 완료 - 회수 대기',
     assetType: 'TANGIBLE',
     categoryName: '전산장비 (PC)',
-    requestedItemName: 'MacBook Pro 16인치 M3 Max',
-    quantity: 1,
-  }],
-  ['102', {
-    detailStatus: '부서책임자 검토 대기',
-    requestedUsageType: 'TEAM',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'Dell UltraSharp 27인치 4K',
-    quantity: 2,
-    rentalStartDate: '2026-06-20T09:00:00',
-    requestedDueDate: '2026-07-04T18:00:00',
-  }],
-  ['103', {
-    detailStatus: '부서책임자 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '모바일 기기',
-    requestedItemName: 'iPhone 15 Pro Max 512GB',
-    assetId: '11',
-    previousDueDate: '2026-06-20T18:00:00',
-    requestedDueDate: '2026-07-10T18:00:00',
-  }],
-  ['104', {
-    detailStatus: '부서책임자 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (PC)',
-    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
-    assetId: '4',
+    requestedItemName: 'Dell XPS 15 9530',
+    assetId: '25',
     assetStatus: 'IN_USE',
-    maintenanceReason: '화면 깜빡임과 발열 증상이 있어 점검이 필요합니다.',
-  }],
-  ['105', {
-    detailStatus: '부서책임자 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'Dell UltraSharp 27인치 4K',
-    assetId: '8',
-    assetStatus: 'IN_USE',
-    returnReason: '프로젝트 종료로 대여 장비를 반납합니다.',
-  }],
-  ['106', {
-    detailStatus: '부서책임자 검토 대기',
-    requestedUsageType: 'TEAM',
-    assetType: 'INTANGIBLE',
-    categoryName: '디자인 도구',
-    requestedItemName: 'Figma Professional Seat 5개',
-    requestedItemDetail: '프론트엔드 디자인 협업용 Figma Professional Seat',
-    quantity: 5,
-    expectedPrice: 1500000,
-  }],
-  ['107', {
-    detailStatus: '부서책임자 검토 대기',
-    requestedUsageType: 'PERSONAL',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (주변기기)',
-    requestedItemName: 'Logitech MX Master 3S',
-    requestedItemDetail: '직접 구매 후 결제 금액 및 영수증 증빙 등록 테스트용',
-    quantity: 1,
-    expectedPrice: 139000,
-  }],
-  ['108', {
-    detailStatus: '부서책임자 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (주변기기)',
-    requestedItemName: 'Keychron K8 Pro',
-    assetId: '15',
-    assetStatus: 'IN_USE',
-    returnReason: '초기 불량으로 구매 반품 검토가 필요합니다.',
-    refundAmount: 159000,
+    maintenanceReason: '배터리 팽창 증상이 있어 유지보수 점검이 필요합니다.',
   }],
   ['201', {
-    detailStatus: '구매자산팀 검토 대기',
+    detailStatus: '부서 승인 대기',
     requestedUsageType: 'PERSONAL',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (PC)',
-    requestedItemName: 'MacBook Pro 16인치 M3 Max',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
     quantity: 1,
   }],
   ['202', {
     detailStatus: '구매자산팀 검토 대기',
     requestedUsageType: 'TEAM',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'Dell UltraSharp 27인치 4K',
-    quantity: 1,
-    rentalStartDate: '2026-06-21T09:00:00',
-    requestedDueDate: '2026-07-05T18:00:00',
+    categoryName: '사무가구',
+    requestedItemName: '시디즈 T80 하이엔드 의자',
+    quantity: 2,
   }],
   ['203', {
-    detailStatus: '구매자산팀 검토 대기',
+    detailStatus: '구매자산팀 승인 완료 - 자산 배정 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    quantity: 1,
+  }],
+  ['204', {
+    detailStatus: '대여 자산 배정 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '모니터',
+    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
+    quantity: 1,
+    rentalStartDate: '2026-06-18T09:00:00',
+    requestedDueDate: '2026-07-18T18:00:00',
+    rentalDueDate: '2026-07-18T18:00:00',
+  }],
+  ['205', {
+    detailStatus: '구매자산팀 승인 완료 - 반납 예정일 변경 대기',
     assetType: 'TANGIBLE',
     categoryName: '모바일 기기',
     requestedItemName: 'iPhone 15 Pro Max 512GB',
     assetId: '11',
-    previousDueDate: '2026-06-20T18:00:00',
-    requestedDueDate: '2026-07-15T18:00:00',
-  }],
-  ['204', {
-    detailStatus: '구매자산팀 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (PC)',
-    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
-    assetId: '4',
     assetStatus: 'IN_USE',
-    maintenanceReason: '배터리 사용 시간이 급격히 줄어 점검이 필요합니다.',
-  }],
-  ['205', {
-    detailStatus: '구매자산팀 검토 대기',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'Dell UltraSharp 27인치 4K',
-    assetId: '8',
-    assetStatus: 'IN_USE',
-    returnReason: '팀 공용 모니터 사용 종료로 회수 처리가 필요합니다.',
+    quantity: 1,
+    previousDueDate: '2026-07-02T18:00:00',
+    requestedDueDate: '2026-08-16T18:00:00',
+    rentalDueDate: '2026-07-02T18:00:00',
   }],
   ['206', {
-    detailStatus: '구매자산팀 검토 대기',
-    requestedUsageType: 'TEAM',
-    assetType: 'INTANGIBLE',
-    categoryName: '개발 도구',
-    requestedItemName: 'JetBrains All Products Pack 3석',
-    requestedItemDetail: '백오피스 개발 생산성 향상을 위한 비표준 SaaS 구매',
-    quantity: 3,
-    expectedPrice: 900000,
+    detailStatus: '구매자산팀 승인 완료 - 회수 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '주변기기',
+    requestedItemName: 'MX Master 3S 무소음 마우스',
+    assetId: '15',
+    assetStatus: 'IN_USE',
+    maintenanceReason: '마우스 휠 동작 불량으로 업무 중 입력 오류가 반복됩니다.',
   }],
   ['207', {
     detailStatus: '구매자산팀 검토 대기',
-    requestedUsageType: 'PERSONAL',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (주변기기)',
-    requestedItemName: 'MX Keys S 무선 키보드',
-    requestedItemDetail: '직접 구매 승인 이후 결제 증빙 등록까지 테스트하기 위한 티켓',
+    categoryName: '노트북',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    assetId: '4',
+    assetStatus: 'IN_USE',
     quantity: 1,
-    expectedPrice: 159000,
+    startedAt: '2025-03-15T09:00:00',
+    returnReason: '장비 교체로 기존 노트북을 반납합니다.',
   }],
   ['208', {
     detailStatus: '구매자산팀 검토 대기',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (주변기기)',
-    requestedItemName: 'Keychron K8 Pro',
-    assetId: '15',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    assetId: '3',
     assetStatus: 'IN_USE',
-    returnReason: '수령 직후 키 입력 불량으로 구매 반품 처리가 필요합니다.',
-    refundAmount: 159000,
+    returnReason: '초기 불량으로 구매 자산 반품을 요청합니다.',
   }],
   ['209', {
     detailStatus: '구매자산팀 승인 완료 - 자산 할당 대기',
     requestedUsageType: 'PERSONAL',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (PC)',
-    requestedItemName: 'Dell XPS 15 9530',
+    categoryName: '노트북',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    requestedItemDetail: 'ThinkPad X1 Carbon Gen 12 / 32GB / 1TB',
     quantity: 1,
-  }],
-  ['213', {
-    detailStatus: '구매자산팀 승인 완료 - 관리 중인 비표준 품목 할당 가능',
-    requestedUsageType: 'TEAM',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
-    requestedItemDetail: '디자인 검수용 비표준 모니터 구매 요청',
-    quantity: 1,
-    expectedPrice: 950000,
+    expectedPrice: 2900000,
   }],
   ['210', {
-    detailStatus: '자산 할당 완료 - 대여 진행 중',
-    requestedUsageType: 'TEAM',
-    assetType: 'TANGIBLE',
-    categoryName: '전산장비 (모니터)',
-    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
-    quantity: 1,
-    assetId: '17',
-    assetStatus: 'IN_USE',
-    rentalStartDate: '2026-06-14T09:00:00',
-    requestedDueDate: '2026-07-14T18:00:00',
-    rentalDueDate: '2026-07-14T18:00:00',
-    registeredAt: '2026-06-13T12:30:00',
-    processedAt: '2026-06-13T12:30:00',
-  }],
-  ['211', {
-    detailStatus: '구매자산팀 반려 완료',
-    requestedUsageType: 'TEAM',
-    assetType: 'INTANGIBLE',
-    categoryName: '개발 도구',
-    requestedItemName: 'JetBrains All Products Pack 10석',
-    requestedItemDetail: '팀 구매 반려 상태 표시 테스트용',
-    quantity: 10,
-    expectedPrice: 3000000,
-  }],
-  ['212', {
-    detailStatus: '취소 완료',
+    detailStatus: '직접 구매 결제 증빙 등록 완료',
     requestedUsageType: 'PERSONAL',
     assetType: 'TANGIBLE',
-    categoryName: '전산장비 (주변기기)',
-    requestedItemName: 'Logitech MX Master 3S',
-    requestedItemDetail: '직접 구매 취소 상태 표시 테스트용',
+    categoryName: '모니터',
+    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
+    requestedItemDetail: 'BenQ PD2725U 디자이너 모니터',
     quantity: 1,
-    expectedPrice: 139000,
+    expectedPrice: 990000,
+    actualAmount: 958000,
+    directPurchaseEvidenceFileName: 'receipt-benq-pd2725u.pdf',
+    directPurchaseEvidenceUploadedAt: '2026-06-15T15:20:00',
+    directPurchaseEvidenceUrl: '/mock/evidences/receipt-benq-pd2725u.pdf',
+  }],
+  ['211', {
+    detailStatus: '구매자산팀 반려',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '일체형 PC',
+    requestedItemName: 'Surface Studio 2+',
+    requestedItemDetail: 'Surface Studio 2+ / RTX 3060 / 32GB',
+    quantity: 1,
+    expectedPrice: 6200000,
+  }],
+  ['212', {
+    detailStatus: '요청 취소',
+    assetType: 'TANGIBLE',
+    categoryName: '태블릿',
+    requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
+    quantity: 1,
+    rentalStartDate: '2026-06-20T09:00:00',
+    requestedDueDate: '2026-07-20T18:00:00',
   }],
 ])
-
-for (const [ticketId, reason] of actionTestTicketReasons) {
-  ticketReasons.set(ticketId, reason)
-}
-
-for (const [ticketId, detail] of actionTestTicketDetails) {
-  ticketDetailData.set(ticketId, detail)
-}
 
 const ticketApproverIds = new Map<string, string>()
 const ticketAssigneeIds = new Map<string, string>()
@@ -1096,7 +868,8 @@ for (const ticketId of ['209', '210', '211']) {
 }
 
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
-ticketCanceledAt.set('212', '2026-06-13T12:50:00')
+ticketCanceledAt.set('212', '2026-06-15T15:00:00')
+ticketcanceledAt.set('212', '2026-06-15T15:00:00')
 
 let ticketComments: TicketComment[] = [
   {
@@ -1678,6 +1451,18 @@ function getAuthenticatedMember(request: Request): Member | undefined {
   return members.find((member) => member.memberNo === memberNo)
 }
 
+function canManageAssets(member: Member | undefined): boolean {
+  return Boolean(
+    member
+    && (
+      member.role === 'ADMIN'
+      || member.role === 'SUPER_ADMIN'
+      || member.role === 'ASSET_TEAM'
+      || member.role === 'ASSET_MANAGER'
+    ),
+  )
+}
+
 function getDepartmentManager(departmentId: string): Member | undefined {
   return members.find((member) => (
     member.departmentId === departmentId
@@ -1978,12 +1763,6 @@ export const handlers = [
       'COMPLETED',
     ].includes(ticket.ticketStatus)
     const hasDepartmentDecision = ticket.ticketStatus !== 'REQUESTED'
-    const hasAssetTeamAssignee = [
-      'ASSET_APPROVED',
-      'ASSET_REJECTED',
-      'IN_PROGRESS',
-      'COMPLETED',
-    ].includes(ticket.ticketStatus)
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
@@ -2011,8 +1790,8 @@ export const handlers = [
       departmentName: ticket.departmentName,
       approverId: departmentApprover ? memberSequence(departmentApprover) : null,
       approverName: departmentApprover?.name ?? null,
-      assigneeId: assignee?.memberId ?? (hasAssetTeamAssignee ? mockMemberId(2) : null),
-      assigneeName: assignee?.name ?? (hasAssetTeamAssignee ? '박자산' : null),
+      assigneeId: assignee?.memberId ?? null,
+      assigneeName: assignee?.name ?? null,
       requestReason: ticketReasons.get(ticketId) ?? null,
       ...requestDetail,
       directPurchaseEvidenceFileName: requestDetail.directPurchaseEvidenceFileName
@@ -2178,6 +1957,61 @@ export const handlers = [
       ticketStatus: ticket.ticketStatus,
       updatedAt,
     }, '티켓 반려에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/assign-me`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!actor || !canManageAssets(actor)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 티켓 담당자로 지정할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (
+      ticket.ticketStatus === 'REQUESTED'
+      || ['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'TICKET_CANNOT_BE_ASSIGNED',
+        message: '현재 상태에서는 티켓 담당자를 지정할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (ticketAssigneeIds.has(ticketId)) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'TICKET_ALREADY_ASSIGNED',
+        message: '이미 담당자가 지정된 티켓입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    ticketAssigneeIds.set(ticketId, actor.memberId)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketNo: ticket.ticketNo,
+      ticketStatus: ticket.ticketStatus,
+      assigneeId: actor.memberId,
+      assigneeName: actor.name,
+    }, '티켓 담당자 지정에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/:ticketId/asset-assignment`, async ({ params, request }) => {
@@ -2375,10 +2209,10 @@ export const handlers = [
     }, '티켓 상태 변경에 성공했습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/rental-extension`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/maintence/collect`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
-    const actor = getAuthenticatedMember(request)
+    const requester = getAuthenticatedMember(request)
 
     if (!ticket) {
       return HttpResponse.json({
@@ -2388,66 +2222,56 @@ export const handlers = [
         data: null,
       }, { status: 404 })
     }
-    if (!actor || !isAssetTeamRole(actor)) {
+
+    if (!canManageAssets(requester)) {
       return HttpResponse.json({
         status: 403,
         errorCode: 'FORBIDDEN',
-        message: '구매자산팀만 반납 예정일을 변경할 수 있습니다.',
+        message: '구매자산팀만 유지보수 대상 자산을 회수 처리할 수 있습니다.',
         data: null,
       }, { status: 403 })
     }
-    if (ticket.ticketType !== 'RENTAL_EXTENSION' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+
+    if (ticket.ticketType !== 'MAINTENANCE_REQUEST' || ticket.ticketStatus !== 'ASSET_APPROVED') {
       return HttpResponse.json({
         status: 409,
-        errorCode: 'INVALID_RENTAL_EXTENSION_STATUS',
-        message: '구매자산팀 승인 후 대여 연장 티켓만 반납 예정일을 변경할 수 있습니다.',
+        errorCode: 'INVALID_MAINTENANCE_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 유지보수 티켓만 회수 처리할 수 있습니다.',
         data: null,
       }, { status: 409 })
     }
 
-    const body = await request.json() as {
-      changedDueDate?: string
-      requestedDueDate?: string
-      returnDueDate?: string
-    }
-    const changedDueDate = body.changedDueDate ?? body.requestedDueDate ?? body.returnDueDate ?? ''
-    if (!/^\d{4}-\d{2}-\d{2}/.test(changedDueDate)) {
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const tangibleAssetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const tangibleAsset = tangibleAssets.find((asset) => asset.assetId === tangibleAssetId)
+
+    if (!tangibleAsset) {
       return HttpResponse.json({
-        status: 400,
-        errorCode: 'INVALID_CHANGED_DUE_DATE',
-        message: '변경할 반납 예정일을 올바르게 입력해주세요.',
+        status: 404,
+        errorCode: 'TANGIBLE_ASSET_NOT_FOUND',
+        message: '회수 대상 유형자산을 찾을 수 없습니다.',
         data: null,
-      }, { status: 400 })
+      }, { status: 404 })
     }
 
-    const now = new Date().toISOString()
-    const detailData = ticketDetailData.get(ticketId) ?? {}
-    const normalizedChangedDueDate = changedDueDate.includes('T')
-      ? changedDueDate
-      : `${changedDueDate}T18:00:00`
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    tangibleAsset.status = 'REPAIRING'
+    tangibleAsset.tangibleAssetStatus = 'REPAIRING'
     ticketDetailData.set(ticketId, {
-      ...detailData,
-      detailStatus: '반납 예정일 변경 완료',
-      changedDueDate: normalizedChangedDueDate,
-      rentalDueDate: normalizedChangedDueDate,
-      processedAt: now,
-      completedAt: now,
+      ...requestDetail,
+      detailStatus: '유지보수 대상 자산 회수 완료',
+      assetStatus: 'REPAIRING',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
     })
-    if (detailData.assetId) {
-      const asset = tangibleAssets.find((item) => item.assetId === detailData.assetId)
-      if (asset) asset.returnDueDate = normalizedChangedDueDate
-    }
-    ticket.ticketStatus = 'COMPLETED'
-    ticketAssigneeIds.set(ticketId, actor.memberId)
 
     return HttpResponse.json(ok({
       ticketId,
-      assetId: detailData.assetId ?? null,
-      changedDueDate: normalizedChangedDueDate,
-      ticketStatus: ticket.ticketStatus,
-      processedAt: now,
-      completedAt: now,
-    }, '반납 예정일 변경이 완료되었습니다.'))
+      tangibleAssetId,
+      assetStatus: 'REPAIRING',
+      collectedAt,
+    }, '유지보수 대상 자산 회수에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/:ticketId/actual-amount`, async ({ params, request }) => {

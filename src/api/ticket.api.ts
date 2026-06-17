@@ -16,6 +16,7 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  MaintenanceCollectResponse,
   RentalExtensionProcessRequest,
   RentalExtensionProcessResponse,
   TicketActualAmountResponse,
@@ -55,6 +56,10 @@ export const ticketApi = {
   /** 자산 할당 */
   assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
+
+  /** 유지보수 대상 자산 회수 처리 */
+  collectMaintenanceAsset: (ticketId: string) =>
+    api.patch<MaintenanceCollectResponse>(`/tickets/${ticketId}/maintence/collect`, {}),
 
   /** 대여 연장 반납 예정일 변경 처리 */
   changeRentalExtensionDueDate: (ticketId: string, body: RentalExtensionProcessRequest) =>
