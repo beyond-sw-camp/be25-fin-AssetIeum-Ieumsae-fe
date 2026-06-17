@@ -82,6 +82,15 @@ const navItems = computed(() => {
       ],
     },
     { name: 'hrworkflows', to: '/hrworkflows', label: 'HR 워크플로우', icon: Workflow, show: canViewHrWorkflow.value },
+    {
+      name: 'hrworkflow',
+      label: 'HR 워크플로우',
+      icon: Workflow,
+      show: canViewHrWorkflow.value,
+      children: [
+        { name: 'hrTemplate', to: '/hrtemplates', label: 'HR 템플릿', show: canViewMyTickets.value },
+      ],
+    },
     { name: 'inspections', to: '/inspections', label: '전수조사', icon: Search, show: canManageAsset.value },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },

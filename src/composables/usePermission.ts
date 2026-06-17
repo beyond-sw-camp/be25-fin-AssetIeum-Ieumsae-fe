@@ -75,6 +75,11 @@ export function usePermission() {
     hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
+  // HR 템플릿 등록 (구매자산팀장, 부서책임자)
+  const canRegisterHrTemplate = computed(() => 
+    hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER')
+  )
+
   return {
     role,
     hasRole,
@@ -94,5 +99,6 @@ export function usePermission() {
     canManageBudget,
     canRegisterAsset,
     canUpdateAsset,
+    canRegisterHrTemplate,
   }
 }

@@ -172,7 +172,26 @@ const router = createRouter({
           path: 'hrworkflows',
           name: 'HRworkflows',
           component: () => import('@/views/hr/HRWorkflowView.vue'),
-          meta: { title: 'HR 워크플로우', roles: ['DEPARTMENT_MANAGER'] },
+          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
+        },
+
+        // ─── HR 워크플로우 ────────────────────────────────
+        {
+          path: 'hrworkflow',
+          children: [
+            {
+              path: '/hrtemplates',
+              name: 'HRTemplates',
+              component: () => import('@/components/hr/HRTemplate.vue'),
+              meta: { title: 'HR 템플릿 관리', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
+            },
+            {
+              path: ':InspectionId',
+              name: 'InspectionDetail',
+              component: () => import('@/views/inspection/InspectionDetailView.vue'),
+              meta: { title: '전수조사 상세' },
+            },
+          ],
         },
         
         // ─── 예산 관리 ───────────────────────────────
