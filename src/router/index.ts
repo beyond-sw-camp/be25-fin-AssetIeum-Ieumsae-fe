@@ -150,23 +150,31 @@ const router = createRouter({
 
         // ─── 전수조사 ────────────────────────────────
         {
-          path: 'surveys',
+          path: 'inspections',
           children: [
             {
               path: '',
-              name: 'SurveyList',
-              component: () => import('@/views/survey/SurveyListView.vue'),
+              name: 'InspectionList',
+              component: () => import('@/views/inspection/InspectionListView.vue'),
               meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
             },
             {
-              path: ':surveyId',
-              name: 'SurveyDetail',
-              component: () => import('@/views/survey/SurveyDetailView.vue'),
+              path: ':InspectionId',
+              name: 'InspectionDetail',
+              component: () => import('@/views/inspection/InspectionDetailView.vue'),
               meta: { title: '전수조사 상세' },
             },
           ],
         },
 
+        // ─── HR 워크플로우 ────────────────────────────────
+        {
+          path: 'hrworkflows',
+          name: 'HRworkflows',
+          component: () => import('@/views/hr/HRWorkflowView.vue'),
+          meta: { title: 'HR 워크플로우', roles: ['DEPARTMENT_MANAGER'] },
+        },
+        
         // ─── 예산 관리 ───────────────────────────────
         {
           path: 'budget',
