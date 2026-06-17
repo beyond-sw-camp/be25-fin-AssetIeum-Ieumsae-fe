@@ -163,8 +163,6 @@ export interface NonStandardAssetRequestCreate {
 export interface DirectPurchaseRequestCreate {
   requestedUsageType: RequestedUsageType
   assetType: AssetType
-  // TODO: API 명세/백엔드 확인 필요 - 직접 구매 표준 품목 요청에서 선택 품목 ID를 받을지 확정 필요
-  assetItemId?: string
   categoryId: string
   requestedItemDetail: string
   manufacturer: string
@@ -299,13 +297,6 @@ export interface TicketActualAmountResponse {
 
 export interface DirectPurchasePaymentRequest {
   actualPrice: number
-  purchaseVendor?: string
-  purchaseDate?: string
-  serialNumber?: string
-  warrantyEndDate?: string
-  isAutoRenewal?: boolean
-  paymentCycle?: string
-  expirationDate?: string
 }
 
 export interface TicketEvidenceUploadResponse {

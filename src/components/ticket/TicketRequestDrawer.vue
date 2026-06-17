@@ -21,7 +21,7 @@
         요청 작성으로 돌아가기
       </button>
 
-      <section class="space-y-2">
+      <section v-if="showsAssetSearchUsageType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           공용자산 여부 <span class="text-primary">*</span>
         </p>
@@ -236,7 +236,7 @@
       </section>
 
       <template v-if="showsPurchaseRequestAssetType">
-        <section v-if="showsPurchaseCategorySelect" class="space-y-2">
+        <section class="space-y-2">
           <p class="text-sm font-semibold text-text-main">
             공용자산 여부 <span class="text-primary">*</span>
           </p>
@@ -268,7 +268,7 @@
           </div>
         </section>
 
-        <section class="space-y-2">
+        <section v-if="showsPurchaseCategorySelect" class="space-y-2">
           <label class="text-sm font-semibold text-text-main" for="ticket-request-asset-category">
             자산 분류 선택 <span class="text-primary">*</span>
           </label>
@@ -736,6 +736,8 @@ const showsAssetSearch = computed(() => (
   || selectedKind.value === 'RENTAL'
 ))
 
+const showsAssetSearchUsageType = computed(() => !isStandardDirectPurchase.value)
+
 const showsPurchaseQuantityAndPrice = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'DIRECT_PURCHASE'
@@ -812,7 +814,7 @@ const purchaseRequestCategoryOptions = computed(() => (
 ))
 
 const canSearchAssets = computed(() => Boolean(
-  assetSearchForm.assetUsageType && assetSearchForm.category,
+  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType) && assetSearchForm.category,
 ))
 
 const selectedAssetOption = computed(() => (
@@ -912,10 +914,8 @@ function toRequestedUsageType(
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
   if (usesSelectableAsset.value && !form.selectedAssetId) return false
-  if (
-    showsPurchaseCategorySelect.value
-    && (!form.assetUsageType || !form.category)
-  ) return false
+  if (showsPurchaseRequestAssetType.value && !form.assetUsageType) return false
+  if (showsPurchaseCategorySelect.value && !form.category) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
     return positiveNumber(form.quantity)
@@ -1028,11 +1028,14 @@ function standardDirectPurchasePayload() {
     throw new Error('선택한 품목의 자산 분류를 확인할 수 없습니다.')
   }
 
+  if (!selectedItem.manufacturer?.trim()) {
+    throw new Error('선택한 품목의 제조사/제공사 정보를 확인할 수 없습니다.')
+  }
+
   return {
-    assetItemId: selectedItem.id,
     categoryId,
     requestedItemDetail: selectedItem.name,
-    manufacturer: selectedItem.manufacturer ?? '',
+    manufacturer: selectedItem.manufacturer.trim(),
     licenseType: selectedItem.assetType === 'INTANGIBLE'
       ? selectedItem.licenseType ?? null
       : null,
@@ -1293,6 +1296,9 @@ function handleKindSelect(kind: TicketRequestKind) {
 function openAssetSelection() {
   pendingSelectedAssetId.value = form.selectedAssetId
   selectionAssetType.value = selectedKind.value === 'RENTAL' ? 'TANGIBLE' : form.assetType
+  if (isStandardDirectPurchase.value) {
+    assetSearchForm.assetUsageType = form.assetUsageType === 'TEAM' ? 'DEPARTMENT' : form.assetUsageType
+  }
   isAssetSelectionStep.value = true
 }
 
@@ -1422,7 +1428,6 @@ async function handleSubmit() {
           response = await ticketCreateApi.createDirectPurchaseRequest({
             requestedUsageType: toRequestedUsageType(form.assetUsageType),
             assetType: form.assetType,
-            assetItemId: standardPayload.assetItemId,
             categoryId: standardPayload.categoryId,
             requestedItemDetail: standardPayload.requestedItemDetail,
             manufacturer: standardPayload.manufacturer,

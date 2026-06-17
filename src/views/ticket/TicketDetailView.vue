@@ -884,13 +884,6 @@ function closePurchasePaymentDrawer() {
 async function handlePurchasePaymentSubmit(payload: {
   actualPrice: number
   file: File
-  purchaseVendor?: string
-  purchaseDate?: string
-  serialNumber?: string
-  warrantyEndDate?: string
-  isAutoRenewal?: boolean
-  paymentCycle?: string
-  expirationDate?: string
 }) {
   if (
     !ticketId.value
@@ -902,8 +895,8 @@ async function handlePurchasePaymentSubmit(payload: {
   purchasePaymentErrorMessage.value = ''
 
   try {
-    const { file, ...paymentData } = payload
-    await ticketApi.setActualPrice(ticketId.value, paymentData)
+    const { file, actualPrice } = payload
+    await ticketApi.setActualPrice(ticketId.value, { actualPrice })
     await ticketApi.uploadEvidence(ticketId.value, file)
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false

@@ -114,82 +114,6 @@
         </div>
       </section>
 
-      <section>
-        <h3 class="flex items-center gap-2 text-sm font-bold text-orange-600">
-          <span class="h-2 w-2 rounded-full bg-orange-500" />
-          자산 등록 필수 정보 (선택 입력)
-        </h3>
-        <p class="mt-1 text-xs text-text-sub">구매자산팀에서 자산 등록 시 필요한 정보입니다. 아는 범위 내에서 입력해 주세요.</p>
-
-        <div class="mt-5 space-y-5">
-          <!-- 공통 필드 -->
-          <Input
-            id="direct-purchase-vendor"
-            v-model="purchaseVendor"
-            label="구매처"
-            placeholder="구매처 입력"
-            :disabled="submitting"
-          />
-          <Input
-            id="direct-purchase-date"
-            v-model="purchaseDate"
-            type="date"
-            label="구매 일시"
-            :disabled="submitting"
-          />
-
-          <!-- 유형 자산 전용 필드 -->
-          <template v-if="ticket.assetType === 'TANGIBLE'">
-            <Input
-              id="direct-purchase-serial"
-              v-model="serialNumber"
-              label="시리얼 번호"
-              placeholder="시리얼 번호 입력"
-              :disabled="submitting"
-            />
-            <Input
-              id="direct-purchase-warranty"
-              v-model="warrantyEndDate"
-              type="date"
-              label="보증 만료 일시"
-              :disabled="submitting"
-            />
-          </template>
-
-          <!-- 무형 자산 전용 필드 -->
-          <template v-if="ticket.assetType === 'INTANGIBLE'">
-            <div class="w-full flex flex-col gap-2 text-left">
-              <label class="text-sm font-semibold text-text-main flex items-center gap-0.5">
-                자동 연장 여부
-              </label>
-              <select
-                v-model="isAutoRenewal"
-                :disabled="submitting"
-                class="h-9 w-full rounded-xl border border-border bg-surface px-4 py-1.5 text-sm text-text-main outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:opacity-60"
-              >
-                <option :value="null">-- 선택 안 함 --</option>
-                <option :value="true">자동 갱신</option>
-                <option :value="false">자동 갱신 안 함</option>
-              </select>
-            </div>
-            <Input
-              id="direct-purchase-payment-cycle"
-              v-model="paymentCycle"
-              label="결제 주기"
-              placeholder="결제 주기 입력"
-              :disabled="submitting"
-            />
-            <Input
-              id="direct-purchase-expiration"
-              v-model="expirationDate"
-              type="date"
-              label="만료 일시"
-              :disabled="submitting"
-            />
-          </template>
-        </div>
-      </section>
-
       <p
         v-if="displayErrorMessage"
         class="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
@@ -229,7 +153,6 @@ import { ReceiptText, UploadCloud, X } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
-import Input from '@/components/common/Input.vue'
 import type { TicketDetail } from '@/types'
 import { formatDate } from '@/utils/labels'
 
@@ -250,13 +173,6 @@ const emit = defineEmits<{
   submit: [payload: {
     actualPrice: number
     file: File
-    purchaseVendor?: string
-    purchaseDate?: string
-    serialNumber?: string
-    warrantyEndDate?: string
-    isAutoRenewal?: boolean
-    paymentCycle?: string
-    expirationDate?: string
   }]
 }>()
 
@@ -271,14 +187,6 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const actualPrice = ref('')
 const selectedFile = ref<File | null>(null)
 const validationErrorMessage = ref('')
-
-const purchaseVendor = ref('')
-const purchaseDate = ref('')
-const serialNumber = ref('')
-const warrantyEndDate = ref('')
-const isAutoRenewal = ref<boolean | null>(null)
-const paymentCycle = ref('')
-const expirationDate = ref('')
 
 const itemName = computed(() => (
   props.ticket.requestedItemName
@@ -315,14 +223,6 @@ function resetForm() {
     : ''
   selectedFile.value = null
   validationErrorMessage.value = ''
-  
-  purchaseVendor.value = ''
-  purchaseDate.value = ''
-  serialNumber.value = ''
-  warrantyEndDate.value = ''
-  isAutoRenewal.value = null
-  paymentCycle.value = ''
-  expirationDate.value = ''
 
   if (fileInput.value) fileInput.value.value = ''
 }
@@ -389,13 +289,6 @@ function handleSubmit() {
   emit('submit', {
     actualPrice: price,
     file: selectedFile.value,
-    purchaseVendor: purchaseVendor.value || undefined,
-    purchaseDate: purchaseDate.value || undefined,
-    serialNumber: serialNumber.value || undefined,
-    warrantyEndDate: warrantyEndDate.value || undefined,
-    isAutoRenewal: isAutoRenewal.value ?? undefined,
-    paymentCycle: paymentCycle.value || undefined,
-    expirationDate: expirationDate.value || undefined,
   })
 }
 
