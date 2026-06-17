@@ -225,6 +225,14 @@ export interface MaintenanceCollectResponse {
   collectedAt: string
 }
 
+export interface TicketAssignMeResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  assigneeId: string
+  assigneeName: string
+}
+
 export interface RentalExtensionProcessRequest {
   changedDueDate: string
 }

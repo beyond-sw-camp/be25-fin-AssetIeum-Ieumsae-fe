@@ -144,7 +144,18 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 text-sm font-semibold text-text-main">{{ item.value }}</dd>
+                    <dd class="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-text-main">
+                      <span>{{ item.value }}</span>
+                      <button
+                        v-if="item.actionLabel"
+                        type="button"
+                        class="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="item.actionDisabled"
+                        @click="item.action"
+                      >
+                        <span>{{ item.actionLoading ? '배정 중...' : item.actionLabel }}</span>
+                      </button>
+                    </dd>
                   </div>
                 </dl>
               </TicketDetailCard>
@@ -454,6 +465,10 @@ interface DetailItem {
     name: string
     query?: Record<string, string>
   }
+  actionLabel?: string
+  action?: () => void
+  actionLoading?: boolean
+  actionDisabled?: boolean
 }
 
 interface RequestDetailColumn {
@@ -514,6 +529,7 @@ const isApproving = ref(false)
 const isRejecting = ref(false)
 const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
+const isAssigningMe = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
@@ -628,6 +644,15 @@ const canChangeRentalExtensionDueDate = computed(() => (
     && ticket.value.status === 'ASSET_APPROVED',
   )
 ))
+const canAssignMe = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && !ticket.value.assigneeId
+    && !TERMINAL_STATUSES.has(ticket.value.status)
+    && ticket.value.status !== 'REQUESTED',
+  )
+))
 const canChangeStatus = computed(() => (
   Boolean(
     ticket.value
@@ -658,6 +683,7 @@ const isActionSubmitting = computed(() => (
   || isRejecting.value
   || isChangingStatus.value
   || isAssigningAsset.value
+  || isAssigningMe.value
   || isChangingRentalExtensionDueDate.value
 ))
 const rejectDrawerTitle = computed(() => '반려')
@@ -824,7 +850,14 @@ const processingInfoItems = computed<DetailItem[]>(() => {
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
       : { label: '내부 상태', value: ticket.value.detailStatus ?? '-' },
-    { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
+    {
+      label: '구매자산팀 담당자',
+      value: ticket.value.assigneeName ?? '미지정',
+      actionLabel: canAssignMe.value ? '+ 나에게 배정' : undefined,
+      action: canAssignMe.value ? handleAssignMe : undefined,
+      actionLoading: isAssigningMe.value,
+      actionDisabled: isActionSubmitting.value,
+    },
     {
       label: '구매자산팀 처리 일시',
       value: formatDate(
@@ -1130,6 +1163,25 @@ async function loadComments() {
 async function reloadAfterAction() {
   await loadTicketDetail()
   emit('updated')
+}
+
+async function handleAssignMe() {
+  if (!ticket.value || !canAssignMe.value || isAssigningMe.value) return
+
+  isAssigningMe.value = true
+
+  try {
+    await ticketApi.assignMe(ticket.value.ticketId)
+    await reloadAfterAction()
+    notificationStore.success('티켓 담당자로 지정되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '티켓 담당자 지정에 실패했습니다.'
+    notificationStore.error('담당자 지정 실패', message)
+  } finally {
+    isAssigningMe.value = false
+  }
 }
 
 async function handleApprove(approver: ApproverType) {
@@ -1445,6 +1497,7 @@ function resetTicketActionState() {
   isRejecting.value = false
   isChangingStatus.value = false
   isAssigningAsset.value = false
+  isAssigningMe.value = false
   isChangingRentalExtensionDueDate.value = false
 }
 
