@@ -5,7 +5,7 @@
     @click="emit('click')"
   >
     <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-sm font-bold text-text-main">보유 자산 현황</h2>
+      <h2 class="text-sm font-bold text-text-main">{{ title }}</h2>
       <PackageCheck class="text-primary" :size="18" />
     </div>
     <div class="mb-3 flex h-3 overflow-hidden rounded-full bg-surface-secondary">
@@ -17,7 +17,10 @@
         :style="{ width: `${item.percent}%` }"
       ></div>
     </div>
-    <div class="grid grid-cols-4 gap-2 text-center text-xs">
+    <div
+      class="grid gap-2 text-center text-xs"
+      :style="{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }"
+    >
       <div v-for="item in segments" :key="item.label">
         <div class="mb-1 flex items-center justify-center gap-1">
           <span class="h-2 w-2 rounded-full" :class="item.barClass"></span>
@@ -39,9 +42,12 @@ export interface DashboardSegment {
   barClass: string
 }
 
-defineProps<{
+withDefaults(defineProps<{
+  title?: string
   segments: DashboardSegment[]
-}>()
+}>(), {
+  title: '보유 자산 현황',
+})
 
 const emit = defineEmits<{
   click: []

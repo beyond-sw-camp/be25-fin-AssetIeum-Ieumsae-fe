@@ -240,9 +240,9 @@ const statusByLabel = Object.entries(INTANGIBLE_STATUS_LABEL).reduce(
 )
 
 const autoRenewalOptions = ['자동 갱신', '자동 갱신 안 함']
-const autoRenewalValueByLabel: Record<string, number> = {
-  '자동 갱신': 1,
-  '자동 갱신 안 함': 0,
+const autoRenewalValueByLabel: Record<string, boolean> = {
+  '자동 갱신': true,
+  '자동 갱신 안 함': false,
 }
 
 const billingCycleOptions = ['월간', '연간', '일회성']

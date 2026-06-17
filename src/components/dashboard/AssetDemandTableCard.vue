@@ -15,7 +15,7 @@
       empty-text="자산 수요 정보가 없습니다."
     >
       <template #cell-availability="{ value }">
-        <div class="flex items-center justify-censter gap-2">
+        <div class="flex items-center justify-center gap-2">
           <span class="w-10 text-right text-xs font-semibold text-text-main">{{ value }}%</span>
           <div class="h-1.5 w-14 overflow-hidden rounded-full bg-surface-secondary">
             <div

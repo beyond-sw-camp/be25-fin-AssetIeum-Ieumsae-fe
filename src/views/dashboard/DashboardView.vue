@@ -1,18 +1,15 @@
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
-    <div class="page-header shrink-0 px-3 pt-3">
-      <p class="page-subtitle mb-1">
-        대시보드
-      </p>
-      <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 class="page-title">
-            {{ dashboardTitle }}
-          </h1>
-          <p class="mt-1 text-sm text-text-sub">
-            {{ scopeLabel }}
-          </p>
-        </div>
+    <div class="page-header px-3 pt-3 flex flex-col gap-3 shrink-0 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="page-subtitle mb-1">
+          대시보드
+        </p>
+        <h1 class="page-title">
+          {{ dashboardTitle }}
+        </h1>
+      </div>
+      <div>
         <!-- TODO: 새로고침 기능  -->
         <Button variant="outline" :loading="isLoading" @click="loadDashboardData">
           <RefreshCw :size="15" />
@@ -21,6 +18,7 @@
       </div>
     </div>
 
+    <!-- 현황 -->
     <div class="flex-1 overflow-y-auto px-3 pb-6">
       <div
         v-if="loadError"
@@ -29,30 +27,33 @@
         {{ loadError }}
       </div>
 
+      <!-- 진행중인 티켓 현황 -->
       <section class="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <ProgressTicketCard
           v-if="canSeeProgressTicketCard"
           :segments="progressTicketSegments"
-          @click="openDetail('progressAll')"
         />
 
+        <!-- 보유 자산 현황 -->
         <HoldingAssetCard
           v-if="canSeeHoldingAssetCard"
+          :title="holdingAssetCardTitle"
           :segments="holdingAssetSegments"
           @click="openDetail('holdingAll')"
         />
 
+        <!-- 만료 예정 자산 현황 -->
         <ExpiringAssetCard
           v-if="canSeeExpiringAssetCard"
-          :tangible-count="expiringTangibleAssets.length"
-          :intangible-count="expiringIntangibleAssets.length"
+          :tangible-count="expiringTangibleCount"
+          :intangible-count="expiringIntangibleCount"
           @click="openDetail('expiringAll')"
           @click-tangible="openDetail('expiringTangible')"
           @click-intangible="openDetail('expiringIntangible')"
         />
       </section>
 
-
+      <!-- 자산 수요 정보 조회 -->
       <section class="mb-4">
         <AssetDemandTableCard
           v-if="canSeeDemandCard"
@@ -61,19 +62,32 @@
         />
       </section>
 
+      <!-- 부서별 예산 현황 -->
       <section class="mb-4">
+        <DepartmentBudgetSummaryCard
+          v-if="isDepartmentManager"
+          :summary="departmentBudgetSummary"
+        />
+
         <DepartmentBudgetCard
-          v-if="canSeeBudgetCard"
+          v-else-if="canSeeBudgetCard"
           :budget-rows="budgetRows"
           :total-budget-used="totalBudgetUsed"
           :total-budget-limit="totalBudgetLimit"
           :budget-usage-percent="budgetUsagePercent"
         />
       </section>
+      <!-- TODO: 예산 관리 기능... -->
 
+      <!-- 라이프 사이클 진행 현황 -->
       <section class="mb-4">
+        <DepartmentLifecycleCard
+          v-if="isDepartmentManager"
+          :data="departmentLifecycle"
+        />
+
         <LifecycleStatusCard
-          v-if="canSeeLifecycleCard"
+          v-else-if="canSeeLifecycleCard"
           :events="lifecycleEvents"
         />
       </section>
@@ -127,14 +141,23 @@ import Button from '@/components/common/Button.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import AssetDemandTableCard, { type DemandRow } from '@/components/dashboard/AssetDemandTableCard.vue'
 import DepartmentBudgetCard, { type BudgetRow } from '@/components/dashboard/DepartmentBudgetCard.vue'
+import DepartmentBudgetSummaryCard from '@/components/dashboard/DepartmentBudgetSummaryCard.vue'
+import DepartmentLifecycleCard from '@/components/dashboard/DepartmentLifecycleCard.vue'
 import ExpiringAssetCard from '@/components/dashboard/ExpiringAssetCard.vue'
 import HoldingAssetCard from '@/components/dashboard/HoldingAssetCard.vue'
 import LifecycleStatusCard, { type LifecycleEvent } from '@/components/dashboard/LifecycleStatusCard.vue'
 import ProgressTicketCard, { type DashboardSegment } from '@/components/dashboard/ProgressTicketCard.vue'
 import { useAuthStore } from '@/stores'
-import { formatDate, INTANGIBLE_STATUS_LABEL, ROLE_LABEL, TANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import { formatDate, INTANGIBLE_STATUS_LABEL, TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import { dashboardApi } from '@/api/dashboard.api'
-import type { IntangibleAsset, IntangibleAssetStatus, Role, TangibleAsset, TangibleAssetStatus } from '@/types'
+import {
+  dashboardBudgetRows,
+  dashboardDemandRows,
+  dashboardDepartmentBudgetSummary,
+  dashboardDepartmentDemandRows,
+  dashboardDepartmentLifecycle,
+} from '@/mocks/dashboard.data'
+import type { IntangibleAsset, IntangibleAssetStatus, TangibleAsset, TangibleAssetStatus } from '@/types'
 
 type AssetKind = '유형' | '무형'
 type DetailKey =
@@ -209,24 +232,17 @@ const isAssetOperator = computed(() => (
   ['SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(role.value)
 ))
 const isDepartmentManager = computed(() => role.value === 'DEPARTMENT_MANAGER')
-const canSeeProgressTicketCard = computed(() => isAssetOperator.value)
+const canSeeProgressTicketCard = computed(() => isAssetOperator.value || isDepartmentManager.value)
 const canSeeHoldingAssetCard = computed(() => true)
 const canSeeExpiringAssetCard = computed(() => true)
 const canSeeDemandCard = computed(() => isAssetOperator.value || isDepartmentManager.value)
 const canSeeBudgetCard = computed(() => isAssetOperator.value)
 const canSeeLifecycleCard = computed(() => true)
+const isAdminDashboard = computed(() => isAssetOperator.value)
 
 const dashboardTitle = computed(() => {
-  if (isAssetOperator.value) return '자산 관리 대시보드'
-  if (isDepartmentManager.value) return '부서 자산 대시보드'
+  if (isAssetOperator.value || isDepartmentManager.value) return '대시보드'
   return '내 자산 대시보드'
-})
-
-const scopeLabel = computed(() => {
-  const roleLabel = ROLE_LABEL[role.value as Role] ?? role.value
-  if (isAssetOperator.value) return `${roleLabel} 권한으로 전체 자산을 확인합니다.`
-  if (isDepartmentManager.value) return `${auth.user?.departmentName ?? '소속 부서'} 자산을 확인합니다.`
-  return `${auth.user?.name ?? '사용자'}님에게 배정된 자산을 확인합니다.`
 })
 
 const tangibleStatusLabel = (status: TangibleAssetStatus | string | null | undefined) => (
@@ -365,10 +381,19 @@ const expiringIntangibleAssets = computed(() => (
 ))
 
 const progressTicketStats = computed(() => [
-  { label: '접수 대기', count: unassignedAssets.value.length, barClass: 'bg-warning' },
-  { label: '승인 완료', count: rentalScheduledAssets.value.length, barClass: 'bg-success' },
-  { label: '처리 중', count: rentalActiveAssets.value.length, barClass: 'bg-primary' },
-  { label: '처리 완료', count: overdueAssets.value.length, barClass: 'bg-danger' },
+  ...(isAdminDashboard.value || isDepartmentManager.value
+    ? [
+        { label: '접수 대기', count: 12, barClass: 'bg-warning' },
+        { label: '접수 완료', count: 8, barClass: 'bg-primary' },
+        { label: '처리 중', count: 15, barClass: 'bg-danger' },
+        { label: '처리 완료', count: 32, barClass: 'bg-success' },
+      ]
+    : [
+        { label: '접수 대기', count: unassignedAssets.value.length, barClass: 'bg-warning' },
+        { label: '승인 완료', count: rentalScheduledAssets.value.length, barClass: 'bg-primary' },
+        { label: '처리 중', count: rentalActiveAssets.value.length, barClass: 'bg-danger' },
+        { label: '처리 완료', count: overdueAssets.value.length, barClass: 'bg-success' },
+      ]),
 ])
 
 const progressTicketSegments = computed<DashboardSegment[]>(() => {
@@ -384,10 +409,25 @@ const progressTicketSegments = computed<DashboardSegment[]>(() => {
 })
 
 const holdingAssetStats = computed(() => [
-  { label: '미배정', count: unassignedAssets.value.length, barClass: 'bg-warning' },
-  { label: '대여 예정', count: rentalScheduledAssets.value.length, barClass: 'bg-primary' },
-  { label: '대여 중', count: rentalActiveAssets.value.length, barClass: 'bg-success' },
-  { label: '연체', count: overdueAssets.value.length, barClass: 'bg-danger' },
+  ...(isAdminDashboard.value
+    ? [
+        { label: '미배정', count: 10, barClass: 'bg-neutral-800' },
+        { label: '대여 예정', count: 213, barClass: 'bg-warning' },
+        { label: '대여 중', count: 124, barClass: 'bg-success' },
+        { label: '연체', count: 9, barClass: 'bg-danger' },
+      ]
+    : isDepartmentManager.value
+      ? [
+          { label: '대여 가능', count: 213, barClass: 'bg-warning' },
+          { label: '대여중', count: 124, barClass: 'bg-success' },
+          { label: '연체', count: 9, barClass: 'bg-danger' },
+        ]
+    : [
+        { label: '미배정', count: unassignedAssets.value.length, barClass: 'bg-neutral-800' },
+        { label: '대여 예정', count: rentalScheduledAssets.value.length, barClass: 'bg-warning' },
+        { label: '대여 중', count: rentalActiveAssets.value.length, barClass: 'bg-success' },
+        { label: '연체', count: overdueAssets.value.length, barClass: 'bg-danger' },
+      ]),
 ])
 
 const holdingAssetSegments = computed<DashboardSegment[]>(() => {
@@ -402,6 +442,10 @@ const holdingAssetSegments = computed<DashboardSegment[]>(() => {
   }))
 })
 
+const holdingAssetCardTitle = computed(() => (
+  isDepartmentManager.value ? '자산 대여 현황' : '보유 자산 현황'
+))
+
 const demandColumns: Column<DemandRow>[] = [
   { key: 'kind', label: '자산 구분', align: 'left', width: '13%' },
   { key: 'name', label: '자산명', align: 'left', width: '22%' },
@@ -413,6 +457,9 @@ const demandColumns: Column<DemandRow>[] = [
 ]
 
 const demandRows = computed<DemandRow[]>(() => {
+  if (isAdminDashboard.value) return dashboardDemandRows
+  if (isDepartmentManager.value) return dashboardDepartmentDemandRows
+
   const tangibleAvailable = tangibleRows.value.filter((asset) => asset.statusCode === 'AVAILABLE').length
   const tangibleTotal = tangibleRows.value.length
   const tangibleReturnExpected = rentalScheduledAssets.value.length
@@ -451,6 +498,8 @@ const demandRows = computed<DemandRow[]>(() => {
 })
 
 const budgetRows = computed<BudgetRow[]>(() => {
+  if (isAdminDashboard.value) return dashboardBudgetRows
+
   const usedByDepartment = new Map<string, number>()
 
   scopedAssets.value.forEach((asset) => {
@@ -480,6 +529,17 @@ const totalBudgetUsed = computed(() => budgetRows.value.reduce((sum, row) => sum
 const budgetUsagePercent = computed(() => (
   totalBudgetLimit.value ? Math.round((totalBudgetUsed.value / totalBudgetLimit.value) * 100) : 0
 ))
+
+const expiringTangibleCount = computed(() => (
+  isAdminDashboard.value || isDepartmentManager.value ? 23 : expiringTangibleAssets.value.length
+))
+
+const expiringIntangibleCount = computed(() => (
+  isAdminDashboard.value || isDepartmentManager.value ? 4 : expiringIntangibleAssets.value.length
+))
+
+const departmentBudgetSummary = computed(() => dashboardDepartmentBudgetSummary)
+const departmentLifecycle = computed(() => dashboardDepartmentLifecycle)
 
 const lifecycleEvents = computed<LifecycleEvent[]>(() => {
   const returnEvents = rentalScheduledAssets.value.slice(0, 2).map((asset) => ({
