@@ -266,13 +266,13 @@ interface TableColumn<T> {
 }
 
 const columns: TableColumn<TicketListItem>[] = [
-  { key: 'ticketNo', label: '티켓 번호', width: '140px' },
-  { key: 'ticketType', label: '유형', width: '150px' },
-  { key: 'requestedItemName', label: '요청 내용' },
-  { key: 'requester', label: '요청자(부서)', width: '180px' },
-  { key: 'requestedAt', label: '요청일', width: '130px' },
-  { key: 'ticketStatus', label: '상태', width: '150px', align: 'center' },
-  { key: 'management', label: '관리', width: '110px', align: 'center' },
+  { key: 'ticketNo', label: '티켓 번호', width: '14%', align: 'center' },
+  { key: 'ticketType', label: '유형', width: '15%', align: 'center' },
+  { key: 'requestedItemName', label: '요청 내용', width: '24%', align: 'center' },
+  { key: 'requester', label: '요청자(부서)', width: '17%', align: 'center' },
+  { key: 'requestedAt', label: '요청일', width: '12%', align: 'center' },
+  { key: 'ticketStatus', label: '상태', width: '11%', align: 'center' },
+  { key: 'management', label: '관리', width: '7%', align: 'center' },
 ]
 const DEFAULT_TICKET_STATISTICS: TicketStatistics = {
   totalCount: 0,
