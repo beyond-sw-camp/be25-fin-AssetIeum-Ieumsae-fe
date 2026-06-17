@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import { getDashboardMockSnapshot } from './dashboard.data'
 import type {
   ApiResponse,
   Department,
@@ -86,6 +87,13 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
     totalElements: content.length,
     totalPages: Math.ceil(content.length / size),
   }
+}
+
+function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department' | 'employee') {
+  const url = new URL(request.url)
+  const departmentId = url.searchParams.get('department_id')
+  const memberId = url.searchParams.get('member_id')
+  return getDashboardMockSnapshot({ scope, departmentId: departmentId ?? undefined, memberId: memberId ?? undefined })
 }
 
 let departments: Department[] = [
@@ -1609,6 +1617,27 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
 }
 
 export const handlers = [
+  http.get(`${API_PREFIX}/dashboard/admin/assets/summary`, ({ request }) => (
+    HttpResponse.json(ok(
+      filterDashboardSnapshot(request, 'admin'),
+      '구매자산팀 대시보드 mock 데이터입니다.',
+    ))
+  )),
+
+  http.get(`${API_PREFIX}/dashboard/department/assets/summary`, ({ request }) => (
+    HttpResponse.json(ok(
+      filterDashboardSnapshot(request, 'department'),
+      '부서책임자 대시보드 mock 데이터입니다.',
+    ))
+  )),
+
+  http.get(`${API_PREFIX}/dashboard/employee/assets/summary`, ({ request }) => (
+    HttpResponse.json(ok(
+      filterDashboardSnapshot(request, 'employee'),
+      '사원 대시보드 mock 데이터입니다.',
+    ))
+  )),
+
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
     const member = members.find((item) => item.memberNo === credentials.memberNo)
