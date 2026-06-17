@@ -12,11 +12,11 @@
     </div>
 
     <section class="h-50">
-      <HRTemplate />
+      <HrTemplate />
     </section>
   </div>    
 </template>
 
 <script setup lang="ts">
-import HRTemplate from '@/components/hr/HRTemplate.vue';
+import HrTemplate from '@/components/hr/HrTemplate.vue';
 </script>

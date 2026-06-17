@@ -170,8 +170,8 @@ const router = createRouter({
         // ─── HR 워크플로우 ────────────────────────────────
         {
           path: 'hrworkflows',
-          name: 'HRworkflows',
-          component: () => import('@/views/hr/HRWorkflowView.vue'),
+          name: 'Hrworkflows',
+          component: () => import('@/views/hr/HrWorkflowView.vue'),
           meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
         },
 
@@ -182,7 +182,7 @@ const router = createRouter({
             {
               path: '/hrtemplates',
               name: 'HRTemplates',
-              component: () => import('@/components/hr/HRTemplate.vue'),
+              component: () => import('@/components/hr/HrTemplate.vue'),
               meta: { title: 'HR 템플릿 관리', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
             },
             {
