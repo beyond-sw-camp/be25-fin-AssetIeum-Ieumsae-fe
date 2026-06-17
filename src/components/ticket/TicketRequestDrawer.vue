@@ -21,7 +21,7 @@
         요청 작성으로 돌아가기
       </button>
 
-      <section class="space-y-2">
+      <section v-if="showsAssetSearchUsageType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           공용자산 여부 <span class="text-primary">*</span>
         </p>
@@ -128,19 +128,20 @@
         </div>
 
         <div class="flex items-center justify-between">
-          <p class="text-sm font-semibold text-text-main">자산 목록</p>
+          <p class="text-sm font-semibold text-text-main">조회 결과</p>
           <span v-if="hasSearchedAssets" class="text-xs text-text-muted">
-            {{ itemOptions.length }}개
+            {{ selectionItemOptions.length }}개
           </span>
         </div>
 
         <AssetRadioList
           v-model="pendingSelectedAssetId"
-          :items="itemOptions"
+          :items="selectionItemOptions"
+          :item-groups="selectionItemGroups"
           :loading="isAssetsLoading"
           :error-message="assetErrorMessage"
-          :empty-text="hasSearchedAssets ? '조회 조건에 맞는 자산이 없습니다.' : '조회 조건을 선택하고 확인을 눌러주세요.'"
-          name="standard-request-asset"
+          :empty-text="hasSearchedAssets ? '조회 조건에 맞는 품목이 없습니다.' : '조회 조건을 선택하고 확인을 눌러주세요.'"
+          name="asset-request-item"
         />
       </section>
     </div>
@@ -211,6 +212,29 @@
         </div>
       </section>
 
+      <section v-if="selectedKind === 'DIRECT_PURCHASE'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          품목 구분 <span class="text-primary">*</span>
+        </p>
+        <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
+          <button
+            v-for="option in directPurchaseItemTypeOptions"
+            :key="option.value"
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              form.directPurchaseItemType === option.value
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            :disabled="isSubmitting"
+            @click="handleDirectPurchaseItemTypeChange(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </section>
+
       <template v-if="showsPurchaseRequestAssetType">
         <section class="space-y-2">
           <p class="text-sm font-semibold text-text-main">
@@ -244,7 +268,7 @@
           </div>
         </section>
 
-        <section class="space-y-2">
+        <section v-if="showsPurchaseCategorySelect" class="space-y-2">
           <label class="text-sm font-semibold text-text-main" for="ticket-request-asset-category">
             자산 분류 선택 <span class="text-primary">*</span>
           </label>
@@ -302,7 +326,7 @@
               {{ selectedAssetOption.description }}
             </span>
             <span class="mt-2 block text-xs font-semibold text-primary">
-              선택한 자산을 눌러 변경할 수 있습니다.
+              선택한 항목을 눌러 변경할 수 있습니다.
             </span>
           </span>
         </button>
@@ -314,8 +338,8 @@
           @click="openAssetSelection"
         >
           <PackagePlus :size="24" class="mb-2 text-text-muted" />
-          <span class="text-sm font-medium text-text-sub">신청할 자산을 목록에서 추가해주세요.</span>
-          <span class="mt-1 text-xs text-text-muted">하나의 자산만 등록 가능합니다.</span>
+          <span class="text-sm font-medium text-text-sub">신청할 품목을 목록에서 추가해주세요.</span>
+          <span class="mt-1 text-xs text-text-muted">하나의 품목만 등록 가능합니다.</span>
         </button>
       </section>
 
@@ -351,7 +375,7 @@
         />
       </section>
 
-      <template v-if="showsPurchaseRequestAssetType">
+      <template v-if="showsPurchaseDetailInputs">
         <Input
           id="ticket-requested-item-name"
           v-model="form.requestedItemName"
@@ -535,7 +559,7 @@ import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import AssetRadioList from '@/components/ticket/AssetRadioList.vue'
-import type { AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
+import type { AssetRadioGroup, AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
 import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
 import { useAuthStore } from '@/stores'
 import type {
@@ -554,6 +578,11 @@ import { formatDate } from '@/utils/labels'
 
 interface SelectableAsset extends AssetRadioItem {
   assetType: AssetType
+  isStandard?: number | boolean
+  categoryId?: string
+  categoryName?: string
+  manufacturer?: string
+  licenseType?: string | null
   usageType?: TangibleAssetUsageType | null
   returnDueDate?: string | null
 }
@@ -584,6 +613,10 @@ const assetServiceTypeOptions = [
   { label: '수리', value: 'REPAIR' as const },
   { label: '반품', value: 'RETURN' as const },
 ]
+const directPurchaseItemTypeOptions = [
+  { label: '표준 품목', value: 'STANDARD' as const },
+  { label: '비표준 품목', value: 'NON_STANDARD' as const },
+]
 
 const selectedKind = ref<TicketRequestKind | ''>('')
 const isAssetSelectionStep = ref(false)
@@ -606,6 +639,7 @@ const ownedAssetOptions = ref<SelectableAsset[]>([])
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
+  directPurchaseItemType: 'STANDARD' as 'STANDARD' | 'NON_STANDARD',
   assetUsageType: 'TEAM' as RequestedUsageType,
   category: '',
   selectedAssetId: '',
@@ -656,8 +690,29 @@ const showsPurchaseRequestAssetType = computed(() => (
   || selectedKind.value === 'DIRECT_PURCHASE'
 ))
 
+const isStandardDirectPurchase = computed(() => (
+  selectedKind.value === 'DIRECT_PURCHASE'
+  && form.directPurchaseItemType === 'STANDARD'
+))
+
+const isNonStandardDirectPurchase = computed(() => (
+  selectedKind.value === 'DIRECT_PURCHASE'
+  && form.directPurchaseItemType === 'NON_STANDARD'
+))
+
+const showsPurchaseCategorySelect = computed(() => (
+  selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
+  || isNonStandardDirectPurchase.value
+))
+
+const showsPurchaseDetailInputs = computed(() => (
+  selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
+  || isNonStandardDirectPurchase.value
+))
+
 const usesSelectableAsset = computed(() => (
   selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || isStandardDirectPurchase.value
   || selectedKind.value === 'RENTAL'
   || selectedKind.value === 'RENTAL_EXTENSION'
   || selectedKind.value === 'MAINTENANCE'
@@ -667,6 +722,7 @@ const usesSelectableAsset = computed(() => (
 
 const usesNestedAssetSelection = computed(() => (
   selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || isStandardDirectPurchase.value
   || selectedKind.value === 'RENTAL'
 ))
 
@@ -676,8 +732,11 @@ const usesInlineSelectableAsset = computed(() => (
 
 const showsAssetSearch = computed(() => (
   selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || isStandardDirectPurchase.value
   || selectedKind.value === 'RENTAL'
 ))
+
+const showsAssetSearchUsageType = computed(() => !isStandardDirectPurchase.value)
 
 const showsPurchaseQuantityAndPrice = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
@@ -685,7 +744,8 @@ const showsPurchaseQuantityAndPrice = computed(() => (
 ))
 
 const assetSelectionLabel = computed(() => {
-  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '표준 자산 선택'
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '품목 선택'
+  if (isStandardDirectPurchase.value) return '직접 구매할 표준 품목 선택'
   if (selectedKind.value === 'RENTAL') return '대여할 품목 선택'
   if (selectedKind.value === 'RENTAL_EXTENSION') return '연장할 대여 자산 선택'
   if (selectedKind.value === 'MAINTENANCE') {
@@ -702,12 +762,18 @@ const assetSelectionEmptyText = computed(() => (
 ))
 
 const nestedAssetLabel = computed(() => (
-  selectedKind.value === 'RENTAL' ? '대여 자산' : '표준 자산'
+  selectedKind.value === 'RENTAL' ? '대여 자산' : '요청 품목'
 ))
 
 const visibleAssetOptions = computed(() => {
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
     return itemOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  if (isStandardDirectPurchase.value) {
+    return itemOptions.value.filter((item) => (
+      item.assetType === form.assetType
+      && isStandardItem(item.isStandard)
+    ))
   }
   if (selectedKind.value === 'RENTAL') {
     return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
@@ -748,7 +814,7 @@ const purchaseRequestCategoryOptions = computed(() => (
 ))
 
 const canSearchAssets = computed(() => Boolean(
-  assetSearchForm.assetUsageType && assetSearchForm.category,
+  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType) && assetSearchForm.category,
 ))
 
 const selectedAssetOption = computed(() => (
@@ -765,6 +831,38 @@ const filteredAssetOptions = computed(() => {
     `${item.name} ${item.description ?? ''}`.toLowerCase().includes(keyword)
   ))
 })
+
+const itemOptionGroups = computed<AssetRadioGroup[]>(() => {
+  if (selectedKind.value !== 'STANDARD_ASSET_REQUEST') return []
+
+  const standardItems = selectionItemOptions.value.filter((item) => isStandardItem(item.isStandard))
+  const nonStandardItems = selectionItemOptions.value.filter((item) => !isStandardItem(item.isStandard))
+
+  return [
+    { label: '표준 품목', items: standardItems },
+    { label: '비표준 품목', items: nonStandardItems },
+  ]
+})
+
+const selectionItemOptions = computed(() => {
+  if (isStandardDirectPurchase.value) {
+    return itemOptions.value.filter((item) => (
+      item.assetType === form.assetType
+      && isStandardItem(item.isStandard)
+    ))
+  }
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
+    return itemOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  if (selectedKind.value === 'RENTAL') {
+    return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+  }
+  return itemOptions.value
+})
+
+const selectionItemGroups = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST' ? itemOptionGroups.value : []
+))
 
 const reasonLabel = computed(() => {
   if (selectedKind.value === 'MAINTENANCE') {
@@ -816,10 +914,8 @@ function toRequestedUsageType(
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
   if (usesSelectableAsset.value && !form.selectedAssetId) return false
-  if (
-    showsPurchaseRequestAssetType.value
-    && (!form.assetUsageType || !form.category)
-  ) return false
+  if (showsPurchaseRequestAssetType.value && !form.assetUsageType) return false
+  if (showsPurchaseCategorySelect.value && !form.category) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
     return positiveNumber(form.quantity)
@@ -835,6 +931,14 @@ const isFormValid = computed(() => {
     )
   }
   if (selectedKind.value === 'DIRECT_PURCHASE') {
+    if (isStandardDirectPurchase.value) {
+      return Boolean(
+        form.selectedAssetId
+        && positiveNumber(form.quantity)
+        && positiveNumber(form.expectedPrice),
+      )
+    }
+
     return Boolean(
       form.requestedItemName.trim()
       && form.vendor.trim()
@@ -860,6 +964,10 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
       .filter(Boolean)
       .join(' · '),
     assetType: 'TANGIBLE',
+    isStandard: item.isStandard,
+    categoryId: item.categoryId,
+    categoryName: item.categoryName ?? item.category,
+    manufacturer: item.manufacturer,
   }
 }
 
@@ -879,6 +987,58 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
       item.licenseType,
     ].filter(Boolean).join(' · '),
     assetType: 'INTANGIBLE',
+    isStandard: item.isStandard,
+    categoryId: item.categoryId,
+    categoryName: item.category ?? responseItem.softwareType,
+    manufacturer: item.vendor ?? responseItem.provider,
+    licenseType: item.licenseType,
+  }
+}
+
+function isStandardItem(value: number | boolean | undefined) {
+  if (typeof value === 'boolean') return value
+  if (value === undefined) return true
+  return Number(value) !== 0
+}
+
+function categoryIdByLabel(label: string) {
+  const options = form.assetType === 'INTANGIBLE'
+    ? intangiblePurchaseCategoryOptions.value
+    : tangiblePurchaseCategoryOptions.value
+  return String(options.find((option) => option.label === label)?.value ?? '')
+}
+
+function selectedDirectPurchaseItem() {
+  if (!isStandardDirectPurchase.value) return null
+  return confirmedSelectedAsset.value?.id === form.selectedAssetId
+    ? confirmedSelectedAsset.value
+    : itemOptions.value.find((item) => item.id === form.selectedAssetId) ?? null
+}
+
+function standardDirectPurchasePayload() {
+  const selectedItem = selectedDirectPurchaseItem()
+  if (!selectedItem) {
+    throw new Error('직접 구매할 표준 품목을 선택해주세요.')
+  }
+
+  const categoryId = selectedItem.categoryId
+    ?? categoryIdByLabel(selectedItem.categoryName ?? assetSearchForm.category)
+
+  if (!categoryId) {
+    throw new Error('선택한 품목의 자산 분류를 확인할 수 없습니다.')
+  }
+
+  if (!selectedItem.manufacturer?.trim()) {
+    throw new Error('선택한 품목의 제조사/제공사 정보를 확인할 수 없습니다.')
+  }
+
+  return {
+    categoryId,
+    requestedItemDetail: selectedItem.name,
+    manufacturer: selectedItem.manufacturer.trim(),
+    licenseType: selectedItem.assetType === 'INTANGIBLE'
+      ? selectedItem.licenseType ?? null
+      : null,
   }
 }
 
@@ -1066,7 +1226,6 @@ async function handleAssetSearch() {
         size: 100,
         categoryName: assetSearchForm.category || undefined,
         keyword: assetSearchForm.keyword.trim() || undefined,
-        assetUsageType: assetSearchForm.assetUsageType || undefined,
       })
       itemOptions.value = response.data.content.map(toTangibleItemOption).filter((item) => item.id)
     }
@@ -1100,6 +1259,7 @@ function resetForm() {
   Object.assign(form, {
     assetType: 'TANGIBLE',
     assetServiceType: 'REPAIR',
+    directPurchaseItemType: 'STANDARD',
     assetUsageType: 'TEAM',
     category: '',
     selectedAssetId: '',
@@ -1124,6 +1284,7 @@ function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
   form.assetType = 'TANGIBLE'
   form.assetServiceType = 'REPAIR'
+  form.directPurchaseItemType = 'STANDARD'
   form.assetUsageType = 'TEAM'
   assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
@@ -1135,6 +1296,9 @@ function handleKindSelect(kind: TicketRequestKind) {
 function openAssetSelection() {
   pendingSelectedAssetId.value = form.selectedAssetId
   selectionAssetType.value = selectedKind.value === 'RENTAL' ? 'TANGIBLE' : form.assetType
+  if (isStandardDirectPurchase.value) {
+    assetSearchForm.assetUsageType = form.assetUsageType === 'TEAM' ? 'DEPARTMENT' : form.assetUsageType
+  }
   isAssetSelectionStep.value = true
 }
 
@@ -1174,6 +1338,18 @@ function handlePurchaseRequestCategoryChange(value: string | number) {
   form.category = value
 }
 
+function handleDirectPurchaseItemTypeChange(value: 'STANDARD' | 'NON_STANDARD') {
+  form.directPurchaseItemType = value
+  form.category = ''
+  form.selectedAssetId = ''
+  form.requestedItemName = ''
+  form.vendor = ''
+  form.licenseType = ''
+  confirmedSelectedAsset.value = null
+  pendingSelectedAssetId.value = ''
+  invalidateAssetSearch()
+}
+
 function invalidateAssetSearch() {
   pendingSelectedAssetId.value = ''
   itemOptions.value = []
@@ -1185,6 +1361,12 @@ function handleAssetTypeChange(assetType: AssetType) {
   form.assetType = assetType
   form.category = ''
   form.selectedAssetId = ''
+  form.requestedItemName = ''
+  form.vendor = ''
+  form.licenseType = ''
+  confirmedSelectedAsset.value = null
+  pendingSelectedAssetId.value = ''
+  invalidateAssetSearch()
 }
 
 function handleAssetServiceTypeChange(assetServiceType: 'REPAIR' | 'RETURN') {
@@ -1241,17 +1423,32 @@ async function handleSubmit() {
         })
         break
       case 'DIRECT_PURCHASE':
-        response = await ticketCreateApi.createDirectPurchaseRequest({
-          requestedUsageType: toRequestedUsageType(form.assetUsageType),
-          assetType: form.assetType,
-          categoryId: form.category,
-          requestedItemDetail: form.requestedItemName.trim(),
-          manufacturer: form.vendor.trim(),
-          licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
-          quantity: Number(form.quantity),
-          expectedPrice: Number(form.expectedPrice),
-          requestReason,
-        })
+        if (isStandardDirectPurchase.value) {
+          const standardPayload = standardDirectPurchasePayload()
+          response = await ticketCreateApi.createDirectPurchaseRequest({
+            requestedUsageType: toRequestedUsageType(form.assetUsageType),
+            assetType: form.assetType,
+            categoryId: standardPayload.categoryId,
+            requestedItemDetail: standardPayload.requestedItemDetail,
+            manufacturer: standardPayload.manufacturer,
+            licenseType: standardPayload.licenseType,
+            quantity: Number(form.quantity),
+            expectedPrice: Number(form.expectedPrice),
+            requestReason,
+          })
+        } else {
+          response = await ticketCreateApi.createDirectPurchaseRequest({
+            requestedUsageType: toRequestedUsageType(form.assetUsageType),
+            assetType: form.assetType,
+            categoryId: form.category,
+            requestedItemDetail: form.requestedItemName.trim(),
+            manufacturer: form.vendor.trim(),
+            licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
+            quantity: Number(form.quantity),
+            expectedPrice: Number(form.expectedPrice),
+            requestReason,
+          })
+        }
         break
       case 'RENTAL':
         response = await ticketCreateApi.createRentalRequest({

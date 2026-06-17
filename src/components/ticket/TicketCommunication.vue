@@ -4,8 +4,8 @@
       <MessageSquareText :size="18" class="text-primary" />
     </template>
 
-    <div class="flex h-full min-h-80 flex-col">
-      <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+    <div class="flex min-h-0 flex-col">
+      <div ref="commentListRef" class="h-80 space-y-4 overflow-y-auto pr-1">
         <div v-if="loading" class="flex min-h-40 items-center justify-center text-sm text-text-sub">
           <LoaderCircle :size="18" class="mr-2 animate-spin" />
           댓글을 불러오는 중입니다.
@@ -118,7 +118,7 @@
               <p
                 v-else
                 :class="[
-                  'inline-block whitespace-pre-wrap rounded-2xl px-4 py-3 text-left text-sm',
+                  'inline-block whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-left text-sm',
                   isMine(comment)
                     ? 'rounded-br-md bg-primary/15 text-text-main'
                     : 'rounded-bl-md bg-surface-secondary text-text-main',
@@ -173,7 +173,7 @@ import {
   Send,
   Trash2,
 } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import Button from '@/components/common/Button.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -215,6 +215,7 @@ const emit = defineEmits<{
 const content = ref('')
 const editingCommentId = ref<number | null>(null)
 const editContent = ref('')
+const commentListRef = ref<HTMLElement | null>(null)
 
 const isCommentActionLocked = computed(() => (
   editingCommentId.value !== null
@@ -262,6 +263,14 @@ function handleUpdate(comment: TicketComment) {
   emit('update', comment.commentId, normalizedContent)
 }
 
+async function scrollCommentsToBottom() {
+  await nextTick()
+  const commentList = commentListRef.value
+  if (!commentList) return
+
+  commentList.scrollTop = commentList.scrollHeight
+}
+
 watch(() => props.submitVersion, () => {
   content.value = ''
 })
@@ -270,4 +279,13 @@ watch(() => props.actionVersion, () => {
   editingCommentId.value = null
   editContent.value = ''
 })
+
+watch(
+  [() => props.comments.length, () => props.loading],
+  () => {
+    if (props.loading || props.comments.length === 0) return
+    void scrollCommentsToBottom()
+  },
+  { immediate: true, flush: 'post' },
+)
 </script>

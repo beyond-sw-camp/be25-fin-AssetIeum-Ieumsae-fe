@@ -204,6 +204,7 @@ export const tangibleItemApi = {
     categoryId?: string
     categoryName?: string
     keyword?: string
+    isStandard?: number | boolean
     assetUsageType?: 'DEPARTMENT' | 'PERSONAL'
   }) =>
     api.get<PageResponse<TangibleAssetItem>>('/tangible-asset/items', compactParams(params)),
@@ -285,7 +286,14 @@ export const tangibleAssetApi = {
 
 export const intangibleItemApi = {
   /** 무형자산 품목 목록 조회 */
-  getList: (params?: { page?: number; size?: number; category?: string; categoryId?: string; keyword?: string }) =>
+  getList: (params?: {
+    page?: number
+    size?: number
+    category?: string
+    categoryId?: string
+    keyword?: string
+    isStandard?: number | boolean
+  }) =>
     api.get<PageResponse<IntangibleItem>>('/intangible-asset/items', compactParams(params)),
 
   /** 무형자산 품목 카테고리 목록 조회 */

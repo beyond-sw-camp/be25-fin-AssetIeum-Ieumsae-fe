@@ -82,6 +82,15 @@ const router = createRouter({
               meta: { title: '새 요청', roles: ['EMPLOYEE'] },
             },
             {
+              path: 'manage',
+              name: 'TicketManagement',
+              component: () => import('@/views/ticket/TicketManagementView.vue'),
+              meta: {
+                title: '티켓 관리',
+                roles: ['DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+              },
+            },
+            {
               path: ':ticketId',
               name: 'TicketDetail',
               component: () => import('@/views/ticket/TicketDetailView.vue'),
@@ -284,7 +293,8 @@ router.beforeEach(async (to) => {
 
   // 역할 체크
   if (to.meta.roles && to.meta.roles.length > 0) {
-    if (!auth.currentRole || !to.meta.roles.includes(auth.currentRole)) {
+    const canAccessAllPages = auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN'
+    if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
       return { name: 'Dashboard' } // 권한 없으면 대시보드로
     }
   }

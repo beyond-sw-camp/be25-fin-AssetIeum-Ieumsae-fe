@@ -28,10 +28,15 @@ import type {
   TangibleCategoryGroup,
   TangibleAssetItemUpdateRequest,
   TangibleAssetUpdateRequest,
+  AssetAssignRequest,
+  AssetType,
+  TicketApproveRequest,
   TicketCreateResponse,
   TicketComment,
   TicketDetail,
   TicketListItem,
+  TicketRejectRequest,
+  TicketStatistics,
   TicketStatus,
   TicketType,
 } from '@/types'
@@ -309,6 +314,17 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
     status: 'ACTIVE',
     createdAt: '2026-01-19T09:00:00',
   },
+  {
+    memberId: mockMemberId(16),
+    memberNo: 'EMP0016',
+    name: '플랫폼사원',
+    email: 'platform.member@ieumtech.com',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    role: 'EMPLOYEE',
+    status: 'ACTIVE',
+    createdAt: '2026-01-20T09:00:00',
+  },
 ]
 
 let members: Member[] = memberSeeds.map((member) => ({
@@ -432,6 +448,175 @@ let tickets: MockTicket[] = [
     departmentName: '프론트엔드팀',
     requestedAt: '2026-05-02T11:10:00',
   },
+  {
+    ticketId: '9',
+    ticketNo: 'TKT-20260610-009',
+    ticketType: 'MAINTENANCE_REQUEST',
+    requestMethod: null,
+    requestedItemName: 'Dell XPS 15 9530',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-10T09:30:00',
+  },
+  {
+    ticketId: '201',
+    ticketNo: 'TKT-20260615-201',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    ticketStatus: 'REQUESTED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T09:00:00',
+  },
+  {
+    ticketId: '202',
+    ticketNo: 'TKT-20260615-202',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: '시디즈 T80 하이엔드 의자',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T09:30:00',
+  },
+  {
+    ticketId: '203',
+    ticketNo: 'TKT-20260615-203',
+    ticketType: 'ASSET_REQUEST',
+    requestMethod: null,
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T10:00:00',
+  },
+  {
+    ticketId: '204',
+    ticketNo: 'TKT-20260615-204',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T10:30:00',
+  },
+  {
+    ticketId: '205',
+    ticketNo: 'TKT-20260615-205',
+    ticketType: 'RENTAL_EXTENSION',
+    requestMethod: null,
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T11:00:00',
+  },
+  {
+    ticketId: '206',
+    ticketNo: 'TKT-20260615-206',
+    ticketType: 'MAINTENANCE_REQUEST',
+    requestMethod: null,
+    requestedItemName: 'MX Master 3S 무소음 마우스',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T11:30:00',
+  },
+  {
+    ticketId: '207',
+    ticketNo: 'TKT-20260615-207',
+    ticketType: 'ASSET_RETURN',
+    requestMethod: null,
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T12:00:00',
+  },
+  {
+    ticketId: '208',
+    ticketNo: 'TKT-20260615-208',
+    ticketType: 'PURCHASE_RETURN',
+    requestMethod: null,
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    ticketStatus: 'DEPARTMENT_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T12:30:00',
+  },
+  {
+    ticketId: '209',
+    ticketNo: 'TKT-20260615-209',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T13:00:00',
+  },
+  {
+    ticketId: '210',
+    ticketNo: 'TKT-20260615-210',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'DIRECT_PURCHASE',
+    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T13:30:00',
+  },
+  {
+    ticketId: '211',
+    ticketNo: 'TKT-20260615-211',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'Surface Studio 2+',
+    ticketStatus: 'ASSET_REJECTED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T14:00:00',
+  },
+  {
+    ticketId: '212',
+    ticketNo: 'TKT-20260615-212',
+    ticketType: 'RENTAL',
+    requestMethod: null,
+    requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
+    ticketStatus: 'CANCELED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-15T14:30:00',
+  },
 ]
 
 const ticketReasons = new Map<string, string>([
@@ -443,6 +628,19 @@ const ticketReasons = new Map<string, string>([
   ['6', '백엔드 개발 업무용 IDE 라이선스가 필요합니다.'],
   ['7', '재택근무 시 사용할 무선 키보드가 필요합니다.'],
   ['8', '프로젝트 일정 연장으로 대여 기간 연장이 필요합니다.'],
+  ['9', '배터리 팽창 증상이 있어 유지보수 점검이 필요합니다.'],
+  ['201', '신규 프로젝트 개발 환경 구성을 위해 표준 노트북이 필요합니다.'],
+  ['202', '장시간 회의와 페어 프로그래밍을 위한 표준 의자가 필요합니다.'],
+  ['203', '승인된 표준 노트북을 실제 자산으로 배정하는 테스트 요청입니다.'],
+  ['204', '외부 세미나 기간 동안 사용할 모니터 대여가 필요합니다.'],
+  ['205', '프로젝트 종료 일정이 늦어져 대여 중인 모바일 기기 반납 예정일 연장이 필요합니다.'],
+  ['206', '마우스 휠 동작 불량으로 유지보수 점검을 요청합니다.'],
+  ['207', '장비 교체로 기존 노트북을 반납합니다.'],
+  ['208', '초기 불량으로 구매 자산 반품을 요청합니다.'],
+  ['209', '비표준 노트북 구매 후 자산 할당까지 테스트하기 위한 요청입니다.'],
+  ['210', '직접 구매 증빙 확인 후 자산 할당까지 테스트하기 위한 요청입니다.'],
+  ['211', '구매자산팀 반려 상태 확인용 테스트 요청입니다.'],
+  ['212', '요청자가 취소한 대여 요청 테스트 데이터입니다.'],
 ])
 
 const ticketDetailData = new Map<string, Partial<TicketDetail>>([
@@ -498,6 +696,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
   }],
   ['6', {
     detailStatus: '납품 확인 완료',
+    linkedPurchasePlanId: 'PO-20260507-001',
     requestedUsageType: 'PERSONAL',
     assetType: 'INTANGIBLE',
     categoryName: '개발 도구',
@@ -531,11 +730,154 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
     changedDueDate: '2026-07-10T18:00:00',
     processedAt: '2026-05-02T15:30:00',
   }],
+  ['9', {
+    detailStatus: '구매자산팀 승인 완료 - 회수 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '전산장비 (PC)',
+    requestedItemName: 'Dell XPS 15 9530',
+    assetId: '25',
+    assetStatus: 'IN_USE',
+    maintenanceReason: '배터리 팽창 증상이 있어 유지보수 점검이 필요합니다.',
+  }],
+  ['201', {
+    detailStatus: '부서 승인 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    quantity: 1,
+  }],
+  ['202', {
+    detailStatus: '구매자산팀 검토 대기',
+    requestedUsageType: 'TEAM',
+    assetType: 'TANGIBLE',
+    categoryName: '사무가구',
+    requestedItemName: '시디즈 T80 하이엔드 의자',
+    quantity: 2,
+  }],
+  ['203', {
+    detailStatus: '구매자산팀 승인 완료 - 자산 배정 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    quantity: 1,
+  }],
+  ['204', {
+    detailStatus: '대여 자산 배정 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '모니터',
+    requestedItemName: 'LG 27인치 QHD 에르고 모니터',
+    quantity: 1,
+    rentalStartDate: '2026-06-18T09:00:00',
+    requestedDueDate: '2026-07-18T18:00:00',
+    rentalDueDate: '2026-07-18T18:00:00',
+  }],
+  ['205', {
+    detailStatus: '구매자산팀 승인 완료 - 반납 예정일 변경 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '모바일 기기',
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    assetId: '11',
+    assetStatus: 'IN_USE',
+    quantity: 1,
+    previousDueDate: '2026-07-02T18:00:00',
+    requestedDueDate: '2026-08-16T18:00:00',
+    rentalDueDate: '2026-07-02T18:00:00',
+  }],
+  ['206', {
+    detailStatus: '구매자산팀 승인 완료 - 회수 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '주변기기',
+    requestedItemName: 'MX Master 3S 무소음 마우스',
+    assetId: '15',
+    assetStatus: 'IN_USE',
+    maintenanceReason: '마우스 휠 동작 불량으로 업무 중 입력 오류가 반복됩니다.',
+  }],
+  ['207', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    assetId: '4',
+    assetStatus: 'IN_USE',
+    quantity: 1,
+    startedAt: '2025-03-15T09:00:00',
+    returnReason: '장비 교체로 기존 노트북을 반납합니다.',
+  }],
+  ['208', {
+    detailStatus: '구매자산팀 검토 대기',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'MacBook Pro 14인치 M3 Max',
+    assetId: '3',
+    assetStatus: 'IN_USE',
+    returnReason: '초기 불량으로 구매 자산 반품을 요청합니다.',
+  }],
+  ['209', {
+    detailStatus: '구매자산팀 승인 완료 - 자산 할당 대기',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '노트북',
+    requestedItemName: 'ThinkPad X1 Carbon Gen 12',
+    requestedItemDetail: 'ThinkPad X1 Carbon Gen 12 / 32GB / 1TB',
+    quantity: 1,
+    expectedPrice: 2900000,
+  }],
+  ['210', {
+    detailStatus: '직접 구매 결제 증빙 등록 완료',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '모니터',
+    requestedItemName: 'BenQ PD2725U 디자이너 모니터',
+    requestedItemDetail: 'BenQ PD2725U 디자이너 모니터',
+    quantity: 1,
+    expectedPrice: 990000,
+    actualAmount: 958000,
+    directPurchaseEvidenceFileName: 'receipt-benq-pd2725u.pdf',
+    directPurchaseEvidenceUploadedAt: '2026-06-15T15:20:00',
+    directPurchaseEvidenceUrl: '/mock/evidences/receipt-benq-pd2725u.pdf',
+  }],
+  ['211', {
+    detailStatus: '구매자산팀 반려',
+    requestedUsageType: 'PERSONAL',
+    assetType: 'TANGIBLE',
+    categoryName: '일체형 PC',
+    requestedItemName: 'Surface Studio 2+',
+    requestedItemDetail: 'Surface Studio 2+ / RTX 3060 / 32GB',
+    quantity: 1,
+    expectedPrice: 6200000,
+  }],
+  ['212', {
+    detailStatus: '요청 취소',
+    assetType: 'TANGIBLE',
+    categoryName: '태블릿',
+    requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
+    quantity: 1,
+    rentalStartDate: '2026-06-20T09:00:00',
+    requestedDueDate: '2026-07-20T18:00:00',
+  }],
 ])
 
 const ticketApproverIds = new Map<string, string>()
+const ticketAssigneeIds = new Map<string, string>()
+const ticketDepartmentRejectionReasons = new Map<string, string>()
+const ticketAssetRejectionReasons = new Map<string, string>()
+const ticketCanceledAt = new Map<string, string>()
 const ticketcanceledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
+
+for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212']) {
+  ticketApproverIds.set(ticketId, mockMemberId(3))
+}
+
+for (const ticketId of ['209', '210', '211']) {
+  ticketAssigneeIds.set(ticketId, mockMemberId(2))
+}
+
+ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
+ticketCanceledAt.set('212', '2026-06-15T15:00:00')
+ticketcanceledAt.set('212', '2026-06-15T15:00:00')
 
 let ticketComments: TicketComment[] = [
   {
@@ -588,6 +930,14 @@ type TangibleItemRequestBody = Partial<Omit<TangibleItem, 'assetItemId' | 'isSta
 const toMockStandardValue = (value: number | boolean | undefined, fallback = 1) => {
   if (typeof value === 'boolean') return value ? 1 : 0
   return value ?? fallback
+}
+
+function matchesMockStandardFilter(itemValue: number | boolean | undefined, filterValue: string) {
+  if (!filterValue) return true
+  const normalizedFilter = filterValue === 'true' ? 1 : filterValue === 'false' ? 0 : Number(filterValue)
+  if (!Number.isFinite(normalizedFilter)) return true
+  const normalizedItem = typeof itemValue === 'boolean' ? (itemValue ? 1 : 0) : Number(itemValue)
+  return normalizedItem === normalizedFilter
 }
 
 interface IntangibleItem {
@@ -735,6 +1085,107 @@ let intangibleItems: IntangibleItem[] = [
 ]
 
 // 유형자산 실물 데이터 (36개) - 모든 ID 필드를 string으로 정렬
+const MOCK_CATEGORY_MATCH_GROUPS = [
+  { requested: ['pc', '노트북'], items: ['노트북', 'pc'] },
+  { requested: ['모니터'], items: ['모니터'] },
+  { requested: ['주변기기'], items: ['주변기기', '키보드', '마우스', '웹캠', '저장장치'] },
+  { requested: ['태블릿'], items: ['태블릿'] },
+  { requested: ['모바일기기', '스마트폰'], items: ['스마트폰', '모바일기기'] },
+  { requested: ['가구'], items: ['가구', '사무가구', '의자', '책상', '테이블'] },
+  { requested: ['사무기기'], items: ['사무기기', '복합기', '프린터'] },
+  { requested: ['개발도구', '개발툴'], items: ['개발도구', '개발툴'] },
+  { requested: ['디자인도구', '디자인'], items: ['디자인도구', '디자인'] },
+]
+
+function normalizeMockCategory(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[\s()[\]{}·/_-]/g, '')
+}
+
+function isMockCategoryPlaceholder(categoryName: string) {
+  return !categoryName
+    || categoryName.includes('전체')
+    || categoryName.includes('보기')
+    || categoryName.includes('선택')
+}
+
+function matchesMockCategory(requestedCategory: string, itemCategory: string) {
+  if (isMockCategoryPlaceholder(requestedCategory)) return true
+
+  const requested = normalizeMockCategory(requestedCategory)
+  const item = normalizeMockCategory(itemCategory)
+  if (!requested || !item) return true
+  if (requested === item || requested.includes(item) || item.includes(requested)) return true
+
+  return MOCK_CATEGORY_MATCH_GROUPS.some((group) => (
+    group.requested.some((token) => requested.includes(token))
+    && group.items.some((token) => item.includes(token))
+  ))
+}
+
+function normalizeMockItemName(value: string | null | undefined) {
+  return (value ?? '')
+    .toLowerCase()
+    .replace(/\d+\s*(개|석|seat|seats|user|users|명)/g, '')
+    .replace(/[^a-z0-9가-힣]/g, '')
+}
+
+function isMockNonStandardItem(value: number | boolean | undefined) {
+  if (typeof value === 'boolean') return !value
+  return Number(value) === 0
+}
+
+function matchesMockRequestedItem(detail: Partial<TicketDetail>, itemName: string | null | undefined) {
+  const item = normalizeMockItemName(itemName)
+  if (!item) return false
+
+  return [
+    detail.requestedItemName,
+    detail.requestedItemDetail,
+    detail.productName,
+  ].some((name) => {
+    const requested = normalizeMockItemName(name)
+    return Boolean(requested && (requested.includes(item) || item.includes(requested)))
+  })
+}
+
+function isTicketAssetAssignmentCompatible(
+  ticketId: string,
+  assetType: AssetType,
+  assetItemId: string | null | undefined,
+) {
+  const detail = ticketDetailData.get(ticketId)
+  if (!detail) return true
+  if (detail.assetType && detail.assetType !== assetType) return false
+
+  const requestedCategory = detail.categoryName ?? ''
+  if (!requestedCategory) return true
+
+  const itemCategory = assetType === 'TANGIBLE'
+    ? tangibleItems.find((item) => item.assetItemId === assetItemId)?.category
+    : intangibleItems.find((item) => item.assetItemId === assetItemId)?.category
+
+  if (!itemCategory || !matchesMockCategory(requestedCategory, itemCategory)) return false
+  if (tickets.find((ticket) => ticket.ticketId === ticketId)?.ticketType !== 'PURCHASE_REQUEST') return true
+
+  if (assetType === 'TANGIBLE') {
+    const item = tangibleItems.find((entry) => entry.assetItemId === assetItemId)
+    return Boolean(
+      item
+      && isMockNonStandardItem(item.isStandard)
+      && matchesMockRequestedItem(detail, item.assetName),
+    )
+  }
+
+  const item = intangibleItems.find((entry) => entry.assetItemId === assetItemId)
+  return Boolean(
+    item
+    && isMockNonStandardItem(item.isStandard)
+    && matchesMockRequestedItem(detail, item.productName),
+  )
+}
+
 let tangibleAssets: TangibleAsset[] = [
   { assetId: '1', assetCode: 'NBC-0001', serialNo: 'NB-C-01', assetItemId: '31', assetItemName: 'ABC 노트북 커버', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: '2025-01-25', returnDueDate: null, createdAt: '2025-01-20T09:00:00' },
   { assetId: '2', assetCode: 'TNG-0002', serialNo: 'SN-TNG-M3-02', assetItemId: '1', assetItemName: 'MacBook Pro 14인치 M3 Max', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, purchaseDate: '2025-01-20', warrantyExpiredAt: '2027-01-20', startedAt: null, returnDueDate: null, createdAt: '2025-01-20T09:10:00' },
@@ -1016,12 +1467,56 @@ function getAuthenticatedMember(request: Request): Member | undefined {
   return members.find((member) => member.memberNo === memberNo)
 }
 
+function canManageAssets(member: Member | undefined): boolean {
+  return Boolean(
+    member
+    && (
+      member.role === 'ADMIN'
+      || member.role === 'SUPER_ADMIN'
+      || member.role === 'ASSET_TEAM'
+      || member.role === 'ASSET_MANAGER'
+    ),
+  )
+}
+
 function getDepartmentManager(departmentId: string): Member | undefined {
   return members.find((member) => (
     member.departmentId === departmentId
     && member.role === 'DEPARTMENT_MANAGER'
     && member.status === 'ACTIVE'
   ))
+}
+
+function isAssetTeamRole(member: Member | undefined): boolean {
+  return member?.role === 'ASSET_TEAM' || member?.role === 'ASSET_MANAGER'
+}
+
+function canAccessTicket(member: Member | undefined, ticket: MockTicket): boolean {
+  if (!member) return false
+  if (member.role === 'ADMIN' || isAssetTeamRole(member)) return true
+  if (member.role === 'EMPLOYEE') return ticket.requesterId === member.memberId
+  if (member.role === 'DEPARTMENT_MANAGER') {
+    return ticket.departmentId === member.departmentId
+  }
+  return false
+}
+
+function createTicketStatistics(items: MockTicket[], member: Member | undefined): TicketStatistics {
+  const pendingReviewStatus: TicketStatus = (
+    member?.role === 'ADMIN' || member?.role === 'SUPER_ADMIN' || isAssetTeamRole(member)
+      ? 'DEPARTMENT_APPROVED'
+      : 'REQUESTED'
+  )
+
+  return {
+    totalCount: items.length,
+    newOrPendingReviewCount: items.filter((ticket) => ticket.ticketStatus === pendingReviewStatus).length,
+    inProgressCount: items.filter((ticket) => (
+      ticket.ticketStatus === 'ASSET_APPROVED'
+      || ticket.ticketStatus === 'IN_PROGRESS'
+    )).length,
+    completedCount: items.filter((ticket) => ticket.ticketStatus === 'COMPLETED').length,
+  }
 }
 
 function getTicketApprover(ticket: MockTicket): Member | undefined {
@@ -1120,6 +1615,10 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
     ticketType: ticket.ticketType,
     requestMethod: ticket.requestMethod,
     requestedItemName: ticket.requestedItemName,
+    requesterId: ticket.requesterId,
+    requesterName: ticket.requesterName,
+    departmentId: ticket.departmentId,
+    departmentName: ticket.departmentName,
     requestedAt: ticket.requestedAt,
     ticketStatus: ticket.ticketStatus,
   }
@@ -1235,14 +1734,7 @@ export const handlers = [
     const departmentId = url.searchParams.get('departmentId')
     const requester = getAuthenticatedMember(request)
 
-    let filteredTickets = [...tickets]
-    if (requester?.role === 'EMPLOYEE') {
-      filteredTickets = tickets.filter((ticket) => ticket.requesterId === requester.memberId)
-    } else if (requester?.role === 'DEPARTMENT_MANAGER') {
-      filteredTickets = tickets.filter((ticket) => (
-        ticket.departmentId === requester.departmentId
-      ))
-    }
+    let filteredTickets = tickets.filter((ticket) => canAccessTicket(requester, ticket))
 
     if (ticketType) {
       filteredTickets = filteredTickets.filter((ticket) => ticket.ticketType === ticketType)
@@ -1266,9 +1758,20 @@ export const handlers = [
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
   }),
 
-  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params }) => {
+  http.get(`${API_PREFIX}/tickets/statistics`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const accessibleTickets = tickets.filter((ticket) => canAccessTicket(requester, ticket))
+
+    return HttpResponse.json(ok(
+      createTicketStatistics(accessibleTickets, requester),
+      '티켓 통계 조회에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
 
     if (!ticket) {
       return HttpResponse.json({
@@ -1277,6 +1780,15 @@ export const handlers = [
         message: '티켓을 찾을 수 없습니다.',
         data: null,
       }, { status: 404 })
+    }
+
+    if (!canAccessTicket(requester, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓을 조회할 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
     }
 
     const isDepartmentRejected = ticket.ticketStatus === 'DEPARTMENT_REJECTED'
@@ -1288,12 +1800,6 @@ export const handlers = [
       'COMPLETED',
     ].includes(ticket.ticketStatus)
     const hasDepartmentDecision = ticket.ticketStatus !== 'REQUESTED'
-    const hasAssetTeamAssignee = [
-      'ASSET_APPROVED',
-      'ASSET_REJECTED',
-      'IN_PROGRESS',
-      'COMPLETED',
-    ].includes(ticket.ticketStatus)
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
@@ -1304,6 +1810,9 @@ export const handlers = [
         : new Date(new Date(ticket.requestedAt).getTime() + 2 * 60 * 60 * 1000).toISOString())
     const assetDecisionAt = isAssetApproved || isAssetRejected ? updatedAt : null
     const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assignee = ticketAssigneeIds.has(ticketId)
+      ? members.find((member) => member.memberId === ticketAssigneeIds.get(ticketId))
+      : undefined
 
     const detail: TicketDetail = {
       ticketId: ticket.ticketId,
@@ -1318,18 +1827,27 @@ export const handlers = [
       departmentName: ticket.departmentName,
       approverId: departmentApprover ? memberSequence(departmentApprover) : null,
       approverName: departmentApprover?.name ?? null,
-      assigneeId: hasAssetTeamAssignee ? 2 : null,
-      assigneeName: hasAssetTeamAssignee ? '박자산' : null,
+      assigneeId: assignee?.memberId ?? null,
+      assigneeName: assignee?.name ?? null,
       requestReason: ticketReasons.get(ticketId) ?? null,
       ...requestDetail,
+      directPurchaseEvidenceFileName: requestDetail.directPurchaseEvidenceFileName
+        ?? ticketEvidenceFiles.get(ticketId)
+        ?? null,
+      directPurchaseEvidenceUploadedAt: requestDetail.directPurchaseEvidenceUploadedAt ?? null,
+      directPurchaseEvidenceUrl: requestDetail.directPurchaseEvidenceUrl ?? null,
       departmentApprovedAt: hasDepartmentDecision && !isDepartmentRejected
         ? departmentDecisionAt
         : null,
       departmentRejectedAt: isDepartmentRejected ? departmentDecisionAt : null,
-      departmentRejectionReason: isDepartmentRejected ? '요청 사유를 보완해주세요.' : null,
+      departmentRejectionReason: isDepartmentRejected
+        ? ticketDepartmentRejectionReasons.get(ticketId) ?? '요청 사유를 보완해주세요.'
+        : null,
       purchaseApprovedAt: isAssetApproved ? assetDecisionAt : null,
       purchaseRejectedAt: isAssetRejected ? assetDecisionAt : null,
-      purchaseRejectionReason: isAssetRejected ? '구매자산팀 검토 결과 반려되었습니다.' : null,
+      purchaseRejectionReason: isAssetRejected
+        ? ticketAssetRejectionReasons.get(ticketId) ?? '구매자산팀 검토 결과 반려되었습니다.'
+        : null,
       orderedAt: requestDetail.orderedAt ?? null,
       receivedAt: requestDetail.receivedAt ?? null,
       registeredAt: requestDetail.registeredAt ?? null,
@@ -1341,6 +1859,312 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(detail))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/approve`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !canAccessTicket(actor, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓 승인 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as TicketApproveRequest
+    const updatedAt = new Date().toISOString()
+
+    if (body.approver === 'DEPARTMENT_MANAGER') {
+      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '부서책임자 검토 대기 상태에서만 승인할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'DEPARTMENT_APPROVED'
+      ticketApproverIds.set(ticketId, actor.memberId)
+    } else if (body.approver === 'ASSET_TEAM') {
+      if (!isAssetTeamRole(actor) || ticket.ticketStatus !== 'DEPARTMENT_APPROVED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '구매자산팀 검토 대기 상태에서만 승인할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'ASSET_APPROVED'
+      ticketAssigneeIds.set(ticketId, actor.memberId)
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_APPROVER_TYPE',
+        message: '올바르지 않은 승인자 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt,
+    }, '티켓 승인에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/reject`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !canAccessTicket(actor, ticket)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '티켓 반려 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as TicketRejectRequest
+    if (!body.rejectionReason?.trim()) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'REJECTION_REASON_REQUIRED',
+        message: '반려 사유를 입력해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    if (body.rejectionType === 'DEPARTMENT_MANAGER') {
+      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '부서책임자 검토 대기 상태에서만 반려할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'DEPARTMENT_REJECTED'
+      ticketDepartmentRejectionReasons.set(ticketId, body.rejectionReason.trim())
+    } else if (body.rejectionType === 'ASSET_TEAM') {
+      if (!isAssetTeamRole(actor) || ticket.ticketStatus !== 'DEPARTMENT_APPROVED') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'INVALID_TICKET_REVIEW_STATUS',
+          message: '구매자산팀 검토 대기 상태에서만 반려할 수 있습니다.',
+          data: null,
+        }, { status: 409 })
+      }
+      ticket.ticketStatus = 'ASSET_REJECTED'
+      ticketAssetRejectionReasons.set(ticketId, body.rejectionReason.trim())
+      ticketAssigneeIds.set(ticketId, actor.memberId)
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_REJECTION_TYPE',
+        message: '올바르지 않은 반려 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt,
+    }, '티켓 반려에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/assign-me`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!actor || !canManageAssets(actor)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 티켓 담당자로 지정할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (
+      ticket.ticketStatus === 'REQUESTED'
+      || ['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'TICKET_CANNOT_BE_ASSIGNED',
+        message: '현재 상태에서는 티켓 담당자를 지정할 수 없습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (ticketAssigneeIds.has(ticketId)) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'TICKET_ALREADY_ASSIGNED',
+        message: '이미 담당자가 지정된 티켓입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    ticketAssigneeIds.set(ticketId, actor.memberId)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketNo: ticket.ticketNo,
+      ticketStatus: ticket.ticketStatus,
+      assigneeId: actor.memberId,
+      assigneeName: actor.name,
+    }, '티켓 담당자 지정에 성공했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/:ticketId/asset-assignment`, async ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const actor = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+    if (!actor || !isAssetTeamRole(actor)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '자산 할당 권한이 없습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const body = await request.json() as AssetAssignRequest
+    const requester = members.find((member) => member.memberId === body.memberId)
+    if (!requester) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'MEMBER_NOT_FOUND',
+        message: '할당 대상 사원을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const now = new Date().toISOString()
+    if (body.assetType === 'TANGIBLE') {
+      const asset = tangibleAssets.find((item) => item.assetId === body.assetId)
+      if (!asset || asset.status !== 'AVAILABLE') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'ASSET_NOT_AVAILABLE',
+          message: '사용 가능한 유형 자산을 선택해주세요.',
+          data: null,
+        }, { status: 409 })
+      }
+      if (!isTicketAssetAssignmentCompatible(ticketId, 'TANGIBLE', asset.assetItemId)) {
+        return HttpResponse.json({
+          status: 400,
+          errorCode: 'INVALID_ASSET_ASSIGNMENT_REQUEST',
+          message: '요청한 자산 유형과 분류에 맞는 자산만 할당할 수 있습니다.',
+          data: null,
+        }, { status: 400 })
+      }
+
+      asset.status = 'IN_USE'
+      asset.assignedMemberId = requester.memberId
+      asset.assignedMemberName = requester.name
+      asset.departmentId = requester.departmentId
+      asset.departmentName = requester.departmentName
+      asset.startedAt = now
+      asset.returnDueDate = body.returnDueDate ?? asset.returnDueDate ?? null
+    } else if (body.assetType === 'INTANGIBLE') {
+      const asset = intangibleAssets.find((item) => item.assetId === body.assetId)
+      if (!asset || asset.status !== 'AVAILABLE') {
+        return HttpResponse.json({
+          status: 409,
+          errorCode: 'ASSET_NOT_AVAILABLE',
+          message: '사용 가능한 무형 자산을 선택해주세요.',
+          data: null,
+        }, { status: 409 })
+      }
+      if (!isTicketAssetAssignmentCompatible(ticketId, 'INTANGIBLE', asset.assetItemId)) {
+        return HttpResponse.json({
+          status: 400,
+          errorCode: 'INVALID_ASSET_ASSIGNMENT_REQUEST',
+          message: '요청한 자산 유형과 분류에 맞는 자산만 할당할 수 있습니다.',
+          data: null,
+        }, { status: 400 })
+      }
+
+      asset.status = 'IN_USE'
+      asset.assignedMemberId = requester.memberId
+      asset.assignedMemberName = requester.name
+      asset.departmentId = requester.departmentId
+      asset.departmentName = requester.departmentName
+      asset.startedAt = now
+    } else {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_ASSET_TYPE',
+        message: '올바르지 않은 자산 유형입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const detailData = ticketDetailData.get(ticketId) ?? {}
+    ticketDetailData.set(ticketId, {
+      ...detailData,
+      assetType: body.assetType,
+      assetId: body.assetId,
+      assetStatus: 'IN_USE',
+      registeredAt: now,
+      processedAt: detailData.processedAt ?? now,
+    })
+    ticket.ticketStatus = 'IN_PROGRESS'
+    ticketAssigneeIds.set(ticketId, actor.memberId)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType: body.assetType,
+      assetId: body.assetId,
+      memberId: requester.memberId,
+      ticketStatus: ticket.ticketStatus,
+      updatedAt: now,
+    }, '자산 할당에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
@@ -1377,7 +2201,7 @@ export const handlers = [
           data: null,
         }, { status: 403 })
       }
-      if (!CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
+      if (!isAssetTeamRole(requester) && !CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'TICKET_CANNOT_BE_CANCELED',
@@ -1385,13 +2209,43 @@ export const handlers = [
           data: null,
         }, { status: 409 })
       }
+    } else if (!isAssetTeamRole(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 티켓 상태를 변경할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
     }
 
     const previousStatus = ticket.ticketStatus
     const updatedAt = new Date().toISOString()
     ticket.ticketStatus = nextStatus
+    if (
+      ticket.ticketType === 'PURCHASE_REQUEST'
+      && previousStatus === 'ASSET_APPROVED'
+      && nextStatus === 'IN_PROGRESS'
+    ) {
+      const requestDetail = ticketDetailData.get(ticketId) ?? {}
+      ticketDetailData.set(ticketId, {
+        ...requestDetail,
+        detailStatus: '구매 계획 생성',
+        orderedAt: requestDetail.orderedAt ?? updatedAt,
+        processedAt: requestDetail.processedAt ?? updatedAt,
+      })
+    }
     if (nextStatus === 'CANCELED') {
       ticketcanceledAt.set(ticketId, updatedAt)
+    }
+    if (nextStatus === 'COMPLETED') {
+      const requestDetail = ticketDetailData.get(ticketId) ?? {}
+      ticketDetailData.set(ticketId, {
+        ...requestDetail,
+        detailStatus: ticket.ticketType === 'MAINTENANCE_REQUEST'
+          ? '유지보수 완료'
+          : requestDetail.detailStatus,
+        completedAt: requestDetail.completedAt ?? updatedAt,
+      })
     }
 
     return HttpResponse.json(ok({
@@ -1400,6 +2254,338 @@ export const handlers = [
       currentStatus: nextStatus,
       updatedAt,
     }, '티켓 상태 변경에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/maintence/collect`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 유지보수 대상 자산을 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (ticket.ticketType !== 'MAINTENANCE_REQUEST' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_MAINTENANCE_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 유지보수 티켓만 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const tangibleAssetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const tangibleAsset = tangibleAssets.find((asset) => asset.assetId === tangibleAssetId)
+
+    if (!tangibleAsset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TANGIBLE_ASSET_NOT_FOUND',
+        message: '회수 대상 유형자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    tangibleAsset.status = 'REPAIRING'
+    tangibleAsset.tangibleAssetStatus = 'REPAIRING'
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '유지보수 대상 자산 회수 완료',
+      assetStatus: 'REPAIRING',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      tangibleAssetId,
+      assetStatus: 'REPAIRING',
+      collectedAt,
+    }, '유지보수 대상 자산 회수에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/maintenance-tickets/:maintenanceTicketId/complete`, async ({ params, request }) => {
+    const ticketId = String(params.maintenanceTicketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '?곗폆??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '援щℓ?먯궛?留??좎?蹂댁닔 寃곌낵瑜?泥섎━?????덉뒿?덈떎.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const tangibleAssetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const tangibleAsset = tangibleAssets.find((asset) => asset.assetId === tangibleAssetId)
+
+    if (
+      ticket.ticketType !== 'MAINTENANCE_REQUEST'
+      || ticket.ticketStatus !== 'IN_PROGRESS'
+      || requestDetail.assetStatus !== 'REPAIRING'
+      || !requestDetail.collectedAt
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_MAINTENANCE_COMPLETE_STATUS',
+        message: '?뚯닔 ?꾨즺 ??섎━以??곹깭???좎?蹂댁닔 ?곗폆留??꾨즺 泥섎━?????덉뒿?덈떎.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (!tangibleAsset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TANGIBLE_ASSET_NOT_FOUND',
+        message: '?좎?蹂댁닔 ????좏삎?먯궛??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const body = await request.json() as {
+      maintenance_result?: string
+      maintenanceResult?: string
+      maintenance_completed_at?: string
+      maintenanceCompletedAt?: string
+      maintenance_cost?: number
+      maintenanceCost?: number
+    }
+    const maintenanceResult = (body.maintenance_result ?? body.maintenanceResult ?? '').trim()
+    const maintenanceCompletedAt = body.maintenance_completed_at ?? body.maintenanceCompletedAt
+    const maintenanceCost = Number(body.maintenance_cost ?? body.maintenanceCost)
+
+    if (!maintenanceResult || !maintenanceCompletedAt || !Number.isFinite(maintenanceCost) || maintenanceCost < 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_MAINTENANCE_COMPLETE_REQUEST',
+        message: '?섎━ 寃곌낵, ?꾨즺 ?쇱떆, 鍮꾩슜???щ컮瑜닿쾶 ?낅젰?댁＜?몄슂.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    tangibleAsset.status = 'AVAILABLE'
+    tangibleAsset.tangibleAssetStatus = 'AVAILABLE'
+    const updatedAt = new Date().toISOString()
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '유지보수 결과 등록 완료 - 재할당 대기',
+      assetStatus: 'AVAILABLE',
+      maintenanceResult,
+      maintenanceCompletedAt,
+      maintenanceCost,
+      processedAt: updatedAt,
+    })
+
+    return HttpResponse.json(ok({
+      maintenance_ticket_id: ticketId,
+      ticketId,
+      status: ticket.ticketStatus,
+      tangible_asset_id: tangibleAssetId,
+      maintenance_result: maintenanceResult,
+      maintenance_completed_at: maintenanceCompletedAt,
+      maintenance_cost: maintenanceCost,
+    }, '?좎?蹂댁닔 寃곌낵媛 ?깅줉?섏뿀?듬땲??'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/returns/collect`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 반납 대상 자산을 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (ticket.ticketType !== 'ASSET_RETURN' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_RETURN_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 반납 및 해지 티켓만 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assetType = requestDetail.assetType ?? 'TANGIBLE'
+    const assetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const asset = assetType === 'INTANGIBLE'
+      ? intangibleAssets.find((item) => item.assetId === assetId)
+      : tangibleAssets.find((item) => item.assetId === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '회수 대상 자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    if (assetType === 'INTANGIBLE') {
+      const intangibleAsset = asset as IntangibleAsset
+      intangibleAsset.status = 'CANCELED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.assignedMemberId = null
+      intangibleAsset.assignedMemberName = null
+      intangibleAsset.departmentId = null
+      intangibleAsset.departmentName = null
+    } else {
+      const tangibleAsset = asset as TangibleAsset
+      tangibleAsset.status = 'AVAILABLE'
+      tangibleAsset.tangibleAssetStatus = 'AVAILABLE'
+      tangibleAsset.assignedMemberId = null
+      tangibleAsset.assignedMemberName = null
+      tangibleAsset.departmentId = null
+      tangibleAsset.departmentName = null
+      tangibleAsset.returnDueDate = null
+    }
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '반납 대상 자산 회수 완료',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType,
+      assetId,
+      status: 'COLLECTED',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+    }, '반납 대상 자산 회수 처리에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/purchase-returns/collect`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 반품 대상 자산을 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (ticket.ticketType !== 'PURCHASE_RETURN' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_PURCHASE_RETURN_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 반품 티켓만 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assetType = requestDetail.assetType ?? 'TANGIBLE'
+    const assetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const asset = assetType === 'INTANGIBLE'
+      ? intangibleAssets.find((item) => item.assetId === assetId)
+      : tangibleAssets.find((item) => item.assetId === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '회수 대상 자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    if (assetType === 'INTANGIBLE') {
+      const intangibleAsset = asset as IntangibleAsset
+      intangibleAsset.status = 'CANCELED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.assignedMemberId = null
+      intangibleAsset.assignedMemberName = null
+      intangibleAsset.departmentId = null
+      intangibleAsset.departmentName = null
+    } else {
+      const tangibleAsset = asset as TangibleAsset
+      tangibleAsset.status = 'DISPOSED'
+      tangibleAsset.tangibleAssetStatus = 'DISPOSED'
+      tangibleAsset.assignedMemberId = null
+      tangibleAsset.assignedMemberName = null
+      tangibleAsset.departmentId = null
+      tangibleAsset.departmentName = null
+      tangibleAsset.returnDueDate = null
+    }
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '반품 대상 자산 회수 완료',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType,
+      assetId,
+      ticketStatus: 'COLLECTED',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+    }, '반품 대상 자산 회수 처리에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/:ticketId/actual-amount`, async ({ params, request }) => {
@@ -1436,8 +2622,12 @@ export const handlers = [
       }, { status: 409 })
     }
 
-    const body = await request.json() as { actualPrice?: number }
-    if (!Number.isInteger(body.actualPrice) || Number(body.actualPrice) <= 0) {
+    const body = await request.json() as Record<string, unknown>
+    if (
+      !body.actualPrice
+      || !Number.isInteger(Number(body.actualPrice))
+      || Number(body.actualPrice) <= 0
+    ) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'INVALID_ACTUAL_PRICE',
@@ -1512,9 +2702,19 @@ export const handlers = [
 
     const updatedAt = new Date().toISOString()
     ticketEvidenceFiles.set(ticketId, file.name)
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: requestDetail.actualAmount
+        ? '직접 구매 결제 증빙 등록 완료'
+        : requestDetail.detailStatus,
+      directPurchaseEvidenceFileName: file.name,
+      directPurchaseEvidenceUploadedAt: updatedAt,
+    })
 
     return HttpResponse.json(ok({
       ticketId,
+      directPurchaseEvidenceFileName: file.name,
       purchaseDate: updatedAt.slice(0, 10),
       updatedAt,
     }, '구매 증빙 업로드에 성공했습니다.'))
@@ -1731,6 +2931,7 @@ export const handlers = [
         {
           requestedUsageType: body.requestedUsageType,
           assetType: body.assetType,
+          categoryName: body.categoryId,
           requestedItemDetail: body.requestedItemDetail,
           quantity: body.quantity,
           expectedPrice: body.expectedPrice,
@@ -2140,12 +3341,13 @@ export const handlers = [
     const size = Number(url.searchParams.get('size') ?? 10)
     const categoryName = url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
     const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...tangibleItems]
 
-    if (categoryName && categoryName !== '전체 자산 품목' && categoryName !== '전체 품목 보기') {
-      filteredItems = filteredItems.filter((item) => item.category === categoryName)
+    if (!isMockCategoryPlaceholder(categoryName)) {
+      filteredItems = filteredItems.filter((item) => matchesMockCategory(categoryName, item.category))
     }
 
     if (keyword) {
@@ -2155,6 +3357,10 @@ export const handlers = [
           item.manufacturer.toLowerCase().includes(keyword) ||
           item.modelName.toLowerCase().includes(keyword),
       )
+    }
+
+    if (isStandard) {
+      filteredItems = filteredItems.filter((item) => matchesMockStandardFilter(item.isStandard, isStandard))
     }
 
     if (assetUsageType) {
@@ -2313,14 +3519,15 @@ export const handlers = [
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
     const size = Number(url.searchParams.get('size') ?? 10)
-    const category = url.searchParams.get('category') ?? ''
+    const category = url.searchParams.get('category') ?? url.searchParams.get('categoryName') ?? ''
     const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
     const assetUsageType = url.searchParams.get('assetUsageType') ?? ''
 
     let filteredItems = [...intangibleItems]
 
-    if (category && category !== '전체 소프트웨어 타입') {
-      filteredItems = filteredItems.filter((item) => item.category === category)
+    if (!isMockCategoryPlaceholder(category)) {
+      filteredItems = filteredItems.filter((item) => matchesMockCategory(category, item.category))
     }
 
     if (keyword) {
@@ -2331,6 +3538,10 @@ export const handlers = [
           item.category.toLowerCase().includes(keyword) ||
           item.licenseType.toLowerCase().includes(keyword),
       )
+    }
+
+    if (isStandard) {
+      filteredItems = filteredItems.filter((item) => matchesMockStandardFilter(item.isStandard, isStandard))
     }
 
     if (assetUsageType) {
@@ -2451,9 +3662,9 @@ export const handlers = [
     if (status) {
       filteredAssets = filteredAssets.filter((asset) => asset.status === status)
     }
-    if (categoryName && categoryName !== '전체 품목 보기') {
+    if (!isMockCategoryPlaceholder(categoryName)) {
       const itemIds = tangibleItems
-        .filter((item) => item.category === categoryName)
+        .filter((item) => matchesMockCategory(categoryName, item.category))
         .map((item) => item.assetItemId)
       filteredAssets = filteredAssets.filter((asset) => itemIds.includes(asset.assetItemId ?? ''))
     }

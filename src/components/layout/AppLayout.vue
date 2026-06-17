@@ -44,6 +44,7 @@ const {
   canManageCompany,
   canManageDepartment,
   canManageAsset,
+  canManageTickets,
   canPurchase,
   canViewHrWorkflow,
   canViewMyTickets,
@@ -79,6 +80,7 @@ const navItems = computed(() => {
       show: canViewMyTickets.value,
       children: [
         { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
+        { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },
       ],
     },
     { name: 'hrworkflows', to: '/hrworkflows', label: 'HR 워크플로우', icon: Workflow, show: canViewHrWorkflow.value },

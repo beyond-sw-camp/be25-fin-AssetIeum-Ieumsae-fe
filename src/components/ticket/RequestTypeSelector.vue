@@ -36,7 +36,7 @@ const options: Array<{
   {
     value: 'STANDARD_ASSET_REQUEST',
     label: '자산 요청',
-    description: '등록된 표준 품목을 선택해 자산을 요청합니다.',
+    description: '등록된 품목을 선택해 자산을 요청합니다.',
     icon: Box,
   },
   {
@@ -48,7 +48,7 @@ const options: Array<{
   {
     value: 'DIRECT_PURCHASE',
     label: '직접 구매 요청',
-    description: '직접 구매할 품목과 예상 금액을 입력합니다.',
+    description: '표준 품목을 선택하거나 비표준 품목을 입력해 직접 구매를 요청합니다.',
     icon: BadgeDollarSign,
   },
   {

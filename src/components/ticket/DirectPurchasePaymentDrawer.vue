@@ -170,7 +170,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: []
-  submit: [payload: { actualPrice: number; file: File }]
+  submit: [payload: {
+    actualPrice: number
+    file: File
+  }]
 }>()
 
 const ACCEPTED_FILE_TYPES = new Set([
@@ -220,6 +223,7 @@ function resetForm() {
     : ''
   selectedFile.value = null
   validationErrorMessage.value = ''
+
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -282,7 +286,10 @@ function handleSubmit() {
   }
 
   validationErrorMessage.value = ''
-  emit('submit', { actualPrice: price, file: selectedFile.value })
+  emit('submit', {
+    actualPrice: price,
+    file: selectedFile.value,
+  })
 }
 
 watch(

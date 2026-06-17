@@ -16,29 +16,35 @@ export function usePermission() {
     return !!role.value && roles.includes(role.value)
   }
 
+  const canAccessAllPages = computed(() => hasRole('ADMIN', 'SUPER_ADMIN'))
+
   // 회사 등록 및 회사 ADMIN 생성 화면은 관련 API 확정 후 연결한다.
   const canManagePlatform = computed(() => hasRole('SUPER_ADMIN'))
 
   // 회사 최고 관리자 전용 기능 여부
-  const canManageCompany = computed(() => hasRole('ADMIN'))
+  const canManageCompany = computed(() => canAccessAllPages.value)
 
   // 사원 등록, 부서 변경, 퇴사 처리 권한
-  const canManageMembers = computed(() => hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'))
+  const canManageMembers = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
 
   // 조직도 조회 가능 여부
-  const canManageDepartment = computed(() => hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'))
+  const canManageDepartment = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
 
   // 조직도 부서 생성/수정/삭제 가능 여부
-  const canEditOrganization = computed(() => hasRole('ADMIN'))
+  const canEditOrganization = computed(() => canAccessAllPages.value)
 
   // 자산 관리 가능 여부 (구매자산팀, 최고관리자)
   const canManageAsset = computed(() =>
-    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 티켓 승인 가능 여부 (부서책임자, 구매자산팀, 최고관리자)
   const canApproveTicket = computed(() =>
-    hasRole('ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 나의 요청은 역할과 관계없이 모든 로그인 사용자가 조회할 수 있다.
@@ -47,32 +53,36 @@ export function usePermission() {
   const canCreateTicket = computed(() => auth.isAuthenticated)
 
   const canViewDepartmentTickets = computed(() =>
-    hasRole('ADMIN', 'DEPARTMENT_MANAGER')
+    canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER')
   )
 
   // HR 라이프사이클 워크플로우 조회/실행은 부서책임자 역할 기준이다.
   const canViewHrWorkflow = computed(() => hasRole('DEPARTMENT_MANAGER'))
 
   const canViewAllTickets = computed(() =>
-    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
+  const canManageTickets = computed(() =>
+    canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 구매 관련 기능 (구매자산팀)
   const canPurchase = computed(() =>
-    hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 예산 관리 (최고관리자)
-  const canManageBudget = computed(() => hasRole('ADMIN'))
+  const canManageBudget = computed(() => canAccessAllPages.value)
 
   // 자산 등록 (구매자산팀)
   const canRegisterAsset = computed(() =>
-    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 자산 등록 (구매자산팀)
   const canUpdateAsset = computed(() =>
-    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // HR 템플릿 등록 (구매자산팀장, 부서책임자)
@@ -83,6 +93,7 @@ export function usePermission() {
   return {
     role,
     hasRole,
+    canAccessAllPages,
     canManagePlatform,
     canManageCompany,
     canManageMembers,
@@ -95,6 +106,7 @@ export function usePermission() {
     canViewDepartmentTickets,
     canViewHrWorkflow,
     canViewAllTickets,
+    canManageTickets,
     canPurchase,
     canManageBudget,
     canRegisterAsset,
