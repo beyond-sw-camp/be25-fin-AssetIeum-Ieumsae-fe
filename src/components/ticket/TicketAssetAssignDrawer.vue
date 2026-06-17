@@ -74,7 +74,7 @@
         />
         <Button
           variant="outline"
-          :disabled="!selectedCategory || isCategoryLoading || isItemLoading || isResolvingAssets || submitting"
+          :disabled="!canSearchItems || isCategoryLoading || isItemLoading || isResolvingAssets || submitting"
           @click="() => loadItems()"
         >
           검색
@@ -100,7 +100,7 @@
 
       <div class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
         <h3 v-if="suggestedItemOptions.length > 0" class="px-1 pt-1 text-sm font-semibold text-text-main">
-          같은 카테고리 품목
+          검색 결과
         </h3>
 
         <div
@@ -288,14 +288,16 @@ const visibleItemOptions = computed(() => (
   itemOptions.value.filter((item) => !isRequestedItem(item))
 ))
 
+const canSearchItems = computed(() => Boolean(selectedCategory.value || keyword.value.trim()))
+
 const emptyItemTitle = computed(() => {
-  if (!hasSearchedItems.value) return '자산 분류를 선택하고 조회를 눌러주세요.'
-  if (suggestedItemOptions.value.length > 0) return '같은 카테고리의 다른 품목이 없습니다.'
+  if (!hasSearchedItems.value) return '자산 분류를 선택하거나 품목명을 입력하고 조회를 눌러주세요.'
+  if (suggestedItemOptions.value.length > 0) return '같이 보여줄 다른 품목이 없습니다.'
   return '조회된 품목이 없습니다.'
 })
 
 const emptyItemDescription = computed(() => {
-  if (!hasSearchedItems.value) return '키워드는 필요한 경우에만 입력하면 됩니다.'
+  if (!hasSearchedItems.value) return '요청 품목명은 처음 열 때 자동으로 검색합니다.'
   if (props.ticket?.ticketType === 'PURCHASE_REQUEST') {
     return '구매 완료 후 품목과 자산을 등록하면 다시 할당할 수 있습니다.'
   }
@@ -316,12 +318,14 @@ watch(() => props.isOpen, async (isOpen) => {
 
   assetType.value = props.ticket?.assetType ?? 'TANGIBLE'
   selectedCategory.value = ''
-  keyword.value = ''
+  keyword.value = props.ticket?.requestedItemName
+    ?? props.ticket?.requestedItemDetail
+    ?? props.ticket?.productName
+    ?? ''
   selectedItemId.value = ''
   clearItems()
   await loadCategories()
-  selectedCategory.value = resolveInitialCategory()
-  if (selectedCategory.value) {
+  if (keyword.value.trim()) {
     await loadItems({ selectSuggested: true })
   }
 })
@@ -376,8 +380,8 @@ async function loadCategories() {
 }
 
 async function loadItems(options: { selectSuggested?: boolean } = {}) {
-  if (!selectedCategory.value) {
-    validationMessage.value = '자산 분류를 선택해주세요.'
+  if (!canSearchItems.value) {
+    validationMessage.value = '자산 분류를 선택하거나 품목명을 입력해주세요.'
     return
   }
 
@@ -392,7 +396,7 @@ async function loadItems(options: { selectSuggested?: boolean } = {}) {
       const response = await tangibleItemApi.getList({
         page: 0,
         size: 100,
-        categoryName: selectedCategory.value,
+        categoryName: selectedCategory.value || undefined,
         keyword: keyword.value.trim() || undefined,
       })
       tangibleItems.value = response.data.content
@@ -402,7 +406,7 @@ async function loadItems(options: { selectSuggested?: boolean } = {}) {
     const response = await intangibleItemApi.getList({
       page: 0,
       size: 100,
-      category: selectedCategory.value,
+      category: selectedCategory.value || undefined,
       keyword: keyword.value.trim() || undefined,
     })
     intangibleItems.value = response.data.content
@@ -542,15 +546,6 @@ function toCategoryOptions(value: unknown): DropdownOption[] {
     .map((category) => ({ label: category, value: category }))
 }
 
-function resolveInitialCategory() {
-  const requestedCategory = props.ticket?.categoryName ?? ''
-  if (!requestedCategory) return ''
-
-  return categoryOptions.value.find((option) => (
-    matchesCategory(requestedCategory, String(option.value))
-  ))?.value as string ?? ''
-}
-
 function itemRowClass(item: ItemOption) {
   return [
     'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition',
@@ -579,33 +574,6 @@ function normalizeItemName(value: string | null | undefined) {
     .toLowerCase()
     .replace(/\d+\s*(개|석|seat|seats|user|users|명)/g, '')
     .replace(/[^a-z0-9가-힣]/g, '')
-}
-
-function normalizeCategory(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[\s()[\]{}·/_-]/g, '')
-}
-
-function matchesCategory(requestedCategory: string, itemCategory: string) {
-  const requested = normalizeCategory(requestedCategory)
-  const item = normalizeCategory(itemCategory)
-  if (!requested || !item) return false
-  if (requested === item || requested.includes(item) || item.includes(requested)) return true
-
-  const groups = [
-    { requested: ['pc', '노트북'], items: ['노트북', 'pc'] },
-    { requested: ['모니터'], items: ['모니터'] },
-    { requested: ['주변기기'], items: ['주변기기', '키보드', '마우스', '웹캠', '저장장치'] },
-    { requested: ['모바일기기', '스마트폰'], items: ['스마트폰', '모바일기기'] },
-    { requested: ['개발도구', '개발툴'], items: ['개발도구', '개발툴'] },
-    { requested: ['디자인도구', '디자인'], items: ['디자인도구', '디자인'] },
-  ]
-
-  return groups.some((group) => (
-    group.requested.some((token) => requested.includes(token))
-    && group.items.some((token) => item.includes(token))
-  ))
 }
 
 function toTangibleItemOption(item: TangibleAssetItem): ItemOption {

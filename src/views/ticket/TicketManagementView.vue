@@ -157,6 +157,7 @@
               <template #cell-management="{ row }">
                 <Button
                   size="sm"
+                  class="min-w-[72px] whitespace-nowrap"
                   :variant="getManagementButtonVariant(row)"
                   @click.stop="openTicketDetail(row)"
                 >
@@ -268,11 +269,11 @@ interface TableColumn<T> {
 const columns: TableColumn<TicketListItem>[] = [
   { key: 'ticketNo', label: '티켓 번호', width: '14%', align: 'center' },
   { key: 'ticketType', label: '유형', width: '15%', align: 'center' },
-  { key: 'requestedItemName', label: '요청 내용', width: '24%', align: 'center' },
-  { key: 'requester', label: '요청자(부서)', width: '17%', align: 'center' },
+  { key: 'requestedItemName', label: '요청 내용', width: '22%', align: 'center' },
+  { key: 'requester', label: '요청자(부서)', width: '16%', align: 'center' },
   { key: 'requestedAt', label: '요청일', width: '12%', align: 'center' },
   { key: 'ticketStatus', label: '상태', width: '11%', align: 'center' },
-  { key: 'management', label: '관리', width: '7%', align: 'center' },
+  { key: 'management', label: '관리', width: '10%', align: 'center' },
 ]
 const DEFAULT_TICKET_STATISTICS: TicketStatistics = {
   totalCount: 0,
