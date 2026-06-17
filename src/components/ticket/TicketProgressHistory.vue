@@ -183,6 +183,12 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
   if (key === 'completed') {
     return ticket.completedAt ?? ticket.canceledAt ?? undefined
   }
+  if (key === 'action' && ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    return ticket.collectedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
+  }
+  if (key === 'result' && ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    return ticket.maintenanceCompletedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
+  }
   return state === 'current' ? ticket.updatedAt : undefined
 }
 
@@ -191,6 +197,15 @@ function failureStepIndex(status: TicketStatus) {
   if (status === 'ASSET_REJECTED') return 2
   if (status === 'CANCELED') return 1
   return -1
+}
+
+function progressIndex(ticket: TicketDetail) {
+  if (ticket.ticketType === 'MAINTENANCE_REQUEST') {
+    if (ticket.status === 'IN_PROGRESS' && ticket.maintenanceCompletedAt) return 5
+    if (ticket.status === 'IN_PROGRESS' && ticket.assetStatus === 'REPAIRING') return 4
+  }
+
+  return STATUS_PROGRESS_INDEX[ticket.status] ?? 0
 }
 
 function stepDescription(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
@@ -218,7 +233,7 @@ const processSteps = computed<ProcessStep[]>(() => {
     : PROCESS_BY_TICKET_TYPE[ticket.ticketType]
   const failureIndex = failureStepIndex(ticket.status)
   const isCompleted = ticket.status === 'COMPLETED'
-  const currentIndex = STATUS_PROGRESS_INDEX[ticket.status] ?? 0
+  const currentIndex = progressIndex(ticket)
 
   return definitions.map((definition, index) => {
     let state: ProcessStepState

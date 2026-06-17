@@ -225,6 +225,37 @@ export interface MaintenanceCollectResponse {
   collectedAt: string
 }
 
+export interface AssetCollectResponse {
+  ticketId: string | number
+  assetType: AssetType
+  assetId: string | number
+  status?: string
+  ticketStatus?: string
+  assetStatus: string
+  collectedAt: string
+}
+
+export interface MaintenanceCompleteRequest {
+  maintenanceResult: string
+  maintenanceCompletedAt: string
+  maintenanceCost: number
+}
+
+export interface MaintenanceCompleteResponse {
+  maintenanceTicketId?: string | number
+  maintenance_ticket_id?: string | number
+  ticketId?: string | number
+  status: string
+  tangibleAssetId?: string | number
+  tangible_asset_id?: string | number
+  maintenanceResult?: string
+  maintenance_result?: string
+  maintenanceCompletedAt?: string
+  maintenance_completed_at?: string
+  maintenanceCost?: number
+  maintenance_cost?: number
+}
+
 export interface TicketAssignMeResponse {
   ticketId: string
   ticketNo: string

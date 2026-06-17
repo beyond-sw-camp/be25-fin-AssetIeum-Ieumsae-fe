@@ -2200,6 +2200,16 @@ export const handlers = [
     if (nextStatus === 'CANCELED') {
       ticketcanceledAt.set(ticketId, updatedAt)
     }
+    if (nextStatus === 'COMPLETED') {
+      const requestDetail = ticketDetailData.get(ticketId) ?? {}
+      ticketDetailData.set(ticketId, {
+        ...requestDetail,
+        detailStatus: ticket.ticketType === 'MAINTENANCE_REQUEST'
+          ? '유지보수 완료'
+          : requestDetail.detailStatus,
+        completedAt: requestDetail.completedAt ?? updatedAt,
+      })
+    }
 
     return HttpResponse.json(ok({
       ticketId,
@@ -2272,6 +2282,273 @@ export const handlers = [
       assetStatus: 'REPAIRING',
       collectedAt,
     }, '유지보수 대상 자산 회수에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/maintenance-tickets/:maintenanceTicketId/complete`, async ({ params, request }) => {
+    const ticketId = String(params.maintenanceTicketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '?곗폆??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '援щℓ?먯궛?留??좎?蹂댁닔 寃곌낵瑜?泥섎━?????덉뒿?덈떎.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const tangibleAssetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const tangibleAsset = tangibleAssets.find((asset) => asset.assetId === tangibleAssetId)
+
+    if (
+      ticket.ticketType !== 'MAINTENANCE_REQUEST'
+      || ticket.ticketStatus !== 'IN_PROGRESS'
+      || requestDetail.assetStatus !== 'REPAIRING'
+      || !requestDetail.collectedAt
+    ) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_MAINTENANCE_COMPLETE_STATUS',
+        message: '?뚯닔 ?꾨즺 ??섎━以??곹깭???좎?蹂댁닔 ?곗폆留??꾨즺 泥섎━?????덉뒿?덈떎.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    if (!tangibleAsset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TANGIBLE_ASSET_NOT_FOUND',
+        message: '?좎?蹂댁닔 ????좏삎?먯궛??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const body = await request.json() as {
+      maintenance_result?: string
+      maintenanceResult?: string
+      maintenance_completed_at?: string
+      maintenanceCompletedAt?: string
+      maintenance_cost?: number
+      maintenanceCost?: number
+    }
+    const maintenanceResult = (body.maintenance_result ?? body.maintenanceResult ?? '').trim()
+    const maintenanceCompletedAt = body.maintenance_completed_at ?? body.maintenanceCompletedAt
+    const maintenanceCost = Number(body.maintenance_cost ?? body.maintenanceCost)
+
+    if (!maintenanceResult || !maintenanceCompletedAt || !Number.isFinite(maintenanceCost) || maintenanceCost < 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_MAINTENANCE_COMPLETE_REQUEST',
+        message: '?섎━ 寃곌낵, ?꾨즺 ?쇱떆, 鍮꾩슜???щ컮瑜닿쾶 ?낅젰?댁＜?몄슂.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    tangibleAsset.status = 'AVAILABLE'
+    tangibleAsset.tangibleAssetStatus = 'AVAILABLE'
+    const updatedAt = new Date().toISOString()
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '유지보수 결과 등록 완료 - 재할당 대기',
+      assetStatus: 'AVAILABLE',
+      maintenanceResult,
+      maintenanceCompletedAt,
+      maintenanceCost,
+      processedAt: updatedAt,
+    })
+
+    return HttpResponse.json(ok({
+      maintenance_ticket_id: ticketId,
+      ticketId,
+      status: ticket.ticketStatus,
+      tangible_asset_id: tangibleAssetId,
+      maintenance_result: maintenanceResult,
+      maintenance_completed_at: maintenanceCompletedAt,
+      maintenance_cost: maintenanceCost,
+    }, '?좎?蹂댁닔 寃곌낵媛 ?깅줉?섏뿀?듬땲??'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/returns/collect`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 반납 대상 자산을 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (ticket.ticketType !== 'ASSET_RETURN' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_RETURN_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 반납 및 해지 티켓만 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assetType = requestDetail.assetType ?? 'TANGIBLE'
+    const assetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const asset = assetType === 'INTANGIBLE'
+      ? intangibleAssets.find((item) => item.assetId === assetId)
+      : tangibleAssets.find((item) => item.assetId === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '회수 대상 자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    if (assetType === 'INTANGIBLE') {
+      const intangibleAsset = asset as IntangibleAsset
+      intangibleAsset.status = 'CANCELED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.assignedMemberId = null
+      intangibleAsset.assignedMemberName = null
+      intangibleAsset.departmentId = null
+      intangibleAsset.departmentName = null
+    } else {
+      const tangibleAsset = asset as TangibleAsset
+      tangibleAsset.status = 'AVAILABLE'
+      tangibleAsset.tangibleAssetStatus = 'AVAILABLE'
+      tangibleAsset.assignedMemberId = null
+      tangibleAsset.assignedMemberName = null
+      tangibleAsset.departmentId = null
+      tangibleAsset.departmentName = null
+      tangibleAsset.returnDueDate = null
+    }
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '반납 대상 자산 회수 완료',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType,
+      assetId,
+      status: 'COLLECTED',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+    }, '반납 대상 자산 회수 처리에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/purchase-returns/collect`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!canManageAssets(requester)) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '구매자산팀만 반품 대상 자산을 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    if (ticket.ticketType !== 'PURCHASE_RETURN' || ticket.ticketStatus !== 'ASSET_APPROVED') {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'INVALID_PURCHASE_RETURN_COLLECT_STATUS',
+        message: '구매자산팀 승인 완료 상태의 반품 티켓만 회수 처리할 수 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const requestDetail = ticketDetailData.get(ticketId) ?? {}
+    const assetType = requestDetail.assetType ?? 'TANGIBLE'
+    const assetId = requestDetail.assetId ? String(requestDetail.assetId) : ''
+    const asset = assetType === 'INTANGIBLE'
+      ? intangibleAssets.find((item) => item.assetId === assetId)
+      : tangibleAssets.find((item) => item.assetId === assetId)
+
+    if (!asset) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'ASSET_NOT_FOUND',
+        message: '회수 대상 자산을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const collectedAt = new Date().toISOString()
+    ticket.ticketStatus = 'IN_PROGRESS'
+    if (assetType === 'INTANGIBLE') {
+      const intangibleAsset = asset as IntangibleAsset
+      intangibleAsset.status = 'CANCELED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.assignedMemberId = null
+      intangibleAsset.assignedMemberName = null
+      intangibleAsset.departmentId = null
+      intangibleAsset.departmentName = null
+    } else {
+      const tangibleAsset = asset as TangibleAsset
+      tangibleAsset.status = 'DISPOSED'
+      tangibleAsset.tangibleAssetStatus = 'DISPOSED'
+      tangibleAsset.assignedMemberId = null
+      tangibleAsset.assignedMemberName = null
+      tangibleAsset.departmentId = null
+      tangibleAsset.departmentName = null
+      tangibleAsset.returnDueDate = null
+    }
+    ticketDetailData.set(ticketId, {
+      ...requestDetail,
+      detailStatus: '반품 대상 자산 회수 완료',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+      processedAt: requestDetail.processedAt ?? collectedAt,
+    })
+
+    return HttpResponse.json(ok({
+      ticketId,
+      assetType,
+      assetId,
+      ticketStatus: 'COLLECTED',
+      assetStatus: 'RETURN_COLLECTED',
+      collectedAt,
+    }, '반품 대상 자산 회수 처리에 성공했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/tickets/:ticketId/actual-amount`, async ({ params, request }) => {

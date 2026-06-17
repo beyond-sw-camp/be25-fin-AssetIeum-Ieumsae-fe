@@ -193,6 +193,52 @@
               </div>
             </TicketDetailCard>
 
+            <TicketDetailCard v-if="assetCollectPanel" :title="assetCollectPanel.title">
+              <template #icon>
+                <PackageCheck :size="18" class="text-primary" />
+              </template>
+
+              <div class="space-y-4">
+                <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    v-for="item in assetCollectInfoItems"
+                    :key="item.label"
+                    class="border-b border-border pb-3"
+                  >
+                    <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                      {{ item.value }}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div class="flex flex-col gap-3 rounded-xl border border-border bg-surface-secondary/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p class="text-sm leading-6 text-text-sub">
+                    {{ assetCollectPanel.description }}
+                  </p>
+                  <Button
+                    v-if="canCollectAsset"
+                    class="shrink-0"
+                    :loading="isCollectingAsset"
+                    :disabled="isActionSubmitting"
+                    @click="handleCollectAsset"
+                  >
+                    <PackageCheck :size="15" />
+                    {{ assetCollectPanel.buttonText }}
+                  </Button>
+                  <Button
+                    v-else-if="canCompleteMaintenance"
+                    class="shrink-0"
+                    :disabled="isActionSubmitting"
+                    @click="openMaintenanceCompleteDrawer"
+                  >
+                    <PackageCheck :size="15" />
+                    수리 완료 및 재할당
+                  </Button>
+                </div>
+              </div>
+            </TicketDetailCard>
+
             <TicketDetailCard title="요청 상세 내역" padding="none">
               <template #icon>
                 <ClipboardList :size="18" class="text-primary" />
@@ -396,6 +442,101 @@
       </template>
     </BaseDrawer>
 
+    <BaseDrawer
+      :is-open="maintenanceCompleteDrawerOpen"
+      title="수리 완료 처리"
+      panel-class="w-full max-w-[520px]"
+      @close="closeMaintenanceCompleteDrawer"
+    >
+      <div class="space-y-5">
+        <section class="rounded-xl border border-border bg-surface-secondary p-4 text-sm">
+          <p class="font-semibold text-text-main">{{ requestItemName(ticket) }}</p>
+          <dl class="mt-4 grid gap-3 text-xs">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-text-muted">대상 자산</dt>
+              <dd class="font-semibold text-text-main">{{ ticket?.assetId ?? '-' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-text-muted">재할당 대상</dt>
+              <dd class="font-semibold text-text-main">{{ ticket?.requesterName ?? '-' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-text-muted">현재 자산 상태</dt>
+              <dd class="font-semibold text-text-main">{{ assetStatusLabel(ticket?.assetStatus) }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold text-text-main">
+            수리 결과 <span class="font-bold text-primary">*</span>
+          </span>
+          <textarea
+            v-model="maintenanceResult"
+            rows="5"
+            class="w-full resize-none rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
+            placeholder="예: 배터리 교체 및 충전 테스트 완료"
+            :disabled="isCompletingMaintenance"
+          />
+          <p v-if="maintenanceResultError" class="mt-1.5 text-xs font-medium text-danger">
+            {{ maintenanceResultError }}
+          </p>
+        </label>
+
+        <Input
+          id="maintenance-completed-at"
+          v-model="maintenanceCompletedAt"
+          type="datetime-local"
+          label="수리 완료 일시"
+          required
+          :disabled="isCompletingMaintenance"
+          :error="Boolean(maintenanceCompletedAtError)"
+          :error-message="maintenanceCompletedAtError"
+        />
+
+        <Input
+          id="maintenance-cost"
+          v-model="maintenanceCost"
+          type="number"
+          label="수리 비용"
+          required
+          :min="0"
+          :disabled="isCompletingMaintenance"
+          :error="Boolean(maintenanceCostError)"
+          :error-message="maintenanceCostError"
+        />
+
+        <p
+          v-if="maintenanceCompleteSubmitErrorMessage"
+          class="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
+          role="alert"
+        >
+          {{ maintenanceCompleteSubmitErrorMessage }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="m"
+            :disabled="isCompletingMaintenance"
+            @click="closeMaintenanceCompleteDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            size="m"
+            :loading="isCompletingMaintenance"
+            :disabled="!maintenanceResult.trim() || !maintenanceCompletedAt || maintenanceCost === ''"
+            @click="handleMaintenanceComplete"
+          >
+            완료 및 재할당
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <ConfirmationModal
       :is-open="Boolean(commentToDelete)"
       title="댓글 삭제"
@@ -530,6 +671,8 @@ const isRejecting = ref(false)
 const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
 const isAssigningMe = ref(false)
+const isCollectingAsset = ref(false)
+const isCompletingMaintenance = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
@@ -538,6 +681,7 @@ const rejectDrawerOpen = ref(false)
 const rejectTarget = ref<ApproverType | null>(null)
 const assetAssignDrawerOpen = ref(false)
 const rentalExtensionDrawerOpen = ref(false)
+const maintenanceCompleteDrawerOpen = ref(false)
 const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
@@ -548,6 +692,13 @@ const assetAssignErrorMessage = ref('')
 const rentalExtensionDueDate = ref('')
 const rentalExtensionDueDateError = ref('')
 const rentalExtensionSubmitErrorMessage = ref('')
+const maintenanceResult = ref('')
+const maintenanceCompletedAt = ref('')
+const maintenanceCost = ref<string | number>('')
+const maintenanceResultError = ref('')
+const maintenanceCompletedAtError = ref('')
+const maintenanceCostError = ref('')
+const maintenanceCompleteSubmitErrorMessage = ref('')
 const purchaseRequestAssignable = ref(false)
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
@@ -614,6 +765,16 @@ const hasDirectPurchaseEvidence = computed(() => (
 const isDirectPurchasePaymentReady = computed(() => (
   hasDirectPurchasePaymentInfo.value && hasDirectPurchaseEvidence.value
 ))
+const isAssetCollectTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && (
+      ticket.value.ticketType === 'MAINTENANCE_REQUEST'
+      || ticket.value.ticketType === 'ASSET_RETURN'
+      || ticket.value.ticketType === 'PURCHASE_RETURN'
+    ),
+  )
+))
 const canAssignAsset = computed(() => (
   Boolean(
     ticket.value
@@ -653,6 +814,27 @@ const canAssignMe = computed(() => (
     && ticket.value.status !== 'REQUESTED',
   )
 ))
+const canCollectAsset = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && isAssetCollectTicket.value
+    && ticket.value.status === 'ASSET_APPROVED'
+    && !ticket.value.collectedAt,
+  )
+))
+const canCompleteMaintenance = computed(() => (
+  Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && ticket.value.ticketType === 'MAINTENANCE_REQUEST'
+    && ticket.value.status === 'IN_PROGRESS'
+    && ticket.value.collectedAt
+    && ticket.value.assetStatus === 'REPAIRING'
+    && !ticket.value.maintenanceCompletedAt
+    && !ticket.value.completedAt,
+  )
+))
 const canChangeStatus = computed(() => (
   Boolean(
     ticket.value
@@ -684,6 +866,8 @@ const isActionSubmitting = computed(() => (
   || isChangingStatus.value
   || isAssigningAsset.value
   || isAssigningMe.value
+  || isCollectingAsset.value
+  || isCompletingMaintenance.value
   || isChangingRentalExtensionDueDate.value
 ))
 const rejectDrawerTitle = computed(() => '반려')
@@ -731,6 +915,52 @@ const directPurchasePaymentGuideMessage = computed(() => {
     return '결제 증빙이 등록되었습니다. 금액과 증빙을 확인한 뒤 자산을 등록하면 자산 검색 및 할당으로 티켓을 처리 완료할 수 있습니다.'
   }
   return '결제 증빙이 등록되었습니다. 자산 검색 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
+})
+const assetCollectPanel = computed(() => {
+  if (!ticket.value || !isAssetCollectTicket.value) return null
+  if (!['ASSET_APPROVED', 'IN_PROGRESS', 'COMPLETED'].includes(ticket.value.status)) return null
+
+  const collected = Boolean(ticket.value.collectedAt)
+
+  if (ticket.value.ticketType === 'MAINTENANCE_REQUEST') {
+    return {
+      title: '유지보수 대상 자산 회수',
+      description: collected
+        ? '유지보수 대상 자산이 회수되었습니다. 자산 상태와 회수 일시를 확인하세요.'
+        : '승인된 유지보수 요청입니다. 대상 자산을 회수하면 자산 상태가 수리중으로 변경됩니다.',
+      buttonText: '유지보수 자산 회수',
+    }
+  }
+
+  if (ticket.value.ticketType === 'ASSET_RETURN') {
+    return {
+      title: '반납 및 해지 대상 자산 회수',
+      description: collected
+        ? '반납 및 해지 대상 자산이 회수되었습니다. 회수 상태와 일시를 확인하세요.'
+        : '승인된 반납 및 해지 요청입니다. 대상 자산을 회수 처리하면 회수 완료 상태로 기록됩니다.',
+      buttonText: '반납 자산 회수',
+    }
+  }
+
+  return {
+    title: '반품 대상 자산 회수',
+    description: collected
+      ? '반품 대상 자산이 회수되었습니다. 이후 공급처 반품 또는 환불 처리를 진행할 수 있습니다.'
+      : '승인된 반품 요청입니다. 대상 자산을 먼저 회수 처리한 뒤 반품 및 환불 처리를 진행하세요.',
+    buttonText: '반품 자산 회수',
+  }
+})
+const assetCollectInfoItems = computed<DetailItem[]>(() => {
+  if (!ticket.value || !assetCollectPanel.value) return []
+
+  return [
+    { label: '대상 자산', value: requestItemName(ticket.value) },
+    { label: '자산 구분', value: assetTypeLabel(ticket.value.assetType) },
+    { label: '자산 ID', value: ticket.value.assetId ?? '-' },
+    { label: '자산 상태', value: assetStatusLabel(ticket.value.assetStatus) },
+    { label: '회수 여부', value: ticket.value.collectedAt ? '회수 완료' : '회수 대기' },
+    { label: '회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
+  ]
 })
 const unsupportedActionMessage = computed(() => {
   if (!ticket.value || !isAssetTeamRole.value) return ''
@@ -849,7 +1079,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
     { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
-      : { label: '내부 상태', value: ticket.value.detailStatus ?? '-' },
+      : { label: '내부 상태', value: internalStatusLabel(ticket.value) },
     {
       label: '구매자산팀 담당자',
       value: ticket.value.assigneeName ?? '미지정',
@@ -1012,13 +1242,22 @@ function assetTypeLabel(assetType: AssetType | null | undefined): string {
   return '-'
 }
 
+function internalStatusLabel(detail: TicketDetail): string {
+  if (detail.ticketType === 'MAINTENANCE_REQUEST' && detail.maintenanceCompletedAt) {
+    return detail.status === 'COMPLETED'
+      ? '유지보수 완료'
+      : '유지보수 결과 등록 완료 - 재할당 대기'
+  }
+
+  return detail.detailStatus ?? '-'
+}
+
 function assetStatusLabel(status: string | null | undefined): string {
   if (!status) return '-'
 
   const statusLabels: Record<string, string> = {
     ...TANGIBLE_STATUS_LABEL,
     ...INTANGIBLE_STATUS_LABEL,
-    UNDER_MAINTENANCE: '유지보수 중',
     RETURN_COLLECTED: '회수 완료',
     RETURNED_TO_VENDOR: '공급처 반품 완료',
   }
@@ -1184,6 +1423,32 @@ async function handleAssignMe() {
   }
 }
 
+async function handleCollectAsset() {
+  if (!ticket.value || !canCollectAsset.value || isCollectingAsset.value) return
+
+  isCollectingAsset.value = true
+
+  try {
+    if (ticket.value.ticketType === 'MAINTENANCE_REQUEST') {
+      await ticketApi.collectMaintenanceAsset(ticket.value.ticketId)
+    } else if (ticket.value.ticketType === 'ASSET_RETURN') {
+      await ticketApi.collectReturnAsset(ticket.value.ticketId)
+    } else if (ticket.value.ticketType === 'PURCHASE_RETURN') {
+      await ticketApi.collectPurchaseReturnAsset(ticket.value.ticketId)
+    }
+
+    await reloadAfterAction()
+    notificationStore.success(`${assetCollectPanel.value?.buttonText ?? '자산 회수'} 처리가 완료되었습니다.`)
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '자산 회수 처리에 실패했습니다.'
+    notificationStore.error('자산 회수 실패', message)
+  } finally {
+    isCollectingAsset.value = false
+  }
+}
+
 async function handleApprove(approver: ApproverType) {
   if (!ticket.value || isActionSubmitting.value) return
 
@@ -1296,6 +1561,30 @@ function closeRentalExtensionDrawer() {
   rentalExtensionSubmitErrorMessage.value = ''
 }
 
+function openMaintenanceCompleteDrawer() {
+  if (!ticket.value || !canCompleteMaintenance.value) return
+
+  maintenanceResult.value = ticket.value.maintenanceResult ?? ''
+  maintenanceCompletedAt.value = toDateTimeLocalInputValue(ticket.value.maintenanceCompletedAt)
+    || toDateTimeLocalInputValue(new Date().toISOString())
+  maintenanceCost.value = ticket.value.maintenanceCost ?? ''
+  maintenanceResultError.value = ''
+  maintenanceCompletedAtError.value = ''
+  maintenanceCostError.value = ''
+  maintenanceCompleteSubmitErrorMessage.value = ''
+  maintenanceCompleteDrawerOpen.value = true
+}
+
+function closeMaintenanceCompleteDrawer() {
+  if (isCompletingMaintenance.value) return
+
+  maintenanceCompleteDrawerOpen.value = false
+  maintenanceResultError.value = ''
+  maintenanceCompletedAtError.value = ''
+  maintenanceCostError.value = ''
+  maintenanceCompleteSubmitErrorMessage.value = ''
+}
+
 function toDateInputValue(value: string | null | undefined) {
   if (!value) return ''
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10)
@@ -1307,6 +1596,21 @@ function toDateInputValue(value: string | null | undefined) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function toDateTimeLocalInputValue(value: string | null | undefined) {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return value.slice(0, 16)
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 function validateRentalExtensionDueDate() {
@@ -1353,6 +1657,79 @@ async function handleRentalExtensionDueDateChange() {
     notificationStore.error('반납 예정일 변경 실패', message)
   } finally {
     isChangingRentalExtensionDueDate.value = false
+  }
+}
+
+function validateMaintenanceCompleteForm() {
+  const result = maintenanceResult.value.trim()
+  const cost = Number(maintenanceCost.value)
+  let isValid = true
+
+  if (!result) {
+    maintenanceResultError.value = '수리 결과를 입력해주세요.'
+    isValid = false
+  } else {
+    maintenanceResultError.value = ''
+  }
+
+  if (!maintenanceCompletedAt.value) {
+    maintenanceCompletedAtError.value = '수리 완료 일시를 입력해주세요.'
+    isValid = false
+  } else {
+    maintenanceCompletedAtError.value = ''
+  }
+
+  if (!Number.isFinite(cost) || cost < 0) {
+    maintenanceCostError.value = '수리 비용은 0원 이상으로 입력해주세요.'
+    isValid = false
+  } else {
+    maintenanceCostError.value = ''
+  }
+
+  return isValid
+}
+
+async function handleMaintenanceComplete() {
+  if (
+    !ticket.value
+    || !canCompleteMaintenance.value
+    || isCompletingMaintenance.value
+    || !validateMaintenanceCompleteForm()
+  ) return
+
+  const currentTicket = ticket.value
+  const assetId = currentTicket.assetId
+  if (!assetId) {
+    maintenanceCompleteSubmitErrorMessage.value = '재할당할 자산 ID를 확인할 수 없습니다.'
+    return
+  }
+
+  isCompletingMaintenance.value = true
+  maintenanceCompleteSubmitErrorMessage.value = ''
+
+  try {
+    await ticketApi.completeMaintenance(currentTicket.ticketId, {
+      maintenanceResult: maintenanceResult.value.trim(),
+      maintenanceCompletedAt: maintenanceCompletedAt.value,
+      maintenanceCost: Number(maintenanceCost.value),
+    })
+    await ticketApi.assignAsset(currentTicket.ticketId, {
+      assetType: 'TANGIBLE',
+      assetId,
+      memberId: String(currentTicket.requesterId),
+    })
+    await ticketApi.changeStatus(currentTicket.ticketId, 'COMPLETED')
+    maintenanceCompleteDrawerOpen.value = false
+    await reloadAfterAction()
+    notificationStore.success('수리 결과와 비용을 등록하고 자산을 다시 할당했습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '수리 완료 처리에 실패했습니다.'
+    maintenanceCompleteSubmitErrorMessage.value = message
+    notificationStore.error('수리 완료 처리 실패', message)
+  } finally {
+    isCompletingMaintenance.value = false
   }
 }
 
@@ -1493,11 +1870,21 @@ function resetTicketActionState() {
   rentalExtensionDueDate.value = ''
   rentalExtensionDueDateError.value = ''
   rentalExtensionSubmitErrorMessage.value = ''
+  maintenanceCompleteDrawerOpen.value = false
+  maintenanceResult.value = ''
+  maintenanceCompletedAt.value = ''
+  maintenanceCost.value = ''
+  maintenanceResultError.value = ''
+  maintenanceCompletedAtError.value = ''
+  maintenanceCostError.value = ''
+  maintenanceCompleteSubmitErrorMessage.value = ''
   isApproving.value = false
   isRejecting.value = false
   isChangingStatus.value = false
   isAssigningAsset.value = false
   isAssigningMe.value = false
+  isCollectingAsset.value = false
+  isCompletingMaintenance.value = false
   isChangingRentalExtensionDueDate.value = false
 }
 

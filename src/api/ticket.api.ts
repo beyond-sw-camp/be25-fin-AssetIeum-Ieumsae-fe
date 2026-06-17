@@ -17,6 +17,9 @@ import type {
   TicketRejectRequest,
   AssetAssignRequest,
   MaintenanceCollectResponse,
+  AssetCollectResponse,
+  MaintenanceCompleteRequest,
+  MaintenanceCompleteResponse,
   TicketAssignMeResponse,
   RentalExtensionProcessRequest,
   RentalExtensionProcessResponse,
@@ -62,7 +65,22 @@ export const ticketApi = {
   collectMaintenanceAsset: (ticketId: string) =>
     api.patch<MaintenanceCollectResponse>(`/tickets/${ticketId}/maintence/collect`, {}),
 
+  /** 반납/해지 대상 자산 회수 처리 */
+  collectReturnAsset: (ticketId: string) =>
+    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/returns/collect`, {}),
+
+  /** 반품 대상 자산 회수 처리 */
+  collectPurchaseReturnAsset: (ticketId: string) =>
+    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/purchase-returns/collect`, {}),
+
   /** 구매자산팀 티켓 담당자 나에게 배정 */
+  completeMaintenance: (maintenanceTicketId: string, body: MaintenanceCompleteRequest) =>
+    api.patch<MaintenanceCompleteResponse>(`/maintenance-tickets/${maintenanceTicketId}/complete`, {
+      maintenance_result: body.maintenanceResult,
+      maintenance_completed_at: body.maintenanceCompletedAt,
+      maintenance_cost: body.maintenanceCost,
+    }),
+
   assignMe: (ticketId: string) =>
     api.patch<TicketAssignMeResponse>(`/tickets/${ticketId}/assign-me`, {}),
 
