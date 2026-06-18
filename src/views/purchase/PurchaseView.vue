@@ -84,46 +84,49 @@
             <p class="mt-1 text-sm text-text-sub">납품 확인은 품목 단위로 처리합니다.</p>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[860px] text-sm">
-              <thead class="border-b border-border bg-surface-secondary text-xs font-semibold text-text-sub">
-                <tr>
-                  <th class="px-4 py-3 text-center">분류</th>
-                  <th class="px-4 py-3 text-center">품목</th>
-                  <th class="px-4 py-3 text-center">표준 여부</th>
-                  <th class="px-4 py-3 text-center">수량</th>
-                  <th class="px-4 py-3 text-center">단가</th>
-                  <th class="px-4 py-3 text-center">합계</th>
-                  <th class="px-4 py-3 text-center">납품</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <tr v-for="item in selectedPlan.items" :key="String(item.itemId ?? item.itemName)">
-                  <td class="px-4 py-3 text-center text-text-sub">{{ item.category || '-' }}</td>
-                  <td class="px-4 py-3 text-center font-semibold text-text-main">{{ item.itemName }}</td>
-                  <td class="px-4 py-3 text-center">{{ item.isStandard === false ? '비표준' : '표준' }}</td>
-                  <td class="px-4 py-3 text-center">{{ item.quantity }}</td>
-                  <td class="px-4 py-3 text-center">{{ formatCurrency(item.estimatedUnitPrice) }}</td>
-                  <td class="px-4 py-3 text-center font-semibold">{{ formatCurrency(item.totalAmount) }}</td>
-                  <td class="px-4 py-3 text-center">
-                    <span v-if="item.receivedAt" class="text-xs font-semibold text-success">
-                      {{ formatDate(item.receivedAt) }}
-                    </span>
-                    <Button
-                      v-else
-                      variant="outline"
-                      size="sm"
-                      :disabled="!canConfirmDelivery(item) || isConfirmingItem === item.itemId"
-                      :loading="isConfirmingItem === item.itemId"
-                      @click="confirmDelivery(item)"
-                    >
-                      납품 확인
-                    </Button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <Table
+            :columns="planItemColumns"
+            :rows="selectedPlan.items"
+            row-key="itemId"
+            empty-text="구매 품목이 없습니다."
+            class="min-w-[860px] rounded-none! border-0!"
+          >
+            <template #cell-category="{ value }">
+              <span class="text-text-sub">{{ value || '-' }}</span>
+            </template>
+
+            <template #cell-itemName="{ value }">
+              <span class="font-semibold text-text-main">{{ value }}</span>
+            </template>
+
+            <template #cell-isStandard="{ row }">
+              <span>{{ row.isStandard === false ? '비표준' : '표준' }}</span>
+            </template>
+
+            <template #cell-estimatedUnitPrice="{ value }">
+              <span>{{ formatCurrency(Number(value || 0)) }}</span>
+            </template>
+
+            <template #cell-totalAmount="{ value }">
+              <span class="font-semibold">{{ formatCurrency(Number(value || 0)) }}</span>
+            </template>
+
+            <template #cell-delivery="{ row }">
+              <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
+                {{ formatDate(row.receivedAt) }}
+              </span>
+              <Button
+                v-else
+                variant="outline"
+                size="sm"
+                :disabled="!canConfirmDelivery(row) || isConfirmingItem === row.itemId"
+                :loading="isConfirmingItem === row.itemId"
+                @click.stop="confirmDelivery(row)"
+              >
+                납품 확인
+              </Button>
+            </template>
+          </Table>
         </section>
 
         <section class="rounded-xl border border-dashed border-border bg-surface p-5">
@@ -161,7 +164,7 @@
     <template v-else>
       <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p class="page-subtitle mb-1">구매 관리 &gt; 구매 계획</p>
+          <p class="page-subtitle mb-1">구매 계획</p>
           <h1 class="page-title">구매 계획 및 집행 관리</h1>
         </div>
         <Button @click="openCreateDrawer">
@@ -171,7 +174,15 @@
       </header>
 
       <section class="mx-3 mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <article v-for="card in statCards" :key="card.label" class="rounded-xl border border-border bg-surface p-4">
+        <article
+          v-for="card in statCards"
+          :key="card.label"
+          :class="[
+            'relative overflow-hidden rounded-xl border bg-surface p-4 shadow-sm transition-colors duration-300',
+            card.className,
+          ]"
+        >
+          <span :class="['absolute inset-y-0 left-0 w-1', card.accentClass]" aria-hidden="true"></span>
           <p class="text-xs font-semibold text-text-sub">{{ card.label }}</p>
           <p class="mt-2 text-2xl font-bold text-text-main">{{ card.value }}건</p>
         </article>
@@ -238,7 +249,7 @@
             :loading="isListLoading"
             row-key="planId"
             empty-text="조회된 구매 계획이 없습니다."
-            class="rounded-none! border-0!"
+            class="border-0!"
             @row-click="openDetail"
           >
             <template #cell-planNo="{ value }">
@@ -319,17 +330,11 @@
       :is-open="isCreateDrawerOpen"
       title="신규 구매 계획 등록"
       panel-class="w-full max-w-5xl"
-      body-class="p-0"
+      body-class="min-h-0 overflow-hidden! p-0"
       hide-footer
       @close="closeCreateDrawer"
     >
       <div class="flex h-full flex-col">
-        <div class="border-b border-border px-6 py-4">
-          <p class="text-sm text-text-sub">
-            결재 완료된 자산 요청 중 구매 계획 생성에 필요한 값이 확인된 요청만 선택할 수 있습니다.
-          </p>
-        </div>
-
         <div
           v-if="eligibleError"
           class="mx-6 mt-4 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
@@ -341,59 +346,66 @@
           </Button>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-auto px-6 py-4">
-          <div v-if="isEligibleLoading" class="flex min-h-[320px] items-center justify-center">
+        <div class="min-h-0 flex-1 overflow-hidden px-6 py-4">
+          <div v-if="isEligibleLoading" class="flex h-full min-h-[320px] items-center justify-center">
             <Loader2 class="animate-spin text-primary" :size="28" />
           </div>
 
-          <table v-else class="w-full min-w-[960px] text-sm">
-            <thead class="border-b border-border bg-surface-secondary text-xs font-semibold text-text-sub">
-              <tr>
-                <th class="px-4 py-3 text-center">선택</th>
-                <th class="px-4 py-3 text-center">티켓 번호</th>
-                <th class="px-4 py-3 text-center">티켓 요청자</th>
-                <th class="px-4 py-3 text-center">품목</th>
-                <th class="px-4 py-3 text-center">분류</th>
-                <th class="px-4 py-3 text-center">수량</th>
-                <th class="px-4 py-3 text-center">예상 단가</th>
-                <th class="px-4 py-3 text-center">확인</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              <tr v-if="eligibleTickets.length === 0">
-                <td colspan="8" class="px-4 py-12 text-center text-text-muted">
-                  구매 계획으로 등록할 결재 완료 요청이 없습니다.
-                </td>
-              </tr>
-              <tr v-for="request in eligibleTickets" :key="request.ticket.ticketId">
-                <td class="px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    :checked="selectedTicketIds.includes(request.ticket.ticketId)"
-                    :disabled="!request.canCreate"
-                    @change="toggleTicketSelection(request.ticket.ticketId)"
-                  />
-                </td>
-                <td class="px-4 py-3 text-center font-bold">{{ request.ticket.ticketNo }}</td>
-                <td class="px-4 py-3 text-center">{{ request.ticket.requesterName || '-' }}</td>
-                <td class="px-4 py-3 text-center font-semibold">{{ request.itemName }}</td>
-                <td class="px-4 py-3 text-center">{{ request.categoryName || '-' }}</td>
-                <td class="px-4 py-3 text-center">{{ request.quantity }}</td>
-                <td class="px-4 py-3 text-center">{{ formatCurrency(request.estimatedUnitPrice) }}</td>
-                <td class="px-4 py-3 text-center">
-                  <span v-if="request.canCreate" class="text-xs font-semibold text-success">등록 가능</span>
-                  <span v-else class="text-xs font-semibold text-danger">{{ request.disabledReason }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <Table
+            v-else
+            :columns="eligibleTicketColumns"
+            :rows="eligibleTickets"
+            row-key="ticketId"
+            empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
+            class="h-full max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
+            @row-click="handleEligibleTicketRowClick"
+          >
+            <template #cell-select="{ row }">
+              <input
+                type="checkbox"
+                class="pointer-events-none h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                :checked="selectedTicketIds.includes(row.ticketId)"
+                :disabled="!row.canCreate"
+                :aria-label="`${row.ticket.ticketNo} 선택`"
+                tabindex="-1"
+              />
+            </template>
+
+            <template #cell-ticketNo="{ row }">
+              <span class="block truncate font-bold text-text-main">{{ row.ticket.ticketNo }}</span>
+            </template>
+
+            <template #cell-requesterName="{ row }">
+              <span class="block truncate">{{ row.ticket.requesterName || '-' }}</span>
+            </template>
+
+            <template #cell-itemName="{ value }">
+              <span class="block truncate font-semibold text-text-main" :title="String(value || '-')">
+                {{ value || '-' }}
+              </span>
+            </template>
+
+            <template #cell-categoryName="{ value }">
+              <span class="block truncate" :title="String(value || '-')">{{ value || '-' }}</span>
+            </template>
+
+            <template #cell-estimatedUnitPrice="{ value }">
+              <span class="whitespace-nowrap">{{ formatCurrency(Number(value || 0)) }}</span>
+            </template>
+
+            <template #cell-validation="{ row }">
+              <span v-if="row.canCreate" class="whitespace-nowrap text-xs font-semibold text-success">등록 가능</span>
+              <span v-else class="block truncate text-xs font-semibold text-danger" :title="row.disabledReason">
+                {{ row.disabledReason }}
+              </span>
+            </template>
+          </Table>
         </div>
 
         <div class="border-t border-border px-6 py-4">
           <div class="mb-4 flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
             <span class="text-sm font-semibold text-text-sub">선택 {{ selectedEligibleTickets.length }}건</span>
-            <span class="text-lg font-bold text-text-main">{{ formatCurrency(selectedEstimatedAmount) }}</span>
+            <span class="text-lg font-bold text-text-main">합계 {{ formatCurrency(selectedEstimatedAmount) }}</span>
           </div>
           <div class="flex justify-end gap-2">
             <Button variant="outline" @click="closeCreateDrawer">취소</Button>
@@ -428,7 +440,7 @@ import { ApiError, memberApi, purchaseApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import Table from '@/components/common/Table.vue'
+import Table, { type Column } from '@/components/common/Table.vue'
 import { usePermission } from '@/composables/usePermission'
 import type {
   DropdownOption,
@@ -443,14 +455,8 @@ import type {
   TicketListItem,
 } from '@/types'
 
-interface TableColumn<T> {
-  key: keyof T | string
-  label: string
-  width?: string
-  align?: 'left' | 'center' | 'right'
-}
-
 interface EligibleTicket {
+  ticketId: string
   ticket: TicketListItem
   detail: TicketDetail
   itemName: string
@@ -500,13 +506,34 @@ const STATUS_LABEL: Record<PurchasePlanStatus, string> = {
   CANCELLED: '취소',
 }
 
-const columns: TableColumn<PurchasePlanListItem>[] = [
+const columns: Column<PurchasePlanListItem>[] = [
   { key: 'planNo', label: '구매 계획 번호', width: '20%', align: 'center' },
   { key: 'itemSummary', label: '요청 품목', width: '28%', align: 'center' },
   { key: 'requesterName', label: '신청 팀원', width: '14%', align: 'center' },
   { key: 'itemCount', label: '품목 수', width: '10%', align: 'center' },
   { key: 'estimatedAmount', label: '예상 금액', width: '16%', align: 'center' },
   { key: 'status', label: '상태', width: '12%', align: 'center' },
+]
+
+const planItemColumns: Column<PurchasePlanItem>[] = [
+  { key: 'category', label: '분류', width: '14%', align: 'center' },
+  { key: 'itemName', label: '품목', width: '24%', align: 'center' },
+  { key: 'isStandard', label: '표준 여부', width: '12%', align: 'center' },
+  { key: 'quantity', label: '수량', width: '10%', align: 'center' },
+  { key: 'estimatedUnitPrice', label: '단가', width: '14%', align: 'center' },
+  { key: 'totalAmount', label: '합계', width: '14%', align: 'center' },
+  { key: 'delivery', label: '납품', width: '12%', align: 'center' },
+]
+
+const eligibleTicketColumns: Column<EligibleTicket>[] = [
+  { key: 'select', label: '선택', width: '7%', align: 'center' },
+  { key: 'ticketNo', label: '티켓 번호', width: '15%', align: 'center' },
+  { key: 'requesterName', label: '티켓 요청자', width: '13%', align: 'center' },
+  { key: 'itemName', label: '품목', width: '22%', align: 'center' },
+  { key: 'categoryName', label: '분류', width: '13%', align: 'center' },
+  { key: 'quantity', label: '수량', width: '8%', align: 'center' },
+  { key: 'estimatedUnitPrice', label: '예상 단가', width: '12%', align: 'center' },
+  { key: 'validation', label: '확인', width: '10%', align: 'center' },
 ]
 
 const EMPTY_STATISTICS: PurchasePlanStatistics = {
@@ -563,10 +590,30 @@ const requesterOptions = computed<DropdownOption[]>(() => [
 ])
 
 const statCards = computed(() => [
-  { label: '전체', value: statistics.value.totalCount },
-  { label: '승인 대기', value: statistics.value.requestedCount },
-  { label: '발주', value: statistics.value.orderedCount },
-  { label: '납품 확인', value: statistics.value.deliveredCount },
+  {
+    label: '전체',
+    value: statistics.value.totalCount,
+    className: 'border-border',
+    accentClass: 'bg-text-muted',
+  },
+  {
+    label: '승인 대기',
+    value: statistics.value.requestedCount,
+    className: 'border-warning/30 ',
+    accentClass: 'bg-warning',
+  },
+  {
+    label: '발주',
+    value: statistics.value.orderedCount,
+    className: 'border-primary/30 bg-primary/5',
+    accentClass: 'bg-primary',
+  },
+  {
+    label: '납품 확인',
+    value: statistics.value.deliveredCount,
+    className: 'border-success/30 bg-success/5',
+    accentClass: 'bg-success',
+  },
 ])
 
 const selectedEligibleTickets = computed(() =>
@@ -762,6 +809,7 @@ function toEligibleTicket(ticket: TicketListItem, detail: TicketDetail): Eligibl
   if (!estimatedUnitPrice) disabledReasons.push('예상 단가 없음')
 
   return {
+    ticketId: ticket.ticketId,
     ticket,
     detail,
     itemName,
@@ -782,6 +830,11 @@ function toggleTicketSelection(ticketId: string) {
   }
 
   selectedTicketIds.value = [...selectedTicketIds.value, ticketId]
+}
+
+function handleEligibleTicketRowClick(request: EligibleTicket) {
+  if (!request.canCreate) return
+  toggleTicketSelection(request.ticketId)
 }
 
 async function createPlan() {

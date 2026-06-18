@@ -25,16 +25,13 @@
           v-for="card in statCards"
           :key="card.label"
           :class="[
-            'rounded-2xl border bg-surface p-4 shadow-sm transition-colors duration-300',
-            card.highlight ? 'border-orange-300/70 bg-orange-50/60 dark:border-orange-500/30 dark:bg-orange-950/10' : 'border-border',
+            'relative overflow-hidden rounded-xl border bg-surface p-4 shadow-sm transition-colors duration-300',
+            card.className,
           ]"
         >
-          <p :class="['text-xs font-semibold', card.highlight ? 'text-orange-600 dark:text-rose-300' : 'text-text-sub']">
-            {{ card.label }}
-          </p>
-          <p :class="['mt-2 text-2xl font-bold', card.highlight ? 'text-orange-600 dark:text-rose-300' : 'text-text-main']">
-            {{ card.value }}건
-          </p>
+          <span :class="['absolute inset-y-0 left-0 w-1', card.accentClass]" aria-hidden="true"></span>
+          <p class="text-xs font-semibold text-text-sub">{{ card.label }}</p>
+          <p class="mt-2 text-2xl font-bold text-text-main">{{ card.value }}건</p>
         </article>
       </section>
 
@@ -349,26 +346,26 @@ const statCards = computed(() => {
     {
       label: '총 신청 건수',
       value: ticketStatistics.value.totalCount,
-      description: isAssetTeamRole.value ? '전체 티켓 기준' : '담당 부서 티켓 기준',
-      highlight: false,
+      className: 'border-border',
+      accentClass: 'bg-text-muted',
     },
     {
       label: '신규 요청 / 검토 대기',
       value: ticketStatistics.value.newOrPendingReviewCount,
-      description: isAssetTeamRole.value ? '구매자산팀 검토 대기' : '부서책임자 검토 대기',
-      highlight: true,
+      className: 'border-warning/30',
+      accentClass: 'bg-warning',
     },
     {
       label: '처리 중',
       value: ticketStatistics.value.inProgressCount,
-      description: '승인 후 진행 중인 티켓',
-      highlight: false,
+      className: 'border-primary/30 bg-primary/5',
+      accentClass: 'bg-primary',
     },
     {
       label: '처리 완료',
       value: ticketStatistics.value.completedCount,
-      description: '완료된 티켓',
-      highlight: false,
+      className: 'border-success/30 bg-success/5',
+      accentClass: 'bg-success',
     },
   ]
 })
