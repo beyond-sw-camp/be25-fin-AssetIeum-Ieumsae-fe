@@ -278,18 +278,13 @@ interface HrEventRow extends Record<string, unknown> {
 interface MemberAliasSource {
   id?: string | number | null
   memberId?: string | number | null
-  member_id?: string | number | null
   memberNo?: string | number | null
   employeeNo?: string | number | null
-  employee_no?: string | number | null
   email?: string | null
   memberEmail?: string | null
   departmentId?: string | number | null
-  department_id?: string | number | null
   departmentName?: string | null
-  department_name?: string | null
   departmentNamePath?: string | null
-  department_name_path?: string | null
   department?: {
     departmentId?: string | number | null
     id?: string | number | null
@@ -542,11 +537,11 @@ function normalizeText(value: string | null | undefined) {
 }
 
 function getMemberId(value: MemberAliasSource | null | undefined) {
-  return normalizeId(value?.memberId ?? value?.id ?? value?.member_id)
+  return normalizeId(value?.memberId ?? value?.id)
 }
 
 function getMemberNo(value: MemberAliasSource | null | undefined) {
-  return normalizeId(value?.memberNo ?? value?.employeeNo ?? value?.employee_no)
+  return normalizeId(value?.memberNo ?? value?.employeeNo)
 }
 
 function getMemberEmail(value: MemberAliasSource | null | undefined) {
@@ -556,7 +551,6 @@ function getMemberEmail(value: MemberAliasSource | null | undefined) {
 function getMemberDepartmentId(value: MemberAliasSource | null | undefined) {
   return normalizeId(
     value?.departmentId
-    ?? value?.department_id
     ?? value?.department?.departmentId
     ?? value?.department?.id,
   )
@@ -565,7 +559,6 @@ function getMemberDepartmentId(value: MemberAliasSource | null | undefined) {
 function getMemberDepartmentName(value: MemberAliasSource | null | undefined) {
   return normalizeText(
     value?.departmentName
-    ?? value?.department_name
     ?? value?.department?.departmentName
     ?? value?.department?.name,
   )
@@ -574,7 +567,6 @@ function getMemberDepartmentName(value: MemberAliasSource | null | undefined) {
 function getMemberDepartmentPath(value: MemberAliasSource | null | undefined) {
   return normalizeText(
     value?.departmentNamePath
-    ?? value?.department_name_path
     ?? value?.department?.departmentNamePath
     ?? getMemberDepartmentName(value),
   )
