@@ -1,163 +1,218 @@
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden bg-background text-text-main">
-    <section v-if="selectedPlanId" class="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
-      <button
-        type="button"
-        class="mb-4 inline-flex w-fit items-center gap-2 text-sm font-semibold text-text-sub transition-colors hover:text-primary"
-        @click="closeDetail"
-      >
-        <ArrowLeft :size="16" />
-        목록으로 돌아가기
-      </button>
-
-      <div
-        v-if="detailError"
-        class="mb-4 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
-      >
-        <p class="text-sm font-semibold text-danger">{{ detailError }}</p>
-        <Button variant="outline" size="sm" @click="fetchPlanDetail(selectedPlanId)">
-          <RefreshCw :size="15" />
-          다시 조회
-        </Button>
-      </div>
-
-      <div v-if="isDetailLoading" class="flex min-h-[420px] items-center justify-center rounded-xl border border-border bg-surface">
-        <Loader2 class="animate-spin text-primary" :size="28" />
-      </div>
-
-      <div v-else-if="selectedPlan" class="flex flex-col gap-4">
-        <header class="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p class="text-sm font-semibold text-text-sub">구매 계획 상세</p>
-            <h1 class="mt-1 text-2xl font-bold text-text-main">{{ selectedPlan.planNo }}</h1>
-            <p class="mt-2 text-sm text-text-sub">
-              신청 팀원 {{ selectedPlan.requesterName || '-' }} · 생성일 {{ formatDateTime(selectedPlan.createdAt) }}
-            </p>
+    <section v-if="selectedPlanId" class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
+      <div class="min-h-0 flex-1 overflow-y-auto pb-14">
+        <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+          <div class="mb-3 flex items-center gap-2">
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary hover:text-primary"
+              aria-label="구매 계획 목록으로 돌아가기"
+              @click="closeDetail"
+            >
+              <ArrowLeft :size="15" />
+            </button>
+            <p class="page-subtitle">구매 계획 &gt; 상세내용</p>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <span :class="['rounded-full px-3 py-1.5 text-xs font-bold', getStatusBadgeClass(displayPlanStatus(selectedPlan))]">
-              {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
-            </span>
-            <Dropdown
-              v-if="canChangeStatus"
-              :model-value="nextStatus"
-              :options="STATUS_ACTION_OPTIONS"
-              class="w-40! shrink-0"
-              menu-align="right"
-              aria-label="구매 계획 상태 변경"
-              @update:model-value="nextStatus = toStatusOption($event)"
-            />
-            <Button
-              v-if="canChangeStatus"
-              variant="outline"
-              size="md"
-              :disabled="!nextStatus || isStatusSaving"
-              :loading="isStatusSaving"
-              @click="changeSelectedStatus"
-            >
-              상태 변경
+          <div
+            v-if="detailError"
+            class="mb-4 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+          >
+            <p class="text-sm font-semibold text-danger">{{ detailError }}</p>
+            <Button variant="outline" size="sm" @click="fetchPlanDetail(selectedPlanId)">
+              <RefreshCw :size="15" />
+              다시 조회
             </Button>
           </div>
-        </header>
 
-        <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <article class="rounded-xl border border-border bg-surface p-4">
-            <p class="text-xs font-semibold text-text-sub">예상 금액</p>
-            <p class="mt-2 text-xl font-bold text-text-main">{{ formatCurrency(selectedPlan.estimatedAmount) }}</p>
-          </article>
-          <article class="rounded-xl border border-border bg-surface p-4">
-            <p class="text-xs font-semibold text-text-sub">실제 집행 금액</p>
-            <p class="mt-2 text-xl font-bold text-text-main">
-              {{ selectedPlan.actualAmount == null ? '-' : formatCurrency(selectedPlan.actualAmount) }}
-            </p>
-          </article>
-          <article class="rounded-xl border border-border bg-surface p-4">
-            <p class="text-xs font-semibold text-text-sub">품목 수</p>
-            <p class="mt-2 text-xl font-bold text-text-main">{{ selectedPlan.items.length }}종</p>
-          </article>
-        </section>
-
-        <section class="rounded-xl border border-border bg-surface">
-          <div class="border-b border-border px-5 py-4">
-            <h2 class="text-lg font-bold text-text-main">구매 품목</h2>
-            <p class="mt-1 text-sm text-text-sub">납품 확인은 품목 단위로 처리합니다.</p>
-          </div>
-
-          <Table
-            :columns="planItemColumns"
-            :rows="selectedPlan.items"
-            row-key="itemId"
-            empty-text="구매 품목이 없습니다."
-            class="min-w-[860px] rounded-none! border-0!"
-          >
-            <template #cell-category="{ value }">
-              <span class="text-text-sub">{{ value || '-' }}</span>
-            </template>
-
-            <template #cell-itemName="{ value }">
-              <span class="font-semibold text-text-main">{{ value }}</span>
-            </template>
-
-            <template #cell-isStandard="{ row }">
-              <span>{{ row.isStandard === false ? '비표준' : '표준' }}</span>
-            </template>
-
-            <template #cell-estimatedUnitPrice="{ value }">
-              <span>{{ formatCurrency(Number(value || 0)) }}</span>
-            </template>
-
-            <template #cell-totalAmount="{ value }">
-              <span class="font-semibold">{{ formatCurrency(Number(value || 0)) }}</span>
-            </template>
-
-            <template #cell-delivery="{ row }">
-              <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
-                {{ formatDate(row.receivedAt) }}
-              </span>
-              <Button
-                v-else
-                variant="outline"
-                size="sm"
-                :disabled="!canConfirmDelivery(row) || isConfirmingItem === row.itemId"
-                :loading="isConfirmingItem === row.itemId"
-                @click.stop="confirmDelivery(row)"
-              >
-                납품 확인
-              </Button>
-            </template>
-          </Table>
-        </section>
-
-        <section class="rounded-xl border border-dashed border-border bg-surface p-5">
-          <div class="flex items-start gap-3">
-            <FileWarning class="mt-0.5 shrink-0 text-text-muted" :size="20" />
-            <div>
-              <h2 class="text-sm font-bold text-text-main">증빙자료</h2>
-              <p class="mt-1 text-sm text-text-sub">
-                구매 증빙자료 업로드 API는 추후 개발 예정이라 현재 화면에서는 업로드를 연결하지 않았습니다.
-              </p>
+          <div v-if="isDetailLoading" class="space-y-4">
+            <div class="h-12 animate-pulse rounded-xl bg-surface-secondary" />
+            <div class="h-44 animate-pulse rounded-2xl bg-surface-secondary" />
+            <div class="grid gap-4 lg:grid-cols-2">
+              <div class="h-72 animate-pulse rounded-2xl bg-surface-secondary" />
+              <div class="h-72 animate-pulse rounded-2xl bg-surface-secondary" />
             </div>
           </div>
-        </section>
 
-        <footer v-if="canApprovePlan" class="flex flex-wrap justify-end gap-2 rounded-xl border border-border bg-surface p-4">
-          <Button
-            variant="outline"
-            :disabled="!canReviewCurrentPlan || isStatusSaving"
-            :loading="isStatusSaving && pendingReviewStatus === 'REJECTED'"
-            @click="reviewPlan('REJECTED')"
-          >
-            반려
-          </Button>
-          <Button
-            :disabled="!canReviewCurrentPlan || isStatusSaving"
-            :loading="isStatusSaving && pendingReviewStatus === 'APPROVED'"
-            @click="reviewPlan('APPROVED')"
-          >
-            승인
-          </Button>
-        </footer>
+          <div v-else-if="selectedPlan" class="flex flex-col gap-4">
+            <header class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xl font-semibold text-text-muted">#{{ selectedPlan.planNo }}</span>
+                  <span class="text-text-muted">|</span>
+                  <h1 class="text-2xl font-bold text-text-main">{{ purchasePlanTitle }}</h1>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <span :class="['rounded-full px-3 py-1.5 text-xs font-bold', getStatusBadgeClass(displayPlanStatus(selectedPlan))]">
+                    {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
+                  </span>
+                  <span class="text-sm text-text-sub">
+                    신청 팀원 {{ selectedPlan.requesterName || '-' }} · 생성일 {{ formatDateTime(selectedPlan.createdAt) }}
+                  </span>
+                </div>
+              </div>
+
+              <div v-if="canChangeStatus" class="w-full shrink-0 lg:w-60">
+                <div class="mb-1.5 flex items-center justify-between gap-2">
+                  <label
+                    for="purchase-plan-status-selector"
+                    class="text-xs font-semibold text-text-muted"
+                  >
+                    상태 변경
+                  </label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="shrink-0"
+                    :loading="isStatusSaving"
+                    :disabled="!canSaveSelectedStatus"
+                    @click="changeSelectedStatus"
+                  >
+                    <Save :size="14" />
+                    상태 저장
+                  </Button>
+                </div>
+                <Dropdown
+                  id="purchase-plan-status-selector"
+                  :model-value="selectedStatusForDropdown"
+                  :options="STATUS_ACTION_OPTIONS"
+                  :disabled="isStatusSaving"
+                  menu-align="right"
+                  aria-label="구매 계획 상태"
+                  @update:model-value="handleStatusSelect"
+                />
+              </div>
+            </header>
+
+            <div class="space-y-4">
+              <div class="grid items-stretch gap-4 lg:grid-cols-2">
+                <TicketDetailCard title="구매 계획 내역" class="h-full">
+                  <template #icon>
+                    <ClipboardCheck :size="18" class="text-primary" />
+                  </template>
+
+                  <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <div
+                      v-for="item in purchasePlanInfoItems"
+                      :key="item.label"
+                      class="border-b border-border pb-3"
+                    >
+                      <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                      <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                        {{ item.value }}
+                      </dd>
+                    </div>
+                  </dl>
+                </TicketDetailCard>
+
+                <TicketDetailCard title="집행 및 상태 정보" class="h-full">
+                  <template #icon>
+                    <ReceiptText :size="18" class="text-primary" />
+                  </template>
+
+                  <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <div
+                      v-for="item in purchaseExecutionInfoItems"
+                      :key="item.label"
+                      class="border-b border-border pb-3"
+                    >
+                      <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                      <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                        {{ item.value }}
+                      </dd>
+                    </div>
+                  </dl>
+                </TicketDetailCard>
+              </div>
+
+              <TicketDetailCard title="구매 품목" padding="none">
+                <template #icon>
+                  <PackageCheck :size="18" class="text-primary" />
+                </template>
+
+                <Table
+                  :columns="planItemColumns"
+                  :rows="selectedPlan.items"
+                  row-key="itemId"
+                  empty-text="구매 품목이 없습니다."
+                  class="rounded-none! border-0! [&_table]:min-w-[860px]"
+                >
+                  <template #cell-category="{ value }">
+                    <span class="text-text-sub">{{ value || '-' }}</span>
+                  </template>
+
+                  <template #cell-itemName="{ value }">
+                    <span class="font-semibold text-text-main">{{ value }}</span>
+                  </template>
+
+                  <template #cell-isStandard="{ row }">
+                    <span>{{ row.isStandard === false ? '비표준' : '표준' }}</span>
+                  </template>
+
+                  <template #cell-estimatedUnitPrice="{ value }">
+                    <span>{{ formatCurrency(Number(value || 0)) }}</span>
+                  </template>
+
+                  <template #cell-totalAmount="{ value }">
+                    <span class="font-semibold">{{ formatCurrency(Number(value || 0)) }}</span>
+                  </template>
+
+                  <template #cell-delivery="{ row }">
+                    <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
+                      {{ formatDate(row.receivedAt) }}
+                    </span>
+                    <Button
+                      v-else
+                      variant="outline"
+                      size="sm"
+                      :disabled="!canConfirmDelivery(row) || isConfirmingItem === row.itemId"
+                      :loading="isConfirmingItem === row.itemId"
+                      @click.stop="confirmDelivery(row)"
+                    >
+                      납품 확인
+                    </Button>
+                  </template>
+                </Table>
+              </TicketDetailCard>
+
+              <TicketDetailCard title="증빙자료">
+                <template #icon>
+                  <FileWarning :size="18" class="text-text-muted" />
+                </template>
+
+                <div class="rounded-xl border border-dashed border-border bg-surface-secondary/40 px-4 py-3">
+                  <p class="text-sm leading-6 text-text-sub">
+                    구매 증빙자료 업로드 API는 추후 개발 예정이라 현재 화면에서는 업로드를 연결하지 않았습니다.
+                  </p>
+                </div>
+              </TicketDetailCard>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="canApprovePlan"
+        class="absolute -inset-x-4 -bottom-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-6 py-2"
+      >
+        <Button
+          variant="outline"
+          class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
+          :disabled="!canReviewCurrentPlan || isStatusSaving"
+          :loading="isStatusSaving && pendingReviewStatus === 'REJECTED'"
+          @click="reviewPlan('REJECTED')"
+        >
+          반려
+        </Button>
+        <Button
+          class="shrink-0"
+          :disabled="!canReviewCurrentPlan || isStatusSaving"
+          :loading="isStatusSaving && pendingReviewStatus === 'APPROVED'"
+          @click="reviewPlan('APPROVED')"
+        >
+          승인
+        </Button>
       </div>
     </section>
 
@@ -428,19 +483,25 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   FileWarning,
   Loader2,
+  PackageCheck,
   Plus,
   RefreshCw,
+  ReceiptText,
+  Save,
   Search,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, memberApi, purchaseApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
 import { usePermission } from '@/composables/usePermission'
 import type {
   DropdownOption,
@@ -548,8 +609,10 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
 }
 
 const { hasRole } = usePermission()
+const route = useRoute()
+const router = useRouter()
 const canApprovePlan = computed(() => hasRole('ADMIN', 'SUPER_ADMIN', 'ASSET_MANAGER'))
-const canChangeStatus = computed(() => hasRole('ADMIN', 'SUPER_ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'))
+const canChangeStatus = computed(() => hasRole('ADMIN', 'SUPER_ADMIN', 'ASSET_MANAGER'))
 
 const plans = ref<PurchasePlanListItem[]>([])
 const statistics = ref<PurchasePlanStatistics>({ ...EMPTY_STATISTICS })
@@ -629,6 +692,59 @@ const canReviewCurrentPlan = computed(() => {
   return displayPlanStatus(selectedPlan.value) === 'REQUESTED'
 })
 
+const selectedStatusForDropdown = computed(() => {
+  if (nextStatus.value) return nextStatus.value
+  return selectedPlan.value ? displayPlanStatus(selectedPlan.value) : ''
+})
+
+const canSaveSelectedStatus = computed(() => {
+  if (!selectedPlan.value || !nextStatus.value || isStatusSaving.value) return false
+  return nextStatus.value !== displayPlanStatus(selectedPlan.value)
+})
+
+const purchasePlanTitle = computed(() => {
+  if (!selectedPlan.value) return '구매 계획 상세'
+  const firstItemName = selectedPlan.value.items[0]?.itemName
+  if (firstItemName) {
+    const extraCount = selectedPlan.value.items.length - 1
+    return extraCount > 0 ? `${firstItemName} 외 ${extraCount}건` : firstItemName
+  }
+  return '구매 계획 상세'
+})
+
+const purchasePlanInfoItems = computed(() => {
+  if (!selectedPlan.value) return []
+
+  return [
+    { label: '구매 계획 번호', value: selectedPlan.value.planNo },
+    { label: '신청 팀원', value: selectedPlan.value.requesterName || '-' },
+    { label: '품목 수', value: `${selectedPlan.value.items.length}종` },
+    { label: '생성 일시', value: formatDateTime(selectedPlan.value.createdAt) },
+    { label: '수정 일시', value: formatDateTime(selectedPlan.value.updatedAt) },
+    { label: '현재 상태', value: getStatusLabel(displayPlanStatus(selectedPlan.value)) },
+  ]
+})
+
+const purchaseExecutionInfoItems = computed(() => {
+  if (!selectedPlan.value) return []
+
+  const totalQuantity = selectedPlan.value.items.reduce((sum, item) => sum + item.quantity, 0)
+  const deliveredCount = selectedPlan.value.items.filter((item) => item.receivedAt).length
+  const standardCount = selectedPlan.value.items.filter((item) => item.isStandard !== false).length
+  const actualAmount = selectedPlan.value.actualAmount == null
+    ? '-'
+    : formatCurrency(selectedPlan.value.actualAmount)
+
+  return [
+    { label: '예상 금액', value: formatCurrency(selectedPlan.value.estimatedAmount) },
+    { label: '실제 집행 금액', value: actualAmount },
+    { label: '총 수량', value: `${totalQuantity}개` },
+    { label: '납품 확인', value: `${deliveredCount}/${selectedPlan.value.items.length}건` },
+    { label: '표준 품목', value: `${standardCount}건` },
+    { label: '비표준 품목', value: `${selectedPlan.value.items.length - standardCount}건` },
+  ]
+})
+
 const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
   if (totalPages.value <= 7) {
     return Array.from({ length: totalPages.value }, (_, index) => index)
@@ -649,6 +765,27 @@ const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
 watch([page, pageSize, statusFilter, requesterFilter], () => {
   fetchPlans()
 })
+
+watch(
+  () => [route.query.planId, route.query.purchasePlanId],
+  ([planId, purchasePlanId]) => {
+    const nextPlanId = parsePlanQueryId(getQueryString(planId) ?? getQueryString(purchasePlanId))
+
+    if (!nextPlanId) {
+      selectedPlanId.value = null
+      selectedPlan.value = null
+      detailError.value = ''
+      nextStatus.value = ''
+      return
+    }
+
+    if (selectedPlanId.value === nextPlanId) return
+    selectedPlanId.value = nextPlanId
+    selectedPlan.value = null
+    void fetchPlanDetail(nextPlanId)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   refreshList()
@@ -744,14 +881,20 @@ function handleRequesterChange(value: string | number) {
 }
 
 function openDetail(row: PurchasePlanListItem) {
-  selectedPlanId.value = row.planId
-  fetchPlanDetail(row.planId)
+  void router.push({
+    name: 'Purchase',
+    query: {
+      ...route.query,
+      planId: String(row.planId),
+    },
+  })
 }
 
 function closeDetail() {
-  selectedPlanId.value = null
-  selectedPlan.value = null
-  detailError.value = ''
+  const query = { ...route.query }
+  delete query.planId
+  delete query.purchasePlanId
+  void router.replace({ name: 'Purchase', query })
   refreshList()
 }
 
@@ -837,6 +980,10 @@ function handleEligibleTicketRowClick(request: EligibleTicket) {
   toggleTicketSelection(request.ticketId)
 }
 
+function handleStatusSelect(value: string | number) {
+  nextStatus.value = toStatusOption(value)
+}
+
 async function createPlan() {
   const items: PurchasePlanCreateItem[] = selectedEligibleTickets.value
     .filter((item) => item.canCreate && item.detail.assetType)
@@ -860,8 +1007,13 @@ async function createPlan() {
     const response = await purchaseApi.createPlan({ items })
     closeCreateDrawer()
     await refreshList()
-    selectedPlanId.value = response.data.planId
-    await fetchPlanDetail(response.data.planId)
+    void router.push({
+      name: 'Purchase',
+      query: {
+        ...route.query,
+        planId: String(response.data.planId),
+      },
+    })
   } catch (error) {
     eligibleError.value = getErrorMessage(error, '구매 계획 등록에 실패했습니다.')
   } finally {
@@ -982,5 +1134,16 @@ function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback
   if (error instanceof Error) return error.message || fallback
   return fallback
+}
+
+function getQueryString(value: unknown) {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function parsePlanQueryId(value: string | null) {
+  if (!value) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 </script>
