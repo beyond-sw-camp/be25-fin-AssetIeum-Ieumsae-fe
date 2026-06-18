@@ -216,6 +216,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, departmentApi, memberApi, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
@@ -282,6 +283,8 @@ const DEFAULT_TICKET_STATISTICS: TicketStatistics = {
 type TicketTypeFilter = TicketType | Extract<PurchaseRequestMethod, 'DIRECT_PURCHASE'>
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 const tickets = ref<TicketListItem[]>([])
 const ticketStatistics = ref<TicketStatistics>({ ...DEFAULT_TICKET_STATISTICS })
@@ -519,11 +522,19 @@ async function handleTicketTypeChange(value: string | number) {
 }
 
 function openTicketDetail(ticket: TicketListItem) {
-  selectedTicketId.value = ticket.ticketId
+  void router.push({
+    name: 'TicketManagement',
+    query: {
+      ...route.query,
+      ticketId: ticket.ticketId,
+    },
+  })
 }
 
 function closeTicketDetail() {
-  selectedTicketId.value = null
+  const query = { ...route.query }
+  delete query.ticketId
+  void router.replace({ name: 'TicketManagement', query })
 }
 
 async function handleTicketUpdated() {
@@ -574,6 +585,14 @@ watch(totalPages, (nextTotalPages) => {
   }
 })
 
+watch(
+  () => route.query.ticketId,
+  (value) => {
+    selectedTicketId.value = getQueryString(value)
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   try {
     await loadDepartments()
@@ -587,4 +606,9 @@ onMounted(async () => {
     fetchTicketStatistics(),
   ])
 })
+
+function getQueryString(value: unknown) {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null
+  return typeof value === 'string' && value.trim() ? value : null
+}
 </script>

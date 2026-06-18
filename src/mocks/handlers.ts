@@ -174,7 +174,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
     email: 'asset@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
     departmentName: '구매자산팀',
-    role: 'ASSET_TEAM',
+    role: 'ASSET_MANAGER',
     status: 'ACTIVE',
     createdAt: '2026-01-06T09:00:00',
   },
