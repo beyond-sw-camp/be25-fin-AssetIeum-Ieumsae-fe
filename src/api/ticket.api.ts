@@ -134,13 +134,32 @@ export const ticketApi = {
     return normalizeTicketDetailResponse(response)
   },
 
+  approveDepartment: (ticketId: string) =>
+    api.patch(`/tickets/${ticketId}/department-approval/approve`, {}),
+
+  rejectDepartment: (ticketId: string, rejectionReason: string) =>
+    api.patch(`/tickets/${ticketId}/department-approval/reject`, {
+      approver: 'DEPARTMENT_MANAGER',
+      rejectionReason,
+    }),
+
+  approveAsset: (ticketId: string) =>
+    api.patch(`/tickets/${ticketId}/asset-approval/approve`, {}),
+
+  rejectAsset: (ticketId: string, rejectionReason: string) =>
+    api.patch(`/tickets/${ticketId}/asset-approval/reject`, { rejectionReason }),
+
   /** 티켓 승인 */
   approve: (ticketId: string, body: TicketApproveRequest) =>
-    api.patch(`/tickets/${ticketId}/approve`, body),
+    body.approver === 'ASSET_TEAM'
+      ? ticketApi.approveAsset(ticketId)
+      : ticketApi.approveDepartment(ticketId),
 
   /** 티켓 반려 */
   reject: (ticketId: string, body: TicketRejectRequest) =>
-    api.patch(`/tickets/${ticketId}/reject`, body),
+    body.rejectionType === 'ASSET_TEAM'
+      ? ticketApi.rejectAsset(ticketId, body.rejectionReason)
+      : ticketApi.rejectDepartment(ticketId, body.rejectionReason),
 
   /** 티켓 상태 변경 */
   changeStatus: (ticketId: string, status: TicketStatus) =>
