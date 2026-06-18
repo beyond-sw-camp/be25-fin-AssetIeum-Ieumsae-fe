@@ -90,7 +90,8 @@ const navItems = computed(() => {
       icon: Workflow,
       show: canViewHrWorkflow.value,
       children: [
-        { name: 'hrTemplate', to: '/hrtemplates', label: 'HR 템플릿', show: canViewMyTickets.value },
+        { name: 'hrTemplate', to: '/hrtemplates', label: 'HR 템플릿', show: canViewHrWorkflow.value },
+        { name: 'hrEvents', to: '/hrevents', label: 'HR 이벤트', show: canViewHrWorkflow.value },
       ],
     },
     { name: 'inspections', to: '/inspections', label: '전수조사', icon: Search, show: canManageAsset.value },

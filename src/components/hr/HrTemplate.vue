@@ -113,6 +113,7 @@
 
   <HrTemplateRegister
     :is-open="isRegisterDrawerOpen"
+    :template-id="template ? getTemplateId(template) : null"
     :asset-types="assetTypes"
     :tangible-asset-items="tangibleAssetItems"
     :intangible-asset-items="intangibleAssetItems"
@@ -131,7 +132,7 @@ import Button from '@/components/common/Button.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { usePermission } from '@/composables'
 import type { IntangibleItem, TangibleAssetItem } from '@/types'
-import type { HrTemplateAssetType, HrTemplateItemResponse, HrTemplateResponse } from '@/types/hr'
+import type { HrTemplateAssetType, HrTemplateId, HrTemplateItemResponse, HrTemplateResponse } from '@/types/hr'
 
 import HrTemplateRegister from './HrTemplateRegister.vue'
 
@@ -165,6 +166,10 @@ const templateItemRows = computed<HrTemplateItemRow[]>(() => (
   })) ?? []
 ))
 
+const getTemplateId = (value: HrTemplateResponse): HrTemplateId | null => (
+  value.templateId ?? value.hrTemplateId ?? null
+)
+
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-'
 
@@ -186,7 +191,7 @@ const loadTemplate = async () => {
 
   try {
     const response = await hrApi.getTemplate()
-    template.value = response.data
+    template.value = hasTemplateItems(response.data) ? response.data : null
   } catch (error) {
     console.error('HR 템플릿 조회 실패', error)
     template.value = null
@@ -215,9 +220,14 @@ const openRegisterDrawer = () => {
   isRegisterDrawerOpen.value = true
 }
 
+const hasTemplateItems = (value: HrTemplateResponse | null): value is HrTemplateResponse => (
+  Boolean(value && (value.items?.length ?? 0) > 0)
+)
+
+// TODO: API 명세/백엔드 확인 필요 - 현재 서버 삭제는 soft delete 후 재등록 중복 제약과 충돌해 구성 비우기로 처리한다.
 const handleDeleteTemplate = async () => {
   if (!template.value || isDeleting.value) return
-  if (!window.confirm('입사 템플릿을 삭제할까요?')) return
+  if (!window.confirm('입사 템플릿 구성을 삭제할까요?')) return
 
   isDeleting.value = true
 
@@ -226,7 +236,7 @@ const handleDeleteTemplate = async () => {
     template.value = null
   } catch (error) {
     console.error('HR 템플릿 삭제 실패', error)
-    errorMessage.value = '입사 템플릿을 삭제하지 못했습니다.'
+    errorMessage.value = '입사 템플릿 구성을 삭제하지 못했습니다.'
   } finally {
     isDeleting.value = false
   }
