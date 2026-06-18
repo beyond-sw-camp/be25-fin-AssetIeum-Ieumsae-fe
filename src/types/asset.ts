@@ -307,7 +307,7 @@ export interface IntangibleAssetItemUpdateRequest {
 // 무형자산(IntangibleAsset) 타입
 // =====================================================
 
-export type LicenseType = 'SUBSCRIPTION' | 'PERPETUAL' | 'VOLUME' | 'USER_BASED'
+export type LicenseType = 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
 
 export interface IntangibleAsset {
   assetId: string

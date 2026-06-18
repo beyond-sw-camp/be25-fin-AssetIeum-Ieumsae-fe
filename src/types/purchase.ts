@@ -9,13 +9,13 @@ export type PurchasePlanStatus =
   | 'COMPLETED'
   | 'CANCELLED'
 
-export type PurchasePolicyMode = 'ONLY_ASSET_TEAM' | 'DIRECT_PURCHASE' | 'PARALLEL_OPERATION'
+export type PurchasePolicyMode = 'ONLY_ASSET_TEAM' | 'ONLY_DIRECT_PURCHASE' | 'PARALLEL'
 
 export interface PurchasePlanCreateItem {
-  ticketId: number | string | null
+  ticketId: string | null
   itemName: string
   assetType: AssetType
-  assetItemId?: number | null
+  assetItemId?: string | null
   quantity: number
   isStandard: 0 | 1
   estimatedUnitPrice: number
@@ -28,7 +28,7 @@ export interface PurchasePlanCreateRequest {
 }
 
 export interface PurchasePlanCreateResponse {
-  planId: number
+  planId: number | string
   planNo: string
   estimatedAmount: number
   itemCount: number
@@ -37,7 +37,7 @@ export interface PurchasePlanCreateResponse {
 }
 
 export interface PurchasePlanListItem {
-  planId: number
+  planId: number | string
   planNo: string
   estimatedAmount: number
   itemCount: number
@@ -84,7 +84,7 @@ export interface PurchasePlanItem {
 }
 
 export interface PurchasePlanDetail {
-  planId: number
+  planId: number | string
   planNo: string
   purchaseRequestStatus: PurchasePlanStatus
   status?: PurchasePlanStatus
@@ -110,7 +110,7 @@ export interface PurchasePolicyUpdateRequest {
 }
 
 export interface PurchasePolicyUpdateResponse {
-  policyId: number
+  policyId: string
   purchaseMethod: PurchasePolicyMode
   overPercentageLimit: number
 }

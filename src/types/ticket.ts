@@ -16,6 +16,20 @@ export interface TicketListItem extends Record<string, unknown> {
   departmentName?: string
   requestedAt: string
   ticketStatus: TicketStatus
+  status?: TicketStatus
+  detailStatus?: string | null
+  assetType?: AssetType | null
+  assetItemId?: string | number | null
+  isStandard?: number | boolean | null
+  categoryName?: string | null
+  requestedItemDetail?: string | null
+  productName?: string | null
+  quantity?: number | null
+  expectedPrice?: number | null
+  purchasePrice?: number | null
+  unitPrice?: number | null
+  availableCount?: number | null
+  availableAssetCount?: number | null
 }
 
 export interface TicketDetail {
@@ -128,7 +142,7 @@ export type TicketRequestKind =
   | 'RETURN'
   | 'PURCHASE_RETURN'
 
-export type RequestedUsageType = 'PERSONAL' | 'DEPARTMENT' | 'TEAM'
+export type RequestedUsageType = 'PERSONAL' | 'DEPARTMENT'
 export type PurchaseRequestMethod = 'TEAM_PURCHASE' | 'DIRECT_PURCHASE'
 
 export interface TicketCreateResponse {
@@ -201,7 +215,7 @@ export interface ReturnRequestCreate {
 export interface PurchaseReturnRequestCreate {
   assetType: AssetType
   assetId: string
-  type: 'EMPLOYEE' | 'PURCHASE_TEAM'
+  type: 'DIRECT_RETURN' | 'ASSET_MANAGER_RETURN'
   returnReason: string
 }
 

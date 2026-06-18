@@ -72,6 +72,8 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
 const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELED',
 ])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
@@ -192,12 +194,12 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
     memberId: mockMemberId(4),
     memberNo: 'EMP0004',
-    name: '최휴직',
+    name: '자산자산',
     email: 'leave@ieumtech.com',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    role: 'EMPLOYEE',
-    status: 'ON_LEAVE',
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
+    departmentName: '구매자산팀',
+    role: 'ASSET_TEAM',
+    status: 'ACTIVE',
     createdAt: '2026-01-08T09:00:00',
   },
   {
@@ -756,7 +758,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
   }],
   ['202', {
     detailStatus: '구매자산팀 검토 대기',
-    requestedUsageType: 'TEAM',
+    requestedUsageType: 'DEPARTMENT',
     assetType: 'TANGIBLE',
     categoryName: '사무가구',
     requestedItemName: '시디즈 T80 하이엔드 의자',
@@ -1067,8 +1069,8 @@ let purchasePlans: PurchasePlanDetail[] = [
 ]
 
 let purchasePolicy: PurchasePolicyUpdateResponse = {
-  policyId: 1,
-  purchaseMethod: 'PARALLEL_OPERATION',
+  policyId: '1',
+  purchaseMethod: 'PARALLEL',
   overPercentageLimit: 10,
 }
 
@@ -1741,13 +1743,13 @@ let intangibleAssets: IntangibleAsset[] = [
   { assetId: '6', assetCode: 'INT-0006', assetItemId: '3', assetItemName: 'Figma', licenseType: 'SUBSCRIPTION', licenseKey: 'FIGMA-ACC-01', status: 'EXPIRING_SOON', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2024-11-01', expiredAt: '2025-11-01', vendor: 'Figma', purchasePrice: 750000, createdAt: '2024-11-01T09:20:00' },
   { assetId: '7', assetCode: 'INT-0007', assetItemId: '3', assetItemName: 'Figma', licenseType: 'SUBSCRIPTION', licenseKey: 'FIGMA-ACC-02', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2025-11-01', vendor: 'Figma', purchasePrice: 750000, createdAt: '2024-11-01T09:25:00' },
   { assetId: '8', assetCode: 'INT-0008', assetItemId: '4', assetItemName: 'Slack', licenseType: 'SUBSCRIPTION', licenseKey: 'SLACK-WS-01', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-03-15', expiredAt: '2026-03-15', vendor: 'Slack', purchasePrice: 450000, createdAt: '2025-03-15T14:00:00' },
-  { assetId: '9', assetCode: 'INT-0009', assetItemId: '5', assetItemName: 'GitHub Enterprise', licenseType: 'USER_BASED', licenseKey: 'GH-ENT-KEY01', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-05-10', expiredAt: '2026-05-10', vendor: 'GitHub', purchasePrice: 980000, createdAt: '2025-05-10T11:00:00' },
-  { assetId: '10', assetCode: 'INT-0010', assetItemId: '6', assetItemName: 'JetBrains All Products Pack', licenseType: 'USER_BASED', licenseKey: 'JB-ALL-KEY01', status: 'IN_USE', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', startedAt: '2025-01-22', expiredAt: '2026-01-22', vendor: 'JetBrains', purchasePrice: 650000, createdAt: '2025-01-22T16:30:00' },
-  { assetId: '11', assetCode: 'INT-0011', assetItemId: '6', assetItemName: 'JetBrains All Products Pack', licenseType: 'USER_BASED', licenseKey: 'JB-ALL-KEY02', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-01-22', vendor: 'JetBrains', purchasePrice: 650000, createdAt: '2025-01-22T16:35:00' },
+  { assetId: '9', assetCode: 'INT-0009', assetItemId: '5', assetItemName: 'GitHub Enterprise', licenseType: 'TERM', licenseKey: 'GH-ENT-KEY01', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-05-10', expiredAt: '2026-05-10', vendor: 'GitHub', purchasePrice: 980000, createdAt: '2025-05-10T11:00:00' },
+  { assetId: '10', assetCode: 'INT-0010', assetItemId: '6', assetItemName: 'JetBrains All Products Pack', licenseType: 'TERM', licenseKey: 'JB-ALL-KEY01', status: 'IN_USE', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', startedAt: '2025-01-22', expiredAt: '2026-01-22', vendor: 'JetBrains', purchasePrice: 650000, createdAt: '2025-01-22T16:30:00' },
+  { assetId: '11', assetCode: 'INT-0011', assetItemId: '6', assetItemName: 'JetBrains All Products Pack', licenseType: 'TERM', licenseKey: 'JB-ALL-KEY02', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-01-22', vendor: 'JetBrains', purchasePrice: 650000, createdAt: '2025-01-22T16:35:00' },
   { assetId: '12', assetCode: 'INT-0012', assetItemId: '8', assetItemName: 'Zoom', licenseType: 'SUBSCRIPTION', licenseKey: 'ZOOM-ROOM-01', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2024-09-20', expiredAt: '2026-09-20', vendor: 'Zoom', purchasePrice: 330000, createdAt: '2024-09-20T09:55:00' },
   { assetId: '13', assetCode: 'INT-0013', assetItemId: '8', assetItemName: 'Zoom', licenseType: 'SUBSCRIPTION', licenseKey: 'ZOOM-ROOM-02', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-09-20', vendor: 'Zoom', purchasePrice: 330000, createdAt: '2024-09-20T10:00:00' },
-  { assetId: '14', assetCode: 'INT-0014', assetItemId: '9', assetItemName: 'Atlassian Jira Software', licenseType: 'USER_BASED', licenseKey: 'JIRA-LIC-01', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-04-10', expiredAt: '2026-04-10', vendor: 'Atlassian', purchasePrice: 680000, createdAt: '2025-04-10T09:50:00' },
-  { assetId: '15', assetCode: 'INT-0015', assetItemId: '10', assetItemName: 'Atlassian Confluence', licenseType: 'USER_BASED', licenseKey: 'CONF-LIC-01', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-01-05', expiredAt: '2026-01-05', vendor: 'Atlassian', purchasePrice: 520000, createdAt: '2025-01-05T11:20:00' },
+  { assetId: '14', assetCode: 'INT-0014', assetItemId: '9', assetItemName: 'Atlassian Jira Software', licenseType: 'TERM', licenseKey: 'JIRA-LIC-01', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-04-10', expiredAt: '2026-04-10', vendor: 'Atlassian', purchasePrice: 680000, createdAt: '2025-04-10T09:50:00' },
+  { assetId: '15', assetCode: 'INT-0015', assetItemId: '10', assetItemName: 'Atlassian Confluence', licenseType: 'TERM', licenseKey: 'CONF-LIC-01', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-01-05', expiredAt: '2026-01-05', vendor: 'Atlassian', purchasePrice: 520000, createdAt: '2025-01-05T11:20:00' },
   { assetId: '16', assetCode: 'INT-0016', assetItemId: '11', assetItemName: 'AWS Developer Tools', licenseType: 'SUBSCRIPTION', licenseKey: 'AWS-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-05-18', vendor: 'Amazon Web Services', purchasePrice: 550000, createdAt: '2025-05-18T10:40:00' },
   { assetId: '17', assetCode: 'INT-0017', assetItemId: '12', assetItemName: 'Slack Enterprise Grid', licenseType: 'SUBSCRIPTION', licenseKey: 'SLACK-ENT-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-08-12', vendor: 'Slack', purchasePrice: 1500000, createdAt: '2025-08-12T13:15:00' },
   { assetId: '18', assetCode: 'INT-0018', assetItemId: '14', assetItemName: 'Tableau', licenseType: 'SUBSCRIPTION', licenseKey: 'TAB-LIC-01', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-03-01', expiredAt: '2026-03-01', vendor: 'Tableau', purchasePrice: 920000, createdAt: '2025-03-01T14:20:00' },
@@ -1757,11 +1759,11 @@ let intangibleAssets: IntangibleAsset[] = [
   { assetId: '22', assetCode: 'INT-0022', assetItemId: '18', assetItemName: 'GitHub Copilot', licenseType: 'SUBSCRIPTION', licenseKey: 'COP-LIC-01', status: 'IN_USE', assignedMemberId: '4', assignedMemberName: '최휴직', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', startedAt: '2025-05-01', expiredAt: '2026-05-01', vendor: 'GitHub', purchasePrice: 280000, createdAt: '2025-05-01T09:40:00' },
   { assetId: '23', assetCode: 'INT-0024', assetItemId: '18', assetItemName: 'GitHub Copilot', licenseType: 'SUBSCRIPTION', licenseKey: 'COP-LIC-02', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-05-01', expiredAt: '2026-05-01', vendor: 'GitHub', purchasePrice: 280000, createdAt: '2025-05-01T09:45:00' },
   { assetId: '24', assetCode: 'INT-0025', assetItemId: '19', assetItemName: 'Microsoft Azure DevOps', licenseType: 'SUBSCRIPTION', licenseKey: 'AZDO-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-10-12', vendor: 'Microsoft', purchasePrice: 660000, createdAt: '2025-10-12T10:00:00' },
-  { assetId: '25', assetCode: 'INT-0026', assetItemId: '20', assetItemName: 'Visual Studio Enterprise', licenseType: 'USER_BASED', licenseKey: 'VS-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-03-20', vendor: 'Microsoft', purchasePrice: 1300000, createdAt: '2025-03-20T10:05:00' },
+  { assetId: '25', assetCode: 'INT-0026', assetItemId: '20', assetItemName: 'Visual Studio Enterprise', licenseType: 'TERM', licenseKey: 'VS-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-03-20', vendor: 'Microsoft', purchasePrice: 1300000, createdAt: '2025-03-20T10:05:00' },
   { assetId: '26', assetCode: 'INT-0027', assetItemId: '21', assetItemName: 'Figma Organization', licenseType: 'SUBSCRIPTION', licenseKey: 'FIGORG-LIC-01', status: 'IN_USE', assignedMemberId: '3', assignedMemberName: '이부장', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', startedAt: '2025-04-15', expiredAt: '2026-04-15', vendor: 'Figma', purchasePrice: 1800000, createdAt: '2025-04-15T11:20:00' },
   { assetId: '27', assetCode: 'INT-0028', assetItemId: '23', assetItemName: 'AhnLab V3', licenseType: 'SUBSCRIPTION', licenseKey: 'V3-ENT-LIC01', status: 'IN_USE', assignedMemberId: '1', assignedMemberName: '김관리', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-01-05', expiredAt: '2026-01-05', vendor: 'AhnLab', purchasePrice: 150000, createdAt: '2025-01-05T09:10:00' },
   { assetId: '28', assetCode: 'INT-0029', assetItemId: '23', assetItemName: 'AhnLab V3', licenseType: 'SUBSCRIPTION', licenseKey: 'V3-ENT-LIC02', status: 'IN_USE', assignedMemberId: '2', assignedMemberName: '박자산', departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', startedAt: '2025-01-05', expiredAt: '2026-01-05', vendor: 'AhnLab', purchasePrice: 150000, createdAt: '2025-01-05T09:15:00' },
-  { assetId: '29', assetCode: 'INT-0030', assetItemId: '25', assetItemName: 'GitLab Ultimate', licenseType: 'USER_BASED', licenseKey: 'GL-ULT-KEY01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-11-20', vendor: 'GitLab', purchasePrice: 1100000, createdAt: '2025-11-20T10:30:00' },
+  { assetId: '29', assetCode: 'INT-0030', assetItemId: '25', assetItemName: 'GitLab Ultimate', licenseType: 'TERM', licenseKey: 'GL-ULT-KEY01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-11-20', vendor: 'GitLab', purchasePrice: 1100000, createdAt: '2025-11-20T10:30:00' },
   { assetId: '30', assetCode: 'INT-0031', assetItemId: '26', assetItemName: 'Concur Expense', licenseType: 'SUBSCRIPTION', licenseKey: 'SAP-CONCUR-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-05-14', vendor: 'SAP Concur', purchasePrice: 880000, createdAt: '2025-05-14T15:00:00' },
   { assetId: '31', assetCode: 'INT-0032', assetItemId: '26', assetItemName: 'Concur Expense', licenseType: 'SUBSCRIPTION', licenseKey: 'SAP-CONCUR-02', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2026-05-14', vendor: 'SAP Concur', purchasePrice: 880000, createdAt: '2025-05-14T15:05:00' },
   { assetId: '32', assetCode: 'INT-0033', assetItemId: '28', assetItemName: 'Miro', licenseType: 'SUBSCRIPTION', licenseKey: 'MIRO-LIC-01', status: 'AVAILABLE', assignedMemberId: null, assignedMemberName: null, departmentId: null, departmentName: null, startedAt: null, expiredAt: '2027-06-12', vendor: 'Miro', purchasePrice: 520000, createdAt: '2025-06-12T10:10:00' },
@@ -2120,18 +2122,29 @@ function createMockTicket(
 }
 
 function toTicketListItem(ticket: MockTicket): TicketListItem {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+
   return {
     ticketId: ticket.ticketId,
     ticketNo: ticket.ticketNo,
     ticketType: ticket.ticketType,
     requestMethod: ticket.requestMethod,
-    requestedItemName: ticket.requestedItemName,
+    requestedItemName: detail.requestedItemName ?? ticket.requestedItemName,
     requesterId: ticket.requesterId,
     requesterName: ticket.requesterName,
     departmentId: ticket.departmentId,
     departmentName: ticket.departmentName,
     requestedAt: ticket.requestedAt,
     ticketStatus: ticket.ticketStatus,
+    detailStatus: detail.detailStatus ?? null,
+    assetType: detail.assetType ?? null,
+    assetItemId: detail.assetItemId ?? null,
+    isStandard: detail.isStandard ?? null,
+    categoryName: detail.categoryName ?? null,
+    requestedItemDetail: detail.requestedItemDetail ?? null,
+    productName: detail.productName ?? null,
+    quantity: detail.quantity ?? null,
+    expectedPrice: detail.expectedPrice ?? null,
   }
 }
 
@@ -2208,7 +2221,7 @@ export const handlers = [
 
     const now = new Date()
     const createdAt = now.toISOString()
-    const planId = Math.max(0, ...purchasePlans.map((plan) => plan.planId)) + 1
+    const planId = Math.max(0, ...purchasePlans.map((plan) => Number(plan.planId))) + 1
     const actor = getAuthenticatedMember(request)
     const purchaseRequester = actor && ['ADMIN', 'SUPER_ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(actor.role)
       ? actor
@@ -2589,7 +2602,7 @@ export const handlers = [
     return HttpResponse.json(ok(detail))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/approve`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/:approvalType/approve`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const actor = getAuthenticatedMember(request)
@@ -2611,7 +2624,10 @@ export const handlers = [
       }, { status: 403 })
     }
 
-    const body = await request.json() as TicketApproveRequest
+    const approvalType = String(params.approvalType)
+    const body = {
+      approver: approvalType === 'asset-approval' ? 'ASSET_TEAM' : 'DEPARTMENT_MANAGER',
+    } as TicketApproveRequest
     const updatedAt = new Date().toISOString()
 
     if (body.approver === 'DEPARTMENT_MANAGER') {
@@ -2655,7 +2671,7 @@ export const handlers = [
     }, '티켓 승인에 성공했습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/reject`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/:approvalType/reject`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const actor = getAuthenticatedMember(request)
@@ -2677,7 +2693,14 @@ export const handlers = [
       }, { status: 403 })
     }
 
-    const body = await request.json() as TicketRejectRequest
+    const approvalType = String(params.approvalType)
+    const requestBody = await request.json() as Partial<TicketRejectRequest> & {
+      rejectionReason?: string
+    }
+    const body = {
+      rejectionType: approvalType === 'asset-approval' ? 'ASSET_TEAM' : 'DEPARTMENT_MANAGER',
+      rejectionReason: requestBody.rejectionReason ?? '',
+    } as TicketRejectRequest
     if (!body.rejectionReason?.trim()) {
       return HttpResponse.json({
         status: 400,
