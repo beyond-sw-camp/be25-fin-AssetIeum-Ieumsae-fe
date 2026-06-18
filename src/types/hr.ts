@@ -76,7 +76,6 @@ export interface HrEventResponse {
   executedAt?: string
   completedAt?: string
   cancelledAt?: string
-  canceledAt?: string
   createdAt: string
   updatedAt?: string
 }
