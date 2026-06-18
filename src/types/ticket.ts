@@ -128,7 +128,7 @@ export type TicketRequestKind =
   | 'RETURN'
   | 'PURCHASE_RETURN'
 
-export type RequestedUsageType = 'PERSONAL' | 'TEAM'
+export type RequestedUsageType = 'PERSONAL' | 'DEPARTMENT' | 'TEAM'
 export type PurchaseRequestMethod = 'TEAM_PURCHASE' | 'DIRECT_PURCHASE'
 
 export interface TicketCreateResponse {

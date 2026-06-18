@@ -44,6 +44,20 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   CANCELED: '요청 취소',
 }
 
+export const TICKET_STATUS_ALIASES: Record<string, TicketStatus> = {
+  ASSET_APPROVE: 'ASSET_APPROVED',
+  CANCELLED: 'CANCELED',
+}
+
+export function normalizeTicketStatus(status: string): TicketStatus {
+  return TICKET_STATUS_ALIASES[status] ?? status as TicketStatus
+}
+
+export function getTicketStatusLabel(status: string): string {
+  const normalizedStatus = normalizeTicketStatus(status)
+  return TICKET_STATUS_LABEL[normalizedStatus] ?? status
+}
+
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   ASSET_REQUEST: '자산 요청',
   RENTAL: '대여 요청',

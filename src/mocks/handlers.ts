@@ -1994,12 +1994,17 @@ function getDepartmentManager(departmentId: string): Member | undefined {
 }
 
 function isAssetTeamRole(member: Member | undefined): boolean {
-  return member?.role === 'ASSET_TEAM' || member?.role === 'ASSET_MANAGER'
+  return (
+    member?.role === 'ADMIN'
+    || member?.role === 'SUPER_ADMIN'
+    || member?.role === 'ASSET_TEAM'
+    || member?.role === 'ASSET_MANAGER'
+  )
 }
 
 function canAccessTicket(member: Member | undefined, ticket: MockTicket): boolean {
   if (!member) return false
-  if (member.role === 'ADMIN' || isAssetTeamRole(member)) return true
+  if (isAssetTeamRole(member)) return true
   if (member.role === 'EMPLOYEE') return ticket.requesterId === member.memberId
   if (member.role === 'DEPARTMENT_MANAGER') {
     return ticket.departmentId === member.departmentId
@@ -2491,7 +2496,7 @@ export const handlers = [
     ))
   }),
 
-  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params, request }) => {
+  http.get(`${API_PREFIX}/tickets/asset-requests/:ticketId`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const requester = getAuthenticatedMember(request)
@@ -2610,7 +2615,10 @@ export const handlers = [
     const updatedAt = new Date().toISOString()
 
     if (body.approver === 'DEPARTMENT_MANAGER') {
-      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+      if (
+        ticket.ticketStatus !== 'REQUESTED'
+        || (actor.role !== 'DEPARTMENT_MANAGER' && !isAssetTeamRole(actor))
+      ) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'INVALID_TICKET_REVIEW_STATUS',
@@ -2681,7 +2689,10 @@ export const handlers = [
 
     const updatedAt = new Date().toISOString()
     if (body.rejectionType === 'DEPARTMENT_MANAGER') {
-      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+      if (
+        ticket.ticketStatus !== 'REQUESTED'
+        || (actor.role !== 'DEPARTMENT_MANAGER' && !isAssetTeamRole(actor))
+      ) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'INVALID_TICKET_REVIEW_STATUS',
@@ -2977,6 +2988,47 @@ export const handlers = [
       currentStatus: nextStatus,
       updatedAt,
     }, '티켓 상태 변경에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/cancel`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const isRequester = Boolean(requester && requester.memberId === ticket.requesterId)
+    const canCancelAsRequester = isRequester && CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)
+    const canCancelAsAssetTeam = isAssetTeamRole(requester)
+      && !['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+
+    if (!canCancelAsRequester && !canCancelAsAssetTeam) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '요청자 또는 구매자산팀 권한에서만 티켓을 취소할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    ticket.ticketStatus = 'CANCELED'
+    ticketcanceledAt.set(ticketId, updatedAt)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketNo: ticket.ticketNo,
+      ticketStatus: ticket.ticketStatus,
+      cancelledAt: updatedAt,
+      canceledAt: updatedAt,
+    }, '티켓 취소에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/maintence/collect`, ({ params, request }) => {

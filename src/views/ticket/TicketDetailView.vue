@@ -833,7 +833,7 @@ async function handleCancelTicket() {
   isCancelling.value = true
 
   try {
-    await ticketApi.changeStatus(ticketId.value, 'CANCELED')
+    await ticketApi.cancel(ticketId.value)
     isCancelModalOpen.value = false
     await loadTicketDetail()
     notificationStore.success('요청이 취소되었습니다.')

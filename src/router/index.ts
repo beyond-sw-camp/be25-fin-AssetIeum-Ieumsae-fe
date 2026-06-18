@@ -87,7 +87,7 @@ const router = createRouter({
               component: () => import('@/views/ticket/TicketManagementView.vue'),
               meta: {
                 title: '티켓 관리',
-                roles: ['DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+                roles: ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
               },
             },
             {

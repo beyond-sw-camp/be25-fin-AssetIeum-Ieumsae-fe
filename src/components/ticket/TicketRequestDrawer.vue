@@ -602,7 +602,7 @@ const assetTypeOptions = [
   { label: '무형 자산', value: 'INTANGIBLE' as const },
 ]
 const assetScopeOptions = [
-  { label: '공용 자산', value: 'TEAM' as const },
+  { label: '공용 자산', value: 'DEPARTMENT' as const },
   { label: '개인 자산', value: 'PERSONAL' as const },
 ]
 const assetSearchScopeOptions = [
@@ -640,7 +640,7 @@ const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
   directPurchaseItemType: 'STANDARD' as 'STANDARD' | 'NON_STANDARD',
-  assetUsageType: 'TEAM' as RequestedUsageType,
+  assetUsageType: 'DEPARTMENT' as RequestedUsageType,
   category: '',
   selectedAssetId: '',
   requestedItemName: '',
@@ -908,7 +908,7 @@ function toRequestedUsageType(
   if (!value) {
     throw new Error('공용자산 여부를 선택해주세요.')
   }
-  return value === 'DEPARTMENT' ? 'TEAM' : value
+  return value === 'TEAM' ? 'DEPARTMENT' : value
 }
 
 const isFormValid = computed(() => {
@@ -1260,7 +1260,7 @@ function resetForm() {
     assetType: 'TANGIBLE',
     assetServiceType: 'REPAIR',
     directPurchaseItemType: 'STANDARD',
-    assetUsageType: 'TEAM',
+    assetUsageType: 'DEPARTMENT',
     category: '',
     selectedAssetId: '',
     requestedItemName: '',
@@ -1285,7 +1285,7 @@ function handleKindSelect(kind: TicketRequestKind) {
   form.assetType = 'TANGIBLE'
   form.assetServiceType = 'REPAIR'
   form.directPurchaseItemType = 'STANDARD'
-  form.assetUsageType = 'TEAM'
+  form.assetUsageType = 'DEPARTMENT'
   assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
   form.selectedAssetId = ''
@@ -1297,7 +1297,7 @@ function openAssetSelection() {
   pendingSelectedAssetId.value = form.selectedAssetId
   selectionAssetType.value = selectedKind.value === 'RENTAL' ? 'TANGIBLE' : form.assetType
   if (isStandardDirectPurchase.value) {
-    assetSearchForm.assetUsageType = form.assetUsageType === 'TEAM' ? 'DEPARTMENT' : form.assetUsageType
+    assetSearchForm.assetUsageType = form.assetUsageType === 'PERSONAL' ? 'PERSONAL' : 'DEPARTMENT'
   }
   isAssetSelectionStep.value = true
 }
@@ -1389,7 +1389,7 @@ function selectedAssetId() {
 }
 
 async function handleSubmit() {
-  if (!isFormValid.value || !selectedKind.value) return
+  if (isSubmitting.value || !isFormValid.value || !selectedKind.value) return
 
   isSubmitting.value = true
   errorMessage.value = ''
@@ -1421,6 +1421,7 @@ async function handleSubmit() {
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
+        console.log(response);
         break
       case 'DIRECT_PURCHASE':
         if (isStandardDirectPurchase.value) {

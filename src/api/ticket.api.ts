@@ -29,8 +29,94 @@ import type {
   TicketEvidenceUploadResponse,
   TicketStatus,
   TicketCommentDeleteResponse,
+  ApiResponse,
   PageResponse,
 } from '@/types'
+import { normalizeTicketStatus } from '@/utils/labels'
+
+type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function pickString(source: Record<string, unknown> | null, keys: string[]): string | undefined {
+  if (!source) return undefined
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+
+  return undefined
+}
+
+function pickId(source: Record<string, unknown> | null, keys: string[]): string | number | undefined {
+  if (!source) return undefined
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) return value
+    if (typeof value === 'number') return value
+  }
+
+  return undefined
+}
+
+function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
+  const requester = asRecord(rawDetail.requester)
+    ?? asRecord(rawDetail.requestMember)
+    ?? asRecord(rawDetail.member)
+  const department = asRecord(rawDetail.department)
+    ?? asRecord(rawDetail.requesterDepartment)
+  const rawStatus = pickString(rawDetail, ['status', 'ticketStatus']) ?? 'REQUESTED'
+
+  return {
+    ...rawDetail,
+    ticketId: String(rawDetail.ticketId ?? ''),
+    ticketNo: String(rawDetail.ticketNo ?? ''),
+    ticketType: rawDetail.ticketType ?? 'ASSET_REQUEST',
+    status: normalizeTicketStatus(rawStatus),
+    requesterId: rawDetail.requesterId ?? pickId(requester, ['memberId', 'employeeId', 'id']) ?? '',
+    requesterName: rawDetail.requesterName
+      ?? pickString(rawDetail, ['requestMemberName', 'employeeName'])
+      ?? pickString(requester, ['memberName', 'name', 'employeeName'])
+      ?? '',
+    departmentId: rawDetail.departmentId ?? pickId(department, ['departmentId', 'id']) ?? '',
+    departmentName: rawDetail.departmentName
+      ?? pickString(rawDetail, ['requesterDepartmentName'])
+      ?? pickString(department, ['departmentName', 'name'])
+      ?? '',
+    approverId: rawDetail.approverId ?? pickId(rawDetail, ['departmentApproverId']) ?? null,
+    approverName: rawDetail.approverName
+      ?? pickString(rawDetail, ['departmentApproverName'])
+      ?? null,
+    assigneeId: rawDetail.assigneeId ?? null,
+    assigneeName: rawDetail.assigneeName ?? null,
+    requestReason: rawDetail.requestReason ?? null,
+    departmentApprovedAt: rawDetail.departmentApprovedAt ?? null,
+    departmentRejectedAt: rawDetail.departmentRejectedAt ?? null,
+    departmentRejectionReason: rawDetail.departmentRejectionReason ?? null,
+    purchaseApprovedAt: rawDetail.purchaseApprovedAt ?? null,
+    purchaseRejectedAt: rawDetail.purchaseRejectedAt ?? null,
+    purchaseRejectionReason: rawDetail.purchaseRejectionReason ?? null,
+    completedAt: rawDetail.completedAt ?? null,
+    canceledAt: rawDetail.canceledAt ?? (rawDetail.cancelledAt as string | null | undefined) ?? null,
+    requestedAt: rawDetail.requestedAt ?? pickString(rawDetail, ['createdAt']) ?? '',
+    updatedAt: rawDetail.updatedAt ?? '',
+  }
+}
+
+function normalizeTicketDetailResponse(
+  response: ApiResponse<TicketDetailResponse>,
+): ApiResponse<TicketDetail> {
+  return {
+    ...response,
+    data: normalizeTicketDetail(response.data),
+  }
+}
 
 // ─── 티켓 공통 API ───────────────────────────────────────────────────────────
 
@@ -43,8 +129,10 @@ export const ticketApi = {
     api.get<TicketStatistics>('/tickets/statistics'),
 
   /** 티켓 상세 조회 */
-  getDetail: (ticketId: string) =>
-    api.get<TicketDetail>(`/tickets/${ticketId}`),
+  getDetail: async (ticketId: string) => {
+    const response = await api.get<TicketDetailResponse>(`/tickets/asset-requests/${ticketId}`)
+    return normalizeTicketDetailResponse(response)
+  },
 
   /** 티켓 승인 */
   approve: (ticketId: string, body: TicketApproveRequest) =>
@@ -57,6 +145,9 @@ export const ticketApi = {
   /** 티켓 상태 변경 */
   changeStatus: (ticketId: string, status: TicketStatus) =>
     api.patch(`/tickets/${ticketId}/status`, { status }),
+
+  cancel: (ticketId: string) =>
+    api.patch<TicketCreateResponse>(`/tickets/${ticketId}/cancel`, {}),
 
   /** 자산 할당 */
   assignAsset: (ticketId: string, body: AssetAssignRequest) =>
@@ -122,7 +213,7 @@ export const ticketApi = {
 export const ticketCreateApi = {
   /** 표준 자산 요청 */
   createStandardRequest: (body: StandardAssetRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/asset-requests/standard', body),
+    api.post<TicketCreateResponse>('/tickets/asset-requests', body),
 
   /** 비표준 자산 요청 */
   createNonStandardRequest: (body: NonStandardAssetRequestCreate) =>
