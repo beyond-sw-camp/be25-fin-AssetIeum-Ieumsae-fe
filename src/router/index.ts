@@ -183,25 +183,6 @@ const router = createRouter({
           component: () => import('@/views/hr/HrWorkflowView.vue'),
           meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
         },
-
-        // ─── HR 워크플로우 ────────────────────────────────
-        {
-          path: 'hrworkflow',
-          children: [
-            {
-              path: '/hrtemplates',
-              name: 'HRTemplates',
-              component: () => import('@/components/hr/HrTemplate.vue'),
-              meta: { title: 'HR 템플릿 관리', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
-            },
-            {
-              path: '/hrevents',
-              name: 'HrEvents',
-              component: () => import('@/components/hr/HrEvent.vue'),
-              meta: { title: 'HR 이벤트 관리', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
-            },
-          ],
-        },
         
         // ─── 예산 관리 ───────────────────────────────
         {
