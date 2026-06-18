@@ -4,11 +4,14 @@
       <History :size="18" class="text-primary" />
     </template>
 
-    <ol class="relative ml-2 border-l border-dashed border-border">
+    <ol
+      class="relative ml-2 grid min-h-[28rem] border-l border-dashed border-border"
+      :style="{ gridTemplateRows: `repeat(${processSteps.length}, minmax(0, 1fr))` }"
+    >
       <li
         v-for="step in processSteps"
         :key="step.key"
-        class="relative pb-7 pl-7 last:pb-0"
+        class="relative pl-7"
       >
         <span
           :class="[

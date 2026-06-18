@@ -436,7 +436,7 @@
         />
       </div>
 
-      <div v-else-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="grid grid-cols-8 gap-3">
+      <div v-else-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
           id="ticket-quantity"
           v-model="form.quantity"
@@ -908,7 +908,7 @@ function toRequestedUsageType(
   if (!value) {
     throw new Error('공용자산 여부를 선택해주세요.')
   }
-  return value === 'TEAM' ? 'DEPARTMENT' : value
+  return value
 }
 
 const isFormValid = computed(() => {
@@ -1472,7 +1472,7 @@ async function handleSubmit() {
           ? await ticketCreateApi.createPurchaseReturnRequest({
             assetType: 'TANGIBLE',
             assetId: selectedAssetId(),
-            type: 'EMPLOYEE',
+            type: 'DIRECT_RETURN',
             returnReason: requestReason,
           })
           : await ticketCreateApi.createMaintenanceRequest({
@@ -1491,7 +1491,7 @@ async function handleSubmit() {
         response = await ticketCreateApi.createPurchaseReturnRequest({
           assetType: 'TANGIBLE',
           assetId: selectedAssetId(),
-          type: 'EMPLOYEE',
+          type: 'DIRECT_RETURN',
           returnReason: requestReason,
         })
         break

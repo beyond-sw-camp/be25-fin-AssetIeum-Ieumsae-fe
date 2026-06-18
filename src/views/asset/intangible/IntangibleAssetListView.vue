@@ -337,7 +337,7 @@ const itemIdOf = (item: IntangibleItem) => (
 )
 
 const toLicenseType = (value: string | undefined): LicenseType => {
-  if (value === 'PERPETUAL' || value === 'VOLUME' || value === 'USER_BASED' || value === 'SUBSCRIPTION') {
+  if (value === 'PERPETUAL' || value === 'TERM' || value === 'SUBSCRIPTION') {
     return value
   }
 
