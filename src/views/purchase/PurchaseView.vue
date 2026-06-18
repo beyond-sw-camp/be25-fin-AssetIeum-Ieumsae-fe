@@ -761,292 +761,14 @@
     </BaseDrawer>
 
     <!-- 자산 등록 패널 -->
-    <BaseDrawer
+    <PurchaseAssetRegisterDrawer
       :is-open="isAssetRegisterDrawerOpen"
-      title="자산 등록 및 할당"
-      panel-class="w-full max-w-xl"
-      body-class="min-h-0 overflow-hidden! p-0"
-      hide-footer
+      :item="assetRegisterTargetItem"
+      :departments="departments"
+      :members="members"
       @close="closeAssetRegisterDrawer"
-    >
-      <div class="flex h-full flex-col">
-        <!-- 자산 유형 탭 -->
-        <div class="flex shrink-0 border-b border-border">
-          <button
-            type="button"
-            :class="[
-              'flex-1 py-3 text-sm font-semibold transition-colors',
-              assetRegisterTab === 'TANGIBLE'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-text-sub hover:text-text-main',
-            ]"
-            @click="assetRegisterTab = 'TANGIBLE'"
-          >
-            유형자산
-          </button>
-          <button
-            type="button"
-            :class="[
-              'flex-1 py-3 text-sm font-semibold transition-colors',
-              assetRegisterTab === 'INTANGIBLE'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-text-sub hover:text-text-main',
-            ]"
-            @click="assetRegisterTab = 'INTANGIBLE'"
-          >
-            무형자산
-          </button>
-        </div>
-
-        <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          <!-- 품목 정보 표시 -->
-          <div v-if="assetRegisterTargetItem" class="rounded-xl bg-surface-secondary px-4 py-3 text-sm">
-            <p class="text-xs font-semibold text-text-muted mb-1">등록 대상 품목</p>
-            <p class="font-semibold text-text-main">{{ assetRegisterTargetItem.itemName }}</p>
-            <p class="text-xs text-text-sub mt-0.5">{{ assetRegisterTargetItem.category || '-' }}</p>
-          </div>
-
-          <!-- 유형자산 폼 -->
-          <template v-if="assetRegisterTab === 'TANGIBLE'">
-            <section class="space-y-4">
-              <h3 class="text-sm font-bold text-text-main flex items-center gap-2">
-                <span class="inline-block h-4 w-1 rounded-full bg-primary"></span>
-                기본 정보
-              </h3>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  id="tangible-serial-number"
-                  v-model="tangibleForm.serialNumber"
-                  label="시리얼 번호"
-                  required
-                  placeholder="SN-20260101-001"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-location"
-                  v-model="tangibleForm.location"
-                  label="위치"
-                  required
-                  placeholder="예: 본사 3층 개발팀"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-purchase-date"
-                  v-model="tangibleForm.purchaseDate"
-                  type="date"
-                  label="구매일"
-                  required
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-purchase-price"
-                  v-model="tangibleForm.purchasePrice"
-                  type="number"
-                  label="구매 금액"
-                  required
-                  placeholder="0"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-purchase-vendor"
-                  v-model="tangibleForm.purchaseVendor"
-                  label="구매처"
-                  required
-                  placeholder="예: 삼성전자"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-warranty"
-                  v-model="tangibleForm.warrantyExpiredAt"
-                  type="date"
-                  label="보증 만료일"
-                  required
-                  :disabled="isRegisteringAsset"
-                />
-                <div class="space-y-2">
-                  <label class="block px-0.5 text-sm font-semibold text-text-main">사용 유형</label>
-                  <Dropdown
-                    id="tangible-usage-type"
-                    :model-value="tangibleForm.usageType"
-                    :options="TANGIBLE_USAGE_TYPE_OPTIONS"
-                    :disabled="isRegisteringAsset"
-                    @update:model-value="(v) => tangibleForm.usageType = String(v)"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <label class="block px-0.5 text-sm font-semibold text-text-main">자산 사용 구분</label>
-                  <Dropdown
-                    id="tangible-asset-usage-type"
-                    :model-value="tangibleForm.assetUsageType"
-                    :options="TANGIBLE_ASSET_USAGE_TYPE_OPTIONS"
-                    :disabled="isRegisteringAsset"
-                    @update:model-value="(v) => tangibleForm.assetUsageType = String(v)"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section class="space-y-4">
-              <h3 class="text-sm font-bold text-text-main flex items-center gap-2">
-                <span class="inline-block h-4 w-1 rounded-full bg-text-muted"></span>
-                사용 정보
-                <span class="text-xs font-normal text-text-muted">(선택)</span>
-              </h3>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  id="tangible-member-id"
-                  v-model="tangibleForm.memberId"
-                  label="사용자 ID"
-                  placeholder="멤버 UUID"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-department-id"
-                  v-model="tangibleForm.departmentId"
-                  label="부서 ID"
-                  placeholder="부서 UUID"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-used-started-at"
-                  v-model="tangibleForm.usedStartedAt"
-                  type="date"
-                  label="사용 시작일"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="tangible-return-due-date"
-                  v-model="tangibleForm.returnDueDate"
-                  type="date"
-                  label="반납 예정일"
-                  :disabled="isRegisteringAsset"
-                />
-              </div>
-            </section>
-          </template>
-
-          <!-- 무형자산 폼 -->
-          <template v-else>
-            <section class="space-y-4">
-              <h3 class="text-sm font-bold text-text-main flex items-center gap-2">
-                <span class="inline-block h-4 w-1 rounded-full bg-primary"></span>
-                기본 정보
-              </h3>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  id="intangible-seat-count"
-                  v-model="intangibleForm.seatCount"
-                  type="number"
-                  label="최대 사용 인원"
-                  required
-                  placeholder="1"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-purchase-date"
-                  v-model="intangibleForm.purchaseDate"
-                  type="date"
-                  label="구매일"
-                  required
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-purchase-price"
-                  v-model="intangibleForm.purchasePrice"
-                  type="number"
-                  label="구매 금액"
-                  required
-                  placeholder="0"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-purchase-vendor"
-                  v-model="intangibleForm.purchaseVendor"
-                  label="구매처"
-                  required
-                  placeholder="예: Microsoft Korea"
-                  :disabled="isRegisteringAsset"
-                />
-                <div class="space-y-2">
-                  <label class="block px-0.5 text-sm font-semibold text-text-main">자동 연장</label>
-                  <Dropdown
-                    id="intangible-auto-renewal"
-                    :model-value="intangibleForm.isAutoRenewal"
-                    :options="AUTO_RENEWAL_OPTIONS"
-                    :disabled="isRegisteringAsset"
-                    @update:model-value="(v) => intangibleForm.isAutoRenewal = Number(v)"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <label class="block px-0.5 text-sm font-semibold text-text-main">결제 주기</label>
-                  <Dropdown
-                    id="intangible-billing-cycle"
-                    :model-value="intangibleForm.billingCycle"
-                    :options="BILLING_CYCLE_OPTIONS"
-                    :disabled="isRegisteringAsset"
-                    @update:model-value="(v) => intangibleForm.billingCycle = String(v)"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section class="space-y-4">
-              <h3 class="text-sm font-bold text-text-main flex items-center gap-2">
-                <span class="inline-block h-4 w-1 rounded-full bg-text-muted"></span>
-                사용 정보
-                <span class="text-xs font-normal text-text-muted">(선택)</span>
-              </h3>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  id="intangible-license-code"
-                  v-model="intangibleForm.licenseCode"
-                  label="라이선스 코드"
-                  placeholder="IA-LIC-001"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-member-id"
-                  v-model="intangibleForm.memberId"
-                  label="사용자 ID"
-                  placeholder="멤버 UUID"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-department-id"
-                  v-model="intangibleForm.departmentId"
-                  label="부서 ID"
-                  placeholder="부서 UUID"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-started-at"
-                  v-model="intangibleForm.startedAt"
-                  type="date"
-                  label="사용 시작일"
-                  :disabled="isRegisteringAsset"
-                />
-                <Input
-                  id="intangible-expired-at"
-                  v-model="intangibleForm.expiredAt"
-                  type="date"
-                  label="만료 예정일"
-                  :disabled="isRegisteringAsset"
-                />
-              </div>
-            </section>
-          </template>
-
-          <p v-if="assetRegisterError" class="text-xs font-semibold text-danger">
-            {{ assetRegisterError }}
-          </p>
-        </div>
-
-        <div class="shrink-0 border-t border-border px-6 py-4 flex justify-end gap-2">
-          <Button variant="outline" :disabled="isRegisteringAsset" @click="closeAssetRegisterDrawer">취소</Button>
-          <Button :loading="isRegisteringAsset" @click="submitAssetRegister">등록</Button>
-        </div>
-      </div>
-    </BaseDrawer>
+      @registered="handlePurchaseAssetRegistered"
+    />
   </div>
 </template>
 
@@ -1070,17 +792,18 @@ import {
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { ApiError, memberApi, purchaseApi, ticketApi, tangibleAssetApi, intangibleAssetApi } from "@/api";
+import { ApiError, departmentApi, memberApi, purchaseApi, ticketApi } from "@/api";
 import BaseDrawer from "@/components/common/BaseDrawer.vue";
 import Button from "@/components/common/Button.vue";
 import Dropdown from "@/components/common/Dropdown.vue";
 import Input from "@/components/common/Input.vue";
 import Table, { type Column } from "@/components/common/Table.vue";
+import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
 import type {
   AssetType,
-  BillingCycle,
+  Department,
   DropdownOption,
   Member,
   PurchasePlanCreateItem,
@@ -1089,8 +812,6 @@ import type {
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
-  TangibleAssetCreateRequest,
-  IntangibleAssetCreateRequest,
   TicketListItem,
 } from "@/types";
 
@@ -1149,27 +870,6 @@ const PAGE_SIZE_OPTIONS: DropdownOption[] = [
 const ASSET_TYPE_OPTIONS: DropdownOption[] = [
   { label: "유형자산", value: "TANGIBLE" },
   { label: "무형자산", value: "INTANGIBLE" },
-];
-
-const TANGIBLE_USAGE_TYPE_OPTIONS: DropdownOption[] = [
-  { label: "임시 (TEMPORARY)", value: "TEMPORARY" },
-  { label: "영구 (PERMANENT)", value: "PERMANENT" },
-];
-
-const TANGIBLE_ASSET_USAGE_TYPE_OPTIONS: DropdownOption[] = [
-  { label: "개인 (PERSONAL)", value: "PERSONAL" },
-  { label: "부서 공용 (DEPARTMENT)", value: "DEPARTMENT" },
-];
-
-const AUTO_RENEWAL_OPTIONS: DropdownOption[] = [
-  { label: "자동 연장", value: 1 },
-  { label: "수동 갱신", value: 0 },
-];
-
-const BILLING_CYCLE_OPTIONS: DropdownOption[] = [
-  { label: "월별", value: "MONTHLY" },
-  { label: "연별", value: "YEARLY" },
-  { label: "일회성", value: "ONE_TIME" },
 ];
 
 const STATUS_FILTER_OPTIONS: DropdownOption[] = [
@@ -1282,6 +982,8 @@ const keyword = ref("");
 const isListLoading = ref(false);
 const listError = ref("");
 const assetTeamMembers = ref<Member[]>([]);
+const departments = ref<Department[]>([]);
+const members = ref<Member[]>([]);
 
 const selectedPlanId = ref<number | string | null>(null);
 const selectedPlan = ref<PurchasePlanDetail | null>(null);
@@ -1461,7 +1163,7 @@ const purchaseExecutionInfoItems = computed(() => {
     },
     { label: "실제 집행 금액", value: actualAmount },
     { label: "총 수량", value: `${totalQuantity}개` },
-    { label: "납품 확인", value: `${selectedPlan.value.items.length}건` },
+    { label: "납품 확인", value: `${deliveredCount}건` },
     { label: "표준 품목", value: `${standardCount}건` },
     {
       label: "비표준 품목",
@@ -1517,6 +1219,7 @@ watch(
 onMounted(() => {
   refreshList();
   fetchAssetTeamMembers();
+  fetchAssetRegisterReferenceData();
 });
 
 async function refreshList() {
@@ -1568,6 +1271,26 @@ async function fetchAssetTeamMembers() {
     );
   } catch {
     assetTeamMembers.value = [];
+  }
+}
+
+async function fetchAssetRegisterReferenceData() {
+  try {
+    const [departmentResult, memberResult] = await Promise.allSettled([
+      departmentApi.getList({ size: 999 }),
+      memberApi.getList({ size: 999, status: "ACTIVE" }),
+    ]);
+
+    if (departmentResult.status === "fulfilled") {
+      departments.value = departmentResult.value.data.content;
+    }
+
+    if (memberResult.status === "fulfilled") {
+      members.value = memberResult.value.data.content;
+    }
+  } catch {
+    departments.value = [];
+    members.value = [];
   }
 }
 
@@ -2008,205 +1731,26 @@ function parsePlanQueryId(value: string | null) {
 // ─── 자산 등록 패널 ────────────────────────────────────────────────────────────
 
 const isAssetRegisterDrawerOpen = ref(false);
-const assetRegisterTab = ref<'TANGIBLE' | 'INTANGIBLE'>('TANGIBLE');
 const assetRegisterTargetItem = ref<PurchasePlanItem | null>(null);
-const isRegisteringAsset = ref(false);
-const assetRegisterError = ref("");
 
-const tangibleForm = ref<{
-  serialNumber: string;
-  location: string;
-  purchaseDate: string;
-  purchasePrice: number | '';
-  purchaseVendor: string;
-  warrantyExpiredAt: string;
-  usageType: string;
-  assetUsageType: string;
-  memberId: string;
-  departmentId: string;
-  usedStartedAt: string;
-  returnDueDate: string;
-}>({
-  serialNumber: "",
-  location: "",
-  purchaseDate: "",
-  purchasePrice: "",
-  purchaseVendor: "",
-  warrantyExpiredAt: "",
-  usageType: "TEMPORARY",
-  assetUsageType: "PERSONAL",
-  memberId: "",
-  departmentId: "",
-  usedStartedAt: "",
-  returnDueDate: "",
-});
+async function handlePurchaseAssetRegistered() {
+  const planId = selectedPlan.value?.planId;
+  closeAssetRegisterDrawer();
 
-const intangibleForm = ref<{
-  seatCount: number | '';
-  purchaseDate: string;
-  purchasePrice: number | '';
-  purchaseVendor: string;
-  isAutoRenewal: number;
-  billingCycle: string;
-  licenseCode: string;
-  memberId: string;
-  departmentId: string;
-  startedAt: string;
-  expiredAt: string;
-}>({
-  seatCount: 1,
-  purchaseDate: "",
-  purchasePrice: "",
-  purchaseVendor: "",
-  isAutoRenewal: 0,
-  billingCycle: "YEARLY",
-  licenseCode: "",
-  memberId: "",
-  departmentId: "",
-  startedAt: "",
-  expiredAt: "",
-});
+  if (planId) {
+    await fetchPlanDetail(planId);
+  }
+  await refreshList();
+}
 
 function openAssetRegisterDrawer(item: PurchasePlanItem) {
   assetRegisterTargetItem.value = item;
-  assetRegisterTab.value = (item.assetType ?? 'TANGIBLE') === 'INTANGIBLE' ? 'INTANGIBLE' : 'TANGIBLE';
-  assetRegisterError.value = "";
-  // 폼 초기화
-  tangibleForm.value = {
-    serialNumber: "",
-    location: "",
-    purchaseDate: "",
-    purchasePrice: "",
-    purchaseVendor: "",
-    warrantyExpiredAt: "",
-    usageType: "TEMPORARY",
-    assetUsageType: "PERSONAL",
-    memberId: "",
-    departmentId: "",
-    usedStartedAt: "",
-    returnDueDate: "",
-  };
-  intangibleForm.value = {
-    seatCount: 1,
-    purchaseDate: "",
-    purchasePrice: "",
-    purchaseVendor: "",
-    isAutoRenewal: 0,
-    billingCycle: "YEARLY",
-    licenseCode: "",
-    memberId: "",
-    departmentId: "",
-    startedAt: "",
-    expiredAt: "",
-  };
   isAssetRegisterDrawerOpen.value = true;
+  void fetchAssetRegisterReferenceData();
 }
 
 function closeAssetRegisterDrawer() {
   isAssetRegisterDrawerOpen.value = false;
   assetRegisterTargetItem.value = null;
-  assetRegisterError.value = "";
-}
-
-async function submitAssetRegister() {
-  const item = assetRegisterTargetItem.value;
-  assetRegisterError.value = "";
-
-  if (assetRegisterTab.value === 'TANGIBLE') {
-    const f = tangibleForm.value;
-    if (!f.serialNumber.trim()) {
-      assetRegisterError.value = "시리얼 번호를 입력해주세요.";
-      return;
-    }
-    if (!f.location.trim()) {
-      assetRegisterError.value = "위치를 입력해주세요.";
-      return;
-    }
-    if (!f.purchaseDate) {
-      assetRegisterError.value = "구매일을 입력해주세요.";
-      return;
-    }
-    if (f.purchasePrice === '' || Number(f.purchasePrice) <= 0) {
-      assetRegisterError.value = "구매 금액을 입력해주세요.";
-      return;
-    }
-    if (!f.purchaseVendor.trim()) {
-      assetRegisterError.value = "구매처를 입력해주세요.";
-      return;
-    }
-    if (!f.warrantyExpiredAt) {
-      assetRegisterError.value = "보증 만료일을 입력해주세요.";
-      return;
-    }
-
-    const body: TangibleAssetCreateRequest = {
-      tangibleItemId: item?.assetItemId?.toString() ?? undefined,
-      serialNumber: f.serialNumber,
-      location: f.location,
-      purchaseDate: f.purchaseDate,
-      purchasePrice: Number(f.purchasePrice),
-      purchaseVendor: f.purchaseVendor,
-      warrantyExpiredAt: f.warrantyExpiredAt,
-      usageType: f.usageType as 'TEMPORARY' | 'PERMANENT',
-      assetUsageType: f.assetUsageType,
-      memberId: f.memberId || null,
-      departmentId: f.departmentId || null,
-      usedStartedAt: f.usedStartedAt || null,
-      returnDueDate: f.returnDueDate || null,
-    };
-
-    isRegisteringAsset.value = true;
-    try {
-      await tangibleAssetApi.create(body);
-      closeAssetRegisterDrawer();
-    } catch (error) {
-      assetRegisterError.value = getErrorMessage(error, "유형자산 등록에 실패했습니다.");
-    } finally {
-      isRegisteringAsset.value = false;
-    }
-  } else {
-    const f = intangibleForm.value;
-    if (f.seatCount === '' || Number(f.seatCount) <= 0) {
-      assetRegisterError.value = "최대 사용 인원을 입력해주세요.";
-      return;
-    }
-    if (!f.purchaseDate) {
-      assetRegisterError.value = "구매일을 입력해주세요.";
-      return;
-    }
-    if (f.purchasePrice === '' || Number(f.purchasePrice) <= 0) {
-      assetRegisterError.value = "구매 금액을 입력해주세요.";
-      return;
-    }
-    if (!f.purchaseVendor.trim()) {
-      assetRegisterError.value = "구매처를 입력해주세요.";
-      return;
-    }
-
-    const body: IntangibleAssetCreateRequest = {
-      intangibleItemId: item?.assetItemId?.toString() ?? undefined,
-      seatCount: Number(f.seatCount),
-      isAutoRenewal: f.isAutoRenewal === 1,
-      purchaseDate: f.purchaseDate,
-      purchasePrice: Number(f.purchasePrice),
-      purchaseVendor: f.purchaseVendor,
-      billingCycle: f.billingCycle as BillingCycle,
-      licenseCode: f.licenseCode || undefined,
-      memberId: f.memberId || null,
-      departmentId: f.departmentId || null,
-      startedAt: f.startedAt || null,
-      expiredAt: f.expiredAt || null,
-    };
-
-    isRegisteringAsset.value = true;
-    try {
-      await intangibleAssetApi.create(body);
-      closeAssetRegisterDrawer();
-    } catch (error) {
-      assetRegisterError.value = getErrorMessage(error, "무형자산 등록에 실패했습니다.");
-    } finally {
-      isRegisteringAsset.value = false;
-    }
-  }
 }
 </script>

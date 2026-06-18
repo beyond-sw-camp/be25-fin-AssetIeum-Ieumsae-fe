@@ -72,6 +72,9 @@ export interface PurchasePlanListFilter {
 
 export interface PurchasePlanItem {
   itemId?: number | string
+  assetItemId?: number | string | null
+  tangibleItemId?: number | string | null
+  intangibleItemId?: number | string | null
   category: string
   itemName: string
   quantity: number
