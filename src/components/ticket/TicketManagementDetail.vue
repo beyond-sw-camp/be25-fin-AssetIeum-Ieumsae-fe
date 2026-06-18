@@ -50,7 +50,7 @@
                 </h1>
               </div>
             </div>
-            <div v-if="isAssetTeamRole" class="w-full shrink-0 lg:w-60">
+            <div v-if="canShowStatusChange" class="w-full shrink-0 lg:w-60">
               <div class="mb-1.5 flex items-center justify-between gap-2">
                 <label
                   for="ticket-status-selector"
@@ -663,6 +663,11 @@ const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
+const MANUAL_STATUS_CHANGE_OPTIONS: TicketStatus[] = [
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELED',
+]
 const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
   'RENTAL_EXTENSION',
@@ -730,7 +735,10 @@ const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
 
 const ticketStatusOptions = computed<DropdownOption[]>(() => (
-  Object.entries(TICKET_STATUS_LABEL).map(([value, label]) => ({ value, label }))
+  MANUAL_STATUS_CHANGE_OPTIONS.map((value) => ({
+    value,
+    label: TICKET_STATUS_LABEL[value],
+  }))
 ))
 
 const isDepartmentManagerRole = computed(() => authStore.currentRole === 'DEPARTMENT_MANAGER')
@@ -880,10 +888,18 @@ const canCompleteMaintenance = computed(() => (
     && !ticket.value.completedAt,
   )
 ))
-const canChangeStatus = computed(() => (
+const canShowStatusChange = computed(() => (
   Boolean(
     ticket.value
     && isAssetTeamRole.value
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
+  )
+))
+const canChangeStatus = computed(() => (
+  Boolean(
+    ticket.value
+    && canShowStatusChange.value
+    && MANUAL_STATUS_CHANGE_OPTIONS.includes(selectedTicketStatus.value)
     && selectedTicketStatus.value !== ticket.value.status
     && !isActionSubmitting.value,
   )
@@ -1126,7 +1142,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         linkLabel: '구매 계획으로 가기',
         linkTo: {
           name: 'Purchase',
-          query: { purchasePlanId: linkedPurchasePlanId.value },
+          query: { planId: linkedPurchasePlanId.value },
         },
       }
     : {
@@ -1567,7 +1583,9 @@ async function handleReject(reason: string) {
 }
 
 function handleTicketStatusSelect(value: string | number) {
-  selectedTicketStatus.value = value as TicketStatus
+  const status = String(value) as TicketStatus
+  if (!MANUAL_STATUS_CHANGE_OPTIONS.includes(status)) return
+  selectedTicketStatus.value = status
 }
 
 async function handleChangeStatus() {
