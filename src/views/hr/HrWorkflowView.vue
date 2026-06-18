@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 pb-6">
+    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto">
       <section class="shrink-0">
         <HrTemplate />
       </section>

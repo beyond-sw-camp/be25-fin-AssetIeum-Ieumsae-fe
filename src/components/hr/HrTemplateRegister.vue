@@ -7,77 +7,118 @@
     hide-footer
     @close="handleClose"
   >
-    <div class="flex min-h-full flex-col">
-      <div class="flex-1 px-6 py-5">
+    <div class="flex min-h-full flex-col bg-surface">
+      <div class="flex-1 overflow-y-auto px-8 py-7">
         <section class="space-y-5">
-          <div class="border-b border-primary/40 pb-3">
-            <h3 class="text-lg font-bold text-primary">
-              자산 구성 빌더
-            </h3>
-          </div>
+          <div class="rounded-lg border border-border bg-surface p-5">
+            <div class="mb-5 border-b border-border pb-3">
+              <h3 class="text-sm font-bold text-text-main">
+                품목 추가
+              </h3>
+            </div>
 
-          <button
-            type="button"
-            class="flex h-20 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/40 bg-surface text-base font-bold text-primary transition-colors hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            @click="addItemRow"
-          >
-            <PlusCircle :size="22" />
-            <span>자산 품목 추가</span>
-          </button>
-
-          <div class="grid grid-cols-[minmax(132px,1fr)_minmax(220px,1.7fr)_106px_40px] gap-4 px-2 text-sm font-bold text-text-sub">
-            <span>자산 유형</span>
-            <span>품목명</span>
-            <span class="text-center">수량</span>
-            <span class="sr-only">삭제</span>
-          </div>
-
-          <div class="space-y-3">
-            <div
-              v-for="(item, index) in items"
-              :key="item.rowId"
-              class="grid grid-cols-[minmax(132px,1fr)_minmax(220px,1.7fr)_106px_40px] items-center gap-4 rounded-lg bg-surface-secondary p-2"
-            >
-              <Dropdown
-                :id="`hr-template-asset-type-${item.rowId}`"
-                :model-value="item.assetType"
-                :options="assetTypeOptions"
-                @update:model-value="updateAssetType(index, $event)"
-              />
-
-              <div class="relative">
-                <Search
-                  :size="18"
-                  class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-text-sub"
-                />
+            <div class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_96px] items-end gap-3">
+              <label class="space-y-2">
+                <span class="text-xs font-bold text-text-sub">자산 유형</span>
                 <Dropdown
-                  :id="`hr-template-asset-item-${item.rowId}`"
-                  class="pl-0 [&>button]:pl-10"
-                  :model-value="item.assetItemId"
-                  :options="getAssetItemOptions(item.assetType)"
-                  root-option="자산 품목 선택"
-                  :disabled="!item.assetType"
-                  @update:model-value="updateAssetItem(index, $event)"
+                  id="hr-template-draft-asset-type"
+                  :model-value="draftItem.assetType"
+                  :options="assetTypeOptions"
+                  menu-strategy="fixed"
+                  @update:model-value="updateDraftAssetType"
                 />
+              </label>
+
+              <label class="space-y-2">
+                <span class="text-xs font-bold text-text-sub">품목명</span>
+                <Dropdown
+                  id="hr-template-draft-asset-item"
+                  :model-value="draftItem.assetItemId"
+                  :options="getAssetItemOptions(draftItem.assetType)"
+                  root-option="자산 품목 선택"
+                  menu-strategy="fixed"
+                  :disabled="!draftItem.assetType"
+                  @update:model-value="updateDraftAssetItem"
+                />
+              </label>
+
+              <label class="space-y-2">
+                <span class="text-xs font-bold text-text-sub">수량</span>
+                <Input
+                  id="hr-template-draft-quantity"
+                  :model-value="draftItem.quantity"
+                  type="number"
+                  :min="1"
+                  @update:model-value="updateDraftQuantity"
+                />
+              </label>
+
+              <Button
+                :disabled="!canAddDraftItem"
+                class="w-20"
+                @click="addDraftItem"
+              >
+                <div class="flex items-center justify-center gap-1.5">
+                  <PlusCircle :size="14" />
+                  <span>추가</span>
+                </div>
+              </Button>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-border bg-surface p-5">
+            <div class="mb-4 flex items-center justify-between border-b border-border pb-3">
+              <h4 class="text-sm font-bold text-text-main">
+                추가된 품목
+              </h4>
+              <span class="text-xs font-semibold text-text-sub">
+                총 {{ items.length }}개
+              </span>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-border">
+              <div class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_44px] gap-4 border-b border-border bg-surface-secondary px-4 py-3 text-xs font-bold text-text-sub">
+                <span>자산 유형</span>
+                <span>품목명</span>
+                <span class="text-center">수량</span>
+                <span class="pl-2">삭제</span>
               </div>
 
-              <Input
-                :id="`hr-template-quantity-${item.rowId}`"
-                :model-value="item.quantity"
-                type="number"
-                :min="1"
-                @update:model-value="updateQuantity(index, $event)"
-              />
-
-              <button
-                type="button"
-                class="flex h-9 w-9 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
-                :disabled="items.length === 1"
-                aria-label="자산 품목 삭제"
-                @click="removeItemRow(index)"
+              <div
+                v-if="items.length === 0"
+                class="flex h-32 items-center justify-center bg-surface text-sm text-text-sub"
               >
-                <Trash2 :size="21" />
-              </button>
+                추가된 자산 품목이 없습니다.
+              </div>
+
+              <div v-else class="divide-y divide-border">
+                <div
+                  v-for="(item, index) in items"
+                  :key="item.rowId"
+                  class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_44px] items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-secondary/60"
+                >
+                  <span class="text-sm font-semibold text-text-main">
+                    {{ ASSET_TYPE_LABEL[item.assetType] }}
+                  </span>
+
+                  <span class="truncate text-sm font-medium text-text-main">
+                    {{ item.productName }}
+                  </span>
+
+                  <span class="text-center text-sm font-semibold text-text-main">
+                    {{ item.quantity }}
+                  </span>
+
+                  <button
+                    type="button"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
+                    aria-label="자산 품목 삭제"
+                    @click="removeItemRow(index)"
+                  >
+                    <Trash2 :size="20" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -87,23 +128,15 @@
         </p>
       </div>
 
-      <div class="flex shrink-0 justify-end gap-4 border-t border-border px-8 py-6">
+      <div class="shrink-0 border-t border-border bg-surface px-8 py-5">
         <Button
-          variant="outline"
-          size="m"
-          :disabled="isSaving"
-          @click="handleClose"
-        >
-          취소
-        </Button>
-
-        <Button
+          class="w-full"
           size="m"
           :disabled="!isRegisterReady || isSaving"
           :loading="isSaving"
           @click="handleRegister"
         >
-          저장하기
+          등록하기
         </Button>
       </div>
     </div>
@@ -112,7 +145,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { PlusCircle, Search, Trash2 } from 'lucide-vue-next'
+import { PlusCircle, Trash2 } from 'lucide-vue-next'
 
 import { hrApi } from '@/api/hr.api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -126,6 +159,7 @@ interface TemplateItemForm {
   rowId: string
   assetType: HrTemplateAssetType
   assetItemId: string | number
+  productName: string
   quantity: string
 }
 
@@ -141,16 +175,18 @@ const createItemRow = (): TemplateItemForm => ({
   rowId: crypto.randomUUID(),
   assetType: props.assetTypes[0] ?? 'TANGIBLE',
   assetItemId: '',
+  productName: '',
   quantity: '1',
 })
 
-const items = ref<TemplateItemForm[]>([createItemRow()])
+const draftItem = ref<TemplateItemForm>(createItemRow())
+const items = ref<TemplateItemForm[]>([])
 const isSaving = ref(false)
 const errorMessage = ref('')
 
 const emit = defineEmits<{
   close: []
-  registered: []
+  registered: [updatedAt?: string]
 }>()
 
 const handleClose = () => {
@@ -209,8 +245,20 @@ const isRegisterReady = computed(() => (
   })
 ))
 
+const canAddDraftItem = computed(() => {
+  const quantityValue = Number(draftItem.value.quantity)
+
+  return Boolean(
+    draftItem.value.assetType
+    && draftItem.value.assetItemId
+    && Number.isInteger(quantityValue)
+    && quantityValue > 0,
+  )
+})
+
 function resetForm() {
-  items.value = [createItemRow()]
+  draftItem.value = createItemRow()
+  items.value = []
   errorMessage.value = ''
 }
 
@@ -229,8 +277,8 @@ const handleRegister = async () => {
   errorMessage.value = ''
 
   try {
-    await hrApi.createTemplate(payload)
-    emit('registered')
+    const response = await hrApi.createTemplate(payload)
+    emit('registered', response.data.updatedAt ?? new Date().toISOString())
     handleClose()
   } catch (error) {
     console.error('HR 템플릿 등록 실패', error)
@@ -242,36 +290,52 @@ const handleRegister = async () => {
   }
 }
 
-function addItemRow() {
-  items.value.push(createItemRow())
-}
-
 function removeItemRow(index: number) {
-  if (items.value.length === 1) return
   items.value.splice(index, 1)
 }
 
-function updateAssetType(index: number, value: string | number) {
+function updateDraftAssetType(value: string | number) {
   const nextAssetType = String(value) as HrTemplateAssetType
-  const item = items.value[index]
-  if (!item || !props.assetTypes.includes(nextAssetType)) return
+  if (!props.assetTypes.includes(nextAssetType)) return
 
-  item.assetType = nextAssetType
-  item.assetItemId = ''
+  draftItem.value.assetType = nextAssetType
+  draftItem.value.assetItemId = ''
+  draftItem.value.productName = ''
 }
 
-function updateAssetItem(index: number, value: string | number) {
-  const item = items.value[index]
-  if (!item) return
+function updateDraftAssetItem(value: string | number) {
+  const selectedOption = getAssetItemOptions(draftItem.value.assetType)
+    .find((option) => String(option.value) === String(value))
 
-  item.assetItemId = value
+  draftItem.value.assetItemId = value
+  draftItem.value.productName = selectedOption?.label ?? ''
 }
 
-function updateQuantity(index: number, value: string) {
-  const item = items.value[index]
-  if (!item) return
+function updateDraftQuantity(value: string) {
+  draftItem.value.quantity = value
+}
 
-  item.quantity = value
+function addDraftItem() {
+  if (!canAddDraftItem.value) return
+
+  const existingItem = items.value.find((item) => (
+    item.assetType === draftItem.value.assetType
+    && String(item.assetItemId) === String(draftItem.value.assetItemId)
+  ))
+
+  if (existingItem) {
+    existingItem.quantity = String(Number(existingItem.quantity) + Number(draftItem.value.quantity))
+  } else {
+    items.value.push({
+      ...draftItem.value,
+      rowId: crypto.randomUUID(),
+    })
+  }
+
+  draftItem.value = {
+    ...createItemRow(),
+    assetType: draftItem.value.assetType,
+  }
 }
 
 function toApiId(value: string | number) {

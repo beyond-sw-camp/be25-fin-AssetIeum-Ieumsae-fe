@@ -7,16 +7,15 @@
         </h1>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex mr-3 items-center gap-2">
         <Button
           v-if="template"
           variant="outline"
-          size="md"
           :disabled="isLoading || isDeleting"
           :loading="isDeleting"
           @click="handleDeleteTemplate"
         >
-          삭제
+          템플릿 삭제
         </Button>
 
         <Button
@@ -26,7 +25,7 @@
           @click="openRegisterDrawer"
         >
           <div class="flex gap-1.5 text-center">
-            <RefreshCcw :size="16" />
+            <RefreshCcw :size="14" />
             <p>템플릿 다시 등록</p>
           </div>
         </Button>
@@ -68,8 +67,8 @@
         </Button>
       </div>
 
-      <div v-else class="flex flex-col min-h-0 overflow-y-auto gap-5">
-        <section class="flex-1 space-y-3 p-4 pb-0">
+      <div v-else class="flex flex-col min-h-0 overflow-y-auto gap-3">
+        <section class="flex-1 space-y-3 p-4 pt-2 pb-0">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-bold text-text-main">
               지급 자산
@@ -87,7 +86,7 @@
         </section>
 
         <section>
-          <p class="flex justify-end items-center text-text-sub text-sm pb-1 pr-3">수정일 : {{ formatDateTime(template.updatedAt) }}</p>
+          <p class="flex justify-end items-center text-text-sub text-sm pt-1 pb-1 pr-3">수정일 : {{ formatDateTime(template.updatedAt) }}</p>
         </section>
       </div>
     </div>
@@ -100,7 +99,7 @@
     :tangible-asset-items="tangibleAssetItems"
     :intangible-asset-items="intangibleAssetItems"
     @close="isRegisterDrawerOpen = false"
-    @registered="loadTemplate"
+    @registered="handleTemplateRegistered"
   />
 </template>
 
@@ -152,6 +151,29 @@ const getTemplateId = (value: HrTemplateResponse): HrTemplateId | null => (
   value.templateId ?? value.hrTemplateId ?? null
 )
 
+const resolveLatestUpdatedAt = (
+  value: HrTemplateResponse,
+  preferredUpdatedAt?: string,
+) => {
+  const candidates = [
+    preferredUpdatedAt,
+    value.updatedAt,
+    ...((value.items ?? []).flatMap((item) => [item.updatedAt, item.createdAt])),
+    value.createdAt,
+  ].filter((date): date is string => Boolean(date))
+
+  return candidates.reduce<string | undefined>((latest, current) => {
+    if (!latest) return current
+
+    const latestDate = new Date(latest)
+    const currentDate = new Date(current)
+    if (Number.isNaN(latestDate.getTime())) return current
+    if (Number.isNaN(currentDate.getTime())) return latest
+
+    return currentDate.getTime() > latestDate.getTime() ? current : latest
+  }, undefined)
+}
+
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-'
 
@@ -167,13 +189,18 @@ const formatDateTime = (value?: string | null) => {
   }).format(date)
 }
 
-const loadTemplate = async () => {
+const loadTemplate = async (preferredUpdatedAt?: string) => {
   isLoading.value = true
   errorMessage.value = ''
 
   try {
     const response = await hrApi.getTemplate()
-    template.value = hasTemplateItems(response.data) ? response.data : null
+    template.value = hasTemplateItems(response.data)
+      ? {
+          ...response.data,
+          updatedAt: resolveLatestUpdatedAt(response.data, preferredUpdatedAt),
+        }
+      : null
   } catch (error) {
     console.error('HR 템플릿 조회 실패', error)
     template.value = null
@@ -181,6 +208,10 @@ const loadTemplate = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const handleTemplateRegistered = (updatedAt?: string) => {
+  void loadTemplate(updatedAt)
 }
 
 const loadAssetItems = async () => {

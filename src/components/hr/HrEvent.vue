@@ -1,6 +1,6 @@
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
-    <div class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
+    <div class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 mb-3 md:flex-row md:items-center md:justify-between">
       <div>
         <h1 class="page-title text-lg">
           우리 부서 HR 이벤트
@@ -9,7 +9,7 @@
 
       <Button
         variant="primary"
-        size="md"
+        class="mr-3"
         :disabled="isLoadingMembers || isCreating"
         @click="openRegisterDrawer"
       >
@@ -18,8 +18,8 @@
       </Button>
     </div>
 
-    <div class="grid shrink-0 gap-3 px-1 md:grid-cols-2">
-      <section class="card flex min-h-24 items-center justify-between border border-border bg-surface p-5">
+    <div class="grid mx-1 shrink-0 px-1 md:grid-cols-2">
+      <section class="card m-1 flex min-h-24 items-center justify-between border border-border bg-surface p-5">
         <div>
           <p class="text-xs font-semibold text-text-sub">
             실행 대기 중인 이벤트
@@ -32,7 +32,7 @@
         <ClipboardClock :size="42" class="text-primary/10" />
       </section>
 
-      <section class="card flex min-h-24 items-center justify-between border border-border bg-surface p-5">
+      <section class="card m-1 flex min-h-24 items-center justify-between border border-border bg-surface p-5">
         <div>
           <p class="text-xs font-semibold text-text-sub">
             이달의 자동화 실행 완료
@@ -47,11 +47,8 @@
     </div>
 
     <section class="card mx-3 mt-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-surface">
-      <div class="flex shrink-0 flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex shrink-0 flex-col gap-3 border-b border-border px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <h2 class="text-lg font-bold text-text-main">
-            전체 이벤트 실행 리스트
-          </h2>
           <div class="flex items-center gap-2">
             <Dropdown
               :model-value="pagination.size"
@@ -78,12 +75,13 @@
               :options="statusFilterOptions"
             />
           </div>
-          <Button      
-            class="w-14 shrink-0"
-            :disabled="isLoading"
+          <Button
+            variant="primary"
+            class="shrink-0"
             @click="handleFilterSearch"
           >
-            조회
+            <Search :size="14" />
+            조회하기
           </Button>
         </div>
       </div>
@@ -169,7 +167,7 @@
         </Table>
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border px-5 py-3">
+      <div class="flex shrink-0 items-center justify-center border-t border-border px-4 pt-3">
         <div class="flex items-center justify-center gap-1">
           <button
             type="button"
@@ -229,7 +227,6 @@
         :is-loading-members="isLoadingMembers"
         :is-creating="isCreating"
         :error-message="formErrorMessage"
-        @close="handleCloseDrawer"
         @submit="handleCreateEvent"
       />
     </BaseDrawer>
@@ -243,6 +240,7 @@ import {
   ChevronRight,
   CircleCheckBig,
   ClipboardClock,
+  Search,
   Trash2,
   UserPlus,
 } from 'lucide-vue-next'
@@ -253,6 +251,7 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { useAuthStore } from '@/stores'
 import type { DropdownOption, Member, PageResponse } from '@/types'
 import type {
   HrEventId,
@@ -274,6 +273,30 @@ interface HrEventRow extends Record<string, unknown> {
   templateName: string
   status: HrEventStatus
   statusLabel: string
+}
+
+interface MemberAliasSource {
+  id?: string | number | null
+  memberId?: string | number | null
+  member_id?: string | number | null
+  memberNo?: string | number | null
+  employeeNo?: string | number | null
+  employee_no?: string | number | null
+  email?: string | null
+  memberEmail?: string | null
+  departmentId?: string | number | null
+  department_id?: string | number | null
+  departmentName?: string | null
+  department_name?: string | null
+  departmentNamePath?: string | null
+  department_name_path?: string | null
+  department?: {
+    departmentId?: string | number | null
+    id?: string | number | null
+    name?: string | null
+    departmentName?: string | null
+    departmentNamePath?: string | null
+  } | null
 }
 
 type EventDateSortOrder = 'ASC' | 'DESC'
@@ -314,10 +337,11 @@ const eventColumns = computed<Column<HrEventRow>[]>(() => [
     sortDirection: eventDateSortOrder.value === 'ASC' ? 'asc' : 'desc',
   },
   { key: 'statusLabel', label: '상태', align: 'center', width: '12%' },
-  { key: 'action', label: '관리(액션)', align: 'center', width: '18%' },
-  { key: 'delete', label: '관리(삭제)', align: 'center', width: '8%' },
+  { key: 'action', label: '관리(액션)', align: 'center', width: '15%' },
+  { key: 'delete', label: '관리(삭제)', align: 'center', width: '12%' },
 ])
 
+const authStore = useAuthStore()
 const isRegisterDrawerOpen = ref(false)
 const isLoading = ref(false)
 const isLoadingMembers = ref(false)
@@ -346,6 +370,17 @@ const filters = reactive<{
   status: '',
 })
 const isActing = computed(() => actingEventId.value !== null)
+const currentUser = computed(() => authStore.user as MemberAliasSource | null | undefined)
+const currentDepartmentId = computed(() => (
+  normalizeId(template.value?.departmentId) || getMemberDepartmentId(currentUser.value)
+))
+const currentDepartmentName = computed(() => (
+  normalizeText(template.value?.departmentName) || getMemberDepartmentName(currentUser.value)
+))
+const currentDepartmentPath = computed(() => getMemberDepartmentPath(currentUser.value))
+const currentMemberId = computed(() => getMemberId(currentUser.value))
+const currentMemberNo = computed(() => getMemberNo(currentUser.value))
+const currentMemberEmail = computed(() => getMemberEmail(currentUser.value))
 const eventTypeFormOptions = computed<DropdownOption[]>(() => (
   Object.entries(EVENT_TYPE_LABEL).map(([value, label]) => ({ label, value }))
 ))
@@ -464,8 +499,13 @@ async function loadMembers() {
   isLoadingMembers.value = true
 
   try {
-    const response = await memberApi.getList({ page: 0, size: 100, status: 'ACTIVE' })
-    members.value = response.data.content
+    const response = await memberApi.getList({
+      page: 0,
+      size: 999,
+      status: 'ACTIVE',
+    })
+
+    members.value = filterMembersByDepartment(response.data.content)
   } catch (error) {
     console.error('HR 이벤트 대상자 목록 조회 실패', error)
     members.value = []
@@ -491,6 +531,108 @@ function applyPage(page: PageResponse<HrEventResponse>) {
   pagination.size = page.size
   pagination.totalElements = page.totalElements
   pagination.totalPages = page.totalPages
+}
+
+function normalizeId(value: string | number | null | undefined) {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+function normalizeText(value: string | null | undefined) {
+  return value?.trim() ?? ''
+}
+
+function getMemberId(value: MemberAliasSource | null | undefined) {
+  return normalizeId(value?.memberId ?? value?.id ?? value?.member_id)
+}
+
+function getMemberNo(value: MemberAliasSource | null | undefined) {
+  return normalizeId(value?.memberNo ?? value?.employeeNo ?? value?.employee_no)
+}
+
+function getMemberEmail(value: MemberAliasSource | null | undefined) {
+  return normalizeText(value?.email ?? value?.memberEmail).toLowerCase()
+}
+
+function getMemberDepartmentId(value: MemberAliasSource | null | undefined) {
+  return normalizeId(
+    value?.departmentId
+    ?? value?.department_id
+    ?? value?.department?.departmentId
+    ?? value?.department?.id,
+  )
+}
+
+function getMemberDepartmentName(value: MemberAliasSource | null | undefined) {
+  return normalizeText(
+    value?.departmentName
+    ?? value?.department_name
+    ?? value?.department?.departmentName
+    ?? value?.department?.name,
+  )
+}
+
+function getMemberDepartmentPath(value: MemberAliasSource | null | undefined) {
+  return normalizeText(
+    value?.departmentNamePath
+    ?? value?.department_name_path
+    ?? value?.department?.departmentNamePath
+    ?? getMemberDepartmentName(value),
+  )
+}
+
+function findCurrentMember(items: Member[]) {
+  return items.find((member) => {
+    const memberSource = member as MemberAliasSource
+    const memberId = getMemberId(memberSource)
+    const memberNo = getMemberNo(memberSource)
+    const memberEmail = getMemberEmail(memberSource)
+
+    return Boolean(currentMemberId.value && memberId && memberId === currentMemberId.value)
+      || Boolean(currentMemberNo.value && memberNo && memberNo === currentMemberNo.value)
+      || Boolean(currentMemberEmail.value && memberEmail && memberEmail === currentMemberEmail.value)
+  })
+}
+
+function filterMembersByDepartment(items: Member[]) {
+  const currentMember = findCurrentMember(items)
+  const baseDepartmentId = currentDepartmentId.value || getMemberDepartmentId(currentMember)
+  const baseDepartmentName = currentDepartmentName.value || getMemberDepartmentName(currentMember)
+  const baseDepartmentPath = currentDepartmentPath.value || getMemberDepartmentPath(currentMember)
+
+  if (!baseDepartmentId && !baseDepartmentName && !baseDepartmentPath) {
+    console.warn('로그인 사용자 부서 정보를 찾지 못했습니다.', {
+      authUser: authStore.user,
+      currentMember,
+      sampleMember: items[0],
+    })
+    return []
+  }
+
+  return items.filter((member) => {
+    const memberDepartmentId = getMemberDepartmentId(member)
+    if (baseDepartmentId && memberDepartmentId) {
+      return memberDepartmentId === baseDepartmentId
+    }
+
+    const memberDepartmentName = getMemberDepartmentName(member)
+    if (baseDepartmentName && memberDepartmentName) {
+      return memberDepartmentName === baseDepartmentName
+    }
+
+    const memberDepartmentPath = getMemberDepartmentPath(member)
+    if (baseDepartmentName && memberDepartmentPath) {
+      return memberDepartmentPath
+        .split('>')
+        .map((part) => part.trim())
+        .includes(baseDepartmentName)
+    }
+
+    if (baseDepartmentPath && memberDepartmentPath) {
+      return memberDepartmentPath === baseDepartmentPath
+    }
+
+    return false
+  })
 }
 
 function openRegisterDrawer() {
@@ -526,7 +668,7 @@ function handleCloseDrawer() {
 async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
   if (isCreating.value) return
 
-  const selectedMember = members.value.find((member) => member.memberId === payload.memberId)
+  const selectedMember = members.value.find((member) => getMemberId(member) === payload.memberId)
   if (!selectedMember) {
     formErrorMessage.value = '이벤트 대상자를 다시 선택해주세요.'
     return
@@ -536,9 +678,8 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
   formErrorMessage.value = ''
 
   try {
-    // TODO: API 명세/백엔드 확인 필요 - 현재 서비스는 request.memberId 대신 로그인 멤버를 대상자로 저장한다.
     await hrApi.createEvent({
-      memberId: selectedMember.memberId,
+      memberId: getMemberId(selectedMember),
       eventType: payload.eventType,
       eventDate: toLocalDateTime(payload.eventDate),
     })
@@ -654,8 +795,8 @@ function isCurrentMonth(date: Date | null) {
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
 }
 
-onMounted(() => {
-  void loadTemplate()
+onMounted(async () => {
+  await loadTemplate()
   void loadMembers()
   void loadEvents()
 })

@@ -37,6 +37,8 @@ export interface HrTemplateItemResponse {
   assetItemId: HrTemplateId
   productName: string
   quantity: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 // =====================================================
