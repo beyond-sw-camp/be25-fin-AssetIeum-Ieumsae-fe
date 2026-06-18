@@ -2,10 +2,7 @@
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <div class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle mb-1">
-          HR 워크플로우 &gt; 입사 템플릿
-        </p>
-        <h1 class="page-title">
+        <h1 class="page-title text-lg">
           입사 템플릿 설정
         </h1>
       </div>
@@ -71,41 +68,26 @@
         </Button>
       </div>
 
-      <div v-else class="min-h-0 flex-1 overflow-y-auto p-4">
-        <section class="rounded-2xl border border-border bg-surface-secondary p-4">
-          <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p class="text-xs font-semibold text-text-sub">
-                적용 부서
-              </p>
-              <h2 class="mt-1 text-lg font-bold text-text-main">
-                {{ template.departmentName || '-' }}
-              </h2>
-            </div>
-
-            <div class="text-left text-xs text-text-sub md:text-right">
-              <p>생성일 {{ formatDateTime(template.createdAt) }}</p>
-              <p>수정일 {{ formatDateTime(template.updatedAt) }}</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="mt-4 space-y-3">
+      <div v-else class="flex flex-col min-h-0 overflow-y-auto gap-5">
+        <section class="flex-1 space-y-3 p-4 pb-0">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-bold text-text-main">
               지급 자산
             </h2>
-            <span class="text-xs text-text-sub">
+            <span class="text-xs text-text-sub px-2">
               총 {{ template.items?.length ?? 0 }}개 항목
             </span>
           </div>
-
           <Table
             :columns="templateItemColumns"
             :rows="templateItemRows"
             row-key="rowKey"
             empty-text="등록된 지급 자산이 없습니다."
           />
+        </section>
+
+        <section>
+          <p class="flex justify-end items-center text-text-sub text-sm pb-1 pr-3">수정일 : {{ formatDateTime(template.updatedAt) }}</p>
         </section>
       </div>
     </div>

@@ -2,10 +2,7 @@
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <div class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle mb-1">
-          HR 워크플로우 &gt; 이벤트 관리
-        </p>
-        <h1 class="page-title">
+        <h1 class="page-title text-lg">
           우리 부서 HR 이벤트
         </h1>
       </div>
@@ -21,7 +18,7 @@
       </Button>
     </div>
 
-    <div class="grid shrink-0 gap-3 px-3 md:grid-cols-2">
+    <div class="grid shrink-0 gap-3 px-1 md:grid-cols-2">
       <section class="card flex min-h-24 items-center justify-between border border-border bg-surface p-5">
         <div>
           <p class="text-xs font-semibold text-text-sub">
@@ -105,6 +102,7 @@
           row-key="rowKey"
           :loading="isLoading"
           empty-text="등록된 HR 이벤트가 없습니다."
+          @sort="handleSort"
         >
           <template #cell-eventNo="{ value }">
             <span class="font-semibold text-primary">{{ value }}</span>
@@ -156,15 +154,17 @@
           </template>
 
           <template #cell-delete="{ row }">
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+            <Button
+              variant="danger"
+              size="sm"
+              class="gap-1"
               :disabled="row.status !== 'PENDING' || isActing"
               aria-label="HR 이벤트 삭제"
               @click.stop="handleDeleteEvent(row)"
             >
-              <Trash2 :size="16" />
-            </button>
+              <Trash2 :size="14" />
+              <span class="hidden md:inline">삭제</span>
+            </Button>
           </template>
         </Table>
       </div>
@@ -276,6 +276,8 @@ interface HrEventRow extends Record<string, unknown> {
   statusLabel: string
 }
 
+type EventDateSortOrder = 'ASC' | 'DESC'
+
 const EVENT_PAGE_SIZE = 20
 const PAGE_SIZE_OPTIONS: DropdownOption[] = [
   { label: '10개씩 보기', value: 10 },
@@ -299,16 +301,22 @@ const STATUS_LABEL: Record<HrEventStatus, string> = {
   CANCELED: '취소됨',
 }
 
-const eventColumns: Column<HrEventRow>[] = [
-  { key: 'eventNo', label: '이벤트 ID', width: '15%' },
-  { key: 'targetMemberName', label: '대상자명', width: '14%' },
+const eventColumns = computed<Column<HrEventRow>[]>(() => [
+  { key: 'eventNo', label: '이벤트 ID', align: 'center', width: '15%' },
+  { key: 'targetMemberName', label: '대상자명', align: 'center', width: '13%' },
   { key: 'eventTypeLabel', label: '이벤트 유형', align: 'center', width: '13%' },
-  { key: 'eventDate', label: '이벤트 예정일', align: 'center', width: '15%' },
-  { key: 'templateName', label: '매칭된 템플릿', width: '21%' },
+  {
+    key: 'eventDate',
+    label: '이벤트 예정일',
+    align: 'center',
+    width: '15%',
+    sortable: true,
+    sortDirection: eventDateSortOrder.value === 'ASC' ? 'asc' : 'desc',
+  },
   { key: 'statusLabel', label: '상태', align: 'center', width: '12%' },
-  { key: 'action', label: '관리(액션)', align: 'center', width: '12%' },
+  { key: 'action', label: '관리(액션)', align: 'center', width: '18%' },
   { key: 'delete', label: '관리(삭제)', align: 'center', width: '8%' },
-]
+])
 
 const isRegisterDrawerOpen = ref(false)
 const isLoading = ref(false)
@@ -318,6 +326,7 @@ const actingEventId = ref<HrEventId | null>(null)
 const errorMessage = ref('')
 const formErrorMessage = ref('')
 const events = ref<HrEventResponse[]>([])
+const eventDateSortOrder = ref<EventDateSortOrder>('ASC')
 const members = ref<Member[]>([])
 const template = ref<HrTemplateResponse | null>(null)
 const pendingSummaryCount = ref(0)
@@ -351,7 +360,9 @@ const statusFilterOptions = computed<DropdownOption[]>(() => [
   { label: '실행 완료', value: 'COMPLETED' },
   { label: '취소됨', value: 'CANCELLED' },
 ])
-const eventRows = computed<HrEventRow[]>(() => events.value.map(toEventRow))
+const eventRows = computed<HrEventRow[]>(() => (
+  [...events.value].sort(compareEventsByDate).map(toEventRow)
+))
 const pendingCount = computed(() => pendingSummaryCount.value)
 const completedThisMonthCount = computed(() => completedThisMonthSummaryCount.value)
 const matchedTemplateLabel = computed(() => getTemplateLabel(template.value))
@@ -394,6 +405,19 @@ function toEventRow(event: HrEventResponse): HrEventRow {
     status,
     statusLabel: STATUS_LABEL[status] ?? status,
   }
+}
+
+function compareEventsByDate(current: HrEventResponse, next: HrEventResponse) {
+  const currentTime = getEventDateTime(current.eventDate)
+  const nextTime = getEventDateTime(next.eventDate)
+
+  if (currentTime === null && nextTime === null) return 0
+  if (currentTime === null) return 1
+  if (nextTime === null) return -1
+
+  return eventDateSortOrder.value === 'ASC'
+    ? currentTime - nextTime
+    : nextTime - currentTime
 }
 
 async function loadEvents() {
@@ -486,6 +510,11 @@ function handlePageSizeChange(value: string | number) {
   pagination.size = nextSize
   pagination.page = 0
   void loadEvents()
+}
+
+function handleSort(key: string) {
+  if (key !== 'eventDate') return
+  eventDateSortOrder.value = eventDateSortOrder.value === 'ASC' ? 'DESC' : 'ASC'
 }
 
 function handleCloseDrawer() {
@@ -609,6 +638,13 @@ function toLocalDateTime(value: string) {
 function resolveEventDate(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getEventDateTime(value?: string | null) {
+  if (!value) return null
+
+  const date = resolveEventDate(value.includes('T') ? value : `${value}T00:00:00`)
+  return date?.getTime() ?? null
 }
 
 function isCurrentMonth(date: Date | null) {
