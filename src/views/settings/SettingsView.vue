@@ -170,18 +170,18 @@ const purchaseModeOptions: Array<{
   },
   {
     label: '직접 구매',
-    value: 'DIRECT_PURCHASE',
+    value: 'ONLY_DIRECT_PURCHASE',
     description: '요청자가 직접 구매 후 증빙합니다.',
   },
   {
     label: '병행 운영',
-    value: 'PARALLEL_OPERATION',
+    value: 'PARALLEL',
     description: '두 구매 방식을 함께 사용합니다.',
   },
 ]
 
 const policyForm = reactive<PurchasePolicyUpdateRequest>({
-  purchaseMode: 'PARALLEL_OPERATION',
+  purchaseMode: 'PARALLEL',
   allowDirectPurchase: true,
   allowParallelOperation: true,
   overPercentageLimit: 10,
@@ -202,7 +202,7 @@ const currentPolicySummary = computed(() => {
 function setPurchaseMode(value: PurchasePolicyMode) {
   policyForm.purchaseMode = value
   policyForm.allowDirectPurchase = value !== 'ONLY_ASSET_TEAM'
-  policyForm.allowParallelOperation = value === 'PARALLEL_OPERATION'
+  policyForm.allowParallelOperation = value === 'PARALLEL'
 }
 
 async function savePolicy() {
