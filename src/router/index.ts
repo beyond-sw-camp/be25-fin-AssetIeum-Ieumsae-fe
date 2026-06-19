@@ -98,6 +98,19 @@ const router = createRouter({
             },
           ],
         },
+        
+        // ─── 유형자산 ────────────────────────────────
+        {
+          path: 'assets/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetList',
+              component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
+              meta: { title: '유형자산 목록' },
+            },
+          ],
+        },
 
         // ─── 유형자산 품목 ────────────────────────────────
         {
@@ -111,19 +124,6 @@ const router = createRouter({
             }
           ]
         }, 
-
-        // ─── 유형자산 ────────────────────────────────
-        {
-          path: 'assets/tangible',
-          children: [
-            {
-              path: '',
-              name: 'TangibleAssetList',
-              component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
-              meta: { title: '유형자산 목록' },
-            },
-          ],
-        },
 
         // ─── 무형자산 품목 ────────────────────────────────
         {
@@ -162,16 +162,16 @@ const router = createRouter({
           path: 'inspections',
           children: [
             {
-              path: '',
-              name: 'InspectionList',
-              component: () => import('@/views/inspection/InspectionListView.vue'),
-              meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              path: 'tangible',
+              name: 'TangibleInspection',
+              component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
+              meta: { title: '유형자산 전수조사', roles: ['ASSET_MANAGER', 'EMPLOYEE'] },
             },
             {
-              path: ':InspectionId',
-              name: 'InspectionDetail',
-              component: () => import('@/views/inspection/InspectionDetailView.vue'),
-              meta: { title: '전수조사 상세' },
+              path: 'intangible',
+              name: 'IntagibleInspection',
+              component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
+              meta: { title: '무형자산 전수조사' },
             },
           ],
         },

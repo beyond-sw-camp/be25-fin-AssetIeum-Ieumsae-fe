@@ -55,40 +55,46 @@ export function usePermission() {
   const canViewDepartmentTickets = computed(() =>
     canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER')
   )
-
-  // HR 라이프사이클 워크플로우 조회/실행은 부서책임자 역할 기준이다.
-  const canViewHrWorkflow = computed(() => hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER'))
-
+  
   const canViewAllTickets = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-  )
+)
 
-  const canManageTickets = computed(() =>
-    canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
-  )
+const canManageTickets = computed(() =>
+  canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
+)
 
-  // 구매 관련 기능 (구매자산팀)
-  const canPurchase = computed(() =>
-    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-  )
+// 구매 관련 기능 (구매자산팀)
+const canPurchase = computed(() =>
+  canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+)
 
-  // 예산 관리 (최고관리자)
-  const canManageBudget = computed(() => canAccessAllPages.value)
+// 예산 관리 (최고관리자)
+const canManageBudget = computed(() => canAccessAllPages.value)
 
-  // 자산 등록 (구매자산팀)
-  const canRegisterAsset = computed(() =>
-    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-  )
+// 자산 등록 (구매자산팀)
+const canRegisterAsset = computed(() =>
+  canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+)
 
-  // 자산 등록 (구매자산팀)
-  const canUpdateAsset = computed(() =>
-    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-  )
+// 자산 등록 (구매자산팀)
+const canUpdateAsset = computed(() =>
+  canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+)
 
-  // HR 템플릿 등록 (구매자산팀장, 부서책임자)
-  const canRegisterHrTemplate = computed(() => 
-    hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER')
-  )
+// HR 템플릿 등록
+const canRegisterHrTemplate = computed(() => 
+  hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
+)
+
+// HR 라이프사이클 워크플로우 조회/실행은 부서책임자 역할 기준이다.x
+const canViewHrWorkflow = computed(() => 
+  hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
+)
+
+const canViewInspection = computed(() => 
+  hasRole('ASSET_MANAGER')
+)
 
   return {
     role,
@@ -112,5 +118,6 @@ export function usePermission() {
     canRegisterAsset,
     canUpdateAsset,
     canRegisterHrTemplate,
+    canViewInspection
   }
 }
