@@ -229,12 +229,12 @@ const PAGE_SIZE_OPTIONS: DropdownOption[] = [
   { label: '20개씩 보기', value: 20 },
   { label: '50개씩 보기', value: 50 },
 ]
-const SYSTEM_ADMIN_ROLES: Role[] = ['SYSTEM_ADMIN', 'SUPER_ADMIN']
+const PLATFORM_ADMIN_ROLES: Role[] = ['SUPER_ADMIN']
 
 const { hasRole } = usePermission()
 const notificationStore = useNotificationStore()
 
-const canManagePlatform = computed(() => hasRole(...SYSTEM_ADMIN_ROLES))
+const canManagePlatform = computed(() => hasRole(...PLATFORM_ADMIN_ROLES))
 const companies = ref<Company[]>([])
 const page = ref(0)
 const pageSize = ref(20)

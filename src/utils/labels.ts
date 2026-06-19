@@ -80,7 +80,6 @@ export function getTicketTypeLabel(
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  SYSTEM_ADMIN: '시스템 관리자',
   SUPER_ADMIN: '시스템 관리자',
   ADMIN: '최고 관리자',
   DEPARTMENT_MANAGER: '부서책임자',

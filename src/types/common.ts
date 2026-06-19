@@ -27,7 +27,6 @@ export interface DropdownOption {
 // =====================================================
 
 export type Role =
-  | 'SYSTEM_ADMIN'
   | 'SUPER_ADMIN'      // 플랫폼 시스템 관리자
   | 'ADMIN'            // 회사 최고 관리자
   | 'DEPARTMENT_MANAGER' // 부서책임자

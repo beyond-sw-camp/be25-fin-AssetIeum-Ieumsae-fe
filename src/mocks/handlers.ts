@@ -190,7 +190,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
     email: 'system@asset-ieum.com',
     departmentId: PLATFORM_DEPARTMENT_ID,
     departmentName: '시스템 관리',
-    role: 'SYSTEM_ADMIN',
+    role: 'SUPER_ADMIN',
     status: 'ACTIVE',
     createdAt: '2026-01-01T09:00:00',
   },
@@ -2503,8 +2503,8 @@ export const handlers = [
     const credentials = await request.json() as LoginRequest
     const member = members.find((item) => item.memberNo === credentials.memberNo)
 
-    const isSystemLogin = credentials.companyCode === SYSTEM_COMPANY_CODE && member?.role === 'SYSTEM_ADMIN'
-    const isCompanyLogin = credentials.companyCode === MOCK_COMPANY_CODE && member?.role !== 'SYSTEM_ADMIN'
+    const isSystemLogin = credentials.companyCode === SYSTEM_COMPANY_CODE && member?.role === 'SUPER_ADMIN'
+    const isCompanyLogin = credentials.companyCode === MOCK_COMPANY_CODE && member?.role !== 'SUPER_ADMIN'
 
     if (
       (!isSystemLogin && !isCompanyLogin) ||

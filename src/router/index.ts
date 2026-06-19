@@ -47,7 +47,7 @@ const router = createRouter({
           path: 'system/companies',
           name: 'SystemCompanies',
           component: () => import('@/views/system/SystemAdminView.vue'),
-          meta: { title: '회사 관리', roles: ['SYSTEM_ADMIN', 'SUPER_ADMIN'] },
+          meta: { title: '회사 관리', roles: ['SUPER_ADMIN'] },
         },
         {
           path: 'organization',
@@ -93,7 +93,7 @@ const router = createRouter({
               component: () => import('@/views/ticket/TicketManagementView.vue'),
               meta: {
                 title: '티켓 관리',
-                roles: ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+                roles: ['ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
               },
             },
             {
@@ -195,7 +195,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 계획', roles: ['SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+          meta: { title: '구매 계획', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
         },
 
         // ─── 로그 ─────────────────────────────────────
@@ -271,12 +271,12 @@ router.beforeEach(async (to) => {
   }
 
   // 역할 체크
-  if (to.name === 'Dashboard' && auth.currentRole === 'SYSTEM_ADMIN') {
+  if (to.name === 'Dashboard' && auth.currentRole === 'SUPER_ADMIN') {
     return { name: 'SystemCompanies' }
   }
 
   if (to.meta.roles && to.meta.roles.length > 0) {
-    const canAccessAllPages = auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN'
+    const canAccessAllPages = auth.currentRole === 'ADMIN'
     if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
       return { name: 'Dashboard' } // 권한 없으면 대시보드로
     }
