@@ -709,7 +709,7 @@ const submitLabel = computed(() => (mode.value === 'assign' ? '배정하기' : '
 const assignmentStatusText = (value: string) => {
   if (value === 'ACTIVE' || value === 'ASSIGNED') return '배정 중'
   if (value === 'ENDED' || value === 'RETURNED') return '종료'
-  if (value === 'CANCELED') return '취소'
+  if (value === 'CANCELLED') return '취소'
   if (value === 'EXPIRED') return '만료'
   return value || '-'
 }

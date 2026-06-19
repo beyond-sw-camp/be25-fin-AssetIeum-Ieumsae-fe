@@ -52,7 +52,7 @@ const toBoolean = (value: number | boolean | undefined) => {
   return value
 }
 
-export type TangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
+export type TangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELLED' | 'EXPIRED' | string
 export type TangibleAssetAssignmentUsageType = 'TEMPORARY' | 'PERMANENT' | string
 export type TangibleAssetAssignmentAssetUsageType = 'PERSONAL' | 'DEPARTMENT' | string
 
@@ -83,7 +83,7 @@ export interface TangibleAssetAssignmentResponse extends Record<string, unknown>
   assignmentStatus: TangibleAssetAssignmentStatus
 }
 
-export type IntangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED' | string
+export type IntangibleAssetAssignmentStatus = 'ACTIVE' | 'ENDED' | 'ASSIGNED' | 'RETURNED' | 'CANCELLED' | 'EXPIRED' | string
 
 export interface IntangibleAssetAssignmentRequest {
   memberId: string
