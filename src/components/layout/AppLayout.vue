@@ -94,8 +94,8 @@ const navItems = computed(() => {
       children: [
         { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canManageInspection.value },
         { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canManageInspection.value },
-        { name: 'tangible-response', to: '/inspections/tangible/respond', label: '유형자산', show: canRespondInspection.value },
-        { name: 'intangible-response', to: '/inspections/intangible/respond', label: '무형자산', show: canRespondInspection.value },
+        { name: 'tangible-response', to: '/inspections/tangible/respond', label: '유형자산 응답', show: canRespondInspection.value },
+        { name: 'intangible-response', to: '/inspections/intangible/respond', label: '무형자산 응답', show: canRespondInspection.value },
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
