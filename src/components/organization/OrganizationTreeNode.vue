@@ -23,7 +23,6 @@
       <span v-else class="w-5" />
 
       <button
-        v-if="!isRoot"
         type="button"
         class="flex min-w-0 flex-1 items-center gap-2 text-left"
         @click="emit('select', props.node.departmentId)"
@@ -32,21 +31,16 @@
         <Folder v-else :size="18" />
         <span class="truncate text-sm font-medium">{{ props.node.name }}</span>
       </button>
-      <div v-else class="flex min-w-0 flex-1 items-center gap-2">
-        <FolderOpen v-if="isExpanded && props.node.children.length" :size="18" />
-        <Folder v-else :size="18" />
-        <span class="truncate text-sm font-medium">{{ props.node.name }}</span>
-      </div>
 
       <span
-        v-if="!isRoot && props.node.memberCount > 0"
+        v-if="props.node.memberCount > 0"
         class="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white"
       >
         {{ props.node.memberCount }}
       </span>
 
       <button
-        v-if="props.canDelete && props.node.parentDepartmentId !== null"
+        v-if="props.canDelete"
         type="button"
         class="rounded-lg p-1 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
         :aria-label="`${props.node.name} 삭제`"
@@ -72,7 +66,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, Folder, FolderOpen, Trash2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import type { DepartmentTreeNode } from '@/types'
 
@@ -94,5 +88,4 @@ const emit = defineEmits<{
 }>()
 
 const isExpanded = ref(true)
-const isRoot = computed(() => props.node.parentDepartmentId === null)
 </script>

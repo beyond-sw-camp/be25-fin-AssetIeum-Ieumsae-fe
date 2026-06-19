@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
       <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
@@ -835,7 +835,7 @@ async function handleCancelTicket() {
   isCancelling.value = true
 
   try {
-    await ticketApi.cancel(ticketId.value)
+    await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
     isCancelModalOpen.value = false
     await loadTicketDetail()
     notificationStore.success('요청이 취소되었습니다.')

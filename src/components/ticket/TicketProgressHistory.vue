@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <TicketDetailCard title="진행 히스토리" class="h-full">
     <template #icon>
       <History :size="18" class="text-primary" />

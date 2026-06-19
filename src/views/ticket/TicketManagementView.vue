@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     :class="[
       'relative flex h-full min-h-0 flex-col bg-background text-text-main',
