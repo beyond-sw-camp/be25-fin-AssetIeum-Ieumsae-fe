@@ -194,6 +194,15 @@ const router = createRouter({
 
         // ─── 로그 ─────────────────────────────────────
         {
+          path: 'reports/operations',
+          name: 'OperationReport',
+          component: () => import('@/views/report/OperationReportView.vue'),
+          meta: {
+            title: '운영 리포트',
+            roles: ['SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'DEPARTMENT_MANAGER'],
+          },
+        },
+        {
           path: 'logs',
           redirect: { name: 'AuditLog' },
         },

@@ -25,6 +25,10 @@ import type {
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
   PurchaseReturnRequestCreate,
+  DepartmentOverdueReportItem,
+  PurchaseRequestReportItem,
+  RepeatedOverdueUserReportItem,
+  ReturnRequestReportResponse,
   PurchaseRequestMethod,
   RentalExtensionRequestCreate,
   RentalRequestCreate,
@@ -142,6 +146,30 @@ let departments: Department[] = [
 function mockMemberId(sequence: number): string {
   return `55555555-5555-5555-5555-${String(sequence).padStart(12, '0')}`
 }
+
+const reportDepartmentOverdueRows: DepartmentOverdueReportItem[] = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', unreturnedAssetCount: 18, delayedReturnCount: 7, totalOverdueDays: 46 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', unreturnedAssetCount: 13, delayedReturnCount: 4, totalOverdueDays: 28 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', unreturnedAssetCount: 6, delayedReturnCount: 2, totalOverdueDays: 11 },
+]
+
+const reportRepeatedOverdueUserRows: RepeatedOverdueUserReportItem[] = [
+  { memberId: mockMemberId(4), memberNo: 'EMP0004', memberName: '박지연', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', delayedReturnCount: 5, totalOverdueDays: 24, latestOverdueDate: '2026-06-12' },
+  { memberId: mockMemberId(5), memberNo: 'EMP0005', memberName: '이민수', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', delayedReturnCount: 3, totalOverdueDays: 14, latestOverdueDate: '2026-06-03' },
+  { memberId: mockMemberId(3), memberNo: 'EMP0003', memberName: '최하늘', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', delayedReturnCount: 2, totalOverdueDays: 9, latestOverdueDate: '2026-05-28' },
+]
+
+const reportReturnRequestRows: NonNullable<ReturnRequestReportResponse['content']> = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', createdCount: 16, completedCount: 11, averageProcessingDays: 3, overdueDays: 12 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', createdCount: 9, completedCount: 7, averageProcessingDays: 2, overdueDays: 5 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', createdCount: 4, completedCount: 4, averageProcessingDays: 1, overdueDays: 0 },
+]
+
+const reportPurchaseRequestRows: PurchaseRequestReportItem[] = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', requestCount: 22, cumulativeQuantity: 41, approvedCount: 16, completedCount: 9 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', requestCount: 14, cumulativeQuantity: 27, approvedCount: 10, completedCount: 7 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', requestCount: 7, cumulativeQuantity: 13, approvedCount: 5, completedCount: 4 },
+]
 
 function getDepartmentNamePath(departmentId: string): string {
   const names: string[] = []
@@ -2148,6 +2176,19 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
   }
 }
 
+function reportDepartmentFilter<T extends { departmentId?: string }>(request: Request, rows: T[]) {
+  const departmentId = new URL(request.url).searchParams.get('department_id')
+  return departmentId ? rows.filter((row) => row.departmentId === departmentId) : rows
+}
+
+function reportPageParams(request: Request) {
+  const url = new URL(request.url)
+  return {
+    page: Number(url.searchParams.get('page') ?? 0),
+    size: Number(url.searchParams.get('size') ?? 10),
+  }
+}
+
 export const handlers = [
   http.get(`${API_PREFIX}/dashboard/admin/assets/summary`, ({ request }) => (
     HttpResponse.json(ok(
@@ -2169,6 +2210,52 @@ export const handlers = [
       '사원 대시보드 mock 데이터입니다.',
     ))
   )),
+
+  http.get(`${API_PREFIX}/reports/overdue-assets`, ({ request }) => {
+    const { page, size } = reportPageParams(request)
+    const rows = reportDepartmentFilter(request, reportDepartmentOverdueRows)
+      .sort((a, b) => (b.unreturnedAssetCount ?? 0) - (a.unreturnedAssetCount ?? 0))
+
+    return HttpResponse.json(ok(pageOf(rows, page, size), '운영 리포트 mock 데이터입니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/reports/repeated-overdue-users`, ({ request }) => {
+    const url = new URL(request.url)
+    const { page, size } = reportPageParams(request)
+    const minOverdueCount = Number(url.searchParams.get('min_overdue_count') ?? 0)
+    const rows = reportDepartmentFilter(request, reportRepeatedOverdueUserRows)
+      .filter((row) => (row.delayedReturnCount ?? row.overdueCount ?? 0) >= minOverdueCount)
+      .sort((a, b) => (b.delayedReturnCount ?? b.overdueCount ?? 0) - (a.delayedReturnCount ?? a.overdueCount ?? 0))
+
+    return HttpResponse.json(ok(pageOf(rows, page, size), '운영 리포트 mock 데이터입니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/reports/return-requests`, ({ request }) => {
+    const rows = reportDepartmentFilter(request, reportReturnRequestRows)
+    const summary = rows.reduce<NonNullable<ReturnRequestReportResponse['summary']>>((acc, row) => ({
+      createdCount: (acc.createdCount ?? 0) + (row.createdCount ?? row.requestedCount ?? 0),
+      completedCount: (acc.completedCount ?? 0) + (row.completedCount ?? 0),
+      averageProcessingDays: Math.max(acc.averageProcessingDays ?? 0, row.averageProcessingDays ?? 0),
+      overdueDays: (acc.overdueDays ?? 0) + (row.overdueDays ?? 0),
+    }), {})
+
+    return HttpResponse.json(ok({
+      summary,
+      content: rows,
+      page: 0,
+      size: rows.length,
+      totalElements: rows.length,
+      totalPages: rows.length > 0 ? 1 : 0,
+    }, '운영 리포트 mock 데이터입니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/reports/purchase-requests`, ({ request }) => {
+    const { page, size } = reportPageParams(request)
+    const rows = reportDepartmentFilter(request, reportPurchaseRequestRows)
+      .sort((a, b) => (b.cumulativeQuantity ?? b.totalQuantity ?? 0) - (a.cumulativeQuantity ?? a.totalQuantity ?? 0))
+
+    return HttpResponse.json(ok(pageOf(rows, page, size), '운영 리포트 mock 데이터입니다.'))
+  }),
 
   http.get(`${API_PREFIX}/purchase-plans`, ({ request }) => {
     const url = new URL(request.url)

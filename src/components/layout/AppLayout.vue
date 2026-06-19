@@ -20,6 +20,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+  BarChart3,
   Building2,
   FileText,
   Laptop,
@@ -46,7 +47,12 @@ const {
   canManageTickets,
   canPurchase,
   canViewMyTickets,
+  hasRole,
 } = usePermission()
+
+const canViewOperationReports = computed(() =>
+  hasRole('SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'DEPARTMENT_MANAGER'),
+)
 
 const navItems = computed(() => {
   const menuConfig = [
@@ -83,6 +89,7 @@ const navItems = computed(() => {
     },
     { name: 'surveys', to: '/surveys', label: '전수조사', icon: Search, show: canManageAsset.value },
     { name: 'purchase', to: '/purchase', label: '구매 계획', icon: ShoppingCart, show: canPurchase.value },
+    { name: 'operation-report', to: '/reports/operations', label: '운영 리포트', icon: BarChart3, show: canViewOperationReports.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
