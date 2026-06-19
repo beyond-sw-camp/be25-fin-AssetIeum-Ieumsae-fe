@@ -60,7 +60,7 @@ export function usePermission() {
   
   const canViewAllTickets = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-)
+  )
 
   const canManageTickets = computed(() =>
     canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
