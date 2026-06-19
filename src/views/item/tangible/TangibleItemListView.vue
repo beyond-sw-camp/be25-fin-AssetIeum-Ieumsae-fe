@@ -19,7 +19,6 @@
         <TangibleItemCategory
           :is-open="isCategoryDrawerOpen"
           :initial-categories="cascadingOptions"
-          :company-id="companyId"
           @close="isCategoryDrawerOpen = false"
           @changed="handleCategoryChanged"
         />
@@ -31,7 +30,6 @@
         <TangibleItemRegister
           :is-open="isRegisterDrawerOpen"
           :initial-categories="cascadingOptions"
-          :company-id="companyId"
           @close="isRegisterDrawerOpen = false"
           @registered="handleItemRegistered"
         />
@@ -68,19 +66,19 @@
           </label>
           <div class="flex gap-8 mt-2">
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-              <div class="relative flex items-center justify-center">
+              <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <input v-model="itemEditForm.isStandard" type="radio" :value="1" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
-                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+                <div class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"></div>
               </div>
               <span>표준 자산</span>
             </label>
 
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-              <div class="relative flex items-center justify-center">
+              <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
                 <input v-model="itemEditForm.isStandard" type="radio" :value="0" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
-                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+                <div class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"></div>
               </div>
               <span>비표준 자산</span>
             </label>
@@ -245,11 +243,10 @@ import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api'
-import { useAuthStore } from '@/stores'
 import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
-import TangibleItemCategory from './TangibleItemCategory.vue';
-import TangibleItemRegister from './TangibleItemRegister.vue';
+import TangibleItemCategory from '../../../components/item/tangible/TangibleItemCategory.vue';
+import TangibleItemRegister from '../../../components/item/tangible/TangibleItemRegister.vue';
 import Input from '@/components/common/Input.vue';
 
 interface Asset {
@@ -308,9 +305,6 @@ type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
 }
 
 type CategoryGroup = TangibleCategoryGroup
-const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
-const authStore = useAuthStore()
-const companyId = computed(() => authStore.user?.companyId ?? '')
 
 const toRadioValue = (value: number | boolean | undefined) => {
   if (typeof value === 'boolean') return value ? 1 : 0
@@ -329,7 +323,6 @@ const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보�
 const rowsPerPageText = ref('20개씩 보기');
 
 const searchParams = ref({
-  companyId: '1',
   categoryName: '전체 품목 보기',
   categoryId: '',
   keyword: '',
@@ -339,66 +332,7 @@ const searchParams = ref({
   size: 20
 });
 
-const DEFAULT_CASCADING_OPTIONS: CategoryGroup[] = [
-  {
-    mainCategory: 'IT / 전자기기',
-    subCategories: [
-      '노트북',
-      '노트북 커버',
-      '모니터',
-      '스마트폰',
-      '태블릿',
-      '주변기기',
-      '키보드',
-      '마우스',
-      '웹캠',
-      '외장 저장장치',
-    ],
-    childCategories: {
-      노트북: ['노트북 커버'],
-      주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
-    },
-  },
-  {
-    mainCategory: '사무용 가구',
-    subCategories: ['사무가구', '의자', '책상', '회의 테이블'],
-    childCategories: {
-      사무가구: ['의자', '책상', '회의 테이블'],
-    },
-  },
-  {
-    mainCategory: '사무기기 / 가전',
-    subCategories: ['사무기기', '복합기', '라벨프린터'],
-    childCategories: {
-      사무기기: ['복합기', '라벨프린터'],
-    },
-  }
-];
-
-const cloneCategoryGroups = (groups: CategoryGroup[]): CategoryGroup[] => (
-  groups.map((group) => ({
-    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-    ...(group.childCategories
-      ? {
-          childCategories: Object.fromEntries(
-            Object.entries(group.childCategories).map(([key, values]) => [key, [...values]]),
-          ),
-        }
-      : {}),
-    ...(group.subCategoryIds
-      ? { subCategoryIds: { ...group.subCategoryIds } }
-      : {}),
-    ...(group.childCategoryIds
-      ? { childCategoryIds: { ...group.childCategoryIds } }
-      : {}),
-  }))
-);
-
-const cascadingOptions = ref<CategoryGroup[]>(
-  useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [],
-);
+const cascadingOptions = ref<CategoryGroup[]>([]);
 
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
 
@@ -672,16 +606,10 @@ const toCategoryGroups = (categories: CategoryTreeNode[]): CategoryGroup[] => (
 )
 
 const loadCategories = async () => {
-  if (!companyId.value) {
-    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
-    return
-  }
-
   try {
-    const response = await tangibleItemApi.getCategories(companyId.value)
+    const response = await tangibleItemApi.getCategories()
     cascadingOptions.value = toCategoryGroups(response.data as CategoryTreeNode[])
   } catch {
-    if (useMockData) return
     cascadingOptions.value = []
   }
 }
@@ -721,14 +649,6 @@ const toAssetRow = (item: TangibleItemResponse): Asset => {
 };
 
 const loadServerData = async () => {
-  if (!companyId.value) {
-    serverAssetList.value = []
-    totalElements.value = 0
-    totalPages.value = 0
-    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
-    return
-  }
-
   isLoading.value = true;
 
   try {
@@ -736,14 +656,12 @@ const loadServerData = async () => {
     const shouldFilterClientSide = categoryFilterNames.length > 1;
     const selectedCategoryId = categoryIdByName(searchParams.value.categoryName);
     const params: {
-      companyId: string
       page: number
       size: number
       categoryId?: string
       categoryName?: string
       keyword?: string
     } = {
-      companyId: companyId.value,
       page: shouldFilterClientSide ? 0 : searchParams.value.page,
       size: shouldFilterClientSide ? 999 : searchParams.value.size,
     };

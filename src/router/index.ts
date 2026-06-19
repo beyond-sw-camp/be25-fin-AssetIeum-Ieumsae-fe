@@ -71,13 +71,24 @@ const router = createRouter({
               path: '',
               name: 'TicketList',
               component: () => import('@/views/ticket/TicketListView.vue'),
-              meta: { title: '티켓 목록' },
+              meta: {
+                title: '나의 요청',
+              },
             },
             {
               path: 'create',
               name: 'TicketCreate',
-              component: () => import('@/views/ticket/TicketCreateView.vue'),
-              meta: { title: '티켓 생성' },
+              redirect: { name: 'TicketList', query: { create: '1' } },
+              meta: { title: '새 요청', roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'manage',
+              name: 'TicketManagement',
+              component: () => import('@/views/ticket/TicketManagementView.vue'),
+              meta: {
+                title: '티켓 관리',
+                roles: ['DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+              },
             },
             {
               path: ':ticketId',
@@ -140,7 +151,7 @@ const router = createRouter({
             {
               path: ':assetId',
               name: 'IntangibleAssetDetail',
-              component: () => import('@/views/asset/intangible/IntangibleAssetDetailView.vue'),
+              component: () => import('@/components/asset/intangible/IntangibleAssetDetailView.vue'),
               meta: { title: '무형자산 상세' },
             },
           ],
@@ -148,23 +159,31 @@ const router = createRouter({
 
         // ─── 전수조사 ────────────────────────────────
         {
-          path: 'surveys',
+          path: 'inspections',
           children: [
             {
               path: '',
-              name: 'SurveyList',
-              component: () => import('@/views/survey/SurveyListView.vue'),
+              name: 'InspectionList',
+              component: () => import('@/views/inspection/InspectionListView.vue'),
               meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
             },
             {
-              path: ':surveyId',
-              name: 'SurveyDetail',
-              component: () => import('@/views/survey/SurveyDetailView.vue'),
+              path: ':InspectionId',
+              name: 'InspectionDetail',
+              component: () => import('@/views/inspection/InspectionDetailView.vue'),
               meta: { title: '전수조사 상세' },
             },
           ],
         },
 
+        // ─── HR 워크플로우 ────────────────────────────────
+        {
+          path: 'hrworkflows',
+          name: 'Hrworkflows',
+          component: () => import('@/views/hr/HrWorkflowView.vue'),
+          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
+        },
+        
         // ─── 예산 관리 ───────────────────────────────
         {
           path: 'budget',
@@ -184,9 +203,19 @@ const router = createRouter({
         // ─── 로그 ─────────────────────────────────────
         {
           path: 'logs',
-          name: 'Logs',
+          redirect: { name: 'AuditLog' },
+        },
+        {
+          path: 'logs/audit',
+          name: 'AuditLog',
           component: () => import('@/views/log/LogView.vue'),
-          meta: { title: '감사/활동 로그', roles: ['ADMIN'] },
+          meta: { title: '감사로그', roles: ['ADMIN'] },
+        },
+        {
+          path: 'logs/activity',
+          name: 'ActivityLog',
+          component: () => import('@/views/log/LogView.vue'),
+          meta: { title: '활동로그', roles: ['ADMIN'] },
         },
 
         // ─── 내 정보 ─────────────────────────────────
@@ -245,7 +274,8 @@ router.beforeEach(async (to) => {
 
   // 역할 체크
   if (to.meta.roles && to.meta.roles.length > 0) {
-    if (!auth.currentRole || !to.meta.roles.includes(auth.currentRole)) {
+    const canAccessAllPages = auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN'
+    if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
       return { name: 'Dashboard' } // 권한 없으면 대시보드로
     }
   }

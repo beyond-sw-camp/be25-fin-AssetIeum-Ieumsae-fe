@@ -12,7 +12,11 @@
         <label for="category" class="text-sm font-semibold text-text-main mb-3 block">
           카테고리 <span class="text-primary font-bold">*</span>
         </label>
-        <Dropdown v-model="formData.category" :options="dropdownOptions" root-option="카테고리 선택" />
+        <Dropdown
+          v-model="formData.category"
+          :options="initialCategories"
+          root-option="카테고리 선택"
+        />
       </div>
 
       <div>
@@ -36,7 +40,7 @@
         </label>
         <div class="flex gap-8 mt-2">
           <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-            <div class="relative flex items-center justify-center">
+            <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
               <input v-model="formData.isStandard" type="radio" :value="1" class="sr-only peer" />
               <div
                 class="w-5 h-5 rounded-full border border-gray-300 bg-white
@@ -45,8 +49,8 @@
               >
               </div>
               <div
-                class="absolute w-2.5 h-2.5 rounded-full bg-primary
-                scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2
+                scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
               >
               </div>
             </div>
@@ -54,7 +58,7 @@
           </label>
 
           <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
-            <div class="relative flex items-center justify-center">
+            <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
               <input v-model="formData.isStandard" type="radio" :value="0" class="sr-only peer" />
               <div
                 class="w-5 h-5 rounded-full border border-gray-300 bg-white
@@ -63,8 +67,8 @@
               >
               </div>
               <div
-                class="absolute w-2.5 h-2.5 rounded-full bg-primary
-                scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2
+                scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
               >
               </div>
             </div>
@@ -77,15 +81,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Input from '@/components/common/Input.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import type { IntangibleItem } from '@/types'
+import type { IntangibleAssetItemCreateRequest } from '@/types'
 
 interface CategoryGroup {
+  categoryId?: string
   mainCategory: string
   subCategories: string[]
+  childCategories?: Record<string, string[]>
+  subCategoryIds?: Record<string, string>
+  childCategoryIds?: Record<string, string>
 }
 
 interface RegisterForm {
@@ -103,13 +111,13 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'register-asset'])
 
-const dropdownOptions = computed(() => {
-  return props.initialCategories
-    .flatMap((group) => group.subCategories)
-    .filter((category) => !category.startsWith('전체'))
-})
-
 const licenseTypeOptions = ['구독형 (SaaS)', '사용자 수 라이선스', '영구 라이선스', '볼륨 라이선스']
+const licenseTypeValueByLabel: Record<string, string> = {
+  '구독형 (SaaS)': 'SUBSCRIPTION',
+  '사용자 수 라이선스': 'USER_BASED',
+  '영구 라이선스': 'PERPETUAL',
+  '볼륨 라이선스': 'VOLUME',
+}
 
 const formData = ref<RegisterForm>({
   productName: '',
@@ -117,6 +125,24 @@ const formData = ref<RegisterForm>({
   licenseType: '라이선스 유형 선택',
   vendor: '',
   isStandard: 1,
+})
+
+const categoryIdByName = computed(() => {
+  const map = new Map<string, string>()
+
+  props.initialCategories.forEach((group) => {
+    if (group.categoryId) map.set(group.mainCategory, group.categoryId)
+
+    Object.entries(group.subCategoryIds ?? {}).forEach(([name, id]) => {
+      map.set(name, id)
+    })
+
+    Object.entries(group.childCategoryIds ?? {}).forEach(([name, id]) => {
+      map.set(name, id)
+    })
+  })
+
+  return map
 })
 
 const handleSave = () => {
@@ -135,14 +161,26 @@ const handleSave = () => {
     return
   }
 
+  const categoryId = categoryIdByName.value.get(formData.value.category)
+  if (!categoryId) {
+    alert('카테고리 ID를 찾을 수 없습니다. 카테고리를 다시 선택해주세요.')
+    return
+  }
+
   if (formData.value.licenseType === '라이선스 유형 선택') {
     alert('라이선스 유형을 선택해주세요.')
     return
   }
 
-  emit('register-asset', { ...formData.value } as Omit<IntangibleItem, 'assetItemId'>)
-  alert('성공적으로 등록되었습니다.')
-  emit('close')
+  const payload: IntangibleAssetItemCreateRequest = {
+    categoryId,
+    productName: formData.value.productName.trim(),
+    licenseType: licenseTypeValueByLabel[formData.value.licenseType] ?? formData.value.licenseType,
+    provider: formData.value.vendor.trim(),
+    isStandard: formData.value.isStandard,
+  }
+
+  emit('register-asset', payload)
 }
 
 watch(

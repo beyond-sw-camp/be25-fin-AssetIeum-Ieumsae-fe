@@ -78,10 +78,10 @@
           />
 
           <FormField label="부서" :required="requiresAssignmentInfo">
-            <Dropdown
-              v-model="formData.departmentName"
-              :options="departmentOptions"
-              root-option="-- 부서 선택 --"
+            <DepartmentTreeSelect
+              v-model="formData.departmentId"
+              :departments="departments"
+              placeholder="-- 부서 선택 --"
             />
           </FormField>
 
@@ -155,6 +155,7 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
@@ -182,6 +183,7 @@ interface RegisterForm {
   location: string
   startedAt: string
   returnDueDate: string
+  departmentId: string | null
   departmentName: string
   memberName: string
   purchaseDate: string
@@ -190,9 +192,25 @@ interface RegisterForm {
   warrantyExpiredAt: string
 }
 
+interface MemberAliases extends Member {
+  id?: string
+  member_id?: string
+  employeeNo?: string
+  employee_no?: string
+  department_id?: string
+  department_name?: string
+  department_name_path?: string
+  department?: {
+    departmentId?: string
+    id?: string
+    name?: string
+    departmentName?: string
+    departmentNamePath?: string
+  }
+}
+
 const props = defineProps<{
   isOpen: boolean
-  companyId?: string
   initialItems: AssetItemOption[]
   departments: Department[]
   members: Member[]
@@ -241,6 +259,7 @@ const createInitialForm = (): RegisterForm => ({
   location: '',
   startedAt: '',
   returnDueDate: '',
+  departmentId: null,
   departmentName: '-- 부서 선택 --',
   memberName: '-- 사용자(사번) 선택 --',
   purchaseDate: '',
@@ -254,21 +273,158 @@ const selectedStatusLabel = ref(TANGIBLE_STATUS_LABEL.AVAILABLE)
 const formData = ref<RegisterForm>(createInitialForm())
 const isSaving = ref(false)
 
+const flattenDepartments = (departments: Department[]): Department[] => (
+  departments.flatMap((department) => {
+    const { children = [], ...current } = department
+    return [current, ...flattenDepartments(children)]
+  })
+)
+
+const flatDepartments = computed(() => flattenDepartments(props.departments))
 const assetItemNames = computed(() => props.initialItems.map((item) => item.name))
-const departmentOptions = computed(() => props.departments.map((department) => department.name))
-const memberOptions = computed(() => props.members.map((member) => `${member.name}(${member.memberNo})`))
+const childDepartmentIdsByParentId = computed(() => (
+  flatDepartments.value.reduce((map, department) => {
+    if (!department.parentDepartmentId) return map
+
+    const children = map.get(department.parentDepartmentId) ?? []
+    children.push(department.departmentId)
+    map.set(department.parentDepartmentId, children)
+    return map
+  }, new Map<string, string[]>())
+))
 
 const selectedAssetItem = computed(() => (
   props.initialItems.find((item) => item.name === selectedAssetItemName.value)
 ))
 
 const selectedDepartment = computed(() => (
-  props.departments.find((department) => department.name === formData.value.departmentName)
+  flatDepartments.value.find((department) => department.departmentId === formData.value.departmentId)
+  ?? flatDepartments.value.find((department) => department.name === formData.value.departmentName)
+))
+
+const selectedDepartmentIds = computed(() => {
+  const department = selectedDepartment.value
+  if (!department) return new Set<string>()
+
+  const ids = new Set<string>([department.departmentId])
+  const visit = (departmentId: string) => {
+    childDepartmentIdsByParentId.value.get(departmentId)?.forEach((childDepartmentId) => {
+      ids.add(childDepartmentId)
+      visit(childDepartmentId)
+    })
+  }
+
+  visit(department.departmentId)
+  return ids
+})
+
+const selectedDepartmentNames = computed(() => (
+  new Set(
+    flatDepartments.value
+      .filter((department) => selectedDepartmentIds.value.has(department.departmentId))
+      .map((department) => department.name),
+  )
+))
+
+const selectedDepartmentPathParts = computed(() => {
+  const department = selectedDepartment.value
+  if (!department) return []
+
+  const names: string[] = []
+  let current: Department | undefined = department
+
+  while (current) {
+    names.unshift(current.name)
+    current = current.parentDepartmentId
+      ? flatDepartments.value.find((candidate) => candidate.departmentId === current?.parentDepartmentId)
+      : undefined
+  }
+
+  return names
+})
+
+const getMemberNo = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.memberNo ?? aliases.employeeNo ?? aliases.employee_no ?? ''
+}
+
+const getMemberLabel = (member: Member) => `${member.name}(${getMemberNo(member)})`
+
+const getMemberDepartmentId = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentId
+    ?? aliases.department_id
+    ?? aliases.department?.departmentId
+    ?? aliases.department?.id
+    ?? ''
+}
+
+const getMemberDepartmentName = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentName
+    ?? aliases.department_name
+    ?? aliases.department?.name
+    ?? aliases.department?.departmentName
+    ?? ''
+}
+
+const getMemberDepartmentPath = (member: Member) => {
+  const aliases = member as MemberAliases
+  return aliases.departmentNamePath
+    ?? aliases.department_name_path
+    ?? aliases.department?.departmentNamePath
+    ?? getMemberDepartmentName(member)
+}
+
+const memberDepartmentPathParts = (member: Member) => (
+  getMemberDepartmentPath(member)
+    .split('>')
+    .map((part) => part.trim())
+    .filter(Boolean)
+)
+
+const memberDepartmentPathContainsSelectedDepartment = (member: Member) => {
+  const selectedPathParts = selectedDepartmentPathParts.value
+  if (!selectedPathParts.length) return false
+
+  const memberPathParts = memberDepartmentPathParts(member)
+  if (memberPathParts.length < selectedPathParts.length) return false
+
+  return selectedPathParts.every((part, index) => memberPathParts[index] === part)
+}
+
+const memberBelongsToSelectedDepartment = (member: Member) => {
+  if (!selectedDepartment.value) return true
+
+  return selectedDepartmentIds.value.has(getMemberDepartmentId(member))
+    || selectedDepartmentNames.value.has(getMemberDepartmentName(member))
+    || memberDepartmentPathContainsSelectedDepartment(member)
+}
+
+const filteredMembers = computed(() => (
+  props.members.filter(memberBelongsToSelectedDepartment)
+))
+
+const memberOptions = computed(() => (
+  filteredMembers.value.map(getMemberLabel)
 ))
 
 const selectedMember = computed(() => (
-  props.members.find((member) => `${member.name}(${member.memberNo})` === formData.value.memberName)
+  props.members.find((member) => getMemberLabel(member) === formData.value.memberName)
 ))
+
+const selectedMemberDepartment = computed(() => {
+  const member = selectedMember.value
+  if (!member) return null
+
+  const departmentId = getMemberDepartmentId(member)
+  const departmentName = getMemberDepartmentName(member)
+  if (!departmentId && !departmentName) return null
+
+  return flatDepartments.value.find((department) => department.departmentId === departmentId)
+    ?? flatDepartments.value.find((department) => department.name === departmentName)
+    ?? null
+})
 
 const selectedStatus = computed(() => (
   statusByLabel[selectedStatusLabel.value] ?? 'AVAILABLE'
@@ -279,8 +435,8 @@ const requiresAssignmentInfo = computed(() => (
 ))
 
 const effectiveDepartment = computed(() => (
-  selectedDepartment.value
-  ?? props.departments.find((department) => department.departmentId === selectedMember.value?.departmentId)
+  selectedMemberDepartment.value
+  ?? selectedDepartment.value
 ))
 
 const isRegisterReady = computed(() => (
@@ -335,11 +491,6 @@ const handleClose = () => {
 const handleSave = async () => {
   if (!isRegisterReady.value || !selectedAssetItem.value || isSaving.value) return
 
-  if (!props.companyId) {
-    alert('회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.')
-    return
-  }
-
   const department = effectiveDepartment.value
   const member = selectedMember.value
   const purchaseDate = formData.value.purchaseDate.trim()
@@ -361,7 +512,6 @@ const handleSave = async () => {
   }
 
   const payload: TangibleAssetCreateRequest = {
-    companyId: props.companyId,
     tangibleItemId: selectedAssetItem.value.id,
     serialNumber: formData.value.serialNo.trim(),
     purchaseDate,
@@ -402,7 +552,45 @@ watch(() => props.isOpen, (isOpen) => {
 })
 
 watch(selectedMember, (member) => {
-  if (!member?.departmentName) return
-  formData.value.departmentName = member.departmentName
+  if (!member) {
+    return
+  }
+
+  if (selectedMemberDepartment.value) {
+    formData.value.departmentId = selectedMemberDepartment.value.departmentId
+    formData.value.departmentName = selectedMemberDepartment.value.name
+    return
+  }
+
+  if (selectedDepartment.value) return
+
+  const departmentId = getMemberDepartmentId(member)
+  const departmentName = getMemberDepartmentName(member)
+  if (!departmentId && !departmentName) return
+
+  formData.value.departmentId = departmentId || null
+  formData.value.departmentName = departmentName || formData.value.departmentName
+})
+
+watch(selectedMemberDepartment, (department) => {
+  if (!department || !selectedMember.value) return
+
+  formData.value.departmentId = department.departmentId
+  formData.value.departmentName = department.name
+}, { immediate: true })
+
+watch(flatDepartments, () => {
+  const department = selectedMemberDepartment.value
+  if (!department || !selectedMember.value) return
+
+  formData.value.departmentId = department.departmentId
+  formData.value.departmentName = department.name
+})
+
+watch(() => formData.value.departmentId, () => {
+  const member = selectedMember.value
+  if (!member || memberBelongsToSelectedDepartment(member)) return
+
+  formData.value.memberName = '-- 사용자(사번) 선택 --'
 })
 </script>

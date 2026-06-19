@@ -21,7 +21,6 @@
           type="file"
           accept=".csv,.xlsx"
           class="hidden"
-          @change="handleUploadFile"
         />
 
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
@@ -47,6 +46,86 @@
         />
       </div>
     </div>
+
+    <BaseDrawer
+      :is-open="isEditDrawerOpen"
+      title="무형자산 품목 수정"
+      @close="closeItemEdit"
+    >
+      <div v-if="selectedItem" class="space-y-5">
+        <Input id="edit-productName" v-model="itemEditForm.productName" label="제품명" required placeholder="예: Adobe Creative Cloud" />
+
+        <div>
+          <label for="edit-category" class="text-sm font-semibold text-text-main mb-2 block">
+            카테고리 <span class="text-primary font-bold">*</span>
+          </label>
+          <Dropdown
+            v-model="itemEditForm.category"
+            :options="cascadingOptions"
+            root-option="카테고리 선택"
+            submenu-direction="left"
+          />
+        </div>
+
+        <div>
+          <label for="edit-licenseType" class="text-sm font-semibold text-text-main mb-2 block">
+            라이선스 유형 <span class="text-primary font-bold">*</span>
+          </label>
+          <Dropdown
+            v-model="itemEditForm.licenseType"
+            :options="licenseTypeOptions"
+            root-option="라이선스 유형 선택"
+          />
+        </div>
+
+        <Input id="edit-provider" v-model="itemEditForm.provider" label="제공사" required placeholder="예: Adobe, Microsoft" />
+
+        <div>
+          <label class="text-sm font-semibold text-text-main mb-3 block">
+            표준 품목 여부 <span class="text-primary font-bold">*</span>
+          </label>
+          <div class="flex gap-8 mt-2">
+            <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
+              <div class="relative flex items-center justify-center">
+                <input v-model="itemEditForm.isStandard" type="radio" :value="1" class="sr-only peer" />
+                <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
+                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+              </div>
+              <span>표준 자산</span>
+            </label>
+
+            <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
+              <div class="relative flex items-center justify-center">
+                <input v-model="itemEditForm.isStandard" type="radio" :value="0" class="sr-only peer" />
+                <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
+                <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
+              </div>
+              <span>비표준 자산</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex gap-2">
+          <Button
+            variant="outline"
+            class="flex-1"
+            :disabled="!isItemEditDirty || isSavingItem"
+            @click="resetItemEditForm"
+          >
+            초기화
+          </Button>
+          <Button
+            class="flex-1"
+            :disabled="!isItemEditDirty || isSavingItem"
+            :loading="isSavingItem"
+            @click="handleUpdateItem"
+          >
+            저장하기
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
 
     <!-- 테이블 -->
     <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
@@ -118,10 +197,17 @@
           :is-loading="isLoading"
           row-key="assetItemId"
           class="min-w-full"
+          @row-click="openItemEdit"
         >
+          <template #cell-licenseType="{ value }">
+            <span>
+              {{ licenseTypeLabel(value as string) }}
+            </span>
+          </template>
+
           <template #cell-isStandard="{ value }">
             <span>
-              {{ value === 1 ? '표준 자산' : '비표준 자산' }}
+              {{ value === true || value === 1 ? '표준 자산' : '비표준 자산' }}
             </span>
           </template>
 
@@ -185,89 +271,189 @@ import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next'
-import { intangibleItemApi } from '@/api/asset.api'
-import type { IntangibleItem } from '@/types'
+import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
+import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
 
-import IntangibleItemCategory from './IntangibleItemCategory.vue'
-import IntangibleItemRegister from './IntangibleItemRegister.vue'
+import IntangibleItemCategory from '../../../components/item/intangible/IntangibleItemCategory.vue'
+import IntangibleItemRegister from '../../../components/item/intangible/IntangibleItemRegister.vue'
 import Input from '@/components/common/Input.vue'
 
 interface SoftwareTypeGroup {
+  categoryId?: string
   mainCategory: string
   subCategories: string[]
+  childCategories?: Record<string, string[]>
+  subCategoryIds?: Record<string, string>
+  childCategoryIds?: Record<string, string>
 }
 
-const useMockData = import.meta.env.VITE_USE_MOCKS === 'true'
+interface CategoryTreeNode {
+  categoryId?: string
+  intangibleAssetCategoryId?: string
+  id?: string
+  name?: string
+  categoryName?: string
+  children?: CategoryTreeNode[]
+  subCategories?: CategoryTreeNode[]
+}
+
+interface ItemEditForm {
+  productName: string
+  category: string
+  categoryId: string
+  licenseType: string
+  provider: string
+  isStandard: number
+}
+
+type IntangibleItemResponse = IntangibleItem & {
+  intangibleAssetItemId?: string
+  intangibleItemId?: string
+  name?: string
+  assetItemCount?: number
+  intangibleAssetCount?: number
+  totalAssetCount?: number
+  assetTotalCount?: number
+  count?: number
+  intangibleAssetCategory?: {
+    id?: string
+    categoryId?: string
+    intangibleAssetCategoryId?: string
+    name?: string
+    categoryName?: string
+  }
+  categoryName?: string
+  categoryPath?: string
+  mainCategoryName?: string
+  subCategoryName?: string
+  childCategoryName?: string
+  stockCount?: number
+  availableCount?: number
+}
+
+type IntangibleAssetCountSource = IntangibleAsset & {
+  intangibleAssetId?: string
+  intangibleItemId?: string
+  intangibleAssetItemId?: string
+  productName?: string
+  itemName?: string
+}
+
+const createEmptyItemEditForm = (): ItemEditForm => ({
+  productName: '',
+  category: '카테고리 선택',
+  categoryId: '',
+  licenseType: '라이선스 유형 선택',
+  provider: '',
+  isStandard: 1,
+})
+
+const toRadioValue = (value: number | boolean | undefined) => {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return value ?? 1
+}
+
+const licenseTypeOptions = ['구독형 (SaaS)', '사용자 수 라이선스', '영구 라이선스', '볼륨 라이선스']
+const licenseTypeValueByLabel: Record<string, string> = {
+  '구독형 (SaaS)': 'SUBSCRIPTION',
+  '사용자 수 라이선스': 'USER_BASED',
+  '영구 라이선스': 'PERPETUAL',
+  '볼륨 라이선스': 'VOLUME',
+}
+const licenseTypeLabelByValue: Record<string, string> = Object.fromEntries(
+  Object.entries(licenseTypeValueByLabel).map(([label, value]) => [value, label]),
+)
+
+const licenseTypeLabel = (value?: string) => {
+  if (!value) return '-'
+  return licenseTypeLabelByValue[value] ?? value
+}
+
+const licenseTypeValue = (labelOrValue: string) => (
+  licenseTypeValueByLabel[labelOrValue] ?? labelOrValue
+)
+
 const isCategoryDrawerOpen = ref(false)
 const isRegisterDrawerOpen = ref(false)
+const isEditDrawerOpen = ref(false)
+const isSavingItem = ref(false)
+const selectedItem = ref<IntangibleItem | null>(null)
+const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
+const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
 const uploadInputRef = ref<HTMLInputElement | null>(null)
 
 const searchParams = ref({
-  category: '전체 품목 타입',
+  category: '전체 품목 보기',
   keyword: '',
   page: 0,
   size: 20,
 })
 
-const cascadingOptions = ref<SoftwareTypeGroup[]>(
-  useMockData
-    ? [
-        {
-          mainCategory: '전체 품목 타입',
-          subCategories: ['전체 품목 타입', '업무용', '디자인', '개발툴', '보안', '협업'],
-        },
-      ]
-    : [],
-)
+const cascadingOptions = ref<SoftwareTypeGroup[]>([])
 
 const localCategories = computed(() => {
   return cascadingOptions.value.map((group) => ({
+    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
     mainCategory: group.mainCategory,
     subCategories: [...group.subCategories],
+    childCategories: Object.fromEntries(
+      Object.entries(group.childCategories ?? {}).map(([key, values]) => [key, [...values]]),
+    ),
+    subCategoryIds: { ...(group.subCategoryIds ?? {}) },
+    childCategoryIds: { ...(group.childCategoryIds ?? {}) },
   }))
 })
 
 const handleCategoryUpdate = (updatedGroups: SoftwareTypeGroup[]) => {
-  cascadingOptions.value = updatedGroups.map((group, index) => {
+  cascadingOptions.value = updatedGroups.map((group) => {
     const normalizedSubCategories = group.subCategories
       .map((sub) => sub.trim())
       .filter((sub) => sub)
-
-    if (index === 0 && !normalizedSubCategories.some((sub) => sub.startsWith('전체'))) {
-      return {
-        ...group,
-        subCategories: ['전체 품목 타입', ...normalizedSubCategories.filter((sub) => sub !== '전체 품목 타입')],
-      }
-    }
+    const childCategories = Object.fromEntries(
+      Object.entries(group.childCategories ?? {}).map(([key, values]) => [
+        key,
+        values.map((value) => value.trim()).filter((value) => value),
+      ]),
+    )
 
     return {
       ...group,
-      subCategories: normalizedSubCategories,
+      subCategories: normalizedSubCategories.filter((sub) => sub !== '전체 품목 보기'),
+      childCategories,
+      subCategoryIds: { ...(group.subCategoryIds ?? {}) },
+      childCategoryIds: { ...(group.childCategoryIds ?? {}) },
     }
   })
 
-  const flatCurrentCategories = cascadingOptions.value.flatMap((g) => g.subCategories)
+  const flatCurrentCategories = cascadingOptions.value.flatMap((group) => [
+    group.mainCategory,
+    ...group.subCategories,
+    ...Object.values(group.childCategories ?? {}).flat(),
+  ])
   if (
     searchParams.value.category &&
-    searchParams.value.category !== '전체 품목 타입' &&
+    searchParams.value.category !== '전체 품목 보기' &&
     !flatCurrentCategories.includes(searchParams.value.category)
   ) {
-    searchParams.value.category = '전체 품목 타입'
+    searchParams.value.category = '전체 품목 보기'
   }
 
   handleSearch()
 }
 
-const handleRegisterAsset = async (newAsset: Omit<IntangibleItem, 'assetItemId'>) => {
+const handleRegisterAsset = async (newAsset: IntangibleAssetItemCreateRequest) => {
   try {
     await intangibleItemApi.create(newAsset)
+    alert('성공적으로 등록되었습니다.')
+    isRegisterDrawerOpen.value = false
     handleSearch()
   } catch (error) {
-    console.error(error)
+    console.error('무형자산 품목 등록 실패', error)
     alert('자산 등록 중 오류가 발생했습니다.')
   }
 }
@@ -276,22 +462,22 @@ const handleUploadClick = () => {
   uploadInputRef.value?.click()
 }
 
-const handleUploadFile = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+// const handleUploadFile = async (event: Event) => {
+//   const target = event.target as HTMLInputElement
+//   const file = target.files?.[0]
+//   if (!file) return
 
-  try {
-    await intangibleItemApi.bulkCreate(file)
-    alert('업로드가 완료되었습니다.')
-    handleSearch()
-  } catch (error) {
-    console.error(error)
-    alert('업로드 중 오류가 발생했습니다.')
-  } finally {
-    target.value = ''
-  }
-}
+//   try {
+//     await intangibleItemApi.bulkCreate(file)
+//     alert('업로드가 완료되었습니다.')
+//     handleSearch()
+//   } catch (error) {
+//     console.error(error)
+//     alert('업로드 중 오류가 발생했습니다.')
+//   } finally {
+//     target.value = ''
+//   }
+// }
 
 const serverAssetList = ref<IntangibleItem[]>([])
 const totalElements = ref(0)
@@ -309,13 +495,97 @@ const tableColumns: Column<IntangibleItem>[] = [
   { key: 'action', label: '삭제', align: 'center', width: '13%' }
 ]
 
+const itemIdOf = (row: IntangibleItem) => row.assetItemId ?? row.itemId ?? row.id ?? ''
+
 const canDeleteRow = (row: IntangibleItem) => {
   return (row.assetCount ?? 0) === 0
 }
 
+const toItemEditForm = (row: IntangibleItem): ItemEditForm => ({
+  productName: row.productName,
+  category: row.category || categoryNameById(row.categoryId) || '카테고리 선택',
+  categoryId: row.categoryId || categoryIdByName(row.category),
+  licenseType: licenseTypeLabel(row.licenseType) === '-' ? '라이선스 유형 선택' : licenseTypeLabel(row.licenseType),
+  provider: row.provider ?? row.vendor ?? '',
+  isStandard: toRadioValue(row.isStandard),
+})
+
+const openItemEdit = (row: IntangibleItem) => {
+  const form = toItemEditForm(row)
+
+  selectedItem.value = row
+  itemEditForm.value = { ...form }
+  initialItemEditForm.value = { ...form }
+  isEditDrawerOpen.value = true
+}
+
+const closeItemEdit = () => {
+  isEditDrawerOpen.value = false
+  selectedItem.value = null
+  itemEditForm.value = createEmptyItemEditForm()
+  initialItemEditForm.value = createEmptyItemEditForm()
+}
+
+const resetItemEditForm = () => {
+  if (!isItemEditDirty.value || isSavingItem.value) return
+  itemEditForm.value = { ...initialItemEditForm.value }
+}
+
+const handleUpdateItem = async () => {
+  if (isSavingItem.value) return
+
+  const itemId = selectedItem.value ? itemIdOf(selectedItem.value) : ''
+  if (!itemId) {
+    console.error('무형자산 품목 수정에 필요한 품목 ID가 없습니다.', selectedItem.value)
+    return
+  }
+
+  const categoryId = itemEditForm.value.categoryId || categoryIdByName(itemEditForm.value.category)
+  if (itemEditForm.value.category === '카테고리 선택' || !categoryId) {
+    console.error('무형자산 품목 수정에 필요한 카테고리 ID가 없습니다.', itemEditForm.value)
+    return
+  }
+
+  if (
+    !itemEditForm.value.productName.trim() ||
+    !itemEditForm.value.provider.trim() ||
+    itemEditForm.value.licenseType === '라이선스 유형 선택'
+  ) {
+    console.error('무형자산 품목 수정 필수값이 비어 있습니다.', itemEditForm.value)
+    return
+  }
+
+  isSavingItem.value = true
+
+  try {
+    const initialForm = initialItemEditForm.value
+    const trimmedProductName = itemEditForm.value.productName.trim()
+    const trimmedProvider = itemEditForm.value.provider.trim()
+    const currentLicenseType = licenseTypeValue(itemEditForm.value.licenseType)
+    const initialLicenseType = licenseTypeValue(initialForm.licenseType)
+    const updatePayload: IntangibleAssetItemUpdateRequest = {
+      ...(categoryId !== initialForm.categoryId ? { categoryId } : {}),
+      ...(trimmedProductName !== initialForm.productName.trim() ? { productName: trimmedProductName } : {}),
+      ...(currentLicenseType !== initialLicenseType ? { licenseType: currentLicenseType } : {}),
+      ...(trimmedProvider !== initialForm.provider.trim() ? { provider: trimmedProvider } : {}),
+      ...(itemEditForm.value.isStandard !== initialForm.isStandard ? { isStandard: itemEditForm.value.isStandard } : {}),
+    }
+
+    await intangibleItemApi.update(itemId, updatePayload)
+    await loadServerData()
+    closeItemEdit()
+  } catch (error) {
+    console.error('무형자산 품목 수정 실패', error)
+  } finally {
+    isSavingItem.value = false
+  }
+}
+
 const handleDeleteAsset = async (row: IntangibleItem) => {
-  if (!row.assetItemId) {
-    alert('삭제할 품목 정보를 찾을 수 없습니다.')
+  const itemId = itemIdOf(row)
+
+  if (!itemId) {
+    console.error('무형자산 품목 삭제에 필요한 품목 ID가 없습니다.', row)
     return
   }
 
@@ -324,7 +594,7 @@ const handleDeleteAsset = async (row: IntangibleItem) => {
   }
 
   try {
-    await intangibleItemApi.delete(row.assetItemId)
+    await intangibleItemApi.delete(itemId)
     handleSearch()
   } catch (error) {
     console.error(error)
@@ -342,17 +612,82 @@ const changePage = (targetPage: number) => {
   loadServerData()
 }
 
+const categoryIdOf = (category: CategoryTreeNode) => (
+  category.categoryId ?? category.intangibleAssetCategoryId ?? category.id ?? ''
+)
+
+const categoryNameOf = (category: CategoryTreeNode) => (
+  category.name ?? category.categoryName ?? ''
+)
+
+const categoryChildrenOf = (category: CategoryTreeNode) => (
+  category.children ?? category.subCategories ?? []
+)
+
+const toCategoryGroups = (categories: CategoryTreeNode[]): SoftwareTypeGroup[] => (
+  categories
+    .map((category) => {
+      const mainCategory = categoryNameOf(category)
+      const children = categoryChildrenOf(category)
+      const subCategories: string[] = []
+      const childCategories: Record<string, string[]> = {}
+      const subCategoryIds: Record<string, string> = {}
+      const childCategoryIds: Record<string, string> = {}
+
+      children.forEach((middleCategory) => {
+        const middleName = categoryNameOf(middleCategory)
+        if (!middleName) return
+
+        subCategories.push(middleName)
+        subCategoryIds[middleName] = categoryIdOf(middleCategory)
+
+        const smallCategories = categoryChildrenOf(middleCategory)
+          .map((childCategory) => {
+            const childName = categoryNameOf(childCategory)
+            const childId = categoryIdOf(childCategory)
+            if (childName && childId) childCategoryIds[childName] = childId
+            return childName
+          })
+          .filter(Boolean)
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories
+          subCategories.push(...smallCategories)
+        }
+      })
+
+      return {
+        categoryId: categoryIdOf(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      }
+    })
+    .filter((category) => category.mainCategory)
+)
+
 const loadCategories = async () => {
   try {
     const response = await intangibleItemApi.getCategories()
-    const types = response.data
+    const categories = response.data
 
-    cascadingOptions.value = [
-      {
-        mainCategory: '품목 타입',
-        subCategories: ['전체 품목 타입', ...types],
-      },
-    ]
+    if (Array.isArray(categories) && categories.every((category) => typeof category === 'string')) {
+      cascadingOptions.value = categories
+        .map((category) => category.trim())
+        .filter(Boolean)
+        .map((category) => ({
+          mainCategory: category,
+          subCategories: [],
+          childCategories: {},
+          subCategoryIds: {},
+          childCategoryIds: {},
+        }))
+      return
+    }
+
+    cascadingOptions.value = toCategoryGroups(categories as CategoryTreeNode[])
   } catch (error) {
     console.error(error)
   }
@@ -367,18 +702,30 @@ const loadServerData = async () => {
       size: searchParams.value.size,
     }
 
-    if (searchParams.value.category && searchParams.value.category !== '전체 품목 타입') {
+    if (searchParams.value.category && searchParams.value.category !== '전체 품목 보기') {
       params.category = searchParams.value.category
+      const selectedCategoryId = categoryIdByName(searchParams.value.category)
+      if (selectedCategoryId) {
+        params.categoryId = selectedCategoryId
+      }
     }
 
     if (searchParams.value.keyword.trim()) {
       params.keyword = searchParams.value.keyword.trim().toLowerCase()
     }
 
-    const response = await intangibleItemApi.getList(params)
+    const [response, assetCountMap] = await Promise.all([
+      intangibleItemApi.getList(params),
+      loadAssetCountMap(),
+    ])
     const pageData = response.data
+    console.log('무형자산 품목 목록 조회 성공', {
+      status: response.status,
+      content: pageData.content,
+      assetCountMap: Object.fromEntries(assetCountMap),
+    })
     listError.value = ''
-    serverAssetList.value = pageData.content
+    serverAssetList.value = pageData.content.map((item) => toItemRow(item as IntangibleItemResponse, assetCountMap))
     totalElements.value = pageData.totalElements
     totalPages.value = pageData.totalPages
   } catch (error) {
@@ -388,6 +735,136 @@ const loadServerData = async () => {
     isLoading.value = false
   }
 }
+
+const assetItemIdOf = (asset: IntangibleAssetCountSource) => (
+  asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId ?? ''
+)
+
+const assetItemNameOf = (asset: IntangibleAssetCountSource) => (
+  asset.assetItemName ?? asset.productName ?? asset.itemName ?? ''
+)
+
+const addAssetCount = (map: Map<string, number>, key: string | undefined | null) => {
+  if (!key) return
+  map.set(key, (map.get(key) ?? 0) + 1)
+}
+
+const loadAssetCountMap = async () => {
+  const map = new Map<string, number>()
+
+  try {
+    const response = await intangibleAssetApi.getList({ page: 0, size: 999 })
+    response.data.content.forEach((asset) => {
+      const source = asset as IntangibleAssetCountSource
+      addAssetCount(map, assetItemIdOf(source))
+      addAssetCount(map, assetItemNameOf(source))
+    })
+  } catch (error) {
+    console.warn('무형자산 목록 기반 자산 수 계산 실패', error)
+  }
+
+  return map
+}
+
+const categoryIdByName = (categoryName: string) => {
+  if (!categoryName || categoryName === '전체 품목 보기') return ''
+
+  for (const group of cascadingOptions.value) {
+    if (categoryName === group.mainCategory) {
+      return group.categoryId ?? ''
+    }
+
+    if (group.subCategoryIds?.[categoryName]) {
+      return group.subCategoryIds[categoryName]
+    }
+
+    if (group.childCategoryIds?.[categoryName]) {
+      return group.childCategoryIds[categoryName]
+    }
+  }
+
+  return ''
+}
+
+const categoryNameById = (categoryId?: string) => {
+  if (!categoryId) return ''
+
+  for (const group of cascadingOptions.value) {
+    if (group.categoryId === categoryId) return group.mainCategory
+
+    const subCategoryName = Object.entries(group.subCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0]
+    if (subCategoryName) return subCategoryName
+
+    const childCategoryName = Object.entries(group.childCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0]
+    if (childCategoryName) return childCategoryName
+  }
+
+  return ''
+}
+
+const numberValue = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value)
+  }
+
+  return 0
+}
+
+const toItemRow = (item: IntangibleItemResponse, assetCountMap = new Map<string, number>()): IntangibleItem => {
+  const categoryId = item.categoryId
+    ?? item.intangibleAssetCategoryId
+    ?? item.intangibleAssetCategory?.categoryId
+    ?? item.intangibleAssetCategory?.intangibleAssetCategoryId
+    ?? item.intangibleAssetCategory?.id
+
+  const assetItemId = item.assetItemId ?? item.intangibleAssetItemId ?? item.intangibleItemId ?? item.itemId ?? item.id
+  const productName = item.productName ?? item.name ?? ''
+  const responseAssetCount = numberValue(
+    item.assetCount,
+    item.stockCount,
+    item.assetItemCount,
+    item.intangibleAssetCount,
+    item.totalAssetCount,
+    item.assetTotalCount,
+    item.count,
+  )
+  const calculatedAssetCount = Math.max(
+    assetCountMap.get(assetItemId ?? '') ?? 0,
+    assetCountMap.get(productName) ?? 0,
+  )
+  const assetCount = calculatedAssetCount > 0 ? calculatedAssetCount : responseAssetCount
+
+  return {
+    ...item,
+    assetItemId,
+    categoryId,
+    productName,
+    category: item.category
+      ?? item.categoryName
+      ?? item.childCategoryName
+      ?? item.subCategoryName
+      ?? item.mainCategoryName
+      ?? item.categoryPath
+      ?? item.intangibleAssetCategory?.name
+      ?? item.intangibleAssetCategory?.categoryName
+      ?? categoryNameById(categoryId)
+      ?? '',
+    licenseType: item.licenseType ?? '',
+    vendor: item.provider ?? item.vendor ?? '',
+    provider: item.provider ?? item.vendor ?? '',
+    isStandard: item.isStandard ?? true,
+    assetCount,
+    stockCount: assetCount,
+    availableCount: numberValue(item.availableCount),
+  }
+}
+
+const isItemEditDirty = computed(() => (
+  JSON.stringify(itemEditForm.value) !== JSON.stringify(initialItemEditForm.value)
+))
 
 const itemRangeText = computed(() => {
   if (totalElements.value === 0) return '0-0'
@@ -403,8 +880,15 @@ watch(rowsPerPageText, (newVal) => {
   loadServerData()
 })
 
-onMounted(() => {
-  loadCategories()
+watch(
+  () => itemEditForm.value.category,
+  (category) => {
+    itemEditForm.value.categoryId = categoryIdByName(category)
+  },
+)
+
+onMounted(async () => {
+  await loadCategories()
   loadServerData()
 })
 </script>

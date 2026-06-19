@@ -10,20 +10,41 @@
         </h1>
       </div>
 
+      <!-- TODO: 자산 등록 시 부서, 사용자 에러 고치기 -->
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" @click="isRegisterDrawerOpen = true">
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
         </Button>
         <TangibleAssetRegister
           :is-open="isRegisterDrawerOpen"
-          :company-id="companyId"
           :initial-items="assetItemOptions"
           :departments="departments"
           :members="members"
           @close="isRegisterDrawerOpen = false"
           @registered="handleAssetRegistered"
         />
+
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="유형자산 배정"
+          body-class="p-0"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <TangibleAssetAssignment
+            :assets="serverAssetList"
+            :departments="departments"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
+          자산 배정
+        </Button>
       </div>
     </div>
 
@@ -155,11 +176,11 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
-import { Plus, Layers, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import { Plus, Layers, ChevronLeft, ChevronRight, Search, Tag } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
-import { useAuthStore } from '@/stores'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
@@ -170,8 +191,11 @@ import type {
 } from '@/types'
 
 import Input from '@/components/common/Input.vue';
-import TangibleAssetDetailView from './TangibleAssetDetailView.vue';
-import TangibleAssetRegister from './TangibleAssetRegister.vue';
+import TangibleAssetDetailView from '../../../components/asset/tangible/TangibleAssetDetailView.vue';
+import TangibleAssetRegister from '../../../components/asset/tangible/TangibleAssetRegister.vue';
+import TangibleAssetAssignment from '@/components/asset/tangible/TangibleAssetAssignment.vue';
+import { usePermission } from '@/composables/usePermission.ts';
+import { useAuthStore } from '@/stores/auth.store'
 
 interface AssetItemOption {
   id: string
@@ -191,12 +215,42 @@ interface TangibleAssetRow extends TangibleAsset {
   modelName: string
 }
 
-const useMockData = import.meta.env.VITE_USE_MOCKS === 'true';
-const authStore = useAuthStore()
-const companyId = computed(() => authStore.user?.companyId ?? '')
 const isRegisterDrawerOpen = ref(false);
+const isAssignmentDrawerOpen = ref(false);
 const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
+const isReferenceDataLoaded = ref(false)
+const referenceDataPromise = ref<Promise<void> | null>(null)
+const { canRegisterAsset, role } = usePermission()
+const auth = useAuthStore()
+
+const currentMemberId = computed(() => {
+  const user = auth.user as {
+    memberId?: string
+    id?: string
+    member_id?: string
+    employeeId?: string
+    employee_id?: string
+  } | null
+
+  return user?.memberId
+    ?? user?.id
+    ?? user?.member_id
+    ?? user?.employeeId
+    ?? user?.employee_id
+    ?? null
+})
+
+const currentDepartmentId = computed(() => {
+  const user = auth.user as {
+    departmentId?: string
+    department_id?: string
+  } | null
+
+  return user?.departmentId
+    ?? user?.department_id
+    ?? null
+})
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
@@ -213,59 +267,6 @@ const departments = ref<Department[]>([]);
 const members = ref<Member[]>([]);
 const assetIdByAssetCode = ref<Record<string, string>>({});
 const ASSET_ID_STORAGE_PREFIX = 'tangibleAssetId:'
-
-const DEFAULT_CASCADING_OPTIONS: FilterGroup[] = [
-  {
-    mainCategory: 'IT / 전자기기',
-    subCategories: [
-      '노트북',
-      '노트북 커버',
-      '모니터',
-      '스마트폰',
-      '태블릿',
-      '주변기기',
-      '키보드',
-      '마우스',
-      '웹캠',
-      '외장 저장장치',
-    ],
-    childCategories: {
-      노트북: ['노트북 커버'],
-      주변기기: ['키보드', '마우스', '웹캠', '외장 저장장치'],
-    },
-  },
-  {
-    mainCategory: '사무용 가구',
-    subCategories: ['사무가구', '의자', '책상', '회의 테이블'],
-    childCategories: {
-      사무가구: ['의자', '책상', '회의 테이블'],
-    },
-  },
-  {
-    mainCategory: '사무기기 / 가전',
-    subCategories: ['사무기기', '복합기', '라벨프린터'],
-    childCategories: {
-      사무기기: ['복합기', '라벨프린터'],
-    },
-  }
-];
-
-const cloneCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
-  groups.map((group) => ({
-    ...(group.categoryId ? { categoryId: group.categoryId } : {}),
-    mainCategory: group.mainCategory,
-    subCategories: [...group.subCategories],
-    ...(group.childCategories
-      ? {
-          childCategories: Object.fromEntries(
-            Object.entries(group.childCategories).map(([key, values]) => [key, [...values]]),
-          ),
-        }
-      : {}),
-    ...(group.subCategoryIds ? { subCategoryIds: { ...group.subCategoryIds } } : {}),
-    ...(group.childCategoryIds ? { childCategoryIds: { ...group.childCategoryIds } } : {}),
-  }))
-);
 
 const normalizeCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
   groups.map((group) => {
@@ -290,9 +291,7 @@ const normalizeCategoryGroups = (groups: FilterGroup[]): FilterGroup[] => (
   })
 );
 
-const cascadingOptions = ref<FilterGroup[]>(
-  useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [],
-);
+const cascadingOptions = ref<FilterGroup[]>([]);
 
 const assetItemMap = computed(() => (
   new Map(assetItemOptions.value.map((item) => [item.id, item]))
@@ -311,10 +310,21 @@ const handleAssetRegistered = (asset: TangibleAsset) => {
   handleSearch()
 };
 
+const openRegisterDrawer = () => {
+  isRegisterDrawerOpen.value = true
+  void loadReferenceData()
+}
+
+const openAssignmentDrawer = async () => {
+  await loadReferenceData()
+  isAssignmentDrawerOpen.value = true
+}
+
 const openAssetDetail = async (row: TangibleAssetRow) => {
   const assetId = getAssetId(row)
   selectedAsset.value = { ...row, assetId }
   isDetailDrawerOpen.value = true
+  void loadReferenceData()
 
   if (!assetId) {
     const responseKeys = Object.keys(row).join(', ')
@@ -347,6 +357,11 @@ const handleAssetSaved = () => {
   loadServerData()
 };
 
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
+  loadServerData()
+}
+
 const serverAssetList = ref<TangibleAssetRow[]>([]);
 const totalElements = ref(0);
 const totalPages = ref(0);
@@ -357,13 +372,13 @@ const tableColumns: Column<TangibleAssetRow>[] = [
   { key: 'productName', label: '제품명', align: 'center', width: '25%' },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '20%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '18%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '18%' },
-  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '19%' }
+  { key: 'departmentName', label: '부서', align: 'center', width: '14%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '23%' }
 ];
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return TANGIBLE_STATUS_LABEL[status as keyof typeof TANGIBLE_STATUS_LABEL] ?? status
+  return TANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
 }
 
 const getSelectedCategoryId = () => {
@@ -617,73 +632,57 @@ const toAssetRow = (asset: TangibleAsset): TangibleAssetRow => {
   }
 }
 
-const buildCategoryGroupsFromItems = (items: AssetItemOption[]) => {
-  const groups = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : [];
-  const knownCategories = new Set(
-    groups.flatMap((group) => group.subCategories.filter((category) => !category.endsWith(' - 전체'))),
-  );
-  const additionalCategories = Array.from(new Set(
-    items
-      .map((item) => item.category)
-      .filter((category) => category && !knownCategories.has(category)),
-  ));
-  const additionalCategoryIds = Object.fromEntries(
-    additionalCategories.map((category) => [
-      category,
-      items.find((item) => item.category === category)?.categoryId ?? '',
-    ]),
-  );
-
-  if (additionalCategories.length > 0) {
-    groups.push({
-      mainCategory: '기타',
-      subCategories: additionalCategories,
-      subCategoryIds: additionalCategoryIds,
-    });
-  }
-
-  return groups;
-};
-
 const loadCategoryOptions = async () => {
-  if (!companyId.value) {
-    cascadingOptions.value = useMockData ? cloneCategoryGroups(DEFAULT_CASCADING_OPTIONS) : []
-    return
-  }
-
   try {
-    const response = await tangibleItemApi.getCategories(companyId.value)
+    const response = await tangibleItemApi.getCategories()
     cascadingOptions.value = normalizeCategoryGroups(toCategoryGroups(response.data as CategoryTreeNode[]))
   } catch (error) {
     console.error(error)
-    cascadingOptions.value = normalizeCategoryGroups(buildCategoryGroupsFromItems(assetItemOptions.value))
+    cascadingOptions.value = []
   }
 };
 
 const loadReferenceData = async () => {
-  try {
-    const [departmentResponse, memberResponse] = await Promise.all([
-      departmentApi.getList({ page: 0, size: 999 }),
-      memberApi.getList({ page: 0, size: 999 }),
+  if (isReferenceDataLoaded.value) return
+  if (referenceDataPromise.value) return referenceDataPromise.value
+
+  referenceDataPromise.value = (async () => {
+    const [departmentResult, memberResult] = await Promise.allSettled([
+      departmentApi.getList({ size: 999 }),
+      memberApi.getList({ size: 999 }),
     ])
 
-    departments.value = departmentResponse.data.content
-    members.value = memberResponse.data.content
-  } catch (error) {
-    console.error(error)
-    departments.value = []
-    members.value = []
-  }
+    const failed = departmentResult.status === 'rejected' || memberResult.status === 'rejected'
+
+    if (departmentResult.status === 'fulfilled') {
+      departments.value = departmentResult.value.data.content
+    } else {
+      console.warn('유형자산 부서 참조 데이터 조회 실패:', getReferenceErrorMessage(departmentResult.reason))
+      departments.value = []
+    }
+
+    if (memberResult.status === 'fulfilled') {
+      members.value = memberResult.value.data.content
+    } else {
+      console.warn('유형자산 사원 참조 데이터 조회 실패:', getReferenceErrorMessage(memberResult.reason))
+      members.value = []
+    }
+
+    isReferenceDataLoaded.value = !failed
+  })().finally(() => {
+    referenceDataPromise.value = null
+  })
+
+  return referenceDataPromise.value
 }
 
-const loadAssetItems = async () => {
-  if (!companyId.value) {
-    assetItemOptions.value = []
-    return
-  }
+const getReferenceErrorMessage = (error: unknown) => (
+  error instanceof Error ? error.message : String(error)
+)
 
+const loadAssetItems = async () => {
   try {
-    const response = await tangibleItemApi.getList({ companyId: companyId.value, page: 0, size: 100 })
+    const response = await tangibleItemApi.getList({ page: 0, size: 100 })
     assetItemOptions.value = response.data.content.map(toAssetItemOption)
   } catch (error) {
     console.error(error)
@@ -692,23 +691,29 @@ const loadAssetItems = async () => {
 }
 
 const loadServerData = async () => {
-  if (!companyId.value) {
-    serverAssetList.value = []
-    totalElements.value = 0
-    totalPages.value = 0
-    listError.value = '회사 정보를 찾을 수 없습니다. 다시 로그인 후 시도해주세요.'
-    return
-  }
-
   isLoading.value = true;
 
   try {
     const selectedCategoryId = getSelectedCategoryId()
-    const params: { companyId: string; page: number; size: number; categoryId?: string; keyword?: string } = {
-      companyId: companyId.value,
+    const params: {
+      page: number
+      size: number
+      categoryId?: string
+      keyword?: string
+      currentUserId?: string
+      departmentId?: string
+    } = {
       page: searchParams.value.page,
       size: searchParams.value.size,
-    };
+    }
+
+    if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+      params.currentUserId = currentMemberId.value
+    }
+
+    if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+      params.departmentId = currentDepartmentId.value
+    }
 
     if (selectedCategoryId) {
       params.categoryId = selectedCategoryId;
@@ -748,7 +753,7 @@ watch(rowsPerPageText, (newVal) => {
 });
 
 onMounted(async () => {
-  await Promise.all([loadAssetItems(), loadReferenceData()]);
+  await loadAssetItems();
   await loadCategoryOptions();
   loadServerData();
 });

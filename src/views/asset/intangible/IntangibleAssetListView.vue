@@ -1,3 +1,5 @@
+<!-- TODO: 필수 입력란 표시 방법 변경 (필수 요소라는 문구 포함하기) -->
+
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-text-main transition-colors duration-300">
     <!-- 페이지 헤더 -->
@@ -12,24 +14,48 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline" @click="handleUploadClick">
-          <Upload :size="15" />
-          <span class="hidden sm:inline">CSV 파일 업로드</span>
+        <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
+          <Plus :size="15" />
+          자산 등록
         </Button>
-        <input
-          ref="uploadInputRef"
-          type="file"
-          accept=".csv,.xlsx"
-          class="hidden"
-          @change="handleUploadFile"
+        <IntangibleAssetRegister
+          :is-open="isRegisterDrawerOpen"
+          :initial-items="assetItemOptions"
+          :departments="departments"
+          :members="members"
+          @close="isRegisterDrawerOpen = false"
+          @registered="handleAssetRegistered"
         />
 
-        <Button variant="primary" @click="handleSearch">
-          <Search :size="15" />
-          조회하기
+        <BaseDrawer
+          :is-open="isAssignmentDrawerOpen"
+          title="무형자산 배정"
+          body-class="p-0 !overflow-hidden"
+          hide-footer
+          @close="isAssignmentDrawerOpen = false"
+        >
+          <IntangibleAssetAssignment
+            :assets="serverAssetList"
+            :departments="departments"
+            :members="members"
+            @close="isAssignmentDrawerOpen = false"
+            @assigned="handleAssetAssigned"
+          />
+        </BaseDrawer>
+
+        <Button v-if="canRegisterAsset" variant="primary" @click="openAssignmentDrawer">
+          <Tag :size="15" />
+          자산 배정
         </Button>
       </div>
     </div>
+
+    <IntangibleAssetDetailView
+      :is-open="isDetailDrawerOpen"
+      :asset="selectedAsset"
+      @close="closeAssetDetail"
+      @saved="handleAssetSaved"
+    />
 
     <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
       <div class="shrink-0 rounded-t-2xl bg-surface border-b border-border px-2 pb-3 flex flex-col gap-3 relative z-30 lg:flex-row lg:items-center lg:justify-between">
@@ -45,10 +71,25 @@
         </div>
 
         <div class="flex items-center gap-2 text-text-main">
+          <div class="min-w-40">
+            <Dropdown
+              v-model="searchParams.categoryName"
+              :options="cascadingOptions"
+              root-option="전체 품목 보기"
+              menu-align="right"
+              submenu-direction="left"
+              class="w-44 text-text-sub"
+            >
+              <template #icon>
+                <Layers :size="16" />
+              </template>
+            </Dropdown>
+          </div>
+
           <Input
             id="keyword"
             v-model="searchParams.keyword"
-            placeholder="자산코드, 시리얼번호, 품목명으로 검색"
+            placeholder="제품명, 자산코드로 검색"
             autocomplete="off"
             @keyup.enter="handleSearch"
           />
@@ -65,16 +106,6 @@
         </div>
       </div>
 
-      <div
-        v-if="listError"
-        class="mx-3 mt-3 flex flex-col gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
-      >
-        <span>{{ listError }}</span>
-        <Button variant="outline" size="sm" :loading="isLoading" @click="loadServerData">
-          다시 시도
-        </Button>
-      </div>
-
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
         <Table
           :columns="tableColumns"
@@ -82,6 +113,7 @@
           :loading="isLoading"
           row-key="assetId"
           class="min-w-full"
+          @row-click="openAssetDetail"
         >
           <template #cell-status="{ value }">
             <span>{{ statusLabel(value as string) }}</span>
@@ -130,45 +162,343 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Upload, Search, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { intangibleAssetApi } from '@/api/asset.api'
+import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag } from 'lucide-vue-next'
+import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
+import { departmentApi } from '@/api/department.api'
+import { memberApi } from '@/api/member.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
-import type { IntangibleAsset } from '@/types'
+import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
+import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
+import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
+import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
+
+import { usePermission } from '@/composables/usePermission.ts'
+import { useAuthStore } from '@/stores/auth.store'
+
+const { canRegisterAsset, role } = usePermission()
+const auth = useAuthStore()
+
+const currentMemberId = computed(() => {
+  const user = auth.user as {
+    memberId?: string
+    id?: string
+    member_id?: string
+    employeeId?: string
+    employee_id?: string
+  } | null
+
+  return user?.memberId
+    ?? user?.id
+    ?? user?.member_id
+    ?? user?.employeeId
+    ?? user?.employee_id
+    ?? null
+})
+
+const currentDepartmentId = computed(() => {
+  const user = auth.user as {
+    departmentId?: string
+    department_id?: string
+  } | null
+
+  return user?.departmentId
+    ?? user?.department_id
+    ?? null
+})
+
+interface CategoryGroup {
+  categoryId?: string
+  mainCategory: string
+  subCategories: string[]
+  childCategories?: Record<string, string[]>
+  subCategoryIds?: Record<string, string>
+  childCategoryIds?: Record<string, string>
+}
+
+interface CategoryTreeNode {
+  categoryId?: string
+  intangibleAssetCategoryId?: string
+  id?: string
+  name?: string
+  categoryName?: string
+  children?: CategoryTreeNode[]
+  subCategories?: CategoryTreeNode[]
+}
+
+interface AssetItemOption {
+  id: string
+  name: string
+  licenseType: LicenseType
+}
+
+type IntangibleAssetResponse = IntangibleAsset & {
+  intangibleAssetId?: string
+  intangibleItemId?: string
+  intangibleAssetItemId?: string
+  productName?: string
+  itemName?: string
+  currentUserName?: string | null
+  currentUserMemberNo?: string | null
+  currentUserId?: string | null
+  memberName?: string | null
+  userName?: string | null
+  provider?: string
+  assignedMemberCount?: number
+  currentUserCount?: number
+  activeAssignmentCount?: number
+  assignmentCount?: number
+  assignedMembers?: unknown[]
+  currentUsers?: unknown[]
+  members?: unknown[]
+}
+
+type NamedAssignmentLike = {
+  memberName?: string | null
+  name?: string | null
+  userName?: string | null
+  currentUserName?: string | null
+  memberNo?: string | null
+  currentUserMemberNo?: string | null
+}
+
+type ApiFailure = {
+  status?: number | null
+  errorCode?: string | null
+  message?: string
+  details?: unknown
+}
+
+type StoredAuthUser = {
+  memberId?: string
+  memberNo?: string
+  name?: string
+  email?: string | null
+  departmentId?: string
+  departmentName?: string
+  role?: Member['role']
+  status?: Member['status']
+}
 
 const rowsPerPageOptions = ['10개씩 보기', '20개씩 보기', '50개씩 보기', '100개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
-const uploadInputRef = ref<HTMLInputElement | null>(null)
+const isRegisterDrawerOpen = ref(false)
+const isAssignmentDrawerOpen = ref(false)
+const isDetailDrawerOpen = ref(false)
+const selectedAsset = ref<IntangibleAsset | null>(null)
+const ALL_CATEGORY = '전체 품목 보기'
 
 const searchParams = ref({
+  categoryName: ALL_CATEGORY,
   keyword: '',
   page: 0,
   size: 20,
 })
 
+const cascadingOptions = ref<CategoryGroup[]>([])
 const serverAssetList = ref<IntangibleAsset[]>([])
+const assetItemOptions = ref<AssetItemOption[]>([])
+const departments = ref<Department[]>([])
+const members = ref<Member[]>([])
+const multiAssignedAssetIds = ref(new Set<string>())
 const totalElements = ref(0)
 const totalPages = ref(0)
 const isLoading = ref(false)
-const listError = ref('')
 
 const tableColumns: Column<IntangibleAsset>[] = [
-  { key: 'assetCode', label: '자산 코드', align: 'center', width: '13%' },
-  { key: 'serialNo', label: '시리얼 번호', align: 'center', width: '14%' },
-  { key: 'assetItemName', label: '품목명', align: 'center', width: '18%' },
-  { key: 'status', label: '상태', align: 'center', width: '12%' },
-  { key: 'assignedMemberName', label: '담당자', align: 'center', width: '12%' },
-  { key: 'departmentName', label: '부서', align: 'center', width: '12%' },
-  { key: 'purchaseDate', label: '구매일', align: 'center', width: '12%' },
-  { key: 'returnDueDate', label: '반납 예정일', align: 'center', width: '12%' },
-  { key: 'action', label: '관리', align: 'center', width: '10%' },
+  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%' },
+  { key: 'assetCode', label: '자산 번호', align: 'center', width: '22%' },
+  { key: 'status', label: '자산 상태', align: 'center', width: '16%' },
+  { key: 'departmentName', label: '부서', align: 'center', width: '16%' },
+  { key: 'assignedMemberName', label: '사용자', align: 'center', width: '22%' },
 ]
 
 const statusLabel = (status: string | null | undefined) => {
   if (!status) return '–'
-  return INTANGIBLE_STATUS_LABEL[status as keyof typeof INTANGIBLE_STATUS_LABEL] ?? status
+  return INTANGIBLE_STATUS_LABEL[status] ?? '알 수 없음'
+}
+
+const assetIdOf = (asset: IntangibleAsset) => {
+  const assetWithAliases = asset as IntangibleAssetResponse
+  return asset.assetId ?? assetWithAliases.intangibleAssetId ?? ''
+}
+
+const assetGroupKeyOf = (asset: IntangibleAssetResponse) => (
+  asset.assetId
+  ?? asset.intangibleAssetId
+  ?? asset.assetCode
+)
+
+const itemIdOf = (item: IntangibleItem) => (
+  item.assetItemId ?? item.itemId ?? item.id ?? ''
+)
+
+const toLicenseType = (value: string | undefined): LicenseType => {
+  if (value === 'PERPETUAL' || value === 'VOLUME' || value === 'USER_BASED' || value === 'SUBSCRIPTION') {
+    return value
+  }
+
+  return 'SUBSCRIPTION'
+}
+
+const toAssetItemOption = (item: IntangibleItem): AssetItemOption | null => {
+  const id = itemIdOf(item)
+  const name = item.productName
+  if (!id || !name) return null
+
+  return {
+    id,
+    name,
+    licenseType: toLicenseType(item.licenseType),
+  }
+}
+
+const assignmentCountOf = (asset: IntangibleAssetResponse) => {
+  const count = asset.assignedMemberCount
+    ?? asset.currentUserCount
+    ?? asset.activeAssignmentCount
+    ?? asset.assignmentCount
+
+  if (typeof count === 'number') return count
+
+  return asset.assignedMembers?.length
+    ?? asset.currentUsers?.length
+    ?? asset.members?.length
+    ?? 0
+}
+
+const isNamedAssignmentLike = (value: unknown): value is NamedAssignmentLike => (
+  typeof value === 'object' && value !== null
+)
+
+const memberLabelFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value.trim()
+  if (!isNamedAssignmentLike(value)) return ''
+
+  const name = value.memberName
+    ?? value.name
+    ?? value.userName
+    ?? value.currentUserName
+    ?? ''
+  const memberNo = value.memberNo ?? value.currentUserMemberNo ?? ''
+
+  if (!name) return ''
+  return memberNo ? `${name}(${memberNo})` : name
+}
+
+const singleAssignedMemberNameOf = (asset: IntangibleAssetResponse) => {
+  const directName = asset.assignedMemberName
+    ?? asset.memberName
+    ?? asset.userName
+    ?? (asset.currentUserName
+      ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
+      : '')
+
+  if (directName && directName !== '-') return directName
+
+  return asset.assignedMembers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.currentUsers?.map(memberLabelFromUnknown).find(Boolean)
+    ?? asset.members?.map(memberLabelFromUnknown).find(Boolean)
+    ?? ''
+}
+
+const assignedMemberSummaryOf = (asset: IntangibleAssetResponse, assignedMemberCount: number) => {
+  const firstMemberName = singleAssignedMemberNameOf(asset)
+  if (assignedMemberCount > 1) {
+    return firstMemberName ? `${firstMemberName} 외 ${assignedMemberCount - 1}명` : `${assignedMemberCount}명`
+  }
+
+  return firstMemberName || '-'
+}
+
+const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => {
+  const assetId = asset.assetId ?? asset.intangibleAssetId ?? ''
+  const assignedMemberCount = assignmentCountOf(asset)
+  const hasMultipleAssignedUsers = assignedMemberCount > 1
+    || Boolean(assetId && multiAssignedAssetIds.value.has(assetId))
+
+  return {
+    ...asset,
+    assetId,
+    assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
+    assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
+    status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
+    assignedMemberId: hasMultipleAssignedUsers ? null : asset.assignedMemberId ?? asset.currentUserId ?? null,
+    assignedMemberName: assignedMemberSummaryOf(asset, hasMultipleAssignedUsers ? Math.max(assignedMemberCount, 2) : assignedMemberCount),
+    departmentId: hasMultipleAssignedUsers ? null : asset.departmentId ?? null,
+    departmentName: hasMultipleAssignedUsers ? '-' : asset.departmentName ?? '-',
+    startedAt: asset.startedAt ?? null,
+    expiredAt: asset.expiredAt ?? null,
+    vendor: asset.provider ?? asset.vendor,
+  }
+}
+
+const toGroupedAssetRows = (assets: IntangibleAssetResponse[]) => {
+  const groupedAssets = new Map<string, { asset: IntangibleAssetResponse; rowCount: number }>()
+
+  for (const asset of assets) {
+    const groupKey = assetGroupKeyOf(asset)
+    const assignmentCount = assignmentCountOf(asset)
+    const rowCount = Math.max(assignmentCount, 1)
+
+    if (!groupKey) {
+      groupedAssets.set(crypto.randomUUID(), { asset, rowCount })
+      continue
+    }
+
+    const existing = groupedAssets.get(groupKey)
+    if (!existing) {
+      groupedAssets.set(groupKey, { asset, rowCount })
+      continue
+    }
+
+    existing.rowCount += rowCount
+  }
+
+  return Array.from(groupedAssets.values()).map(({ asset, rowCount }) => (
+    toAssetRow({
+      ...asset,
+      assignedMemberCount: rowCount > 1 ? rowCount : assignmentCountOf(asset),
+    })
+  ))
+}
+
+const handleAssetRegistered = (asset?: IntangibleAsset) => {
+  if (asset && assignmentCountOf(asset as IntangibleAssetResponse) > 1) {
+    const assetId = assetIdOf(asset)
+    if (assetId) {
+      multiAssignedAssetIds.value = new Set([...multiAssignedAssetIds.value, assetId])
+    }
+  }
+
+  handleSearch()
+}
+
+const handleAssetAssigned = () => {
+  isAssignmentDrawerOpen.value = false
+  handleSearch()
+}
+
+const handleAssetSaved = () => {
+  handleSearch()
+}
+
+const openRegisterDrawer = () => {
+  isRegisterDrawerOpen.value = true
+  console.info('무형자산 등록 Drawer 오픈 - 참조 API 호출 시작', [
+    'GET /intangible-asset/items',
+    'GET /departments?size=999',
+    'GET /members?size=999',
+  ])
+  void loadRegisterReferenceData()
+}
+
+const openAssignmentDrawer = async () => {
+  await loadRegisterReferenceData()
+  isAssignmentDrawerOpen.value = true
 }
 
 const handleSearch = () => {
@@ -182,6 +512,285 @@ const changePage = (targetPage: number) => {
   loadServerData()
 }
 
+const openAssetDetail = async (row: IntangibleAsset) => {
+  selectedAsset.value = row
+  isDetailDrawerOpen.value = true
+
+  const assetId = assetIdOf(row)
+  if (!assetId) {
+    console.warn('무형자산 상세 조회에 필요한 자산 ID가 없습니다.', {
+      responseKeys: Object.keys(row),
+      row,
+    })
+    return
+  }
+
+  try {
+    const response = await intangibleAssetApi.getDetail(assetId)
+    selectedAsset.value = {
+      ...toAssetRow(response.data as IntangibleAssetResponse),
+      assetId,
+    }
+  } catch (error) {
+    console.error('무형자산 상세 조회 실패', error)
+  }
+}
+
+const closeAssetDetail = () => {
+  isDetailDrawerOpen.value = false
+  selectedAsset.value = null
+}
+
+const categoryIdByName = (categoryName: string) => {
+  if (!categoryName || categoryName === ALL_CATEGORY) return ''
+
+  for (const group of cascadingOptions.value) {
+    if (categoryName === group.mainCategory) {
+      return group.categoryId ?? ''
+    }
+
+    if (group.subCategoryIds?.[categoryName]) {
+      return group.subCategoryIds[categoryName]
+    }
+
+    if (group.childCategoryIds?.[categoryName]) {
+      return group.childCategoryIds[categoryName]
+    }
+  }
+
+  return ''
+}
+
+const categoryIdOf = (category: CategoryTreeNode) => (
+  category.categoryId ?? category.intangibleAssetCategoryId ?? category.id ?? ''
+)
+
+const categoryNameOf = (category: CategoryTreeNode) => (
+  category.name ?? category.categoryName ?? ''
+)
+
+const categoryChildrenOf = (category: CategoryTreeNode) => (
+  category.children ?? category.subCategories ?? []
+)
+
+const toCategoryGroups = (categories: CategoryTreeNode[]): CategoryGroup[] => (
+  categories
+    .map((category) => {
+      const mainCategory = categoryNameOf(category)
+      const children = categoryChildrenOf(category)
+      const subCategories: string[] = []
+      const childCategories: Record<string, string[]> = {}
+      const subCategoryIds: Record<string, string> = {}
+      const childCategoryIds: Record<string, string> = {}
+
+      children.forEach((middleCategory) => {
+        const middleName = categoryNameOf(middleCategory)
+        if (!middleName) return
+
+        subCategories.push(middleName)
+        subCategoryIds[middleName] = categoryIdOf(middleCategory)
+
+        const smallCategories = categoryChildrenOf(middleCategory)
+          .map((childCategory) => {
+            const childName = categoryNameOf(childCategory)
+            const childId = categoryIdOf(childCategory)
+            if (childName && childId) childCategoryIds[childName] = childId
+            return childName
+          })
+          .filter(Boolean)
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories
+          subCategories.push(...smallCategories)
+        }
+      })
+
+      return {
+        categoryId: categoryIdOf(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      }
+    })
+    .filter((category) => category.mainCategory)
+)
+
+const loadCategoryOptions = async () => {
+  try {
+    const response = await intangibleItemApi.getCategories()
+    const categories = response.data
+
+    if (Array.isArray(categories) && categories.every((category) => typeof category === 'string')) {
+      cascadingOptions.value = categories
+        .map((category) => category.trim())
+        .filter(Boolean)
+        .map((category) => ({
+          mainCategory: category,
+          subCategories: [],
+          childCategories: {},
+          subCategoryIds: {},
+          childCategoryIds: {},
+        }))
+      return
+    }
+
+    cascadingOptions.value = toCategoryGroups(categories as CategoryTreeNode[])
+  } catch (error) {
+    console.warn('무형자산 카테고리 조회 실패:', error instanceof Error ? error.message : String(error))
+    cascadingOptions.value = []
+  }
+}
+
+const apiFailureOf = (error: unknown): ApiFailure => {
+  if (typeof error === 'object' && error !== null) {
+    return error as ApiFailure
+  }
+
+  return { message: String(error) }
+}
+
+const logRegisterReferenceSuccess = <T>(
+  label: string,
+  endpoint: string,
+  response: ApiResponse<T>,
+) => {
+  console.log(`무형자산 등록 Drawer ${label} 성공`, {
+    endpoint,
+    status: response.status,
+    response,
+  })
+}
+
+const logRegisterReferenceFailure = (
+  label: string,
+  endpoint: string,
+  error: unknown,
+) => {
+  const failure = apiFailureOf(error)
+
+  console.error(`무형자산 등록 Drawer ${label} 실패`, {
+    endpoint,
+    status: failure.status,
+    errorCode: failure.errorCode,
+    message: failure.message,
+    details: failure.details,
+    error,
+  })
+}
+
+const getStoredAuthUser = (): StoredAuthUser | null => {
+  const storedUser = localStorage.getItem('authUser')
+  if (!storedUser) return null
+
+  try {
+    return JSON.parse(storedUser) as StoredAuthUser
+  } catch {
+    return null
+  }
+}
+
+const getFallbackDepartment = (): Department[] => {
+  const user = getStoredAuthUser()
+  if (!user?.departmentId || !user.departmentName) return []
+
+  return [{
+    departmentId: user.departmentId,
+    parentDepartmentId: null,
+    name: user.departmentName,
+    memberCount: 1,
+    createdAt: '',
+  }]
+}
+
+const getFallbackMember = (): Member[] => {
+  const user = getStoredAuthUser()
+  if (!user?.memberId || !user.name || !user.departmentId) return []
+
+  return [{
+    memberId: user.memberId,
+    memberNo: user.memberNo ?? '',
+    name: user.name,
+    email: user.email ?? null,
+    departmentId: user.departmentId,
+    departmentName: user.departmentName ?? '',
+    departmentNamePath: user.departmentName ?? '',
+    role: user.role ?? 'EMPLOYEE',
+    status: user.status ?? 'ACTIVE',
+    createdAt: '',
+  }]
+}
+
+const loadRegisterReferenceData = async () => {
+  const [itemsResult, departmentsResult, membersResult] = await Promise.allSettled([
+    intangibleItemApi.getList({ page: 0, size: 999 }),
+    departmentApi.getList({ size: 999 }),
+    memberApi.getList({ size: 999 }),
+  ])
+
+  if (itemsResult.status === 'fulfilled') {
+    logRegisterReferenceSuccess(
+      '무형자산 품목 조회',
+      'GET /intangible-asset/items',
+      itemsResult.value,
+    )
+    assetItemOptions.value = itemsResult.value.data.content
+      .map(toAssetItemOption)
+      .filter((item): item is AssetItemOption => Boolean(item))
+  } else {
+    logRegisterReferenceFailure(
+      '무형자산 품목 조회',
+      'GET /intangible-asset/items',
+      itemsResult.reason,
+    )
+    assetItemOptions.value = []
+  }
+
+  if (departmentsResult.status === 'fulfilled') {
+    logRegisterReferenceSuccess(
+      '부서 목록 조회',
+      'GET /departments?size=999',
+      departmentsResult.value,
+    )
+    departments.value = departmentsResult.value.data.content
+  } else {
+    logRegisterReferenceFailure(
+      '부서 목록 조회',
+      'GET /departments?size=999',
+      departmentsResult.reason,
+    )
+    departments.value = getFallbackDepartment()
+    if (departments.value.length > 0) {
+      console.warn('부서 목록 조회 실패 - 로그인 사용자 부서 정보로 대체합니다.', departments.value)
+    }
+  }
+
+  if (membersResult.status === 'fulfilled') {
+    logRegisterReferenceSuccess(
+      '사용자 목록 조회',
+      'GET /members?size=999',
+      membersResult.value,
+    )
+    members.value = membersResult.value.data.content
+  } else {
+    logRegisterReferenceFailure(
+      '사용자 목록 조회',
+      'GET /members?size=999',
+      membersResult.reason,
+    )
+    members.value = getFallbackMember()
+    if (members.value.length > 0) {
+      console.warn('사용자 목록 조회 실패 - 로그인 사용자 정보로 대체합니다.', members.value)
+    }
+  }
+}
+
+const loadInitialData = async () => {
+  await loadCategoryOptions()
+  loadServerData()
+}
+
 const loadServerData = async () => {
   isLoading.value = true
 
@@ -191,42 +800,41 @@ const loadServerData = async () => {
       size: searchParams.value.size,
     }
 
-    if (searchParams.value.keyword.trim()) {
-      params.keyword = searchParams.value.keyword.trim().toLowerCase()
+    const selectedCategoryId = categoryIdByName(searchParams.value.categoryName)
+    if (selectedCategoryId) {
+      params.categoryId = selectedCategoryId
     }
 
-    const response = await intangibleAssetApi.getList(params)
+    if (searchParams.value.keyword.trim()) {
+      params.keyword = searchParams.value.keyword.trim()
+    }
 
-    listError.value = ''
-    serverAssetList.value = response.data.content
-    totalElements.value = response.data.totalElements
-    totalPages.value = response.data.totalPages
+    if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+      params.currentUserId = currentMemberId.value
+    }
+
+    if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+      params.departmentId = currentDepartmentId.value
+    }
+
+    console.log('무형자산 목록 조회 요청 params', params)
+    const response = await intangibleAssetApi.getList(params)
+    console.log('무형자산 목록 조회 성공', {
+      status: response.status,
+      response,
+    })
+
+    const groupedRows = toGroupedAssetRows(response.data.content as IntangibleAssetResponse[])
+    const duplicateCountOnPage = response.data.content.length - groupedRows.length
+    const adjustedTotalElements = Math.max(groupedRows.length, response.data.totalElements - duplicateCountOnPage)
+
+    serverAssetList.value = groupedRows
+    totalElements.value = adjustedTotalElements
+    totalPages.value = Math.max(1, Math.ceil(adjustedTotalElements / searchParams.value.size))
   } catch (error) {
     console.error('무형자산 목록 조회 실패', error)
-    listError.value = ''
   } finally {
     isLoading.value = false
-  }
-}
-
-const handleUploadClick = () => {
-  uploadInputRef.value?.click()
-}
-
-const handleUploadFile = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  try {
-    await intangibleAssetApi.bulkCreate(file)
-    alert('업로드가 완료되었습니다.')
-    handleSearch()
-  } catch (error) {
-    console.error(error)
-    alert('업로드 중 오류가 발생했습니다.')
-  } finally {
-    target.value = ''
   }
 }
 
@@ -244,7 +852,5 @@ watch(rowsPerPageText, (newVal) => {
   loadServerData()
 })
 
-onMounted(() => {
-  loadServerData()
-})
+onMounted(loadInitialData)
 </script>

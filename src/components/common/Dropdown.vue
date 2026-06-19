@@ -23,10 +23,13 @@
 
     <div
       v-if="isOpen"
+      :style="menuStyle"
       :class="[
-        'absolute mt-1 w-full z-50 rounded-xl border border-border bg-surface shadow-xl',
-        menuAlign === 'right' ? 'right-0' : 'left-0',
-        isPanelDropdown && !isSimpleOptions ? 'max-h-72 overflow-y-auto' : ''
+        menuStrategy === 'fixed' ? 'fixed z-[10020] overflow-y-auto' : 'absolute w-full z-50',
+        'rounded-xl border border-border bg-surface shadow-xl',
+        menuStrategy === 'absolute' && (effectiveMenuDirection === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'),
+        menuStrategy === 'absolute' && (menuAlign === 'right' ? 'right-0' : 'left-0'),
+        isPanelDropdown && !isSimpleOptions ? 'max-h-72 overflow-y-auto' : '',
       ]"
     >
       <ul class="py-1" :class="{ 'max-h-60 overflow-y-auto': isSimpleOptions }">
@@ -212,6 +215,8 @@ interface Props {
   options: DropdownOptionSource[]
   rootOption?: string
   menuAlign?: 'left' | 'right'
+  menuDirection?: 'up' | 'down'
+  menuStrategy?: 'absolute' | 'fixed'
   submenuDirection?: 'left' | 'right'
   disabled?: boolean
 }
@@ -220,6 +225,8 @@ const props = withDefaults(defineProps<Props>(), {
   id: undefined,
   rootOption: '',
   menuAlign: 'left',
+  menuDirection: 'down',
+  menuStrategy: 'absolute',
   submenuDirection: 'right',
   disabled: false,
 })
@@ -237,9 +244,16 @@ const effectiveNestedSubmenuDirection = ref<'left' | 'right'>('right')
 const isPanelDropdown = ref(false)
 
 const menuAlign = computed(() => props.menuAlign ?? 'left')
+const menuDirection = computed(() => props.menuDirection ?? 'down')
+const menuStrategy = computed(() => props.menuStrategy ?? 'absolute')
 const submenuDirection = computed(() => props.submenuDirection ?? 'right')
 const submenuWidth = 176
 const viewportPadding = 12
+const fixedMenuGap = 4
+const minFixedMenuHeight = 120
+const maxFixedMenuHeight = 240
+const menuStyle = ref<Record<string, string>>({})
+const effectiveMenuDirection = ref<'up' | 'down'>(menuDirection.value)
 
 // 기존 문자열/카테고리 옵션과 label-value 옵션을 함께 지원해 공통 사용처의 호환성을 유지한다.
 const isCategoryGroup = (option: DropdownOptionSource): option is CategoryGroup => (
@@ -417,8 +431,39 @@ const closeDropdown = () => {
   isOpen.value = false
   activeGroup.value = null
   activeSubCategory.value = null
+  menuStyle.value = {}
+  effectiveMenuDirection.value = menuDirection.value
   effectiveSubmenuDirection.value = submenuDirection.value
   effectiveNestedSubmenuDirection.value = submenuDirection.value
+}
+
+const updateFixedMenuStyle = () => {
+  if (menuStrategy.value !== 'fixed' || !rootRef.value) {
+    menuStyle.value = {}
+    effectiveMenuDirection.value = menuDirection.value
+    return
+  }
+
+  const rect = rootRef.value.getBoundingClientRect()
+  const belowSpace = window.innerHeight - rect.bottom - viewportPadding
+  const aboveSpace = rect.top - viewportPadding
+  const shouldOpenUp = menuDirection.value === 'up'
+    || (belowSpace < minFixedMenuHeight && aboveSpace > belowSpace)
+  const availableHeight = Math.max(
+    minFixedMenuHeight,
+    Math.min(maxFixedMenuHeight, shouldOpenUp ? aboveSpace - fixedMenuGap : belowSpace - fixedMenuGap),
+  )
+
+  effectiveMenuDirection.value = shouldOpenUp ? 'up' : 'down'
+  menuStyle.value = {
+    width: `${rect.width}px`,
+    maxHeight: `${availableHeight}px`,
+    left: menuAlign.value === 'right'
+      ? `${rect.right - rect.width}px`
+      : `${rect.left}px`,
+    top: shouldOpenUp ? 'auto' : `${rect.bottom + fixedMenuGap}px`,
+    bottom: shouldOpenUp ? `${window.innerHeight - rect.top + fixedMenuGap}px` : 'auto',
+  }
 }
 
 const toggleOpen = () => {
@@ -433,7 +478,10 @@ const toggleOpen = () => {
   activeSubCategory.value = null
   effectiveSubmenuDirection.value = submenuDirection.value
   effectiveNestedSubmenuDirection.value = submenuDirection.value
-  nextTick(updatePanelContext)
+  nextTick(() => {
+    updatePanelContext()
+    updateFixedMenuStyle()
+  })
 }
 
 const selectOption = (option: string | number) => {
@@ -446,6 +494,17 @@ watch(() => props.disabled, (disabled) => {
   if (!disabled) return
   closeDropdown()
 })
+
+watch(isOpen, (open) => {
+  if (!open || menuStrategy.value !== 'fixed') {
+    window.removeEventListener('resize', updateFixedMenuStyle)
+    window.removeEventListener('scroll', updateFixedMenuStyle, true)
+    return
+  }
+
+  window.addEventListener('resize', updateFixedMenuStyle)
+  window.addEventListener('scroll', updateFixedMenuStyle, true)
+}, { flush: 'post' })
 
 const handlePointerDown = (event: PointerEvent) => {
   if (!isOpen.value) return
@@ -470,5 +529,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handlePointerDown, true)
   window.removeEventListener('asset-ieum-dropdown-open', handleDropdownOpen)
+  window.removeEventListener('resize', updateFixedMenuStyle)
+  window.removeEventListener('scroll', updateFixedMenuStyle, true)
 })
 </script>
