@@ -13,7 +13,7 @@
           <Input id="edit-productName" v-model="assetEditForm.productName" label="제품명" disabled />
           <Input id="edit-assetCode" v-model="assetEditForm.assetCode" label="자산 번호" disabled />
           <FormField label="자산 상태" required>
-            <Dropdown v-model="assetEditForm.statusLabel" :options="statusOptions" :disabled="!canUpdateAsset"/>
+            <Dropdown v-model="assetEditForm.statusLabel" :options="editableStatusOptions" :disabled="!canUpdateAsset" />
           </FormField>
           <Input id="edit-serialNo" v-model="assetEditForm.serialNo" label="시리얼 번호" disabled />
           <Input id="edit-assetUsageType" v-model="assetEditForm.assetUsageType" label="공용자산 여부" disabled />
@@ -82,7 +82,14 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
-import type { Department, Member, TangibleAsset, TangibleAssetStatus, TangibleAssetUsageType } from '@/types'
+import type {
+  Department,
+  Member,
+  TangibleAsset,
+  TangibleAssetStatus,
+  TangibleAssetUpdateRequest,
+  TangibleAssetUsageType,
+} from '@/types'
 import { usePermission } from '@/composables'
 
 interface TangibleAssetDetail extends TangibleAsset {
@@ -157,7 +164,10 @@ const FormField = defineComponent({
   },
 })
 
-const statusOptions = Object.values(TANGIBLE_STATUS_LABEL)
+const editableStatusOptions = [
+  TANGIBLE_STATUS_LABEL.AVAILABLE,
+  TANGIBLE_STATUS_LABEL.IN_USE,
+]
 const statusByLabel = Object.entries(TANGIBLE_STATUS_LABEL).reduce(
   (acc, [status, label]) => {
     acc[label] = status as TangibleAssetStatus
@@ -165,7 +175,7 @@ const statusByLabel = Object.entries(TANGIBLE_STATUS_LABEL).reduce(
   },
   {} as Record<string, TangibleAssetStatus>,
 )
-const usageTypeOptions = ['미배정', '정식 배정', '임시 대여', '공용자산']
+const usageTypeOptions = ['정식 배정', '임시 대여', '공용자산']
 
 const createEmptyAssetEditForm = (): AssetEditForm => ({
   productName: '',
@@ -173,7 +183,7 @@ const createEmptyAssetEditForm = (): AssetEditForm => ({
   statusLabel: TANGIBLE_STATUS_LABEL.AVAILABLE,
   serialNo: '',
   assetUsageType: '',
-  usageType: '미배정',
+  usageType: '정식 배정',
   location: '',
   startedAt: '',
   returnDueDate: '',
@@ -346,7 +356,7 @@ const selectedStatus = computed(() => (
 ))
 
 const requiresAssignmentInfo = computed(() => (
-  selectedStatus.value !== 'AVAILABLE' && selectedStatus.value !== 'DISPOSED'
+  selectedStatus.value === 'IN_USE'
 ))
 
 const statusLabel = (status: string | null | undefined) => {
@@ -357,7 +367,6 @@ const statusLabel = (status: string | null | undefined) => {
 const usageTypeLabel = (asset: TangibleAssetDetail) => {
   if (asset.usageType === 'PERMANENT') return '정식 배정'
   if (asset.usageType === 'TEMPORARY') return '임시 대여'
-  if ((asset.status ?? asset.tangibleAssetStatus ?? asset.tangibleAssetstatus) === 'AVAILABLE') return '미배정'
   if (asset.userName ?? asset.assignedMemberName ?? asset.memberName ?? asset.assignedMemberId ?? asset.memberId) return '정식 배정'
   return '공용자산'
 }
@@ -372,6 +381,11 @@ const toDateTimeInputValue = (value: string | null | undefined) => {
   if (!value) return ''
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`
   return value.slice(0, 16)
+}
+
+const nullableDateTime = (value: string) => {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
@@ -467,33 +481,54 @@ const handleUpdateAsset = async () => {
     return
   }
 
-  const isAssigned = assetEditForm.value.usageType === '정식 배정'
-  const isShared = assetEditForm.value.usageType === '공용자산'
-  const member = selectedMember.value
-  const department = selectedMemberDepartment.value ?? selectedDepartment.value
+  const initialStatus = statusByLabel[initialAssetEditForm.value.statusLabel]
+    ?? props.asset.status
+    ?? props.asset.tangibleAssetStatus
+    ?? props.asset.tangibleAssetstatus
+    ?? 'AVAILABLE'
+  const nextStatus = selectedStatus.value
+  const nextUsageType = usageTypeValue()
+  const initialUsageType = initialAssetEditForm.value.usageType === '임시 대여'
+    ? 'TEMPORARY'
+    : initialAssetEditForm.value.usageType === '정식 배정'
+      ? 'PERMANENT'
+      : null
 
-  if (isAssigned && !member) {
-    alert('정식 배정 자산은 사용자를 선택해주세요.')
+  if (nextStatus === 'IN_USE' && initialStatus !== nextStatus && !assetEditForm.value.startedAt.trim()) {
+    alert('사용 중 자산은 사용 시작일이 필요합니다.')
     return
   }
 
-  if (requiresAssignmentInfo.value && (!member || !department || !assetEditForm.value.startedAt.trim())) {
-    alert('AVAILABLE, DISPOSED 상태가 아닌 자산은 사용자, 부서, 사용 시작일이 필요합니다.')
+  const updatePayload: TangibleAssetUpdateRequest = {}
+
+  if (nextStatus !== initialStatus) {
+    updatePayload.tangibleAssetStatus = nextStatus
+  }
+
+  if (nextUsageType !== initialUsageType) {
+    updatePayload.usageType = nextUsageType
+  }
+
+  if (assetEditForm.value.location.trim() !== initialAssetEditForm.value.location.trim()) {
+    updatePayload.location = assetEditForm.value.location.trim()
+  }
+
+  if (assetEditForm.value.startedAt.trim() !== initialAssetEditForm.value.startedAt.trim()) {
+    updatePayload.usedStartedAt = nullableDateTime(assetEditForm.value.startedAt)
+  }
+
+  if (assetEditForm.value.returnDueDate.trim() !== initialAssetEditForm.value.returnDueDate.trim()) {
+    updatePayload.returnDueDate = nullableDateTime(assetEditForm.value.returnDueDate)
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
     return
   }
 
   isSavingAsset.value = true
 
   try {
-    const response = await tangibleAssetApi.update(assetId, {
-      tangibleAssetStatus: selectedStatus.value,
-      memberId: requiresAssignmentInfo.value ? member?.memberId ?? null : null,
-      departmentId: requiresAssignmentInfo.value ? department?.departmentId ?? null : isShared ? department?.departmentId ?? null : null,
-      usageType: requiresAssignmentInfo.value ? usageTypeValue() ?? 'PERMANENT' : usageTypeValue(),
-      usedStartedAt: assetEditForm.value.startedAt.trim() || null,
-      returnDueDate: assetEditForm.value.returnDueDate.trim() || null,
-      location: assetEditForm.value.location.trim() || null,
-    })
+    const response = await tangibleAssetApi.update(assetId, updatePayload)
 
     const responseAssetId = toUuidString(response.data.tangibleAssetId ?? response.data.assetId ?? assetId)
     const responseAssetCode = response.data.assetCode ?? props.asset.assetCode
