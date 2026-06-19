@@ -518,7 +518,8 @@
                 class="pointer-events-none h-4 w-4 rounded border-border text-primary focus:ring-primary"
                 :checked="selectedTicketIds.includes(row.ticketId)"
                 :disabled="!row.canCreate"
-                :aria-label="`${row.ticket.ticketNo} 선택`"
+                :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
+                :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
                 tabindex="-1"
               />
             </template>
@@ -554,21 +555,6 @@
               <span class="whitespace-nowrap">{{
                 formatCurrency(Number(value || 0))
               }}</span>
-            </template>
-
-            <template #cell-validation="{ row }">
-              <span
-                v-if="row.canCreate"
-                class="whitespace-nowrap text-xs font-semibold text-success"
-                >등록 가능</span
-              >
-              <span
-                v-else
-                class="block truncate text-xs font-semibold text-danger"
-                :title="row.disabledReason"
-              >
-                {{ row.disabledReason }}
-              </span>
             </template>
           </Table>
 
@@ -746,9 +732,10 @@
               >합계 {{ formatCurrency(selectedEstimatedAmount) }}</span
             >
           </div>
-          <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="closeCreateDrawer">취소</Button>
+          <div class="grid grid-cols-2 gap-2">
+            <Button class="w-full" variant="outline" @click="closeCreateDrawer">취소</Button>
             <Button
+              class="w-full"
               :disabled="planRequestItems.length === 0 || isCreatingPlan"
               :loading="isCreatingPlan"
               @click="createPlan"
@@ -942,10 +929,9 @@ const eligibleTicketColumns: Column<EligibleTicket>[] = [
   {
     key: "estimatedUnitPrice",
     label: "예상 단가",
-    width: "12%",
+    width: "22%",
     align: "center",
   },
-  { key: "validation", label: "확인", width: "10%", align: "center" },
 ];
 
 const EMPTY_STATISTICS: PurchasePlanStatistics = {

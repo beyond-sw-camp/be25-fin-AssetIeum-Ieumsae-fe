@@ -213,9 +213,9 @@
         </p>
       </div>
 
-      <div class="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-4">
-        <Button variant="outline" :disabled="isSubmitting" @click="handleClose">취소</Button>
-        <Button :loading="isSubmitting" @click="handleSubmit">등록</Button>
+      <div class="grid shrink-0 grid-cols-2 gap-2 border-t border-border px-6 py-4">
+        <Button class="w-full" variant="outline" :disabled="isSubmitting" @click="handleClose">취소</Button>
+        <Button class="w-full" :loading="isSubmitting" @click="handleSubmit">등록</Button>
       </div>
     </div>
   </BaseDrawer>
