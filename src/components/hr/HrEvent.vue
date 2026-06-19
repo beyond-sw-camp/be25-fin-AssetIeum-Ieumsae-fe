@@ -718,6 +718,7 @@ async function handleDeleteEvent(row: HrEventRow) {
   }
 }
 
+// TODO: 티켓 연결 필요 
 function handleViewTickets(row: HrEventRow) {
   errorMessage.value = `${row.eventNo} 이벤트로 생성된 티켓 조회 화면은 API 명세/백엔드 확인이 필요합니다.`
 }
