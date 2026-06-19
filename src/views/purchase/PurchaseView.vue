@@ -581,13 +581,21 @@
                   :disabled="isCreatingPlan"
                 />
               </div>
-              <Input
-                id="direct-plan-category"
-                v-model="directItemForm.categoryName"
-                label="분류"
-                placeholder="예: 노트북"
-                :disabled="isCreatingPlan"
-              />
+              <div class="space-y-2 text-left">
+                <label
+                  for="direct-plan-category"
+                  class="block px-0.5 text-sm font-semibold text-text-main"
+                >
+                  분류
+                </label>
+                <Dropdown
+                  id="direct-plan-category"
+                  :model-value="directItemForm.categoryName"
+                  :options="directCategoryOptions"
+                  :disabled="isDirectCategoryDisabled"
+                  @update:model-value="handleDirectCategoryChange"
+                />
+              </div>
               <div class="space-y-2 text-left">
                 <label class="block px-0.5 text-sm font-semibold text-text-main"
                   >자산 유형</label
@@ -779,7 +787,15 @@ import {
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { ApiError, departmentApi, memberApi, purchaseApi, ticketApi } from "@/api";
+import {
+  ApiError,
+  departmentApi,
+  intangibleItemApi,
+  memberApi,
+  purchaseApi,
+  tangibleItemApi,
+  ticketApi,
+} from "@/api";
 import BaseDrawer from "@/components/common/BaseDrawer.vue";
 import Button from "@/components/common/Button.vue";
 import Dropdown from "@/components/common/Dropdown.vue";
@@ -792,6 +808,7 @@ import type {
   AssetType,
   Department,
   DropdownOption,
+  IntangibleCategoryGroup,
   Member,
   PurchasePlanCreateItem,
   PurchasePlanDetail,
@@ -799,6 +816,7 @@ import type {
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
+  TangibleCategoryGroup,
   TicketListItem,
 } from "@/types";
 
@@ -936,13 +954,9 @@ const eligibleTicketColumns: Column<EligibleTicket>[] = [
 
 const EMPTY_STATISTICS: PurchasePlanStatistics = {
   totalCount: 0,
-  requestedCount: 0,
-  approvedCount: 0,
-  rejectedCount: 0,
+  approvalWaitingCount: 0,
   orderedCount: 0,
-  deliveredCount: 0,
   completedCount: 0,
-  cancelledCount: 0,
 };
 
 const { hasRole } = usePermission();
@@ -970,6 +984,8 @@ const listError = ref("");
 const assetTeamMembers = ref<Member[]>([]);
 const departments = ref<Department[]>([]);
 const members = ref<Member[]>([]);
+const tangibleCategoryGroups = ref<TangibleCategoryGroup[]>([]);
+const intangibleCategoryGroups = ref<IntangibleCategoryGroup[]>([]);
 
 const selectedPlanId = ref<number | string | null>(null);
 const selectedPlan = ref<PurchasePlanDetail | null>(null);
@@ -1005,6 +1021,27 @@ const requesterOptions = computed<DropdownOption[]>(() => [
   })),
 ]);
 
+const tangibleCategoryOptions = computed(() =>
+  categoryGroupsToOptions(tangibleCategoryGroups.value),
+);
+
+const intangibleCategoryOptions = computed(() =>
+  categoryGroupsToOptions(intangibleCategoryGroups.value),
+);
+
+const directCategoryOptions = computed<DropdownOption[]>(() => {
+  const categories = directItemForm.value.assetType === "INTANGIBLE"
+    ? intangibleCategoryOptions.value
+    : tangibleCategoryOptions.value;
+
+  return [
+    { label: "분류 선택", value: "" },
+    ...categories,
+  ];
+});
+
+const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
+
 const statCards = computed(() => [
   {
     label: "전체",
@@ -1014,7 +1051,7 @@ const statCards = computed(() => [
   },
   {
     label: "승인 대기",
-    value: statistics.value.requestedCount,
+    value: statistics.value.approvalWaitingCount,
     className: "border-warning/30 ",
     accentClass: "bg-warning",
   },
@@ -1026,7 +1063,7 @@ const statCards = computed(() => [
   },
   {
     label: "완료",
-    value: statistics.value.deliveredCount,
+    value: statistics.value.completedCount,
     className: "border-success/30 bg-success/5",
     accentClass: "bg-success",
   },
@@ -1205,11 +1242,15 @@ watch(
 onMounted(() => {
   refreshList();
   fetchAssetTeamMembers();
+  fetchPurchaseCategoryOptions();
   fetchAssetRegisterReferenceData();
 });
 
 async function refreshList() {
-  await fetchPlans();
+  await Promise.all([
+    fetchPlans(),
+    fetchStatistics(),
+  ]);
 }
 
 async function fetchPlans() {
@@ -1228,10 +1269,6 @@ async function fetchPlans() {
     plans.value = response.data.content;
     totalElements.value = response.data.totalElements;
     totalPages.value = response.data.totalPages;
-    statistics.value = createStatisticsFromPlans(
-      response.data.content,
-      response.data.totalElements,
-    );
   } catch (error) {
     listError.value = getErrorMessage(
       error,
@@ -1239,6 +1276,15 @@ async function fetchPlans() {
     );
   } finally {
     isListLoading.value = false;
+  }
+}
+
+async function fetchStatistics() {
+  try {
+    const response = await purchaseApi.getStatistics();
+    statistics.value = response.data;
+  } catch {
+    statistics.value = { ...EMPTY_STATISTICS };
   }
 }
 
@@ -1257,6 +1303,27 @@ async function fetchAssetTeamMembers() {
     );
   } catch {
     assetTeamMembers.value = [];
+  }
+}
+
+async function fetchPurchaseCategoryOptions() {
+  const [tangibleResult, intangibleResult] = await Promise.allSettled([
+    tangibleItemApi.getCategories(),
+    intangibleItemApi.getCategories(),
+  ]);
+
+  if (tangibleResult.status === "fulfilled") {
+    tangibleCategoryGroups.value = tangibleResult.value.data;
+  } else {
+    tangibleCategoryGroups.value = [];
+  }
+
+  if (intangibleResult.status === "fulfilled") {
+    intangibleCategoryGroups.value = normalizeIntangibleCategoryGroups(
+      intangibleResult.value.data,
+    );
+  } else {
+    intangibleCategoryGroups.value = [];
   }
 }
 
@@ -1342,6 +1409,7 @@ function openCreateDrawer() {
   selectedTicketIds.value = [];
   directPlanItems.value = [];
   resetDirectItemForm();
+  void fetchPurchaseCategoryOptions();
   fetchEligibleTickets();
 }
 
@@ -1358,6 +1426,8 @@ async function fetchEligibleTickets() {
   eligibleError.value = "";
 
   try {
+    // TODO: 백엔드 구현 완료 후 /purchase-plans/candidate-tickets API로 교체
+    // 현재는 결재 완료 티켓 목록을 조회한 뒤 구매 계획 대상 여부를 프론트에서 필터링한다.
     const response = await ticketApi.getList({
       ticketStatus: "ASSET_APPROVED",
       page: 0,
@@ -1442,6 +1512,10 @@ function handleStatusSelect(value: string | number) {
   nextStatus.value = toStatusOption(value);
 }
 
+function handleDirectCategoryChange(value: string | number) {
+  directItemForm.value.categoryName = String(value);
+}
+
 function resetDirectItemForm() {
   directItemForm.value = {
     itemName: "",
@@ -1457,6 +1531,7 @@ function resetDirectItemForm() {
 function handleDirectAssetTypeChange(value: string | number) {
   directItemForm.value.assetType =
     value === "INTANGIBLE" ? "INTANGIBLE" : "TANGIBLE";
+  directItemForm.value.categoryName = "";
 }
 
 function addDirectPlanItem() {
@@ -1507,7 +1582,7 @@ async function createPlan() {
     .filter((item) => item.canCreate && item.assetType)
     .map((item) => ({
       ticketId: item.ticket.ticketId,
-      itemName: item.itemName,
+      productName: item.itemName,
       assetType: item.assetType!,
       assetItemId: item.assetItemId,
       quantity: item.quantity,
@@ -1520,7 +1595,7 @@ async function createPlan() {
   const directItems: PurchasePlanCreateItem[] = directPlanItems.value.map(
     (item) => ({
       ticketId: null,
-      itemName: item.itemName,
+      productName: item.itemName,
       assetType: item.assetType,
       assetItemId: null,
       quantity: item.quantity,
@@ -1615,27 +1690,6 @@ function displayListStatus(plan: PurchasePlanListItem): PurchasePlanStatus {
   return plan.status || plan.purchaseRequestStatus || "REQUESTED";
 }
 
-function createStatisticsFromPlans(
-  planItems: PurchasePlanListItem[],
-  totalCount = planItems.length,
-): PurchasePlanStatistics {
-  return planItems.reduce<PurchasePlanStatistics>(
-    (acc, plan) => {
-      const status = displayListStatus(plan);
-      acc.totalCount = totalCount;
-      if (status === "REQUESTED") acc.requestedCount += 1;
-      if (status === "APPROVED") acc.approvedCount += 1;
-      if (status === "REJECTED") acc.rejectedCount += 1;
-      if (status === "ORDERED") acc.orderedCount += 1;
-      if (status === "DELIVERED") acc.deliveredCount += 1;
-      if (status === "COMPLETED") acc.completedCount += 1;
-      if (status === "CANCELLED") acc.cancelledCount += 1;
-      return acc;
-    },
-    { ...EMPTY_STATISTICS, totalCount },
-  );
-}
-
 function displayPlanStatus(plan: PurchasePlanDetail): PurchasePlanStatus {
   return plan.status || plan.purchaseRequestStatus || "REQUESTED";
 }
@@ -1666,6 +1720,61 @@ function parseAssetItemId(value: string | number | null | undefined) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function categoryGroupsToOptions(groups: unknown): DropdownOption[] {
+  return [...new Set(collectCategoryNames(groups))].map((name) => ({
+    label: name,
+    value: name,
+  }));
+}
+
+function collectCategoryNames(value: unknown): string[] {
+  if (typeof value === "string") {
+    const name = value.trim();
+    return name ? [name] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(collectCategoryNames);
+  }
+
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const category = value as Record<string, unknown>;
+  const names = [
+    ...collectCategoryNames(category.mainCategory),
+    ...collectCategoryNames(category.name),
+    ...collectCategoryNames(category.categoryName),
+    ...collectCategoryNames(category.children),
+    ...collectCategoryNames(category.subCategories),
+  ];
+
+  if (category.childCategories && typeof category.childCategories === "object") {
+    Object.entries(category.childCategories).forEach(([name, children]) => {
+      names.push(...collectCategoryNames(name));
+      names.push(...collectCategoryNames(children));
+    });
+  }
+
+  return names;
+}
+
+function normalizeIntangibleCategoryGroups(
+  categories: IntangibleCategoryGroup[] | string[],
+): IntangibleCategoryGroup[] {
+  if (!categories.length) return [];
+
+  if (typeof categories[0] === "string") {
+    return (categories as string[]).map((category) => ({
+      mainCategory: category,
+      subCategories: [],
+    }));
+  }
+
+  return categories as IntangibleCategoryGroup[];
 }
 
 function formatCurrency(value: number) {
