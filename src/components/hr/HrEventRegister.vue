@@ -44,20 +44,6 @@
         required
       />
 
-      <div class="space-y-2">
-        <label class="flex items-center gap-0.5 text-sm font-bold text-text-main" for="hr-event-template">
-          적용할 템플릿
-          <span class="text-primary">*</span>
-        </label>
-        <Dropdown
-          id="hr-event-template"
-          v-model="form.templateId"
-          :options="templateOptions"
-          root-option="템플릿을 선택하세요"
-          menu-strategy="fixed"
-        />
-      </div>
-
       <p
         v-if="errorMessage"
         class="rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
@@ -81,21 +67,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive } from 'vue'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import type { DropdownOption, Member } from '@/types'
-import type { HrEventType, HrTemplateResponse } from '@/types/hr'
-
-const CURRENT_TEMPLATE_OPTION_VALUE = 'current-department-template'
+import type { HrEventType } from '@/types/hr'
 
 export interface HrEventRegisterSubmitPayload {
   memberId: string
   eventType: HrEventType
   eventDate: string
-  templateId: string
 }
 
 const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
@@ -108,7 +91,6 @@ const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
 
 const props = defineProps<{
   members: Member[]
-  template: HrTemplateResponse | null
   isLoadingMembers?: boolean
   isCreating?: boolean
   errorMessage?: string
@@ -122,12 +104,10 @@ const form = reactive<{
   memberId: string
   eventType: '' | HrEventType
   eventDate: string
-  templateId: string | number | ''
 }>({
   memberId: '',
   eventType: '',
   eventDate: '',
-  templateId: '',
 })
 
 const memberOptions = computed<DropdownOption[]>(() => props.members.map((member) => ({
@@ -139,33 +119,16 @@ const eventTypeOptions = computed<DropdownOption[]>(() => (
   Object.entries(EVENT_TYPE_LABEL).map(([value, label]) => ({ label, value }))
 ))
 
-const templateOptions = computed<DropdownOption[]>(() => {
-  if (!props.template) return []
-
-  const templateId = props.template.templateId ?? props.template.hrTemplateId ?? CURRENT_TEMPLATE_OPTION_VALUE
-
-  return [{
-    label: getTemplateLabel(props.template),
-    value: templateId,
-  }]
-})
-
 const isCreateReady = computed(() => Boolean(
   form.memberId
   && form.eventType
   && form.eventDate
-  && form.templateId,
 ))
-
-watch(templateOptions, (options) => {
-  form.templateId = options[0]?.value ?? ''
-}, { immediate: true })
 
 function resetForm() {
   form.memberId = ''
   form.eventType = ''
   form.eventDate = ''
-  form.templateId = templateOptions.value[0]?.value ?? ''
 }
 
 function handleSubmit() {
@@ -175,14 +138,7 @@ function handleSubmit() {
     memberId: String(form.memberId),
     eventType: form.eventType,
     eventDate: form.eventDate,
-    templateId: String(form.templateId),
   })
-}
-
-function getTemplateLabel(value: HrTemplateResponse) {
-  if (value.name) return value.name
-  if (value.departmentName) return `${value.departmentName} HR 템플릿`
-  return '우리 부서 HR 템플릿'
 }
 
 defineExpose({

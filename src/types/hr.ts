@@ -46,7 +46,7 @@ export interface HrTemplateItemResponse {
 // =====================================================
 
 export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER' | 'LEAVE' | 'RETURN'
-export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CANCELED'
+export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CANCELLED'
 export type HrEventId = string | number
 
 export interface HrEventCreateRequest {

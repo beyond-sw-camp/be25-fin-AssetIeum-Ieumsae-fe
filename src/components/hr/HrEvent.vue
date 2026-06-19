@@ -223,7 +223,6 @@
       <HrEventRegister
         ref="registerRef"
         :members="members"
-        :template="template"
         :is-loading-members="isLoadingMembers"
         :is-creating="isCreating"
         :error-message="formErrorMessage"
@@ -316,7 +315,6 @@ const STATUS_LABEL: Record<HrEventStatus, string> = {
   IN_PROGRESS: '실행 중',
   COMPLETED: '실행 완료',
   CANCELLED: '취소됨',
-  CANCELED: '취소됨',
 }
 
 const eventColumns = computed<Column<HrEventRow>[]>(() => [
@@ -741,14 +739,14 @@ function eventTypeBadgeClass(eventType: HrEventType) {
 function statusTextClass(status: HrEventStatus) {
   if (status === 'COMPLETED') return 'text-success'
   if (status === 'IN_PROGRESS') return 'text-primary'
-  if (status === 'CANCELLED' || status === 'CANCELED') return 'text-danger'
+  if (status === 'CANCELLED') return 'text-danger'
   return 'text-text-sub'
 }
 
 function statusDotClass(status: HrEventStatus) {
   if (status === 'COMPLETED') return 'bg-success'
   if (status === 'IN_PROGRESS') return 'bg-primary'
-  if (status === 'CANCELLED' || status === 'CANCELED') return 'bg-danger'
+  if (status === 'CANCELLED') return 'bg-danger'
   return 'bg-border'
 }
 
