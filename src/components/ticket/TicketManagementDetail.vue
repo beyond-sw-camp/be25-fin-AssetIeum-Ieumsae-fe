@@ -660,14 +660,14 @@ interface AssetItemAssignPayload {
 
 const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
 const MANUAL_STATUS_CHANGE_OPTIONS: TicketStatus[] = [
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ]
 const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
@@ -1606,7 +1606,7 @@ async function handleChangeStatus() {
   isChangingStatus.value = true
 
   try {
-    if (selectedTicketStatus.value === 'CANCELED') {
+    if (selectedTicketStatus.value === 'CANCELLED') {
       await ticketApi.cancel(ticket.value.ticketId)
     } else {
       await ticketApi.changeStatus(ticket.value.ticketId, selectedTicketStatus.value)

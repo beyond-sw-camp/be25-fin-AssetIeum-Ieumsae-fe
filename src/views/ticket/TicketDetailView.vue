@@ -286,7 +286,7 @@ const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 
 const route = useRoute()
@@ -398,7 +398,7 @@ const cancelActionMessage = computed(() => {
     case 'DEPARTMENT_REJECTED':
     case 'ASSET_REJECTED':
       return '반려된 요청은 취소할 수 없습니다.'
-    case 'CANCELED':
+    case 'CANCELLED':
       return '이미 취소된 요청입니다.'
     default:
       return '현재 상태에서는 요청을 취소할 수 없습니다.'

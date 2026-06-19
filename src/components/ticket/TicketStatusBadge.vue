@@ -25,6 +25,6 @@ const statusClass: Record<TicketStatus, string> = {
   ASSET_REJECTED: 'bg-red-100 text-red-700',
   IN_PROGRESS: 'bg-blue-100 text-blue-700',
   COMPLETED: 'bg-green-100 text-green-700',
-  CANCELED: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-red-100 text-red-700',
 }
 </script>
