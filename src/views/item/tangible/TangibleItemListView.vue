@@ -13,6 +13,7 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <Button
+          v-if="canRegisterAsset"
           variant="outline"
           :loading="isUploadingCsv"
           @click="handleCsvUploadClick"
@@ -259,7 +260,9 @@ import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
+import { usePermission } from '@/composables/usePermission'
 import { useNotificationStore } from '@/stores'
+import { parseCsvText, validateCsvShape } from '@/utils/csvImport'
 import type { TangibleAsset, TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
 import TangibleItemCategory from '../../../components/item/tangible/TangibleItemCategory.vue';
@@ -336,10 +339,22 @@ type TangibleAssetCountSource = TangibleAsset & {
   modelName?: string
 }
 
+const TANGIBLE_ITEM_IMPORT_HEADERS = [
+  'categoryName',
+  'productName',
+  'manufacturer',
+  'modelName',
+  'isStandard',
+]
+const TANGIBLE_ITEM_IMPORT_BOOLEAN_VALUES = new Set(['true', 'false'])
+const ASSET_COUNT_PAGE_SIZE = 200
+
 const toRadioValue = (value: number | boolean | undefined) => {
   if (typeof value === 'boolean') return value ? 1 : 0
   return value ?? 1
 }
+
+const { canRegisterAsset } = usePermission()
 
 // 드로어 열림/닫힘 상태 플래그
 const isCategoryDrawerOpen = ref(false);
@@ -447,6 +462,26 @@ const handleCsvUploadClick = () => {
   csvUploadInputRef.value?.click()
 }
 
+const validateTangibleItemCsv = async (file: File) => {
+  const rows = parseCsvText(await file.text())
+  const shapeError = validateCsvShape(rows, TANGIBLE_ITEM_IMPORT_HEADERS, '유형자산 품목')
+  if (shapeError) return shapeError
+
+  const invalidValueRow = rows.slice(1).findIndex((row) => (
+    row[0].trim() === ''
+      || row[1].trim() === ''
+      || row[2].trim() === ''
+      || row[3].trim() === ''
+      || !TANGIBLE_ITEM_IMPORT_BOOLEAN_VALUES.has(row[4].trim().toLowerCase())
+  ))
+
+  if (invalidValueRow >= 0) {
+    return `${invalidValueRow + 2}번째 줄 값을 확인해주세요. categoryName, productName, manufacturer, modelName은 필수이고 isStandard는 true 또는 false여야 합니다.`
+  }
+
+  return null
+}
+
 const handleCsvUploadChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -462,13 +497,18 @@ const handleCsvUploadChange = async (event: Event) => {
   isUploadingCsv.value = true
 
   try {
+    const validationError = await validateTangibleItemCsv(file)
+    if (validationError) {
+      notificationStore.warning('CSV 파일 형식을 확인해주세요.', validationError)
+      return
+    }
+
     const response = await tangibleItemApi.importCsv(file)
     notificationStore.success('유형자산 품목 일괄 등록 완료', `${response.data.length}건이 등록되었습니다.`)
     await loadCategories()
     handleSearch()
   } catch (error) {
     const message = error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
-    console.error('유형자산 품목 CSV 업로드 실패', error)
     notificationStore.error('유형자산 품목 일괄 등록 실패', message)
   } finally {
     isUploadingCsv.value = false
@@ -826,13 +866,21 @@ const loadAssetCountMap = async () => {
   const map = new Map<string, number>()
 
   try {
-    const response = await tangibleAssetApi.getList({ page: 0, size: 999 })
-    response.data.content.forEach((asset) => {
-      const source = asset as TangibleAssetCountSource
-      addAssetCount(map, assetItemIdOf(source))
-      addAssetCount(map, assetItemNameOf(source))
-      addAssetCount(map, source.modelName)
-    })
+    let page = 0
+    let totalPages = 1
+
+    do {
+      const response = await tangibleAssetApi.getList({ page, size: ASSET_COUNT_PAGE_SIZE })
+      response.data.content.forEach((asset) => {
+        const source = asset as TangibleAssetCountSource
+        addAssetCount(map, assetItemIdOf(source))
+        addAssetCount(map, assetItemNameOf(source))
+        addAssetCount(map, source.modelName)
+      })
+
+      totalPages = response.data.totalPages || 1
+      page += 1
+    } while (page < totalPages)
   } catch (error) {
     console.warn('유형자산 목록 기반 자산 수 계산 실패', error)
   }

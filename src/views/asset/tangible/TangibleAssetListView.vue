@@ -356,7 +356,6 @@ const handleCsvUploadChange = async (event: Event) => {
     handleSearch()
   } catch (error) {
     const message = error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
-    console.error('유형자산 CSV 업로드 실패', error)
     notificationStore.error('유형자산 일괄 등록 실패', message)
   } finally {
     isUploadingCsv.value = false
@@ -844,7 +843,9 @@ const loadServerData = async () => {
       params.keyword = searchParams.value.keyword.trim();
     }
 
-    await loadReferenceData()
+    if (!isReferenceDataLoaded.value) {
+      await loadReferenceData()
+    }
 
     const response = await tangibleAssetApi.getList(params);
 

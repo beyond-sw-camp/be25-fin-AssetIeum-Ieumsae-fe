@@ -191,7 +191,7 @@ import { memberApi } from '@/api/member.api'
 import { useNotificationStore } from '@/stores'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import { parseCsvText, validateCsvShape } from '@/utils/csvImport'
-import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
+import type { Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
 import IntangibleAssetAssignment from '@/components/asset/intangible/IntangibleAssetAssignment.vue'
@@ -581,11 +581,6 @@ const handleCsvUploadChange = async (event: Event) => {
 
 const openRegisterDrawer = () => {
   isRegisterDrawerOpen.value = true
-  console.info('무형자산 등록 Drawer 오픈 - 참조 API 호출 시작', [
-    'GET /intangible-asset/items',
-    'GET /departments?size=999',
-    'GET /members?size=999',
-  ])
   void loadRegisterReferenceData()
 }
 
@@ -744,18 +739,6 @@ const apiFailureOf = (error: unknown): ApiFailure => {
   return { message: String(error) }
 }
 
-const logRegisterReferenceSuccess = <T>(
-  label: string,
-  endpoint: string,
-  response: ApiResponse<T>,
-) => {
-  console.log(`무형자산 등록 Drawer ${label} 성공`, {
-    endpoint,
-    status: response.status,
-    response,
-  })
-}
-
 const logRegisterReferenceFailure = (
   label: string,
   endpoint: string,
@@ -823,11 +806,6 @@ const loadRegisterReferenceData = async () => {
   ])
 
   if (itemsResult.status === 'fulfilled') {
-    logRegisterReferenceSuccess(
-      '무형자산 품목 조회',
-      'GET /intangible-asset/items',
-      itemsResult.value,
-    )
     assetItemOptions.value = itemsResult.value.data.content
       .map(toAssetItemOption)
       .filter((item): item is AssetItemOption => Boolean(item))
@@ -841,11 +819,6 @@ const loadRegisterReferenceData = async () => {
   }
 
   if (departmentsResult.status === 'fulfilled') {
-    logRegisterReferenceSuccess(
-      '부서 목록 조회',
-      'GET /departments?size=999',
-      departmentsResult.value,
-    )
     departments.value = departmentsResult.value.data.content
   } else {
     logRegisterReferenceFailure(
@@ -860,11 +833,6 @@ const loadRegisterReferenceData = async () => {
   }
 
   if (membersResult.status === 'fulfilled') {
-    logRegisterReferenceSuccess(
-      '사용자 목록 조회',
-      'GET /members?size=999',
-      membersResult.value,
-    )
     members.value = membersResult.value.data.content
   } else {
     logRegisterReferenceFailure(
@@ -910,12 +878,7 @@ const loadServerData = async () => {
       params.departmentId = currentDepartmentId.value
     }
 
-    console.log('무형자산 목록 조회 요청 params', params)
     const response = await intangibleAssetApi.getList(params)
-    console.log('무형자산 목록 조회 성공', {
-      status: response.status,
-      response,
-    })
 
     const groupedRows = toGroupedAssetRows(response.data.content as IntangibleAssetResponse[])
     const duplicateCountOnPage = response.data.content.length - groupedRows.length

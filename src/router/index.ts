@@ -181,7 +181,7 @@ const router = createRouter({
           path: 'hrworkflows',
           name: 'Hrworkflows',
           component: () => import('@/views/hr/HrWorkflowView.vue'),
-          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
+          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN'] },
         },
         
         // ─── 예산 관리 ───────────────────────────────

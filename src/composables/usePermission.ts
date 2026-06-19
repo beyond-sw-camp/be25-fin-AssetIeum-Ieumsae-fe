@@ -87,7 +87,7 @@ export function usePermission() {
     hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
   )
 
-  // HR 라이프사이클 워크플로우 조회/실행은 부서책임자 역할 기준이다.x
+  // HR 라이프사이클 워크플로우 조회/실행
   const canViewHrWorkflow = computed(() => 
     hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
   )
