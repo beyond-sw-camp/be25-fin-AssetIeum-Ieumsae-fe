@@ -875,7 +875,6 @@ for (const ticketId of ['209', '210', '211']) {
 
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
 ticketCanceledAt.set('212', '2026-06-15T15:00:00')
-ticketcanceledAt.set('212', '2026-06-15T15:00:00')
 
 const additionalPurchaseTickets: MockTicket[] = [
   {
@@ -1970,12 +1969,55 @@ function toLoginResponse(member: Member): LoginResponse {
   }
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - normalizedPayload.length % 4) % 4),
+      '=',
+    )
+
+    return JSON.parse(atob(paddedPayload)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function getPayloadString(payload: Record<string, unknown> | null, keys: string[]) {
+  if (!payload) return undefined
+
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+
+  return undefined
+}
+
 function getAuthenticatedMember(request: Request): Member | undefined {
   const authHeader = request.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer mock-access-token-')) return undefined
+  if (!authHeader?.startsWith('Bearer ')) return undefined
 
-  const memberNo = authHeader.replace('Bearer mock-access-token-', '')
+  const token = authHeader.replace('Bearer ', '')
+  if (token.startsWith('mock-access-token-')) {
+    const memberNo = token.replace('mock-access-token-', '')
+    return members.find((member) => member.memberNo === memberNo)
+  }
+
+  const payload = decodeJwtPayload(token)
+  const memberNo = getPayloadString(payload, ['memberNo', 'employeeNo', 'empNo'])
+  const memberId = getPayloadString(payload, ['memberId', 'employeeId', 'id', 'sub'])
+  const email = getPayloadString(payload, ['email'])
+  const role = getPayloadString(payload, ['role', 'authorities'])
+
   return members.find((member) => member.memberNo === memberNo)
+    ?? members.find((member) => member.memberId === memberId)
+    ?? members.find((member) => member.email === email)
+    ?? members.find((member) => member.role === role && member.status === 'ACTIVE')
 }
 
 function canManageAssets(member: Member | undefined): boolean {
@@ -3046,7 +3088,7 @@ export const handlers = [
 
     const updatedAt = new Date().toISOString()
     ticket.ticketStatus = 'CANCELLED'
-    ticketcanceledAt.set(ticketId, updatedAt)
+    ticketCanceledAt.set(ticketId, updatedAt)
 
     return HttpResponse.json(ok({
       ticketId,
