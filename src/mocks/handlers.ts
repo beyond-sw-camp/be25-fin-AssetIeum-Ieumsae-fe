@@ -44,7 +44,6 @@ import type {
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const MOCK_COMPANY_CODE = 'COMP001'
-const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
 const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
@@ -56,7 +55,7 @@ const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_REJECTED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
@@ -98,24 +97,15 @@ function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department'
 
 let departments: Department[] = [
   {
-    departmentId: ROOT_DEPARTMENT_ID,
-    parentDepartmentId: null,
-    name: '이음테크',
-    memberCount: 0,
-    createdAt: '2026-01-02T09:00:00',
-  },
-  {
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
-    parentDepartmentId: ROOT_DEPARTMENT_ID,
-    parentDepartmentName: '이음테크',
+    parentDepartmentId: null,
     name: '구매자산팀',
     memberCount: 2,
     createdAt: '2026-01-02T09:00:00',
   },
   {
     departmentId: PLATFORM_DEPARTMENT_ID,
-    parentDepartmentId: ROOT_DEPARTMENT_ID,
-    parentDepartmentName: '이음테크',
+    parentDepartmentId: null,
     name: '플랫폼개발본부',
     memberCount: 1,
     createdAt: '2026-01-02T09:00:00',
@@ -610,7 +600,7 @@ let tickets: MockTicket[] = [
     ticketType: 'RENTAL',
     requestMethod: null,
     requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
-    ticketStatus: 'CANCELED',
+    ticketStatus: 'CANCELLED',
     requesterId: mockMemberId(5),
     requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
@@ -864,7 +854,6 @@ const ticketAssigneeIds = new Map<string, string>()
 const ticketDepartmentRejectionReasons = new Map<string, string>()
 const ticketAssetRejectionReasons = new Map<string, string>()
 const ticketCanceledAt = new Map<string, string>()
-const ticketcanceledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
 
 for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212']) {
@@ -877,7 +866,6 @@ for (const ticketId of ['209', '210', '211']) {
 
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
 ticketCanceledAt.set('212', '2026-06-15T15:00:00')
-ticketcanceledAt.set('212', '2026-06-15T15:00:00')
 
 let ticketComments: TicketComment[] = [
   {
@@ -909,6 +897,24 @@ function withCurrentMemberCount(department: Department): Department {
       (member) => member.departmentId === department.departmentId,
     ).length,
   }
+}
+
+function mockError(status: number, errorCode: string, message: string) {
+  return HttpResponse.json({
+    status,
+    errorCode,
+    message,
+    data: null,
+  }, { status })
+}
+
+function hasDepartmentDescendant(parentId: string, targetId: string): boolean {
+  return departments
+    .filter((department) => department.parentDepartmentId === parentId)
+    .some((department) => (
+      department.departmentId === targetId
+      || hasDepartmentDescendant(department.departmentId, targetId)
+    ))
 }
 
 interface TangibleItem {
@@ -1275,7 +1281,7 @@ intangibleAssets.forEach((asset) => {
   asset.assignedMemberId = normalizeAssignedMemberId(asset.assignedMemberId)
 })
 
-type MockAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED'
+type MockAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELLED' | 'EXPIRED'
 type MockAssignmentType = 'TEMPORARY' | 'PERMANENT'
 
 interface MockTangibleAssetAssignment {
@@ -1803,7 +1809,7 @@ export const handlers = [
     const departmentDecisionAt = hasDepartmentDecision
       ? new Date(new Date(ticket.requestedAt).getTime() + 60 * 60 * 1000).toISOString()
       : null
-    const cancellationDate = ticketcanceledAt.get(ticketId)
+    const cancellationDate = ticketCanceledAt.get(ticketId)
     const updatedAt = cancellationDate
       ?? (ticket.ticketStatus === 'REQUESTED'
         ? ticket.requestedAt
@@ -1853,7 +1859,7 @@ export const handlers = [
       registeredAt: requestDetail.registeredAt ?? null,
       completedAt: requestDetail.completedAt
         ?? (ticket.ticketStatus === 'COMPLETED' ? updatedAt : null),
-      canceledAt: ticket.ticketStatus === 'CANCELED' ? updatedAt : null,
+      canceledAt: ticket.ticketStatus === 'CANCELLED' ? updatedAt : null,
       requestedAt: ticket.requestedAt,
       updatedAt,
     }
@@ -2021,7 +2027,7 @@ export const handlers = [
 
     if (
       ticket.ticketStatus === 'REQUESTED'
-      || ['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+      || ['COMPLETED', 'CANCELLED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
     ) {
       return HttpResponse.json({
         status: 409,
@@ -2192,7 +2198,7 @@ export const handlers = [
     }
 
     const nextStatus = body.status as TicketStatus
-    if (nextStatus === 'CANCELED') {
+    if (nextStatus === 'CANCELLED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
           status: 403,
@@ -2204,7 +2210,7 @@ export const handlers = [
       if (!isAssetTeamRole(requester) && !CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
-          errorCode: 'TICKET_CANNOT_BE_CANCELED',
+          errorCode: 'TICKET_CANNOT_BE_CANCELLED',
           message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
           data: null,
         }, { status: 409 })
@@ -2234,8 +2240,8 @@ export const handlers = [
         processedAt: requestDetail.processedAt ?? updatedAt,
       })
     }
-    if (nextStatus === 'CANCELED') {
-      ticketcanceledAt.set(ticketId, updatedAt)
+    if (nextStatus === 'CANCELLED') {
+      ticketCanceledAt.set(ticketId, updatedAt)
     }
     if (nextStatus === 'COMPLETED') {
       const requestDetail = ticketDetailData.get(ticketId) ?? {}
@@ -2468,8 +2474,8 @@ export const handlers = [
     ticket.ticketStatus = 'IN_PROGRESS'
     if (assetType === 'INTANGIBLE') {
       const intangibleAsset = asset as IntangibleAsset
-      intangibleAsset.status = 'CANCELED'
-      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.status = 'CANCELLED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELLED'
       intangibleAsset.assignedMemberId = null
       intangibleAsset.assignedMemberName = null
       intangibleAsset.departmentId = null
@@ -2554,8 +2560,8 @@ export const handlers = [
     ticket.ticketStatus = 'IN_PROGRESS'
     if (assetType === 'INTANGIBLE') {
       const intangibleAsset = asset as IntangibleAsset
-      intangibleAsset.status = 'CANCELED'
-      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.status = 'CANCELLED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELLED'
       intangibleAsset.assignedMemberId = null
       intangibleAsset.assignedMemberName = null
       intangibleAsset.departmentId = null
@@ -3099,7 +3105,7 @@ export const handlers = [
       }, { status: 409 })
     }
 
-    if (!department || department.parentDepartmentId === null) {
+    if (!department) {
       return HttpResponse.json({
         status: 404,
         errorCode: 'DEPARTMENT_NOT_FOUND',
@@ -3175,7 +3181,7 @@ export const handlers = [
       }, { status: 409 })
     }
 
-    if (!department || department.parentDepartmentId === null) {
+    if (!department) {
       return HttpResponse.json({
         status: 404,
         errorCode: 'DEPARTMENT_NOT_FOUND',
@@ -4144,8 +4150,8 @@ export const handlers = [
     ))
 
     if (!hasActiveAssignment) {
-      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELED'
-      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELED'
+      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELLED'
+      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELLED'
       asset.assignedMemberId = null
       asset.assignedMemberName = null
       asset.departmentId = null
@@ -4192,16 +4198,20 @@ export const handlers = [
     const body = await request.json() as DepartmentCreateRequest
     const nextId = crypto.randomUUID()
 
-    let parentName = undefined
-    if (body.parentDepartmentId) {
-      const p = departments.find((d) => d.departmentId === body.parentDepartmentId)
-      parentName = p?.name
+    const parent = body.parentDepartmentId
+      ? departments.find((department) => department.departmentId === body.parentDepartmentId)
+      : null
+
+    if (body.parentDepartmentId && !parent) {
+      return mockError(404, 'PARENT_DEPARTMENT_NOT_FOUND', '상위 부서를 찾을 수 없습니다.')
     }
 
     const newDepartment: Department = {
       departmentId: nextId,
       parentDepartmentId: body.parentDepartmentId ?? null,
-      parentDepartmentName: parentName,
+      parentDepartmentName: parent?.name,
+      departmentManagerId: body.departmentManagerId ?? null,
+      departmentManagerName: null,
       name: body.name,
       memberCount: 0,
       createdAt: new Date().toISOString(),
@@ -4214,18 +4224,13 @@ export const handlers = [
     ))
   }),
 
-  http.put(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/departments/:departmentId`, async ({ params, request }) => {
     const departmentId = String(params.departmentId)
     const body = await request.json() as DepartmentUpdateRequest
 
     const index = departments.findIndex((item) => item.departmentId === departmentId)
     if (index === -1) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'DEPARTMENT_NOT_FOUND',
-        message: '부서를 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
+      return mockError(404, 'DEPARTMENT_NOT_FOUND', '부서를 찾을 수 없습니다.')
     }
 
     const current = departments[index]
@@ -4233,11 +4238,33 @@ export const handlers = [
       ? departments.find((d) => d.departmentId === body.parentDepartmentId)
       : null
 
+    if (body.parentDepartmentId && !parent) {
+      return mockError(404, 'PARENT_DEPARTMENT_NOT_FOUND', '상위 부서를 찾을 수 없습니다.')
+    }
+
+    if (body.parentDepartmentId === departmentId) {
+      return mockError(409, 'DEPARTMENT_PARENT_SELF_REFERENCE', '자기 자신을 상위 부서로 지정할 수 없습니다.')
+    }
+
+    if (body.parentDepartmentId && hasDepartmentDescendant(departmentId, body.parentDepartmentId)) {
+      return mockError(409, 'DEPARTMENT_PARENT_CYCLE', '하위 부서를 상위 부서로 지정할 수 없습니다.')
+    }
+
     const updated: Department = {
       ...current,
       name: body.name ?? current.name,
-      parentDepartmentId: body.parentDepartmentId === undefined ? current.parentDepartmentId : body.parentDepartmentId,
-      parentDepartmentName: body.parentDepartmentId === undefined ? current.parentDepartmentName : parent?.name,
+      parentDepartmentId: body.parentDepartmentId === undefined
+        ? current.parentDepartmentId
+        : body.parentDepartmentId ?? null,
+      parentDepartmentName: body.parentDepartmentId === undefined
+        ? current.parentDepartmentName
+        : parent?.name,
+      departmentManagerId: body.departmentManagerId === undefined
+        ? current.departmentManagerId ?? null
+        : body.departmentManagerId,
+      departmentManagerName: body.departmentManagerId === undefined
+        ? current.departmentManagerName ?? null
+        : null,
       updatedAt: new Date().toISOString(),
     }
 
@@ -4259,15 +4286,6 @@ export const handlers = [
         message: '부서를 찾을 수 없습니다.',
         data: null,
       }, { status: 404 })
-    }
-
-    if (department.parentDepartmentId === null) {
-      return HttpResponse.json({
-        status: 409,
-        errorCode: 'ROOT_DEPARTMENT_CANNOT_BE_DELETED',
-        message: '최상위 회사 부서는 삭제할 수 없습니다.',
-        data: null,
-      }, { status: 409 })
     }
 
     const hasChildren = departments.some(
