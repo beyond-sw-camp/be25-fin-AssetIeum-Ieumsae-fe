@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { getDashboardMockSnapshot } from './dashboard.data'
 import type {
   ApiResponse,
+  Company,
   Department,
   DepartmentChangeRequest,
   DepartmentCreateRequest,
@@ -51,6 +52,7 @@ import type {
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const MOCK_COMPANY_CODE = 'COMP001'
+const SYSTEM_COMPANY_CODE = 'SYSTEM'
 const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
@@ -105,6 +107,29 @@ function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department'
   return getDashboardMockSnapshot({ scope, departmentId: departmentId ?? undefined, memberId: memberId ?? undefined })
 }
 
+let companies: Company[] = [
+  {
+    companyId: MOCK_COMPANY_ID,
+    companyCode: MOCK_COMPANY_CODE,
+    companyName: '이음테크',
+    createdAt: '2026-01-02T09:00:00',
+    adminName: '김관리',
+    adminMemberNo: 'EMP0001',
+    adminEmail: 'admin@ieumtech.com',
+    memberCount: 16,
+  },
+  {
+    companyId: '00000000-0000-0000-0000-000000000002',
+    companyCode: 'PLAYDATA',
+    companyName: '플레이데이터',
+    createdAt: '2026-03-11T09:00:00',
+    adminName: null,
+    adminMemberNo: null,
+    adminEmail: null,
+    memberCount: 0,
+  },
+]
+
 let departments: Department[] = [
   {
     departmentId: ROOT_DEPARTMENT_ID,
@@ -158,6 +183,17 @@ function getDepartmentNamePath(departmentId: string): string {
 }
 
 const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
+  {
+    memberId: mockMemberId(0),
+    memberNo: 'SYSADMIN',
+    name: '시스템 관리자',
+    email: 'system@asset-ieum.com',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '시스템 관리',
+    role: 'SYSTEM_ADMIN',
+    status: 'ACTIVE',
+    createdAt: '2026-01-01T09:00:00',
+  },
   {
     memberId: mockMemberId(1),
     memberNo: 'EMP0001',
@@ -2387,12 +2423,91 @@ export const handlers = [
     return HttpResponse.json(ok(purchasePolicy, '구매 운영 정책이 저장되었습니다.'))
   }),
 
+  http.get(`${API_PREFIX}/companies`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const keyword = (url.searchParams.get('keyword') ?? '').toLowerCase()
+
+    const filteredCompanies = companies
+      .filter((company) => !company.deletedAt)
+      .filter((company) => (
+        !keyword
+        || company.companyCode.toLowerCase().includes(keyword)
+        || (company.companyName ?? '').toLowerCase().includes(keyword)
+      ))
+
+    return HttpResponse.json(ok(pageOf(filteredCompanies, page, size), '회사 목록을 조회했습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/companies`, async ({ request }) => {
+    const body = await request.json() as { companyCode?: string; companyName?: string }
+    const companyCode = body.companyCode?.trim()
+    const companyName = body.companyName?.trim()
+
+    if (!companyCode || !companyName) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'COMMON_001',
+        message: '회사명과 회사 코드는 필수입니다.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    if (companies.some((company) => company.companyCode.toLowerCase() === companyCode.toLowerCase() && !company.deletedAt)) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'company-002',
+        message: '이미 등록된 회사 코드입니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    const company: Company = {
+      companyId: crypto.randomUUID(),
+      companyCode,
+      companyName,
+      createdAt: new Date().toISOString(),
+      adminName: null,
+      adminMemberNo: null,
+      adminEmail: null,
+      memberCount: 1,
+    }
+
+    companies = [company, ...companies]
+    return HttpResponse.json(ok(company, '회사를 등록했습니다.'))
+  }),
+
+  http.delete(`${API_PREFIX}/companies/:companyId`, ({ params }) => {
+    const companyId = String(params.companyId)
+    const company = companies.find((item) => String(item.companyId) === companyId)
+
+    if (!company || company.deletedAt) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'COMPANY_NOT_FOUND',
+        message: '회사를 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const deletedAt = new Date().toISOString()
+    companies = companies.map((item) => (
+      String(item.companyId) === companyId ? { ...item, deletedAt } : item
+    ))
+
+    return HttpResponse.json(ok({ companyId: company.companyId, deletedAt }, '회사를 삭제했습니다.'))
+  }),
+
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
     const member = members.find((item) => item.memberNo === credentials.memberNo)
 
+    const isSystemLogin = credentials.companyCode === SYSTEM_COMPANY_CODE && member?.role === 'SYSTEM_ADMIN'
+    const isCompanyLogin = credentials.companyCode === MOCK_COMPANY_CODE && member?.role !== 'SYSTEM_ADMIN'
+
     if (
-      credentials.companyCode !== MOCK_COMPANY_CODE ||
+      (!isSystemLogin && !isCompanyLogin) ||
       !member ||
       memberPasswords.get(member.memberNo) !== credentials.password
     ) {
@@ -3911,7 +4026,7 @@ export const handlers = [
       memberNo: body.memberNo,
       name: body.name,
       email: body.email ?? null,
-      departmentId: body.departmentId,
+      departmentId: department.departmentId,
       departmentName: department.name,
       departmentNamePath: getDepartmentNamePath(department.departmentId),
       role: body.role,

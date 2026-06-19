@@ -44,6 +44,12 @@ const router = createRouter({
 
         // ─── 조직도 ─────────────────────────────────
         {
+          path: 'system/companies',
+          name: 'SystemCompanies',
+          component: () => import('@/views/system/SystemAdminView.vue'),
+          meta: { title: '회사 관리', roles: ['SYSTEM_ADMIN', 'SUPER_ADMIN'] },
+        },
+        {
           path: 'organization',
           name: 'Organization',
           component: () => import('@/views/organization/OrganizationView.vue'),
@@ -265,6 +271,10 @@ router.beforeEach(async (to) => {
   }
 
   // 역할 체크
+  if (to.name === 'Dashboard' && auth.currentRole === 'SYSTEM_ADMIN') {
+    return { name: 'SystemCompanies' }
+  }
+
   if (to.meta.roles && to.meta.roles.length > 0) {
     const canAccessAllPages = auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN'
     if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {

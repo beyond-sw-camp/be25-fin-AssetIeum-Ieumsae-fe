@@ -3,6 +3,7 @@
 // =====================================================
 
 export * from './common'
+export * from './company'
 export * from './member'
 export * from './department'
 export * from './asset'

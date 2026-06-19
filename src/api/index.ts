@@ -1,6 +1,7 @@
 // src/api/index.ts - 모든 API를 한 곳에서 re-export
 
 export { authApi } from './auth.api'
+export { companyApi } from './company.api'
 export { departmentApi } from './department.api'
 export { memberApi } from './member.api'
 export { dashboardApi } from './dashboard.api'
