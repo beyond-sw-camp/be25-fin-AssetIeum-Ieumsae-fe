@@ -93,7 +93,7 @@ const canViewHrWorkflow = computed(() =>
 )
 
 const canViewInspection = computed(() => 
-  hasRole('ASSET_MANAGER')
+  hasRole('ASSET_TEAM', 'ASSET_MANAGER')
 )
 
   return {

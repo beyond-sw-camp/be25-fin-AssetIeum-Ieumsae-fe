@@ -165,7 +165,7 @@ const router = createRouter({
               path: 'tangible',
               name: 'TangibleInspection',
               component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
-              meta: { title: '유형자산 전수조사', roles: ['ASSET_MANAGER', 'EMPLOYEE'] },
+              meta: { title: '유형자산 전수조사', roles: ['ASSET_TEAM', 'ASSET_MANAGER'] },
             },
             {
               path: 'intangible',
