@@ -186,6 +186,7 @@ import Input from '@/components/common/Input.vue'
 import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag, Upload } from 'lucide-vue-next'
 import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
+import type { IntangibleAssetAssignmentResponse } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
 import { useNotificationStore } from '@/stores'
@@ -264,8 +265,15 @@ type IntangibleAssetResponse = IntangibleAsset & {
   currentUserName?: string | null
   currentUserMemberNo?: string | null
   currentUserId?: string | null
+  memberId?: string | null
   memberName?: string | null
+  userId?: string | null
   userName?: string | null
+  assignedMember?: unknown
+  currentUser?: unknown
+  member?: unknown
+  user?: unknown
+  department?: unknown
   provider?: string
   assignedMemberCount?: number
   currentUserCount?: number
@@ -277,12 +285,27 @@ type IntangibleAssetResponse = IntangibleAsset & {
 }
 
 type NamedAssignmentLike = {
+  memberId?: string | null
+  id?: string | null
+  userId?: string | null
+  currentUserId?: string | null
+  departmentId?: string | null
   memberName?: string | null
   name?: string | null
   userName?: string | null
   currentUserName?: string | null
+  departmentName?: string | null
   memberNo?: string | null
+  employeeNo?: string | null
   currentUserMemberNo?: string | null
+}
+
+type AssignmentSummary = {
+  memberIds: string[]
+  memberNames: string
+  departmentIds: string[]
+  departmentNames: string
+  count: number
 }
 
 type ApiFailure = {
@@ -338,6 +361,7 @@ const assetItemOptions = ref<AssetItemOption[]>([])
 const departments = ref<Department[]>([])
 const members = ref<Member[]>([])
 const multiAssignedAssetIds = ref(new Set<string>())
+const activeAssignmentSummaries = ref<Record<string, AssignmentSummary>>({})
 const totalElements = ref(0)
 const totalPages = ref(0)
 const isLoading = ref(false)
@@ -408,35 +432,140 @@ const isNamedAssignmentLike = (value: unknown): value is NamedAssignmentLike => 
   typeof value === 'object' && value !== null
 )
 
+const firstText = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+
+  return null
+}
+
+const memberIdFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value
+  if (!isNamedAssignmentLike(value)) return null
+
+  return firstText(
+    value.memberId,
+    value.id,
+    value.userId,
+    value.currentUserId,
+  )
+}
+
+const departmentIdFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value
+  if (!isNamedAssignmentLike(value)) return null
+
+  return firstText(value.departmentId)
+}
+
+const memberById = (memberId: string | null | undefined) => (
+  memberId ? members.value.find((member) => member.memberId === memberId) : undefined
+)
+
+const departmentById = (departmentId: string | null | undefined) => (
+  departmentId ? departments.value.find((department) => department.departmentId === departmentId) : undefined
+)
+
 const memberLabelFromUnknown = (value: unknown) => {
   if (typeof value === 'string') return value.trim()
   if (!isNamedAssignmentLike(value)) return ''
 
-  const name = value.memberName
-    ?? value.name
-    ?? value.userName
-    ?? value.currentUserName
-    ?? ''
-  const memberNo = value.memberNo ?? value.currentUserMemberNo ?? ''
+  const member = memberById(memberIdFromUnknown(value))
+  const name = firstText(
+    value.memberName,
+    value.name,
+    value.userName,
+    value.currentUserName,
+    member?.name,
+  )
+  const memberNo = firstText(value.memberNo, value.employeeNo, value.currentUserMemberNo, member?.memberNo)
 
   if (!name) return ''
   return memberNo ? `${name}(${memberNo})` : name
 }
 
 const singleAssignedMemberNameOf = (asset: IntangibleAssetResponse) => {
-  const directName = asset.assignedMemberName
-    ?? asset.memberName
-    ?? asset.userName
-    ?? (asset.currentUserName
+  const member = memberById(
+    firstText(
+      asset.assignedMemberId,
+      asset.currentUserId,
+      asset.memberId,
+      asset.userId,
+      memberIdFromUnknown(asset.assignedMember),
+      memberIdFromUnknown(asset.currentUser),
+      memberIdFromUnknown(asset.member),
+      memberIdFromUnknown(asset.user),
+    ),
+  )
+  const currentUserLabel = asset.currentUserName
       ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
-      : '')
+      : null
+  const directName = firstText(
+    asset.assignedMemberName,
+    asset.memberName,
+    asset.userName,
+    currentUserLabel,
+    memberLabelFromUnknown(asset.assignedMember),
+    memberLabelFromUnknown(asset.currentUser),
+    memberLabelFromUnknown(asset.member),
+    memberLabelFromUnknown(asset.user),
+    member?.name,
+  )
 
-  if (directName && directName !== '-') return directName
+  if (directName && directName !== '-') {
+    return member?.memberNo && directName === member.name ? `${member.name}(${member.memberNo})` : directName
+  }
 
   return asset.assignedMembers?.map(memberLabelFromUnknown).find(Boolean)
     ?? asset.currentUsers?.map(memberLabelFromUnknown).find(Boolean)
     ?? asset.members?.map(memberLabelFromUnknown).find(Boolean)
     ?? ''
+}
+
+const departmentNameFromUnknown = (value: unknown) => {
+  if (typeof value === 'string') return value.trim()
+  if (!isNamedAssignmentLike(value)) return ''
+
+  const department = departmentById(departmentIdFromUnknown(value))
+  return firstText(value.departmentName, value.name, department?.name) ?? ''
+}
+
+const departmentNameOf = (asset: IntangibleAssetResponse) => {
+  const member = memberById(
+    firstText(
+      asset.assignedMemberId,
+      asset.currentUserId,
+      asset.memberId,
+      asset.userId,
+      memberIdFromUnknown(asset.assignedMember),
+      memberIdFromUnknown(asset.currentUser),
+      memberIdFromUnknown(asset.member),
+      memberIdFromUnknown(asset.user),
+    ),
+  )
+  const department = departmentById(
+    firstText(
+      asset.departmentId,
+      departmentIdFromUnknown(asset.department),
+      departmentIdFromUnknown(asset.assignedMember),
+      departmentIdFromUnknown(asset.currentUser),
+      departmentIdFromUnknown(asset.member),
+      departmentIdFromUnknown(asset.user),
+      member?.departmentId,
+    ),
+  )
+
+  return firstText(
+    asset.departmentName,
+    departmentNameFromUnknown(asset.department),
+    departmentNameFromUnknown(asset.assignedMember),
+    departmentNameFromUnknown(asset.currentUser),
+    departmentNameFromUnknown(asset.member),
+    departmentNameFromUnknown(asset.user),
+    member?.departmentName,
+    department?.name,
+  )
 }
 
 const assignedMemberSummaryOf = (asset: IntangibleAssetResponse, assignedMemberCount: number) => {
@@ -446,6 +575,78 @@ const assignedMemberSummaryOf = (asset: IntangibleAssetResponse, assignedMemberC
   }
 
   return firstMemberName || '-'
+}
+
+const isActiveAssignment = (assignment: IntangibleAssetAssignmentResponse) => (
+  assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED'
+)
+
+const uniqueText = (values: Array<string | null | undefined>) => (
+  Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))))
+)
+
+const assignmentMemberLabel = (assignment: IntangibleAssetAssignmentResponse) => {
+  if (!assignment.memberName) return ''
+  return assignment.memberNo ? `${assignment.memberName}(${assignment.memberNo})` : assignment.memberName
+}
+
+const toAssignmentSummary = (assignments: IntangibleAssetAssignmentResponse[]): AssignmentSummary | null => {
+  const activeAssignments = assignments.filter(isActiveAssignment)
+  if (activeAssignments.length === 0) return null
+
+  const memberLabels = uniqueText(activeAssignments.map(assignmentMemberLabel))
+  const memberNames = memberLabels.length > 1
+    ? `${memberLabels[0]} 외 ${memberLabels.length - 1}명`
+    : memberLabels[0] ?? ''
+
+  return {
+    memberIds: uniqueText(activeAssignments.map((assignment) => assignment.memberId)),
+    memberNames,
+    departmentIds: uniqueText(activeAssignments.map((assignment) => assignment.departmentId)),
+    departmentNames: uniqueText(activeAssignments.map((assignment) => assignment.departmentName)).join(', '),
+    count: activeAssignments.length,
+  }
+}
+
+const loadActiveAssignmentSummaries = async (rows: IntangibleAsset[]) => {
+  const assetIds = uniqueText(rows.map((row) => row.assetId))
+  activeAssignmentSummaries.value = {}
+
+  if (assetIds.length === 0) return
+
+  const results = await Promise.allSettled(
+    assetIds.map(async (assetId) => {
+      const response = await intangibleAssetApi.getAssignments(assetId, { assignmentStatus: 'ACTIVE' })
+      return [assetId, toAssignmentSummary(response.data)] as const
+    }),
+  )
+
+  const nextSummaries: Record<string, AssignmentSummary> = {}
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue
+
+    const [assetId, summary] = result.value
+    if (summary) {
+      nextSummaries[assetId] = summary
+    }
+  }
+
+  activeAssignmentSummaries.value = nextSummaries
+}
+
+const withAssignmentSummary = (row: IntangibleAsset): IntangibleAsset => {
+  const summary = activeAssignmentSummaries.value[row.assetId]
+  if (!summary) return row
+
+  return {
+    ...row,
+    assignedMemberId: summary.count === 1 ? (summary.memberIds[0] ?? row.assignedMemberId) : null,
+    assignedMemberName: summary.memberNames || row.assignedMemberName,
+    departmentId: summary.count === 1 ? (summary.departmentIds[0] ?? row.departmentId) : null,
+    departmentName: summary.departmentNames || row.departmentName,
+    assignedMemberCount: summary.count,
+    activeAssignmentCount: summary.count,
+  } as IntangibleAsset
 }
 
 const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => {
@@ -460,10 +661,30 @@ const toAssetRow = (asset: IntangibleAssetResponse): IntangibleAsset => {
     assetItemId: asset.assetItemId ?? asset.intangibleItemId ?? asset.intangibleAssetItemId,
     assetItemName: asset.assetItemName ?? asset.productName ?? asset.itemName ?? '',
     status: asset.status ?? asset.intangibleAssetStatus ?? 'AVAILABLE',
-    assignedMemberId: hasMultipleAssignedUsers ? null : asset.assignedMemberId ?? asset.currentUserId ?? null,
+    assignedMemberId: hasMultipleAssignedUsers
+      ? null
+      : firstText(
+        asset.assignedMemberId,
+        asset.currentUserId,
+        asset.memberId,
+        asset.userId,
+        memberIdFromUnknown(asset.assignedMember),
+        memberIdFromUnknown(asset.currentUser),
+        memberIdFromUnknown(asset.member),
+        memberIdFromUnknown(asset.user),
+      ),
     assignedMemberName: assignedMemberSummaryOf(asset, hasMultipleAssignedUsers ? Math.max(assignedMemberCount, 2) : assignedMemberCount),
-    departmentId: hasMultipleAssignedUsers ? null : asset.departmentId ?? null,
-    departmentName: hasMultipleAssignedUsers ? '-' : asset.departmentName ?? '-',
+    departmentId: hasMultipleAssignedUsers
+      ? null
+      : firstText(
+        asset.departmentId,
+        departmentIdFromUnknown(asset.department),
+        departmentIdFromUnknown(asset.assignedMember),
+        departmentIdFromUnknown(asset.currentUser),
+        departmentIdFromUnknown(asset.member),
+        departmentIdFromUnknown(asset.user),
+      ),
+    departmentName: hasMultipleAssignedUsers ? '-' : departmentNameOf(asset) ?? '-',
     startedAt: asset.startedAt ?? null,
     expiredAt: asset.expiredAt ?? null,
     vendor: asset.provider ?? asset.vendor,
@@ -849,6 +1070,7 @@ const loadRegisterReferenceData = async () => {
 
 const loadInitialData = async () => {
   await loadCategoryOptions()
+  await loadRegisterReferenceData()
   loadServerData()
 }
 
@@ -881,10 +1103,11 @@ const loadServerData = async () => {
     const response = await intangibleAssetApi.getList(params)
 
     const groupedRows = toGroupedAssetRows(response.data.content as IntangibleAssetResponse[])
+    await loadActiveAssignmentSummaries(groupedRows)
     const duplicateCountOnPage = response.data.content.length - groupedRows.length
     const adjustedTotalElements = Math.max(groupedRows.length, response.data.totalElements - duplicateCountOnPage)
 
-    serverAssetList.value = groupedRows
+    serverAssetList.value = groupedRows.map(withAssignmentSummary)
     totalElements.value = adjustedTotalElements
     totalPages.value = Math.max(1, Math.ceil(adjustedTotalElements / searchParams.value.size))
   } catch (error) {
