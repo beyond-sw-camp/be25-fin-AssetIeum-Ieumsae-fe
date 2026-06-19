@@ -126,14 +126,13 @@
 
               <div class="flex flex-col gap-1.5">
                 <label for="parent-department" class="text-sm font-semibold text-text-main">
-                  상위 부서
+                  상위 부서 (선택)
                 </label>
                 <Dropdown
                   id="parent-department"
                   :model-value="editForm.parentDepartmentId ?? ''"
                   :options="editParentDropdownOptions"
-                  root-option="최상위 부서"
-                  :disabled="!canEditOrganization || isSaving || isSelectedRoot"
+                  :disabled="!canEditOrganization || isSaving"
                   @update:model-value="handleEditParentChange"
                 />
               </div>
@@ -235,21 +234,17 @@
 
         <div class="flex flex-col gap-1.5">
           <label for="new-parent-department" class="text-sm font-semibold text-text-main">
-            상위 부서
+            상위 부서 (선택)
           </label>
           <Dropdown
             id="new-parent-department"
             :model-value="createForm.parentDepartmentId ?? ''"
             :options="createParentDropdownOptions"
-            root-option="상위 부서 선택"
             :disabled="isCreating"
             @update:model-value="handleCreateParentChange"
           />
           <p class="text-xs text-text-sub">
-            선택한 부서 아래에 새 하위 부서가 생성됩니다.
-          </p>
-          <p v-if="createParentError" class="text-xs font-medium text-danger" role="alert">
-            {{ createParentError }}
+            상위 부서를 선택하지 않으면 회사 바로 아래의 최상위 부서로 생성됩니다.
           </p>
         </div>
       </form>
@@ -258,7 +253,7 @@
         <Button
           class="w-full"
           :loading="isCreating"
-          :disabled="Boolean(createNameError || createParentError)"
+          :disabled="Boolean(createNameError)"
           @click="handleCreateDepartment"
         >
           등록하기
@@ -325,11 +320,13 @@ let membersRequestId = 0
 const editForm = reactive({
   name: '',
   parentDepartmentId: null as string | null,
+  departmentManagerId: null as string | null,
 })
 
 const createForm = reactive({
   name: '',
   parentDepartmentId: null as string | null,
+  departmentManagerId: null as string | null,
 })
 
 const editNameError = computed(() =>
@@ -337,9 +334,6 @@ const editNameError = computed(() =>
 )
 const createNameError = computed(() =>
   createForm.name.trim() ? '' : '부서명을 입력해주세요.',
-)
-const createParentError = computed(() =>
-  createForm.parentDepartmentId ? '' : '상위 부서를 선택해주세요.',
 )
 const memberEmptyText = computed(() =>
   departmentStore.selectedDepartmentId === null
@@ -379,16 +373,22 @@ const editParentOptions = computed(() =>
   ),
 )
 const editParentDropdownOptions = computed<DropdownOption[]>(() =>
-  editParentOptions.value.map((department) => ({
-    label: department.name,
-    value: department.departmentId,
-  })),
+  [
+    { label: '상위 부서 없음', value: '' },
+    ...editParentOptions.value.map((department) => ({
+      label: department.name,
+      value: department.departmentId,
+    })),
+  ],
 )
 const createParentDropdownOptions = computed<DropdownOption[]>(() =>
-  departmentStore.departments.map((department) => ({
-    label: department.name,
-    value: department.departmentId,
-  })),
+  [
+    { label: '상위 부서 없음', value: '' },
+    ...departmentStore.departments.map((department) => ({
+      label: department.name,
+      value: department.departmentId,
+    })),
+  ],
 )
 
 const isEditDirty = computed(() => {
@@ -396,9 +396,8 @@ const isEditDirty = computed(() => {
 
   return editForm.name.trim() !== selectedDetail.value.name
     || editForm.parentDepartmentId !== selectedDetail.value.parentDepartmentId
+    || editForm.departmentManagerId !== (selectedDetail.value.departmentManagerId ?? null)
 })
-const isSelectedRoot = computed(() => selectedDetail.value?.parentDepartmentId === null)
-
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
@@ -408,12 +407,14 @@ function resetEditForm() {
 
   editForm.name = selectedDetail.value.name
   editForm.parentDepartmentId = selectedDetail.value.parentDepartmentId
+  editForm.departmentManagerId = selectedDetail.value.departmentManagerId ?? null
   detailError.value = ''
 }
 
 function resetCreateForm() {
   createForm.name = ''
   createForm.parentDepartmentId = departmentStore.selectedDepartmentId
+  createForm.departmentManagerId = null
 }
 
 function handleEditParentChange(value: string | number) {
@@ -473,7 +474,7 @@ async function handleSelectDepartment(departmentId: string) {
   const department = departmentStore.departments.find(
     (item) => item.departmentId === departmentId,
   )
-  if (!department || department.parentDepartmentId === null) return
+  if (!department) return
 
   departmentStore.selectDepartment(departmentId)
   members.value = []
@@ -489,10 +490,7 @@ async function loadOrganization() {
     await departmentStore.fetchAll()
     const selectedDepartment = departmentStore.selectedDepartment
 
-    if (
-      selectedDepartment
-      && selectedDepartment.parentDepartmentId !== null
-    ) {
+    if (selectedDepartment) {
       await handleSelectDepartment(selectedDepartment.departmentId)
     } else {
       departmentStore.selectDepartment(null)
@@ -510,7 +508,7 @@ function openCreateDrawer() {
 }
 
 async function handleCreateDepartment() {
-  if (createNameError.value || createParentError.value) return
+  if (createNameError.value) return
 
   isCreating.value = true
 
@@ -518,6 +516,7 @@ async function handleCreateDepartment() {
     const response = await departmentApi.create({
       name: createForm.name.trim(),
       parentDepartmentId: createForm.parentDepartmentId,
+      departmentManagerId: createForm.departmentManagerId,
     })
 
     isCreateDrawerOpen.value = false
@@ -545,6 +544,7 @@ async function handleUpdateDepartment() {
     await departmentApi.update(departmentId, {
       name: editForm.name.trim(),
       parentDepartmentId: editForm.parentDepartmentId,
+      departmentManagerId: editForm.departmentManagerId,
     })
 
     await departmentStore.fetchAll()
@@ -558,11 +558,6 @@ async function handleUpdateDepartment() {
 }
 
 function requestDeleteDepartment(department: DepartmentTreeNode) {
-  if (department.parentDepartmentId === null) {
-    notificationStore.warning('최상위 회사 부서는 삭제할 수 없습니다.')
-    return
-  }
-
   if (department.children.length > 0) {
     notificationStore.warning('하위 부서가 있는 부서는 삭제할 수 없습니다.')
     return
@@ -586,12 +581,6 @@ async function handleDeleteDepartment() {
     return
   }
 
-  if (target.parentDepartmentId === null) {
-    departmentToDelete.value = null
-    notificationStore.warning('최상위 회사 부서는 삭제할 수 없습니다.')
-    return
-  }
-
   isDeleting.value = true
 
   try {
@@ -603,8 +592,8 @@ async function handleDeleteDepartment() {
       ({ departmentId }) => departmentId === target.parentDepartmentId,
     )
 
-    if (parentDepartment?.parentDepartmentId !== null) {
-      await handleSelectDepartment(target.parentDepartmentId)
+    if (parentDepartment) {
+      await handleSelectDepartment(parentDepartment.departmentId)
     } else {
       departmentStore.selectDepartment(null)
       selectedDetail.value = null

@@ -47,7 +47,7 @@ const router = createRouter({
           path: 'organization',
           name: 'Organization',
           component: () => import('@/views/organization/OrganizationView.vue'),
-          meta: { title: '조직도', roles: ['ADMIN'] },
+          meta: { title: '조직도', roles: ['ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'] },
         },
 
         // ─── 사원 관리 ───────────────────────────────
