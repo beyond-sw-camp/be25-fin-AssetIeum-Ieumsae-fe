@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full min-h-0 flex-col bg-background text-text-main">
+  <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
       <section
         v-if="selectedPlanId"
@@ -454,7 +454,7 @@
 
     <div
       v-if="selectedPlanId && canApprovePlan"
-      class="flex min-h-14 w-full shrink-0 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-6 py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+      class="absolute -bottom-4 -left-4 -right-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-10 py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
     >
       <Button
         variant="outline"
