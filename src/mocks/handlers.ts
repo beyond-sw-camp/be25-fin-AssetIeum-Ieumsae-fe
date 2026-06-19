@@ -63,7 +63,7 @@ const TICKET_STATUS_VALUES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_REJECTED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'REQUESTED',
@@ -73,7 +73,7 @@ const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
@@ -619,7 +619,7 @@ let tickets: MockTicket[] = [
     ticketType: 'RENTAL',
     requestMethod: null,
     requestedItemName: 'Galaxy Tab S9 Ultra 256GB',
-    ticketStatus: 'CANCELED',
+    ticketStatus: 'CANCELLED',
     requesterId: mockMemberId(5),
     requesterName: '정사원',
     departmentId: FRONTEND_DEPARTMENT_ID,
@@ -1369,13 +1369,9 @@ function getPurchasePlanStatistics(): PurchasePlanStatistics {
 
   return {
     totalCount: activePlans.length,
-    requestedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REQUESTED').length,
-    approvedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'APPROVED').length,
-    rejectedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REJECTED').length,
+    approvalWaitingCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REQUESTED').length,
     orderedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'ORDERED').length,
-    deliveredCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'DELIVERED').length,
     completedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'COMPLETED').length,
-    cancelledCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'CANCELLED').length,
   }
 }
 
@@ -1783,7 +1779,7 @@ intangibleAssets.forEach((asset) => {
   asset.assignedMemberId = normalizeAssignedMemberId(asset.assignedMemberId)
 })
 
-type MockAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELED' | 'EXPIRED'
+type MockAssignmentStatus = 'ASSIGNED' | 'RETURNED' | 'CANCELLED' | 'EXPIRED'
 type MockAssignmentType = 'TEMPORARY' | 'PERMANENT'
 
 interface MockTangibleAssetAssignment {
@@ -2246,7 +2242,7 @@ export const handlers = [
         return {
           itemId: planId * 100 + index + 1,
           category: detail?.categoryName ?? '-',
-          itemName: item.itemName,
+          itemName: item.productName,
           quantity: item.quantity,
           estimatedUnitPrice: item.estimatedUnitPrice,
           totalAmount: item.estimatedAmount,
@@ -2338,7 +2334,7 @@ export const handlers = [
     return HttpResponse.json(ok(plan, '구매 계획 상태가 변경되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/confirm`, ({ params }) => {
+  http.patch(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/confirm`, ({ params }) => {
     const planId = Number(params.planId)
     const itemId = String(params.itemId)
     const plan = findPurchasePlan(planId)
@@ -2594,7 +2590,7 @@ export const handlers = [
       registeredAt: requestDetail.registeredAt ?? null,
       completedAt: requestDetail.completedAt
         ?? (ticket.ticketStatus === 'COMPLETED' ? updatedAt : null),
-      canceledAt: ticket.ticketStatus === 'CANCELED' ? updatedAt : null,
+      canceledAt: ticket.ticketStatus === 'CANCELLED' ? updatedAt : null,
       requestedAt: ticket.requestedAt,
       updatedAt,
     }
@@ -2778,7 +2774,7 @@ export const handlers = [
 
     if (
       ticket.ticketStatus === 'REQUESTED'
-      || ['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+      || ['COMPLETED', 'CANCELLED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
     ) {
       return HttpResponse.json({
         status: 409,
@@ -2949,7 +2945,7 @@ export const handlers = [
     }
 
     const nextStatus = body.status as TicketStatus
-    if (nextStatus === 'CANCELED') {
+    if (nextStatus === 'CANCELLED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
           status: 403,
@@ -2961,7 +2957,7 @@ export const handlers = [
       if (!isAssetTeamRole(requester) && !CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)) {
         return HttpResponse.json({
           status: 409,
-          errorCode: 'TICKET_CANNOT_BE_CANCELED',
+          errorCode: 'TICKET_CANNOT_BE_CANCELLED',
           message: '현재 상태에서는 티켓을 취소할 수 없습니다.',
           data: null,
         }, { status: 409 })
@@ -2991,7 +2987,7 @@ export const handlers = [
         processedAt: requestDetail.processedAt ?? updatedAt,
       })
     }
-    if (nextStatus === 'CANCELED') {
+    if (nextStatus === 'CANCELLED') {
       ticketcanceledAt.set(ticketId, updatedAt)
     }
     if (nextStatus === 'COMPLETED') {
@@ -3030,7 +3026,7 @@ export const handlers = [
     const isRequester = Boolean(requester && requester.memberId === ticket.requesterId)
     const canCancelAsRequester = isRequester && CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)
     const canCancelAsAssetTeam = isAssetTeamRole(requester)
-      && !['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+      && !['COMPLETED', 'CANCELLED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
 
     if (!canCancelAsRequester && !canCancelAsAssetTeam) {
       return HttpResponse.json({
@@ -3042,7 +3038,7 @@ export const handlers = [
     }
 
     const updatedAt = new Date().toISOString()
-    ticket.ticketStatus = 'CANCELED'
+    ticket.ticketStatus = 'CANCELLED'
     ticketcanceledAt.set(ticketId, updatedAt)
 
     return HttpResponse.json(ok({
@@ -3266,8 +3262,8 @@ export const handlers = [
     ticket.ticketStatus = 'IN_PROGRESS'
     if (assetType === 'INTANGIBLE') {
       const intangibleAsset = asset as IntangibleAsset
-      intangibleAsset.status = 'CANCELED'
-      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.status = 'CANCELLED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELLED'
       intangibleAsset.assignedMemberId = null
       intangibleAsset.assignedMemberName = null
       intangibleAsset.departmentId = null
@@ -3352,8 +3348,8 @@ export const handlers = [
     ticket.ticketStatus = 'IN_PROGRESS'
     if (assetType === 'INTANGIBLE') {
       const intangibleAsset = asset as IntangibleAsset
-      intangibleAsset.status = 'CANCELED'
-      intangibleAsset.intangibleAssetStatus = 'CANCELED'
+      intangibleAsset.status = 'CANCELLED'
+      intangibleAsset.intangibleAssetStatus = 'CANCELLED'
       intangibleAsset.assignedMemberId = null
       intangibleAsset.assignedMemberName = null
       intangibleAsset.departmentId = null
@@ -4942,8 +4938,8 @@ export const handlers = [
     ))
 
     if (!hasActiveAssignment) {
-      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELED'
-      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELED'
+      asset.status = body.memberId ? 'AVAILABLE' : 'CANCELLED'
+      asset.intangibleAssetStatus = body.memberId ? 'AVAILABLE' : 'CANCELLED'
       asset.assignedMemberId = null
       asset.assignedMemberName = null
       asset.departmentId = null

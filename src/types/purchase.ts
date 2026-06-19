@@ -13,7 +13,7 @@ export type PurchasePolicyMode = 'ONLY_ASSET_TEAM' | 'ONLY_DIRECT_PURCHASE' | 'P
 
 export interface PurchasePlanCreateItem {
   ticketId: string | null
-  itemName: string
+  productName: string
   assetType: AssetType
   assetItemId?: string | null
   quantity: number
@@ -53,13 +53,9 @@ export interface PurchasePlanListItem {
 
 export interface PurchasePlanStatistics {
   totalCount: number
-  requestedCount: number
-  approvedCount: number
-  rejectedCount: number
+  approvalWaitingCount: number
   orderedCount: number
-  deliveredCount: number
   completedCount: number
-  cancelledCount: number
 }
 
 export interface PurchasePlanListFilter {
