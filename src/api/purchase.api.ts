@@ -3,12 +3,14 @@ import type {
   PurchasePlanCreateRequest,
   PurchasePlanCreateResponse,
   PurchasePlanDetail,
+  PurchasePlanIntangibleAssetRegisterRequest,
   PurchasePlanItem,
   PurchasePlanListFilter,
   PurchasePlanListItem,
   PurchasePlanPage,
   PurchasePlanStatistics,
   PurchasePlanStatusChangeRequest,
+  PurchasePlanTangibleAssetRegisterRequest,
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
 } from '@/types/purchase'
@@ -79,6 +81,13 @@ export const purchaseApi = {
 
   confirmDelivery: (planId: number | string, itemId: number | string) =>
     api.patch<PurchasePlanItem>(`/purchase-plans/${planId}/items/${itemId}/confirm`),
+
+  registerAssets: (
+    planId: number | string,
+    itemId: number | string,
+    data: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest,
+  ) =>
+    api.post<Record<string, unknown>>(`/purchase-plans/${planId}/items/${itemId}/assets`, data),
 
   updatePolicy: (data: PurchasePolicyUpdateRequest) =>
     api.put<PurchasePolicyUpdateResponse>('/purchase-policies', data),

@@ -101,6 +101,43 @@ export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
 }
 
+/** 구매 계획 자산 등록 요청 - 유형자산 */
+export interface PurchasePlanTangibleAssetRegisterRequest {
+  usageType: 'TEMPORARY' | 'PERMANENT'
+  assetUsageType: 'PERSONAL' | 'DEPARTMENT' | string
+  serialNumber: string[]
+  location: string
+  purchaseDate: string
+  purchasePrice: number
+  purchaseVendor: string
+  warrantyExpiredAt: string
+  memberId?: string | null
+  departmentId?: string | null
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
+}
+
+/** 구매 계획 자산 등록 요청 - 무형자산 */
+export interface PurchasePlanIntangibleAssetRegisterRequest {
+  licenseKeys: string[]       // 자산별 라이선스 코드 목록
+  purchaseDate: string
+  purchasePrice: number
+  purchaseVendor: string
+  licenseType: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
+  seatCount: number
+  isAutoRenewal: boolean
+  billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  memberId?: string | null
+  departmentId?: string | null
+}
+
+/** @deprecated 대신 PurchasePlanTangibleAssetRegisterRequest / PurchasePlanIntangibleAssetRegisterRequest 사용 */
+export type PurchasePlanAssetRegisterRequest =
+  | PurchasePlanTangibleAssetRegisterRequest
+  | PurchasePlanIntangibleAssetRegisterRequest
+
 export interface PurchasePolicyUpdateRequest {
   purchaseMode: PurchasePolicyMode
   allowDirectPurchase: boolean

@@ -17,6 +17,7 @@ import type {
   NonStandardAssetRequestCreate,
   PageResponse,
   PasswordChangeRequest,
+  PurchasePlanAssetRegisterRequest,
   PurchasePlanCreateRequest,
   PurchasePlanDetail,
   PurchasePlanListItem,
@@ -2418,6 +2419,63 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok({}, '납품 확인이 완료되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/assets`, async ({ params, request }) => {
+    const planId = Number(params.planId)
+    const itemId = String(params.itemId)
+    const plan = findPurchasePlan(planId)
+    const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!Array.isArray(body.serialNumber) || body.serialNumber.length === 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'SERIAL_NUMBER_REQUIRED',
+        message: '시리얼 번호를 1개 이상 입력해 주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const duplicatedSerial = body.serialNumber.find((serialNumber, index, serialNumbers) => (
+      serialNumber && serialNumbers.indexOf(serialNumber) !== index
+    ))
+
+    if (duplicatedSerial) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'SERIAL_NUMBER_DUPLICATED',
+        message: '중복된 시리얼 번호가 있습니다.',
+        data: null,
+      }, { status: 409 })
+    }
+
+    plan.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok({
+      planId,
+      itemId,
+      registeredCount: body.serialNumber.length,
+    }, '구매 계획 자산이 등록되었습니다.'))
   }),
 
   http.put(`${API_PREFIX}/purchase-policies`, async ({ request }) => {

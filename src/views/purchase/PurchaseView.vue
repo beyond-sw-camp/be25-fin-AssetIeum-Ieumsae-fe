@@ -616,15 +616,31 @@
                 required
                 :disabled="isCreatingPlan"
               />
-              <Input
-                id="direct-plan-unit-price"
-                v-model="directItemForm.estimatedUnitPrice"
-                :min="1"
-                label="예상 단가"
-                required
-                placeholder="0"
-                :disabled="isCreatingPlan"
-              />
+              <div class="space-y-2 text-left">
+                <label
+                  for="direct-plan-unit-price"
+                  class="flex items-center gap-0.5 px-0.5 text-sm font-semibold text-text-main"
+                >
+                  예상 단가
+                  <span class="font-bold text-primary">*</span>
+                </label>
+                <div class="relative">
+                  <input
+                    id="direct-plan-unit-price"
+                    :value="formattedDirectEstimatedUnitPrice"
+                    inputmode="numeric"
+                    placeholder="0"
+                    :disabled="isCreatingPlan"
+                    class="h-9 w-full rounded-xl border border-border bg-surface py-2.5 pl-4 pr-9 text-right text-sm text-text-main outline-none transition-all duration-200 placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-secondary disabled:text-text-muted disabled:opacity-60"
+                    @input="handleDirectEstimatedUnitPriceInput"
+                  />
+                  <span
+                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted"
+                  >
+                    원
+                  </span>
+                </div>
+              </div>
               <div class="md:col-span-2 xl:col-span-5">
                 <Input
                   id="direct-plan-url"
@@ -758,6 +774,7 @@
     <!-- 자산 등록 패널 -->
     <PurchaseAssetRegisterDrawer
       :is-open="isAssetRegisterDrawerOpen"
+      :plan="selectedPlan"
       :item="assetRegisterTargetItem"
       :departments="departments"
       :members="members"
@@ -1041,6 +1058,10 @@ const directCategoryOptions = computed<DropdownOption[]>(() => {
 });
 
 const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
+
+const formattedDirectEstimatedUnitPrice = computed(() =>
+  formatNumberInput(directItemForm.value.estimatedUnitPrice),
+);
 
 const statCards = computed(() => [
   {
@@ -1534,6 +1555,11 @@ function handleDirectAssetTypeChange(value: string | number) {
   directItemForm.value.categoryName = "";
 }
 
+function handleDirectEstimatedUnitPriceInput(event: Event) {
+  const target = event.target as HTMLInputElement;
+  directItemForm.value.estimatedUnitPrice = normalizeNumberInput(target.value);
+}
+
 function addDirectPlanItem() {
   directItemError.value = "";
   const itemName = directItemForm.value.itemName.trim();
@@ -1720,6 +1746,16 @@ function parseAssetItemId(value: string | number | null | undefined) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function normalizeNumberInput(value: string) {
+  return value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+}
+
+function formatNumberInput(value: string) {
+  const normalized = normalizeNumberInput(value);
+  if (!normalized) return "";
+  return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 function categoryGroupsToOptions(groups: unknown): DropdownOption[] {
