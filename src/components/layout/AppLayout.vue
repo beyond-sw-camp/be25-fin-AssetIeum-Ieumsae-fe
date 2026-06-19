@@ -21,6 +21,7 @@
 import { computed, ref } from 'vue'
 import {
   Building2,
+  Building,
   FileText,
   Laptop,
   LayoutDashboard,
@@ -46,9 +47,16 @@ const {
   canManageTickets,
   canPurchase,
   canViewMyTickets,
+  canManagePlatform,
 } = usePermission()
 
 const navItems = computed(() => {
+  if (canManagePlatform.value) {
+    return [
+      { name: 'system-companies', to: '/system/companies', label: '회사 관리', icon: Building, show: true },
+    ]
+  }
+
   const menuConfig = [
     { name: 'dashboard', to: '/', label: '대시보드', icon: LayoutDashboard, show: true },
     {
