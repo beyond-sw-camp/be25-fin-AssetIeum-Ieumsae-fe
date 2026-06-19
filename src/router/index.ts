@@ -169,9 +169,9 @@ const router = createRouter({
             },
             {
               path: 'intangible',
-              name: 'IntagibleInspection',
+              name: 'IntangibleInspection',
               component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
-              meta: { title: '무형자산 전수조사' },
+              meta: { title: '무형자산 전수조사', roles: ['ASSET_TEAM', 'ASSET_MANAGER'] },
             },
           ],
         },
