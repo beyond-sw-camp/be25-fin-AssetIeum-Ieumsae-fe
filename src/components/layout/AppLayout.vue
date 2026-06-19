@@ -51,7 +51,7 @@ const {
 } = usePermission()
 
 const canViewOperationReports = computed(() =>
-  hasRole('SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'DEPARTMENT_MANAGER'),
+  hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
 )
 
 const navItems = computed(() => {
