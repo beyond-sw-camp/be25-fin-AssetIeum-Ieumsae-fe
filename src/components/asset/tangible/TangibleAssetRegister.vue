@@ -240,7 +240,6 @@ const FormField = defineComponent({
 const statusOptions = [
   TANGIBLE_STATUS_LABEL.AVAILABLE,
   TANGIBLE_STATUS_LABEL.IN_USE,
-  TANGIBLE_STATUS_LABEL.REPAIRING,
 ]
 
 const statusByLabel: Record<string, TangibleAssetStatus> = {
@@ -250,7 +249,7 @@ const statusByLabel: Record<string, TangibleAssetStatus> = {
 }
 
 const assetUsageTypeOptions = ['공용자산', '개인자산']
-const usageTypeOptions = ['정식 배정', '임시 대여', '미배정']
+const usageTypeOptions = ['정식 배정', '임시 대여']
 
 const createInitialForm = (): RegisterForm => ({
   serialNo: '',
@@ -431,7 +430,7 @@ const selectedStatus = computed(() => (
 ))
 
 const requiresAssignmentInfo = computed(() => (
-  selectedStatus.value !== 'AVAILABLE' && selectedStatus.value !== 'DISPOSED'
+  selectedStatus.value === 'IN_USE'
 ))
 
 const effectiveDepartment = computed(() => (

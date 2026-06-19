@@ -30,7 +30,13 @@ export const INTANGIBLE_STATUS_LABEL: Record<IntangibleAssetStatus | string, str
   EXPIRED: '만료',
   TERMINATION_REQUESTED: '해지요청',
   TERMINATED: '해지',
-  CANCELLED: '해지완료',
+  // TODO: 백엔드 수정 필요 IntangibleAssetStatus
+  CANCELED: '해지완료',
+}
+
+export function getIntangibleStatusLabel(status: string | null | undefined, fallback = '알 수 없음') {
+  if (!status) return fallback
+  return INTANGIBLE_STATUS_LABEL[status.trim().toUpperCase()] ?? fallback
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
