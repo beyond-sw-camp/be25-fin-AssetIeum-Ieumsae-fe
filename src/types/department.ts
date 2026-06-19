@@ -6,6 +6,8 @@ export interface Department {
   departmentId: string
   parentDepartmentId: string | null
   parentDepartmentName?: string
+  departmentManagerId?: string | null
+  departmentManagerName?: string | null
   name: string
   memberCount: number
   createdAt: string
@@ -15,11 +17,13 @@ export interface Department {
 
 export interface DepartmentCreateRequest {
   parentDepartmentId?: string | null
+  departmentManagerId: string | null
   name: string
 }
 
 export interface DepartmentUpdateRequest {
   parentDepartmentId?: string | null
+  departmentManagerId?: string | null
   name?: string
 }
 
