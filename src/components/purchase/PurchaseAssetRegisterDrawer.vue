@@ -32,7 +32,7 @@
             <SummaryItem label="예상 단가" :value="formatCurrency(item?.estimatedUnitPrice ?? 0)" />
           </div>
           <p class="text-xs text-text-muted">
-            사용자는 신청자 부서 구성원만 선택할 수 있습니다. 사용자를 선택하지 않으면 재고 자산으로 등록됩니다.
+            각 자산 행에서 요청자 할당, 사용자 직접 선택, 미할당을 선택할 수 있습니다.
           </p>
         </section>
 
@@ -51,7 +51,7 @@
               id="purchase-asset-price"
               v-model="commonForm.purchasePrice"
               type="number"
-              label="구매 금액"
+              label="구매 가격"
               required
               placeholder="0"
               :disabled="isSubmitting"
@@ -63,6 +63,12 @@
               required
               placeholder="구매처를 입력하세요"
               :disabled="isSubmitting"
+            />
+            <Input
+              id="purchase-asset-department"
+              :model-value="requestDepartmentName"
+              label="사용 부서"
+              disabled
             />
 
             <!-- 유형자산 전용 공통 필드 -->
@@ -78,7 +84,7 @@
               <Input
                 id="purchase-asset-location"
                 v-model="tangibleForm.location"
-                label="위치"
+                label="사용 위치"
                 required
                 placeholder="본사 3층"
                 :disabled="isSubmitting"
@@ -135,13 +141,13 @@
                 id="purchase-intangible-seat-count"
                 v-model="intangibleForm.seatCount"
                 type="number"
-                label="최대 사용 가능 인원 수"
+                label="좌석 수"
                 required
                 placeholder="1"
                 :disabled="isSubmitting"
               />
               <div class="space-y-2">
-                <label class="block px-0.5 text-sm font-semibold text-text-main">결제 주기</label>
+                <label class="block px-0.5 text-sm font-semibold text-text-main">과금 주기</label>
                 <Dropdown
                   id="purchase-intangible-billing-cycle"
                   :model-value="intangibleForm.billingCycle ?? ''"
@@ -175,18 +181,6 @@
                 :disabled="isSubmitting"
               />
             </template>
-
-            <!-- 공통: 기본 사용자 -->
-            <div class="space-y-2">
-              <label class="block px-0.5 text-sm font-semibold text-text-main">기본 사용자</label>
-              <Dropdown
-                id="purchase-asset-member"
-                :model-value="commonForm.memberId"
-                :options="memberOptions"
-                :disabled="isSubmitting"
-                @update:model-value="handleCommonMemberChange"
-              />
-            </div>
           </div>
         </section>
 
@@ -199,11 +193,13 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-border">
-            <table class="min-w-[560px] w-full border-collapse text-sm">
+            <table class="min-w-[920px] w-full border-collapse text-sm">
               <thead class="bg-surface-secondary text-xs font-bold text-text-sub">
                 <tr>
                   <th class="w-14 px-3 py-2 text-center">번호</th>
                   <th class="px-3 py-2 text-left">{{ isTangible ? '시리얼 번호' : '라이선스 코드' }}</th>
+                  <th class="w-[180px] px-3 py-2 text-left">할당 방식</th>
+                  <th class="w-[260px] px-3 py-2 text-left">할당 사용자</th>
                   <th class="w-[120px] px-3 py-2 text-center">상태</th>
                 </tr>
               </thead>
@@ -219,6 +215,33 @@
                       :disabled="isSubmitting || row.status === 'success'"
                       class="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
                       @input="markRowEdited(row)"
+                    />
+                    <p v-if="row.errorMessage" class="mt-1 text-xs font-semibold text-danger">
+                      {{ row.errorMessage }}
+                    </p>
+                  </td>
+                  <td class="px-3 py-3">
+                    <Dropdown
+                      :id="`purchase-asset-assignment-${index}`"
+                      :model-value="row.assignmentMethod"
+                      :options="ASSIGNMENT_METHOD_OPTIONS"
+                      :disabled="isSubmitting || row.status === 'success'"
+                      menu-strategy="fixed"
+                      @update:model-value="(value) => handleRowAssignmentMethodChange(row, value)"
+                    />
+                  </td>
+                  <td class="px-3 py-3">
+                    <div v-if="row.assignmentMethod === 'REQUESTER'" class="rounded-xl border border-border bg-surface-secondary px-3 py-2 text-sm text-text-main">
+                      {{ requesterLabel }}
+                    </div>
+                    <Dropdown
+                      v-else
+                      :id="`purchase-asset-member-${index}`"
+                      :model-value="row.memberId"
+                      :options="memberOptions"
+                      :disabled="isSubmitting || row.status === 'success' || row.assignmentMethod === 'UNASSIGNED'"
+                      menu-strategy="fixed"
+                      @update:model-value="(value) => handleRowMemberChange(row, value)"
                     />
                   </td>
                   <td class="px-3 py-3 text-center">
@@ -268,6 +291,7 @@ import type {
 } from '@/types'
 
 type RowStatus = 'idle' | 'ready' | 'error' | 'submitting' | 'success' | 'failed'
+type AssignmentMethod = 'REQUESTER' | 'DIRECT' | 'UNASSIGNED'
 
 const SummaryItem = defineComponent({
   props: {
@@ -285,6 +309,8 @@ const SummaryItem = defineComponent({
 interface AssetRegisterRow {
   localId: string
   uniqueCode: string
+  assignmentMethod: AssignmentMethod
+  memberId: string
   status: RowStatus
   errorMessage: string
 }
@@ -332,6 +358,12 @@ const AUTO_RENEWAL_OPTIONS: DropdownOption[] = [
   { label: '수동 갱신', value: 'false' },
 ]
 
+const ASSIGNMENT_METHOD_OPTIONS: DropdownOption[] = [
+  { label: '요청자에게 할당', value: 'REQUESTER' },
+  { label: '사용자 직접 선택', value: 'DIRECT' },
+  { label: '미할당', value: 'UNASSIGNED' },
+]
+
 // ── 상태 ──────────────────────────────────────────────────
 const isSubmitting = ref(false)
 const errorMessage = ref('')
@@ -342,7 +374,6 @@ const commonForm = reactive({
   purchaseDate: '',
   purchasePrice: '' as number | '',
   purchaseVendor: '',
-  memberId: '',
 })
 
 /** 유형자산 전용 */
@@ -388,15 +419,16 @@ const requester = computed(() => {
 
 const requestDepartmentId = computed(() => requester.value?.departmentId ?? '')
 const requestDepartmentName = computed(() => requester.value?.departmentName ?? '-')
+const requesterLabel = computed(() => (requester.value ? memberLabel(requester.value) : '요청자 확인 필요'))
 const assignableMembers = computed(() => {
   if (!requestDepartmentId.value) return props.members
   return props.members.filter((member) => member.departmentId === requestDepartmentId.value)
 })
 
 const memberOptions = computed<DropdownOption[]>(() => [
-  { label: '할당하지 않음', value: '' },
+  { label: '사용자 선택', value: '' },
   ...assignableMembers.value.map((member) => ({
-    label: `${member.name} (${member.memberNo})`,
+    label: memberLabel(member),
     value: member.memberId,
   })),
 ])
@@ -410,16 +442,11 @@ watch(() => props.isOpen, (isOpen) => {
 function resetForm() {
   errorMessage.value = ''
   const purchaseDate = toDateInputValue(props.item?.receivedAt)
-  const defaultMemberId = requester.value
-    && assignableMembers.value.some((member) => member.memberId === requester.value?.memberId)
-    ? requester.value.memberId
-    : ''
 
   // 공통
   commonForm.purchaseDate = purchaseDate
   commonForm.purchasePrice = props.item?.estimatedUnitPrice ?? ''
   commonForm.purchaseVendor = ''
-  commonForm.memberId = defaultMemberId
 
   // 유형자산
   tangibleForm.location = ''
@@ -444,19 +471,34 @@ function createRows(count: number): AssetRegisterRow[] {
   return Array.from({ length: count }, (_, index) => ({
     localId: `purchase-asset-${Date.now()}-${index}`,
     uniqueCode: '',
+    assignmentMethod: 'REQUESTER',
+    memberId: '',
     status: 'idle',
     errorMessage: '',
   }))
 }
 
-function handleCommonMemberChange(value: string | number) {
-  commonForm.memberId = String(value)
-}
-
 function markRowEdited(row: AssetRegisterRow) {
   if (row.status === 'success') return
-  row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
+  row.status = row.uniqueCode.trim() && !row.errorMessage ? 'ready' : 'idle'
   row.errorMessage = ''
+}
+
+function handleRowAssignmentMethodChange(row: AssetRegisterRow, value: string | number) {
+  row.assignmentMethod = toAssignmentMethod(value)
+  row.memberId = ''
+  if (row.status !== 'success') {
+    row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
+    row.errorMessage = ''
+  }
+}
+
+function handleRowMemberChange(row: AssetRegisterRow, value: string | number) {
+  row.memberId = String(value)
+  if (row.status !== 'success') {
+    row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
+    row.errorMessage = ''
+  }
 }
 
 // ── 유효성 검사 ────────────────────────────────────────────
@@ -511,10 +553,33 @@ function validateRows() {
       return
     }
 
+    const assignmentError = validateRowAssignment(row)
+    if (assignmentError) {
+      row.status = 'error'
+      row.errorMessage = assignmentError
+      hasError = true
+      return
+    }
+
     row.status = 'ready'
   })
 
   return !hasError
+}
+
+function validateRowAssignment(row: AssetRegisterRow) {
+  if (row.assignmentMethod === 'REQUESTER') {
+    if (!requester.value?.memberId) return '요청자 ID를 확인할 수 없습니다.'
+    if (!isAssignableMemberId(requester.value.memberId)) return '요청자를 현재 선택 가능한 사용자 목록에서 확인할 수 없습니다.'
+    return ''
+  }
+
+  if (row.assignmentMethod === 'DIRECT') {
+    if (!row.memberId) return '할당 사용자를 선택해주세요.'
+    if (!isAssignableMemberId(row.memberId)) return '현재 회사 또는 요청 부서에 속한 사용자만 선택할 수 있습니다.'
+  }
+
+  return ''
 }
 
 function findDuplicateCodes(rows: AssetRegisterRow[]) {
@@ -571,13 +636,13 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
     row.errorMessage = ''
   })
 
-  const memberId = commonForm.memberId || null
-
   let body: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest
 
   if (isTangible.value) {
+    const { serialNumbers, memberIds } = toTangibleAssetRowsPayload(rowsToSubmit.value)
     body = {
-      serialNumber: rowsToSubmit.value.map((row) => row.uniqueCode.trim()),
+      serialNumbers,
+      memberIds,
       location: tangibleForm.location,
       purchaseDate: toLocalDateTime(commonForm.purchaseDate),
       purchasePrice: Number(commonForm.purchasePrice),
@@ -585,14 +650,15 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
       warrantyExpiredAt: toLocalDateTime(tangibleForm.warrantyExpiredAt),
       usageType: tangibleForm.usageType as 'TEMPORARY' | 'PERMANENT',
       assetUsageType: tangibleForm.assetUsageType,
-      memberId,
-      departmentId: memberId ? getMemberDepartmentId(memberId) : null,
-      usedStartedAt: memberId && tangibleForm.usedStartedAt ? toLocalDateTime(tangibleForm.usedStartedAt) : null,
-      returnDueDate: memberId && tangibleForm.returnDueDate ? toLocalDateTime(tangibleForm.returnDueDate) : null,
+      departmentId: requestDepartmentId.value || null,
+      usedStartedAt: tangibleForm.usedStartedAt ? toLocalDateTime(tangibleForm.usedStartedAt) : null,
+      returnDueDate: tangibleForm.returnDueDate ? toLocalDateTime(tangibleForm.returnDueDate) : null,
     } satisfies PurchasePlanTangibleAssetRegisterRequest
   } else {
+    const { licenseCodes, memberIds } = toIntangibleAssetRowsPayload(rowsToSubmit.value)
     body = {
-      licenseKeys: rowsToSubmit.value.map((row) => row.uniqueCode.trim()),
+      licenseCodes,
+      memberIds,
       purchaseDate: toLocalDateTime(commonForm.purchaseDate),
       purchasePrice: Number(commonForm.purchasePrice),
       purchaseVendor: commonForm.purchaseVendor,
@@ -602,8 +668,7 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
       billingCycle: intangibleForm.billingCycle || null,
       startedAt: intangibleForm.startedAt ? toLocalDateTime(intangibleForm.startedAt) : null,
       expiredAt: intangibleForm.expiredAt ? toLocalDateTime(intangibleForm.expiredAt) : null,
-      memberId,
-      departmentId: memberId ? getMemberDepartmentId(memberId) : null,
+      departmentId: requestDepartmentId.value || null,
     } satisfies PurchasePlanIntangibleAssetRegisterRequest
   }
 
@@ -619,8 +684,41 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
 }
 
 // ── 유틸 ──────────────────────────────────────────────────
-function getMemberDepartmentId(memberId: string) {
-  return props.members.find((member) => member.memberId === memberId)?.departmentId ?? null
+function toTangibleAssetRowsPayload(rows: AssetRegisterRow[]) {
+  return {
+    serialNumbers: rows.map((row) => row.uniqueCode.trim()),
+    memberIds: rows.map(resolveAssignedMemberId),
+  }
+}
+
+function toIntangibleAssetRowsPayload(rows: AssetRegisterRow[]) {
+  return {
+    licenseCodes: rows.map((row) => row.uniqueCode.trim()),
+    memberIds: rows.map((row) => {
+      const memberId = resolveAssignedMemberId(row)
+      return memberId ? [memberId] : []
+    }),
+  }
+}
+
+function resolveAssignedMemberId(row: AssetRegisterRow) {
+  if (row.assignmentMethod === 'UNASSIGNED') return null
+  if (row.assignmentMethod === 'REQUESTER') return requester.value?.memberId ?? null
+  return row.memberId || null
+}
+
+function toAssignmentMethod(value: string | number): AssignmentMethod {
+  if (value === 'DIRECT') return 'DIRECT'
+  if (value === 'UNASSIGNED') return 'UNASSIGNED'
+  return 'REQUESTER'
+}
+
+function isAssignableMemberId(memberId: string | number) {
+  return assignableMembers.value.some((member) => String(member.memberId) === String(memberId))
+}
+
+function memberLabel(member: Member) {
+  return `${member.name} / ${member.memberNo} / ${member.departmentName}`
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {

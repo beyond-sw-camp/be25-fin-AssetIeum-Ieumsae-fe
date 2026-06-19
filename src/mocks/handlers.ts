@@ -2447,24 +2447,31 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    if (!Array.isArray(body.serialNumber) || body.serialNumber.length === 0) {
+    const uniqueCodes = 'serialNumbers' in body
+      ? body.serialNumbers
+      : 'licenseCodes' in body
+        ? body.licenseCodes
+        : []
+    const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+    if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
       return HttpResponse.json({
         status: 400,
-        errorCode: 'SERIAL_NUMBER_REQUIRED',
-        message: '시리얼 번호를 1개 이상 입력해 주세요.',
+        errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+        message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
         data: null,
       }, { status: 400 })
     }
 
-    const duplicatedSerial = body.serialNumber.find((serialNumber, index, serialNumbers) => (
-      serialNumber && serialNumbers.indexOf(serialNumber) !== index
+    const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+      uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
     ))
 
-    if (duplicatedSerial) {
+    if (duplicatedCode) {
       return HttpResponse.json({
         status: 409,
-        errorCode: 'SERIAL_NUMBER_DUPLICATED',
-        message: '중복된 시리얼 번호가 있습니다.',
+        errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+        message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
         data: null,
       }, { status: 409 })
     }
@@ -2474,7 +2481,7 @@ export const handlers = [
     return HttpResponse.json(ok({
       planId,
       itemId,
-      registeredCount: body.serialNumber.length,
+      registeredCount: uniqueCodes.length,
     }, '구매 계획 자산이 등록되었습니다.'))
   }),
 

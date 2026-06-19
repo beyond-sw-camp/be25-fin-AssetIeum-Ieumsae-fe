@@ -105,13 +105,13 @@ export interface PurchasePlanStatusChangeRequest {
 export interface PurchasePlanTangibleAssetRegisterRequest {
   usageType: 'TEMPORARY' | 'PERMANENT'
   assetUsageType: 'PERSONAL' | 'DEPARTMENT' | string
-  serialNumber: string[]
+  serialNumbers: string[]
+  memberIds: (string | null)[]
   location: string
   purchaseDate: string
   purchasePrice: number
   purchaseVendor: string
   warrantyExpiredAt: string
-  memberId?: string | null
   departmentId?: string | null
   usedStartedAt?: string | null
   returnDueDate?: string | null
@@ -119,7 +119,8 @@ export interface PurchasePlanTangibleAssetRegisterRequest {
 
 /** 구매 계획 자산 등록 요청 - 무형자산 */
 export interface PurchasePlanIntangibleAssetRegisterRequest {
-  licenseKeys: string[]       // 자산별 라이선스 코드 목록
+  licenseCodes: string[]
+  memberIds: string[][]
   purchaseDate: string
   purchasePrice: number
   purchaseVendor: string
@@ -129,7 +130,6 @@ export interface PurchasePlanIntangibleAssetRegisterRequest {
   billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
   startedAt?: string | null
   expiredAt?: string | null
-  memberId?: string | null
   departmentId?: string | null
 }
 
