@@ -24,7 +24,21 @@
             ]"
             @click="col.sortable && emit('sort', String(col.key))"
           >
-            {{ col.label }}
+            <span
+              :class="[
+                'inline-flex items-center gap-1',
+                alignClass[col.align ?? 'left'],
+              ]"
+            >
+              {{ col.label }}
+              <span
+                v-if="col.sortDirection"
+                class="text-[10px] leading-none"
+                aria-hidden="true"
+              >
+                {{ col.sortDirection === 'asc' ? '▲' : '▼' }}
+              </span>
+            </span>
           </th>
         </tr>
       </thead>
@@ -71,6 +85,7 @@ export interface Column<T> {
   width?: string
   align?: 'left' | 'center' | 'right'
   sortable?: boolean
+  sortDirection?: 'asc' | 'desc'
 }
 
 interface Props {
