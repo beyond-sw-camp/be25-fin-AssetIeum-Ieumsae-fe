@@ -12,6 +12,22 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          :loading="isUploadingCsv"
+          @click="handleCsvUploadClick"
+        >
+          <Upload :size="15" />
+          CSV 파일 업로드
+        </Button>
+        <input
+          ref="csvUploadInputRef"
+          type="file"
+          accept=".csv,text/csv"
+          class="hidden"
+          @change="handleCsvUploadChange"
+        />
+
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
           <Edit :size="15" />
           자산 카테고리 관리
@@ -241,9 +257,10 @@ import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
-import { Edit, Plus, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
-import { tangibleItemApi } from '@/api/asset.api'
-import type { TangibleAssetItem, TangibleCategoryGroup } from '@/types'
+import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next';
+import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import type { TangibleAsset, TangibleAssetItem, TangibleCategoryGroup } from '@/types'
 
 import TangibleItemCategory from '../../../components/item/tangible/TangibleItemCategory.vue';
 import TangibleItemRegister from '../../../components/item/tangible/TangibleItemRegister.vue';
@@ -284,6 +301,11 @@ const createEmptyItemEditForm = (): ItemEditForm => ({
 
 type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
   id?: string
+  assetItemCount?: number
+  tangibleAssetCount?: number
+  totalAssetCount?: number
+  assetTotalCount?: number
+  count?: number
   categoryName?: string
   categoryPath?: string
   mainCategoryName?: string
@@ -306,6 +328,14 @@ type TangibleItemResponse = TangibleAssetItem & Partial<Asset> & {
 
 type CategoryGroup = TangibleCategoryGroup
 
+type TangibleAssetCountSource = TangibleAsset & {
+  tangibleItemId?: string
+  tangibleAssetItemId?: string
+  itemId?: string
+  itemName?: string
+  modelName?: string
+}
+
 const toRadioValue = (value: number | boolean | undefined) => {
   if (typeof value === 'boolean') return value ? 1 : 0
   return value ?? 1
@@ -318,6 +348,9 @@ const isEditDrawerOpen = ref(false);
 const isSavingItem = ref(false);
 const selectedItem = ref<Asset | null>(null);
 const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
+const csvUploadInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingCsv = ref(false)
+const notificationStore = useNotificationStore()
 
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기'];
 const rowsPerPageText = ref('20개씩 보기');
@@ -408,6 +441,40 @@ const handleCategoryChanged = async () => {
 const handleItemRegistered = () => {
   handleSearch()
 };
+
+const handleCsvUploadClick = () => {
+  if (isUploadingCsv.value) return
+  csvUploadInputRef.value?.click()
+}
+
+const handleCsvUploadChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file) return
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    notificationStore.warning('CSV 파일만 업로드할 수 있습니다.', '파일 확장자를 확인해주세요.')
+    input.value = ''
+    return
+  }
+
+  isUploadingCsv.value = true
+
+  try {
+    const response = await tangibleItemApi.importCsv(file)
+    notificationStore.success('유형자산 품목 일괄 등록 완료', `${response.data.length}건이 등록되었습니다.`)
+    await loadCategories()
+    handleSearch()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
+    console.error('유형자산 품목 CSV 업로드 실패', error)
+    notificationStore.error('유형자산 품목 일괄 등록 실패', message)
+  } finally {
+    isUploadingCsv.value = false
+    input.value = ''
+  }
+}
 
 const toItemEditForm = (row: Asset): ItemEditForm => ({
   assetName: row.assetName,
@@ -621,13 +688,16 @@ const toAssetRow = (item: TangibleItemResponse): Asset => {
     ?? item.tangibleAssetCategory?.tangibleAssetCategoryId
     ?? item.tangibleAssetCategory?.id
 
+  const assetItemId = item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? item.id
+  const productName = item.productName ?? item.assetName ?? item.name ?? item.itemCode ?? item.itemNo ?? ''
+
   return {
     ...item,
-    assetItemId: item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? item.id,
+    assetItemId,
     categoryId,
     itemCode: item.itemCode,
-    productName: item.productName,
-    assetName: item.productName ?? item.assetName ?? item.name ?? item.itemCode ?? item.itemNo ?? '',
+    productName,
+    assetName: productName,
     category: item.category
     ?? item.categoryName
     ?? item.childCategoryName
@@ -676,9 +746,36 @@ const loadServerData = async () => {
       params.keyword = searchParams.value.keyword.trim().toLowerCase();
     }
 
-    const response = await tangibleItemApi.getList(params);
+    const [response, assetCountMap] = await Promise.all([
+      tangibleItemApi.getList(params),
+      loadAssetCountMap(),
+    ]);
 
-    const rows = response.data.content.map((item) => toAssetRow(item));
+    const rows = response.data.content.map((item) => {
+      const row = toAssetRow(item)
+      const responseAssetCount = numberValue(
+        (item as TangibleItemResponse).assetCount,
+        (item as TangibleItemResponse).stockCount,
+        (item as TangibleItemResponse).assetItemCount,
+        (item as TangibleItemResponse).tangibleAssetCount,
+        (item as TangibleItemResponse).totalAssetCount,
+        (item as TangibleItemResponse).assetTotalCount,
+        (item as TangibleItemResponse).count,
+      )
+      const calculatedAssetCount = Math.max(
+        assetCountMap.get(row.assetItemId ?? '') ?? 0,
+        assetCountMap.get(row.productName ?? '') ?? 0,
+        assetCountMap.get(row.assetName) ?? 0,
+        assetCountMap.get(row.modelName) ?? 0,
+      )
+      const assetCount = calculatedAssetCount > 0 ? calculatedAssetCount : responseAssetCount
+
+      return {
+        ...row,
+        assetCount,
+        stockCount: assetCount,
+      }
+    });
     listError.value = '';
 
     if (shouldFilterClientSide) {
@@ -702,6 +799,46 @@ const loadServerData = async () => {
     isLoading.value = false;
   }
 };
+
+const numberValue = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value)
+  }
+
+  return 0
+}
+
+const assetItemIdOf = (asset: TangibleAssetCountSource) => (
+  asset.assetItemId ?? asset.tangibleItemId ?? asset.tangibleAssetItemId ?? asset.itemId ?? ''
+)
+
+const assetItemNameOf = (asset: TangibleAssetCountSource) => (
+  asset.assetItemName ?? asset.productName ?? asset.itemName ?? ''
+)
+
+const addAssetCount = (map: Map<string, number>, key: string | undefined | null) => {
+  if (!key) return
+  map.set(key, (map.get(key) ?? 0) + 1)
+}
+
+const loadAssetCountMap = async () => {
+  const map = new Map<string, number>()
+
+  try {
+    const response = await tangibleAssetApi.getList({ page: 0, size: 999 })
+    response.data.content.forEach((asset) => {
+      const source = asset as TangibleAssetCountSource
+      addAssetCount(map, assetItemIdOf(source))
+      addAssetCount(map, assetItemNameOf(source))
+      addAssetCount(map, source.modelName)
+    })
+  } catch (error) {
+    console.warn('유형자산 목록 기반 자산 수 계산 실패', error)
+  }
+
+  return map
+}
 
 const isItemEditDirty = computed(() => (
   JSON.stringify(itemEditForm.value) !== JSON.stringify(initialItemEditForm.value)

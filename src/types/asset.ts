@@ -161,29 +161,11 @@ export interface TangibleAssetCreateRequest {
 }
 
 export interface TangibleAssetUpdateRequest {
-  tangibleAssetId?: string
-  assetCode?: string
-  assetItemName?: string
-  serialNo?: string
   tangibleAssetStatus?: TangibleAssetStatus | string | null
-  tangibleAssetstatus?: TangibleAssetStatus | string | null
-  status?: TangibleAssetStatus | string | null
-  memberId?: string | null
-  assignedMemberId?: string | null
-  assignedMemberName?: string | null
-  memberName?: string | null
-  departmentId?: string | null
-  departmentName?: string | null
-  location?: string | null
-  locationName?: string | null
-  usedStartedAt?: string | null
-  startedAt?: string | null
-  returnDueDate?: string | null
   usageType?: TangibleAssetUsageType | null
-  purchaseDate?: string
-  vendor?: string
-  purchasePrice?: number
-  warrantyExpiredAt?: string | null
+  location?: string
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
 }
 
 export interface TangibleAssetListFilter {
@@ -287,7 +269,7 @@ export interface IntangibleAssetItemCreateRequest {
   categoryId?: string
   productName?: string
   category?: string
-  licenseType?: string
+  licenseType?: LicenseType
   provider?: string
   vendor?: string
   isStandard?: number | boolean
@@ -297,7 +279,7 @@ export interface IntangibleAssetItemUpdateRequest {
   categoryId?: string
   productName?: string
   category?: string
-  licenseType?: string
+  licenseType?: LicenseType
   provider?: string
   vendor?: string
   isStandard?: number | boolean
@@ -307,7 +289,7 @@ export interface IntangibleAssetItemUpdateRequest {
 // 무형자산(IntangibleAsset) 타입
 // =====================================================
 
-export type LicenseType = 'SUBSCRIPTION' | 'PERPETUAL' | 'VOLUME' | 'USER_BASED'
+export type LicenseType = 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
 
 export interface IntangibleAsset {
   assetId: string

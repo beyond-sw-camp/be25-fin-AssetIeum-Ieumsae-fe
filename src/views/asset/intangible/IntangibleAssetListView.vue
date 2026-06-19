@@ -14,6 +14,23 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <Button
+          v-if="canRegisterAsset"
+          variant="outline"
+          :loading="isUploadingCsv"
+          @click="handleCsvUploadClick"
+        >
+          <Upload :size="15" />
+          CSV 파일 업로드
+        </Button>
+        <input
+          ref="csvUploadInputRef"
+          type="file"
+          accept=".csv,text/csv"
+          class="hidden"
+          @change="handleCsvUploadChange"
+        />
+
         <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
@@ -166,11 +183,14 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag, Upload } from 'lucide-vue-next'
+import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
+import { useNotificationStore } from '@/stores'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import { parseCsvText, validateCsvShape } from '@/utils/csvImport'
 import type { ApiResponse, Department, IntangibleAsset, IntangibleItem, LicenseType, Member } from '@/types'
 import IntangibleAssetDetailView from '../../../components/asset/intangible/IntangibleAssetDetailView.vue'
 import IntangibleAssetRegister from '../../../components/asset/intangible/IntangibleAssetRegister.vue'
@@ -283,12 +303,26 @@ type StoredAuthUser = {
   status?: Member['status']
 }
 
+const INTANGIBLE_ASSET_IMPORT_HEADERS = [
+  'productName',
+  'licenseCode',
+  'seatCount',
+  'isAutoRenewal',
+  'purchaseDate',
+  'purchasePrice',
+  'purchaseVendor',
+  'billingCycle',
+]
+
 const rowsPerPageOptions = ['10개씩 보기', '20개씩 보기', '50개씩 보기', '100개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
 const isRegisterDrawerOpen = ref(false)
 const isAssignmentDrawerOpen = ref(false)
 const isDetailDrawerOpen = ref(false)
 const selectedAsset = ref<IntangibleAsset | null>(null)
+const csvUploadInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingCsv = ref(false)
+const notificationStore = useNotificationStore()
 const ALL_CATEGORY = '전체 품목 보기'
 
 const searchParams = ref({
@@ -337,7 +371,7 @@ const itemIdOf = (item: IntangibleItem) => (
 )
 
 const toLicenseType = (value: string | undefined): LicenseType => {
-  if (value === 'PERPETUAL' || value === 'VOLUME' || value === 'USER_BASED' || value === 'SUBSCRIPTION') {
+  if (value === 'PERPETUAL' || value === 'TERM' || value === 'SUBSCRIPTION') {
     return value
   }
 
@@ -484,6 +518,65 @@ const handleAssetAssigned = () => {
 
 const handleAssetSaved = () => {
   handleSearch()
+}
+
+const handleCsvUploadClick = () => {
+  if (isUploadingCsv.value) return
+  csvUploadInputRef.value?.click()
+}
+
+const validateIntangibleAssetCsv = async (file: File) => {
+  const rows = parseCsvText(await file.text())
+  return validateCsvShape(rows, INTANGIBLE_ASSET_IMPORT_HEADERS, '무형자산')
+}
+
+const formatCsvUploadError = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error.errorCode
+      ? `${error.message} (${error.errorCode})`
+      : error.message
+  }
+
+  return error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
+}
+
+const handleCsvUploadChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file) return
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    notificationStore.warning('CSV 파일만 업로드할 수 있습니다.', '파일 확장자를 확인해주세요.')
+    input.value = ''
+    return
+  }
+
+  isUploadingCsv.value = true
+
+  try {
+    const validationError = await validateIntangibleAssetCsv(file)
+    if (validationError) {
+      notificationStore.warning('CSV 파일 형식을 확인해주세요.', validationError)
+      return
+    }
+
+    const response = await intangibleAssetApi.importCsv(file)
+    notificationStore.success('무형자산 일괄 등록 완료', `${response.data.length}건이 등록되었습니다.`)
+    handleSearch()
+  } catch (error) {
+    const message = formatCsvUploadError(error)
+    console.error('무형자산 CSV 업로드 실패', {
+      error,
+      ...(error instanceof ApiError
+        ? { status: error.status, errorCode: error.errorCode, details: error.details }
+        : {}),
+    })
+    notificationStore.error('무형자산 일괄 등록 실패', message)
+  } finally {
+    isUploadingCsv.value = false
+    input.value = ''
+  }
 }
 
 const openRegisterDrawer = () => {
