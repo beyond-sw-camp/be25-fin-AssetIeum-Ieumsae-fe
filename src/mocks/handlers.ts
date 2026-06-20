@@ -27,6 +27,7 @@ import type {
   PurchasePolicyUpdateResponse,
   PurchaseReturnRequestCreate,
   PurchaseRequestMethod,
+  RentalAvailableItem,
   RentalExtensionRequestCreate,
   RentalRequestCreate,
   ReturnRequestCreate,
@@ -3960,6 +3961,53 @@ export const handlers = [
         },
       ),
       '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/rentals/available-items`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const categoryId = url.searchParams.get('categoryId') ?? ''
+    const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
+
+    const availableItems = tangibleItems
+      .map<RentalAvailableItem>((item) => {
+        const availableAssetCount = tangibleAssets.filter((asset) => (
+          asset.assetItemId === item.assetItemId && asset.status === 'AVAILABLE'
+        )).length
+
+        return {
+          tangibleAssetItemId: item.assetItemId,
+          categoryId: `cat-${item.category}`,
+          categoryName: item.category,
+          productName: item.assetName,
+          manufacturer: item.manufacturer,
+          modelName: item.modelName,
+          isStandard: item.isStandard === 1,
+          availableAssetCount,
+        }
+      })
+      .filter((item) => item.availableAssetCount && item.availableAssetCount > 0)
+      .filter((item) => !categoryId || item.categoryId === categoryId)
+      .filter((item) => {
+        if (!isStandard) return true
+        return String(item.isStandard) === isStandard
+      })
+      .filter((item) => {
+        if (!keyword) return true
+        return [
+          item.productName,
+          item.categoryName,
+          item.manufacturer,
+          item.modelName,
+        ].filter(Boolean).join(' ').toLowerCase().includes(keyword)
+      })
+
+    return HttpResponse.json(ok(
+      pageOf(availableItems, page, size),
+      '???媛???덈ぉ 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
     ))
   }),
 

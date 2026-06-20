@@ -7,6 +7,7 @@ import type {
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
+  RentalAvailableItem,
   RentalRequestCreate,
   RentalExtensionRequestCreate,
   MaintenanceRequestCreate,
@@ -33,6 +34,14 @@ import type {
   PageResponse,
 } from '@/types'
 import { normalizeTicketStatus } from '@/utils/labels'
+
+function compactParams<T extends object>(params?: T) {
+  if (!params) return undefined
+
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  )
+}
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
 
@@ -245,6 +254,15 @@ export const ticketCreateApi = {
   /** 대여 요청 */
   createRentalRequest: (body: RentalRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/rentals', body),
+
+  getRentalAvailableItems: (params?: {
+    categoryId?: string
+    isStandard?: string | boolean
+    keyword?: string
+    page?: number
+    size?: number
+  }) =>
+    api.get<PageResponse<RentalAvailableItem>>('/tickets/rentals/available-items', compactParams(params)),
 
   /** 대여 연장 요청 */
   createRentalExtension: (body: RentalExtensionRequestCreate) =>

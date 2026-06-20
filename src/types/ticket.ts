@@ -197,6 +197,20 @@ export interface RentalRequestCreate {
   requestReason: string
 }
 
+export interface RentalAvailableItem {
+  tangibleAssetItemId?: string
+  assetItemId?: string
+  itemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  name?: string
+  manufacturer?: string
+  modelName?: string
+  isStandard?: boolean | number
+  availableAssetCount?: number
+}
+
 export interface RentalExtensionRequestCreate {
   assetId: string
   requestedDueDate: string

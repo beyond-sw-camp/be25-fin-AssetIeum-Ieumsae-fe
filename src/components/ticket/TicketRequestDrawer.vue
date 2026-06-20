@@ -567,6 +567,7 @@ import type {
   DropdownOption,
   IntangibleAsset,
   IntangibleItem,
+  RentalAvailableItem,
   RequestedUsageType,
   TangibleAsset,
   TangibleAssetItem,
@@ -802,9 +803,11 @@ const visibleAssetOptions = computed(() => {
 })
 
 const assetCategoryOptions = computed(() => (
-  selectionAssetType.value === 'INTANGIBLE'
-    ? intangibleCategoryOptions.value
-    : tangibleCategoryOptions.value
+  selectedKind.value === 'RENTAL'
+    ? tangiblePurchaseCategoryOptions.value
+    : selectionAssetType.value === 'INTANGIBLE'
+      ? intangibleCategoryOptions.value
+      : tangibleCategoryOptions.value
 ))
 
 const purchaseRequestCategoryOptions = computed(() => (
@@ -814,7 +817,8 @@ const purchaseRequestCategoryOptions = computed(() => (
 ))
 
 const canSearchAssets = computed(() => Boolean(
-  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType) && assetSearchForm.category,
+  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType)
+  && (selectedKind.value === 'RENTAL' || assetSearchForm.category),
 ))
 
 const selectedAssetOption = computed(() => (
@@ -902,6 +906,12 @@ const dateErrorMessage = computed(() => {
 
 const positiveNumber = (value: string) => Number.isFinite(Number(value)) && Number(value) > 0
 
+function toRentalDateTime(value: string, time: '09:00:00' | '18:00:00') {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T${time}`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00`
+  return value
+}
+
 function toRequestedUsageType(
   value: '' | 'DEPARTMENT' | RequestedUsageType,
 ): RequestedUsageType {
@@ -967,6 +977,28 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
     isStandard: item.isStandard,
     categoryId: item.categoryId,
     categoryName: item.categoryName ?? item.category,
+    manufacturer: item.manufacturer,
+  }
+}
+
+function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset {
+  const availableCount = typeof item.availableAssetCount === 'number'
+    ? `${item.availableAssetCount}개 대여 가능`
+    : null
+
+  return {
+    id: String(item.tangibleAssetItemId ?? item.assetItemId ?? item.itemId ?? ''),
+    name: item.productName ?? item.name ?? '',
+    description: [
+      item.categoryName,
+      item.manufacturer,
+      item.modelName,
+      availableCount,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    isStandard: item.isStandard,
+    categoryId: item.categoryId,
+    categoryName: item.categoryName,
     manufacturer: item.manufacturer,
   }
 }
@@ -1212,7 +1244,15 @@ async function handleAssetSearch() {
   pendingSelectedAssetId.value = ''
 
   try {
-    if (selectionAssetType.value === 'INTANGIBLE') {
+    if (selectedKind.value === 'RENTAL') {
+      const response = await ticketCreateApi.getRentalAvailableItems({
+        page: 0,
+        size: 100,
+        categoryId: assetSearchForm.category || undefined,
+        keyword: assetSearchForm.keyword.trim() || undefined,
+      })
+      itemOptions.value = response.data.content.map(toRentalAvailableItemOption).filter((item) => item.id)
+    } else if (selectionAssetType.value === 'INTANGIBLE') {
       const response = await intangibleItemApi.getList({
         page: 0,
         size: 100,
@@ -1459,8 +1499,8 @@ async function handleSubmit() {
         response = await ticketCreateApi.createRentalRequest({
           requestedUsageType: toRequestedUsageType(assetSearchForm.assetUsageType),
           tangibleAssetItemId: form.selectedAssetId,
-          rentalStartDate: form.rentalStartDate,
-          requestedDueDate: form.rentalDueDate,
+          rentalStartDate: toRentalDateTime(form.rentalStartDate, '09:00:00'),
+          requestedDueDate: toRentalDateTime(form.rentalDueDate, '18:00:00'),
           requestReason,
         })
         break
