@@ -175,7 +175,7 @@
 
                   <Table
                     :columns="planItemColumns"
-                    :rows="selectedPlan.items"
+                    :rows="selectedPlanItems"
                     row-key="itemId"
                     empty-text="구매 품목이 없습니다."
                     class="rounded-none! border-0! [&_table]:min-w-[860px]"
@@ -207,9 +207,12 @@
                     </template>
 
                     <template #cell-delivery="{ row }">
-                      <div v-if="row.receivedAt" class="flex flex-col items-center gap-1">
-                        <span class="text-xs font-semibold text-success">
+                      <div v-if="canRegisterAssetFromItem(row)" class="flex flex-col items-center gap-1">
+                        <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
                           {{ formatDate(row.receivedAt) }}
+                        </span>
+                        <span v-else class="text-xs font-semibold text-success">
+                          {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
                         </span>
                         <Button
                           v-if="canChangeStatus"
@@ -228,9 +231,9 @@
                         size="sm"
                         :disabled="
                           !canConfirmDelivery(row) ||
-                          isConfirmingItem === row.itemId
+                          isConfirmingPurchaseItem(row)
                         "
-                        :loading="isConfirmingItem === row.itemId"
+                        :loading="isConfirmingPurchaseItem(row)"
                         @click.stop="confirmDelivery(row)"
                       >
                         납품 확인
@@ -453,25 +456,21 @@
     </div>
 
     <div
-      v-if="selectedPlanId && canApprovePlan"
+      v-if="selectedPlanId && footerStatusActions.length > 0"
       class="absolute -bottom-4 -left-4 -right-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-10 py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
     >
       <Button
-        variant="outline"
-        class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
-        :disabled="!canReviewCurrentPlan || isStatusSaving"
-        :loading="isStatusSaving && pendingReviewStatus === 'REJECTED'"
-        @click="reviewPlan('REJECTED')"
-      >
-        반려
-      </Button>
-      <Button
+        v-for="action in footerStatusActions"
+        :key="action.status"
+        :variant="action.variant"
+        :class="action.className"
         class="shrink-0"
-        :disabled="!canReviewCurrentPlan || isStatusSaving"
-        :loading="isStatusSaving && pendingReviewStatus === 'APPROVED'"
-        @click="reviewPlan('APPROVED')"
+        :disabled="isStatusSaving"
+        :loading="isStatusSaving && pendingReviewStatus === action.status"
+        @click="reviewPlan(action.status)"
       >
-        승인
+        <ShoppingCart v-if="action.status === 'ORDERED'" :size="16" />
+        {{ action.label }}
       </Button>
     </div>
 
@@ -582,6 +581,17 @@
                 />
               </div>
               <div class="space-y-2 text-left">
+                <label class="block px-0.5 text-sm font-semibold text-text-main"
+                  >자산 유형</label
+                >
+                <Dropdown
+                  :model-value="directItemForm.assetType"
+                  :options="ASSET_TYPE_OPTIONS"
+                  :disabled="isCreatingPlan"
+                  @update:model-value="handleDirectAssetTypeChange"
+                />
+              </div>
+              <div class="space-y-2 text-left">
                 <label
                   for="direct-plan-category"
                   class="block px-0.5 text-sm font-semibold text-text-main"
@@ -594,17 +604,6 @@
                   :options="directCategoryOptions"
                   :disabled="isDirectCategoryDisabled"
                   @update:model-value="handleDirectCategoryChange"
-                />
-              </div>
-              <div class="space-y-2 text-left">
-                <label class="block px-0.5 text-sm font-semibold text-text-main"
-                  >자산 유형</label
-                >
-                <Dropdown
-                  :model-value="directItemForm.assetType"
-                  :options="ASSET_TYPE_OPTIONS"
-                  :disabled="isCreatingPlan"
-                  @update:model-value="handleDirectAssetTypeChange"
                 />
               </div>
               <Input
@@ -799,6 +798,7 @@ import {
   ReceiptText,
   Save,
   Search,
+  ShoppingCart,
   Trash2,
 } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
@@ -883,6 +883,13 @@ interface DirectItemForm {
   externalUrl: string;
 }
 
+interface FooterStatusAction {
+  status: PurchasePlanStatus;
+  label: string;
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  className?: string;
+}
+
 const PAGE_SIZE_OPTIONS: DropdownOption[] = [
   { label: "10개씩 보기", value: 10 },
   { label: "20개씩 보기", value: 20 },
@@ -946,7 +953,7 @@ const columns: Column<PurchasePlanListItem>[] = [
 
 const planItemColumns: Column<PurchasePlanItem>[] = [
   { key: "category", label: "분류", width: "14%", align: "center" },
-  { key: "itemName", label: "품목", width: "24%", align: "center" },
+  { key: "itemName", label: "품목명", width: "24%", align: "center" },
   { key: "isStandard", label: "표준 여부", width: "12%", align: "center" },
   { key: "quantity", label: "수량", width: "10%", align: "center" },
   { key: "estimatedUnitPrice", label: "단가", width: "14%", align: "center" },
@@ -979,9 +986,6 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
 const { hasRole } = usePermission();
 const route = useRoute();
 const router = useRouter();
-const canApprovePlan = computed(() =>
-  hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
-);
 const canChangeStatus = computed(() =>
   hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
 );
@@ -1129,11 +1133,6 @@ const selectedEstimatedAmount = computed(() =>
   planRequestItems.value.reduce((sum, item) => sum + item.estimatedAmount, 0),
 );
 
-const canReviewCurrentPlan = computed(() => {
-  if (!selectedPlan.value) return false;
-  return displayPlanStatus(selectedPlan.value) === "REQUESTED";
-});
-
 const selectedStatusForDropdown = computed(() => {
   if (nextStatus.value) return nextStatus.value;
   return "";
@@ -1154,11 +1153,42 @@ const statusActionOptions = computed<DropdownOption[]>(() => {
   );
 });
 
+const footerStatusActions = computed<FooterStatusAction[]>(() => {
+  if (!selectedPlan.value || !canChangeStatus.value) return [];
+
+  const currentStatus = displayPlanStatus(selectedPlan.value);
+
+  if (currentStatus === "REQUESTED") {
+    return [
+      {
+        status: "REJECTED",
+        label: "반려",
+        variant: "outline",
+        className: "border-danger! text-danger! hover:bg-danger/5!",
+      },
+      { status: "APPROVED", label: "승인" },
+    ];
+  }
+
+  if (currentStatus === "APPROVED") {
+    return [
+      {
+        status: "ORDERED",
+        label: "발주",
+        variant: "outline",
+        className: "border-primary! bg-white! text-primary! hover:bg-primary/5!",
+      },
+    ];
+  }
+
+  return [];
+});
+
 const purchasePlanTitle = computed(() => {
   if (!selectedPlan.value) return "구매 계획 상세";
-  const firstItemName = selectedPlan.value.items[0]?.itemName;
+  const firstItemName = selectedPlanItems.value[0]?.itemName;
   if (firstItemName) {
-    const extraCount = selectedPlan.value.items.length - 1;
+    const extraCount = selectedPlanItems.value.length - 1;
     return extraCount > 0
       ? `${firstItemName} 외 ${extraCount}건`
       : firstItemName;
@@ -1166,13 +1196,15 @@ const purchasePlanTitle = computed(() => {
   return "구매 계획 상세";
 });
 
+const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
+
 const purchasePlanInfoItems = computed(() => {
   if (!selectedPlan.value) return [];
 
   return [
     { label: "구매 계획 번호", value: selectedPlan.value.planNo },
     { label: "신청 팀원", value: selectedPlan.value.requesterName || "-" },
-    { label: "품목 수", value: `${selectedPlan.value.items.length}종` },
+    { label: "품목 수", value: `${selectedPlanItems.value.length}종` },
     { label: "생성 일시", value: formatDateTime(selectedPlan.value.createdAt) },
     { label: "수정 일시", value: formatDateTime(selectedPlan.value.updatedAt) },
     {
@@ -1185,14 +1217,14 @@ const purchasePlanInfoItems = computed(() => {
 const purchaseExecutionInfoItems = computed(() => {
   if (!selectedPlan.value) return [];
 
-  const totalQuantity = selectedPlan.value.items.reduce(
+  const totalQuantity = selectedPlanItems.value.reduce(
     (sum, item) => sum + item.quantity,
     0,
   );
-  const deliveredCount = selectedPlan.value.items.filter(
+  const deliveredCount = selectedPlanItems.value.filter(
     (item) => item.receivedAt,
   ).length;
-  const standardCount = selectedPlan.value.items.filter(
+  const standardCount = selectedPlanItems.value.filter(
     (item) => item.isStandard !== false,
   ).length;
   const actualAmount =
@@ -1675,11 +1707,11 @@ async function changeStatus(status: PurchasePlanStatus) {
   isStatusSaving.value = true;
 
   try {
-    const response = await purchaseApi.changePlanStatus(selectedPlanId.value, {
+    await purchaseApi.changePlanStatus(selectedPlanId.value, {
       status,
     });
-    selectedPlan.value = response.data;
     nextStatus.value = "";
+    await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
   } catch (error) {
     detailError.value = getErrorMessage(error, "상태 변경에 실패했습니다.");
@@ -1689,11 +1721,12 @@ async function changeStatus(status: PurchasePlanStatus) {
 }
 
 async function confirmDelivery(item: PurchasePlanItem) {
-  if (!selectedPlanId.value || item.itemId == null) return;
-  isConfirmingItem.value = item.itemId;
+  const itemId = getPurchasePlanItemId(item);
+  if (!selectedPlanId.value || itemId == null) return;
+  isConfirmingItem.value = itemId;
 
   try {
-    await purchaseApi.confirmDelivery(selectedPlanId.value, item.itemId);
+    await purchaseApi.confirmDelivery(selectedPlanId.value, itemId);
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
   } catch (error) {
@@ -1704,12 +1737,23 @@ async function confirmDelivery(item: PurchasePlanItem) {
 }
 
 function canConfirmDelivery(item: PurchasePlanItem) {
-  if (!canChangeStatus.value || item.itemId == null || item.receivedAt)
+  if (!canChangeStatus.value || getPurchasePlanItemId(item) == null || item.receivedAt)
     return false;
   if (!selectedPlan.value) return false;
 
-  const confirmableStatuses: PurchasePlanStatus[] = ["APPROVED", "ORDERED"];
+  const confirmableStatuses: PurchasePlanStatus[] = ["ORDERED"];
   return confirmableStatuses.includes(displayPlanStatus(selectedPlan.value));
+}
+
+function canRegisterAssetFromItem(item: PurchasePlanItem) {
+  if (item.receivedAt) return true;
+  if (!selectedPlan.value) return false;
+  return ["DELIVERED", "COMPLETED"].includes(displayPlanStatus(selectedPlan.value));
+}
+
+function isConfirmingPurchaseItem(item: PurchasePlanItem) {
+  const itemId = getPurchasePlanItemId(item);
+  return isConfirmingItem.value !== null && itemId !== null && isConfirmingItem.value === itemId;
 }
 
 function displayListStatus(plan: PurchasePlanListItem): PurchasePlanStatus {
@@ -1745,6 +1789,13 @@ function toStatusOption(value: string | number): PurchasePlanStatus | "" {
 function parseAssetItemId(value: string | number | null | undefined) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
+  return normalized || null;
+}
+
+function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
+  const itemId = item?.itemId ?? item?.purchasePlanItemId ?? item?.id;
+  if (itemId === null || itemId === undefined) return null;
+  const normalized = String(itemId).trim();
   return normalized || null;
 }
 

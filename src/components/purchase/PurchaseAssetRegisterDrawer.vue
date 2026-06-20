@@ -505,9 +505,6 @@ function handleRowMemberChange(row: AssetRegisterRow, value: string | number) {
 function validateCommonFields() {
   if (!props.plan?.planId) return '자산을 등록할 구매 계획을 확인할 수 없습니다.'
   if (!props.item) return '자산을 등록할 구매 품목을 확인할 수 없습니다.'
-  if (!getPurchasePlanItemId(props.item)) {
-    return '자산 등록에 필요한 구매 계획 품목 ID가 없습니다. TODO: API 명세/백엔드 확인 필요'
-  }
   if (!String(commonForm.purchaseDate).trim()) return '구매일을 입력해주세요.'
   if (commonForm.purchasePrice === '' || Number(commonForm.purchasePrice) <= 0) {
     return '구매 금액을 입력해주세요.'
@@ -613,7 +610,7 @@ async function handleSubmit() {
 
   const planId = props.plan?.planId
   const itemId = getPurchasePlanItemId(props.item)
-  if (!planId || !itemId) return
+  if (!planId) return
 
   isSubmitting.value = true
   try {
@@ -630,7 +627,7 @@ async function handleSubmit() {
   }
 }
 
-async function submitPurchasePlanAssets(planId: number | string, itemId: number | string) {
+async function submitPurchasePlanAssets(planId: number | string, itemId: number | string | null) {
   rowsToSubmit.value.forEach((row) => {
     row.status = 'submitting'
     row.errorMessage = ''
@@ -723,10 +720,19 @@ function memberLabel(member: Member) {
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {
   if (!item) return null
-  if (item.itemId !== null && item.itemId !== undefined && String(item.itemId).trim()) {
-    return item.itemId.toString()
-  }
-  return null
+  const itemId =
+    item.itemId
+    ?? item.purchasePlanItemId
+    ?? item.purchaseItemId
+    ?? item.planItemId
+    ?? item.purchaseRequestItemId
+    ?? item.id
+    ?? item.assetItemId
+    ?? item.tangibleItemId
+    ?? item.intangibleItemId
+  if (itemId === null || itemId === undefined) return null
+  const normalized = String(itemId).trim()
+  return normalized || null
 }
 
 function rowStatusLabel(row: AssetRegisterRow) {

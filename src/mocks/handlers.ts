@@ -1378,6 +1378,74 @@ function findPurchasePlan(planId: number) {
   return purchasePlans.find((plan) => plan.planId === planId && !plan.deletedAt)
 }
 
+async function handlePurchasePlanAssetRegister(
+  planId: number,
+  itemId: string | null,
+  request: Request,
+) {
+  const plan = findPurchasePlan(planId)
+  const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+  if (!plan) {
+    return HttpResponse.json({
+      status: 404,
+      errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+      message: '구매 계획을 찾을 수 없습니다.',
+      data: null,
+    }, { status: 404 })
+  }
+
+  if (itemId) {
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+  }
+
+  const uniqueCodes = 'serialNumbers' in body
+    ? body.serialNumbers
+    : 'licenseCodes' in body
+      ? body.licenseCodes
+      : []
+  const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+  if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
+    return HttpResponse.json({
+      status: 400,
+      errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+      message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
+      data: null,
+    }, { status: 400 })
+  }
+
+  const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+    uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
+  ))
+
+  if (duplicatedCode) {
+    return HttpResponse.json({
+      status: 409,
+      errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+      message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
+      data: null,
+    }, { status: 409 })
+  }
+
+  plan.updatedAt = new Date().toISOString()
+
+  return HttpResponse.json(ok({
+    planId,
+    itemId,
+    registeredCount: uniqueCodes.length,
+  }, '구매 계획 자산을 등록했습니다.'))
+}
+
 function updateTicketForPurchasePlan(ticketId: string | number | null, plan: PurchasePlanDetail) {
   if (ticketId == null) return
   const normalizedTicketId = String(ticketId)
@@ -2419,6 +2487,22 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok({}, '납품 확인이 완료되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
   }),
 
   http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/assets`, async ({ params, request }) => {

@@ -68,11 +68,18 @@ export interface PurchasePlanListFilter {
 
 export interface PurchasePlanItem {
   itemId?: number | string
+  purchasePlanItemId?: number | string
+  purchaseItemId?: number | string
+  planItemId?: number | string
+  purchaseRequestItemId?: number | string
+  id?: number | string
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
   intangibleItemId?: number | string | null
   category: string
   itemName: string
+  productName?: string | null
+  name?: string | null
   quantity: number
   estimatedUnitPrice: number
   totalAmount: number

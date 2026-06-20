@@ -15,6 +15,19 @@ import type {
   PurchasePolicyUpdateResponse,
 } from '@/types/purchase'
 
+type PurchasePlanItemResponse = PurchasePlanItem & {
+  productName?: string | null
+  name?: string | null
+  categoryName?: string | null
+  purchasePlanItemId?: number | string
+  purchaseItemId?: number | string
+  planItemId?: number | string
+  purchaseRequestItemId?: number | string
+  id?: number | string
+  unitPrice?: number
+  estimatedAmount?: number
+}
+
 function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown> | undefined {
   if (!params) return undefined
 
@@ -27,6 +40,38 @@ function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown>
   }
 
   return Object.keys(cleanedParams).length > 0 ? cleanedParams : undefined
+}
+
+function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
+  const quantity = Number(item.quantity ?? 0)
+  const estimatedUnitPrice = Number(item.estimatedUnitPrice ?? item.unitPrice ?? 0)
+  const totalAmount = Number(item.totalAmount ?? item.estimatedAmount ?? estimatedUnitPrice * quantity)
+
+  return {
+    ...item,
+    itemId:
+      item.itemId
+      ?? item.purchasePlanItemId
+      ?? item.purchaseItemId
+      ?? item.planItemId
+      ?? item.purchaseRequestItemId
+      ?? item.id,
+    category: item.category ?? item.categoryName ?? '-',
+    itemName: item.itemName ?? item.productName ?? item.name ?? '-',
+    quantity,
+    estimatedUnitPrice,
+    totalAmount,
+  }
+}
+
+function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
+  return {
+    ...data,
+    purchaseRequestStatus: data.purchaseRequestStatus ?? data.status ?? 'REQUESTED',
+    items: Array.isArray(data.items)
+      ? data.items.map((item) => normalizePlanItem(item as PurchasePlanItemResponse))
+      : [],
+  }
 }
 
 
@@ -70,8 +115,13 @@ export const purchaseApi = {
   getStatistics: () =>
     api.get<PurchasePlanStatistics>('/purchase-plans/statistics'),
 
-  getPlanDetail: (planId: number | string) =>
-    api.get<PurchasePlanDetail>(`/purchase-plans/${planId}`),
+  getPlanDetail: async (planId: number | string) => {
+    const response = await api.get<PurchasePlanDetail>(`/purchase-plans/${planId}`)
+    return {
+      ...response,
+      data: normalizePlanDetail(response.data),
+    }
+  },
 
   deletePlan: (planId: number | string) =>
     api.delete<Record<string, never>>(`/purchase-plans/${planId}`),
@@ -84,10 +134,16 @@ export const purchaseApi = {
 
   registerAssets: (
     planId: number | string,
-    itemId: number | string,
+    itemId: number | string | null,
     data: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest,
-  ) =>
-    api.post<Record<string, unknown>>(`/purchase-plans/${planId}/items/${itemId}/assets`, data),
+  ) => {
+    const assetPath = 'serialNumbers' in data ? 'tangible-assets' : 'intangible-assets'
+    const itemPath = itemId ? `/items/${itemId}` : ''
+    return api.post<Record<string, unknown>>(
+      `/purchase-plans/${planId}${itemPath}/${assetPath}`,
+      data,
+    )
+  },
 
   updatePolicy: (data: PurchasePolicyUpdateRequest) =>
     api.put<PurchasePolicyUpdateResponse>('/purchase-policies', data),
