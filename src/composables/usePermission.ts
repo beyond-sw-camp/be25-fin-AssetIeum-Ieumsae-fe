@@ -92,8 +92,16 @@ export function usePermission() {
     hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
   )
 
-  const canViewInspection = computed(() => 
-    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  const canManageInspection = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
+  const canRespondInspection = computed(() =>
+    hasRole('EMPLOYEE')
+  )
+
+  const canViewInspection = computed(() =>
+    canManageInspection.value || canRespondInspection.value
   )
 
   return {
@@ -118,6 +126,8 @@ export function usePermission() {
     canRegisterAsset,
     canUpdateAsset,
     canRegisterHrTemplate,
-    canViewInspection
+    canViewInspection,
+    canManageInspection,
+    canRespondInspection,
   }
 }
