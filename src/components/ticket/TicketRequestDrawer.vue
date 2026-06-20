@@ -1429,6 +1429,8 @@ async function handleSubmit() {
           response = await ticketCreateApi.createDirectPurchaseRequest({
             requestedUsageType: toRequestedUsageType(form.assetUsageType),
             assetType: form.assetType,
+            isStandard: true,
+            assetItemId: form.selectedAssetId,
             categoryId: standardPayload.categoryId,
             requestedItemDetail: standardPayload.requestedItemDetail,
             manufacturer: standardPayload.manufacturer,
@@ -1441,6 +1443,8 @@ async function handleSubmit() {
           response = await ticketCreateApi.createDirectPurchaseRequest({
             requestedUsageType: toRequestedUsageType(form.assetUsageType),
             assetType: form.assetType,
+            isStandard: false,
+            assetItemId: null,
             categoryId: form.category,
             requestedItemDetail: form.requestedItemName.trim(),
             manufacturer: form.vendor.trim(),

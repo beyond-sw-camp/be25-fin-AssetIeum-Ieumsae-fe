@@ -177,9 +177,11 @@ export interface NonStandardAssetRequestCreate {
 export interface DirectPurchaseRequestCreate {
   requestedUsageType: RequestedUsageType
   assetType: AssetType
-  categoryId: string
-  requestedItemDetail: string
-  manufacturer: string
+  isStandard: boolean
+  assetItemId: string | null
+  categoryId: string | null
+  requestedItemDetail: string | null
+  manufacturer: string | null
   licenseType: string | null
   quantity: number
   expectedPrice: number

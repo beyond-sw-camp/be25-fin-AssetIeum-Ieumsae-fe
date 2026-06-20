@@ -1336,6 +1336,7 @@ purchasePlans = [
 function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem {
   const firstItemName = plan.items[0]?.itemName ?? '-'
   const extraCount = Math.max(plan.items.length - 1, 0)
+  const itemName = extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName
 
   return {
     planId: plan.planId,
@@ -1349,7 +1350,26 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
     purchaseRequestStatus: plan.purchaseRequestStatus,
     requesterId: plan.requesterId,
     requesterName: plan.requesterName,
-    itemSummary: extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName,
+    itemName,
+  }
+}
+
+function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
+  return {
+    ...plan,
+    items: plan.items.map((item) => {
+      const ticketDetail = item.ticketId == null
+        ? undefined
+        : ticketDetailData.get(String(item.ticketId))
+
+      return {
+        ...item,
+        ticketRequesterId: item.ticketRequesterId ?? ticketDetail?.requesterId ?? null,
+        ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
+        ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
+        ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
+      }
+    }),
   }
 }
 
@@ -2367,6 +2387,10 @@ export const handlers = [
           assetType: item.assetType,
           isStandard: item.isStandard === 1,
           ticketId: item.ticketId,
+          ticketRequesterId: detail?.requesterId ?? null,
+          ticketRequesterName: detail?.requesterName ?? null,
+          ticketDepartmentId: detail?.departmentId ?? null,
+          ticketDepartmentName: detail?.departmentName ?? null,
           receivedAt: null,
         }
       }),
@@ -2400,7 +2424,7 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    return HttpResponse.json(ok(plan))
+    return HttpResponse.json(ok(toPurchasePlanDetail(plan)))
   }),
 
   http.delete(`${API_PREFIX}/purchase-plans/:planId`, ({ params }) => {
@@ -2569,12 +2593,16 @@ export const handlers = [
     }, '구매 계획 자산이 등록되었습니다.'))
   }),
 
+  http.get(`${API_PREFIX}/purchase-policies`, () => {
+    return HttpResponse.json(ok(purchasePolicy, '구매 정책 조회에 성공했습니다.'))
+  }),
+
   http.put(`${API_PREFIX}/purchase-policies`, async ({ request }) => {
     const body = await request.json() as PurchasePolicyUpdateRequest
 
     purchasePolicy = {
       policyId: purchasePolicy.policyId,
-      purchaseMethod: body.purchaseMode,
+      purchaseMethod: body.purchaseMethod,
       overPercentageLimit: body.overPercentageLimit,
     }
 
@@ -3923,6 +3951,8 @@ export const handlers = [
         {
           requestedUsageType: body.requestedUsageType,
           assetType: body.assetType,
+          assetItemId: body.assetItemId,
+          isStandard: body.isStandard,
           categoryName: body.categoryId,
           requestedItemDetail: body.requestedItemDetail,
           quantity: body.quantity,
