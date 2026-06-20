@@ -11,6 +11,7 @@ import type {
   IntangibleAssetCreateRequest,
   LoginRequest,
   LoginResponse,
+  MaintenanceAvailableAsset,
   MaintenanceRequestCreate,
   Member,
   MemberRegisterRequest,
@@ -4087,6 +4088,38 @@ export const handlers = [
         },
       ),
       '대여 연장 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/maintenance/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const maintenanceAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<MaintenanceAvailableAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      maintenanceAssets,
+      '?좎?蹂댁닔 ?붿껌 媛???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
     ))
   }),
 

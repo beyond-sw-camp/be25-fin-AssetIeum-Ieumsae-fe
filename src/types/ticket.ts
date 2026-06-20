@@ -228,6 +228,20 @@ export interface ActiveRentalAsset {
   currentReturnDueDate?: string
 }
 
+export interface MaintenanceAvailableAsset {
+  assignmentId?: string
+  assetId?: string
+  assetCode?: string
+  tangibleAssetItemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  manufacturer?: string
+  modelName?: string
+  serialNumber?: string
+  assignedAt?: string
+}
+
 export interface RentalExtensionRequestCreate {
   assignmentId: string
   requestedDueDate: string

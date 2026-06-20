@@ -8,6 +8,7 @@ import type {
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
   ActiveRentalAsset,
+  MaintenanceAvailableAsset,
   RentalAvailableItem,
   RentalRequestCreate,
   RentalExtensionRequestCreate,
@@ -275,6 +276,9 @@ export const ticketCreateApi = {
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/maintenance-requests', body),
+
+  getMaintenanceAvailableAssets: () =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/maintenance/available-assets'),
 
   /** 반납 요청 */
   createReturnRequest: (body: ReturnRequestCreate) =>

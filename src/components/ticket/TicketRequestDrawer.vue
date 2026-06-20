@@ -568,6 +568,7 @@ import type {
   DropdownOption,
   IntangibleAsset,
   IntangibleItem,
+  MaintenanceAvailableAsset,
   RentalAvailableItem,
   RequestedUsageType,
   TangibleAsset,
@@ -638,6 +639,8 @@ const tangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
 const intangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
 const itemOptions = ref<SelectableAsset[]>([])
 const ownedAssetOptions = ref<SelectableAsset[]>([])
+const activeRentalAssetOptions = ref<SelectableAsset[]>([])
+const maintenanceAssetOptions = ref<SelectableAsset[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
@@ -787,12 +790,17 @@ const visibleAssetOptions = computed(() => {
   if (selectedKind.value === 'PURCHASE_RETURN') {
     return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
   }
+  if (selectedKind.value === 'MAINTENANCE') {
+    return form.assetServiceType === 'RETURN'
+      ? ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+      : maintenanceAssetOptions.value
+  }
 
-  const tangibleAssets = ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
-  if (selectedKind.value !== 'RENTAL_EXTENSION') return tangibleAssets
+  if (selectedKind.value !== 'RENTAL_EXTENSION') {
+    return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+  }
 
-  return tangibleAssets
-    .filter((item) => item.usageType === 'TEMPORARY')
+  return activeRentalAssetOptions.value
     .map((item) => ({
       ...item,
       description: [
@@ -1114,6 +1122,22 @@ function toActiveRentalAssetOption(asset: ActiveRentalAsset): SelectableAsset {
   }
 }
 
+function toMaintenanceAvailableAssetOption(asset: MaintenanceAvailableAsset): SelectableAsset {
+  return {
+    id: String(asset.assetId ?? ''),
+    name: asset.productName ?? asset.assetCode ?? '',
+    description: [
+      asset.assetCode,
+      asset.serialNumber,
+      asset.manufacturer,
+      asset.modelName,
+      asset.assignedAt ? `배정일: ${formatDate(asset.assignedAt)}` : null,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    assignmentId: asset.assignmentId,
+  }
+}
+
 function toIntangibleAssetOption(asset: IntangibleAsset): SelectableAsset {
   return {
     id: String(asset.assetId),
@@ -1237,9 +1261,15 @@ async function loadOwnedAssets() {
     tangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
     intangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
     ticketCreateApi.getActiveRentalAssets(),
+    ticketCreateApi.getMaintenanceAvailableAssets(),
   ])
 
-  const [tangibleAssetsResult, intangibleAssetsResult, activeRentalAssetsResult] = results
+  const [
+    tangibleAssetsResult,
+    intangibleAssetsResult,
+    activeRentalAssetsResult,
+    maintenanceAssetsResult,
+  ] = results
 
   ownedAssetOptions.value = [
     ...(tangibleAssetsResult.status === 'fulfilled'
@@ -1248,10 +1278,13 @@ async function loadOwnedAssets() {
     ...(intangibleAssetsResult.status === 'fulfilled'
       ? intangibleAssetsResult.value.data.content.map(toIntangibleAssetOption)
       : []),
-    ...(activeRentalAssetsResult.status === 'fulfilled'
-      ? activeRentalAssetsResult.value.data.map(toActiveRentalAssetOption)
-      : []),
   ].filter((item) => item.id)
+  activeRentalAssetOptions.value = activeRentalAssetsResult.status === 'fulfilled'
+    ? activeRentalAssetsResult.value.data.map(toActiveRentalAssetOption).filter((item) => item.id)
+    : []
+  maintenanceAssetOptions.value = maintenanceAssetsResult.status === 'fulfilled'
+    ? maintenanceAssetsResult.value.data.map(toMaintenanceAvailableAssetOption).filter((item) => item.id)
+    : []
 
 }
 
