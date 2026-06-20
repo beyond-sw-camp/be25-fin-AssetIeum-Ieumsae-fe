@@ -12,15 +12,16 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="outline" @click="handleUploadClick">
+        <Button variant="outline" :loading="isUploadingCsv" @click="handleUploadClick">
           <Upload :size="15" />
           CSV 파일 업로드
         </Button>
         <input
           ref="uploadInputRef"
           type="file"
-          accept=".csv,.xlsx"
+          accept=".csv,text/csv"
           class="hidden"
+          @change="handleUploadFile"
         />
 
         <Button variant="primary" @click="isCategoryDrawerOpen = true">
@@ -273,8 +274,11 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import { Edit, Plus, Upload, Layers, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-vue-next'
+import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
-import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem } from '@/types'
+import { useNotificationStore } from '@/stores'
+import { createNormalizedCsvFile, normalizeCsvCell, parseCsvText, validateCsvShape } from '@/utils/csvImport'
+import type { IntangibleAsset, IntangibleAssetItemCreateRequest, IntangibleAssetItemUpdateRequest, IntangibleItem, LicenseType } from '@/types'
 
 import IntangibleItemCategory from '../../../components/item/intangible/IntangibleItemCategory.vue'
 import IntangibleItemRegister from '../../../components/item/intangible/IntangibleItemRegister.vue'
@@ -355,24 +359,36 @@ const toRadioValue = (value: number | boolean | undefined) => {
   return value ?? 1
 }
 
-const licenseTypeOptions = ['구독형 (SaaS)', '사용자 수 라이선스', '영구 라이선스', '볼륨 라이선스']
-const licenseTypeValueByLabel: Record<string, string> = {
+const licenseTypeOptions = ['구독형 (SaaS)', '영구 라이선스', '기간제 라이선스']
+const licenseTypeValueByLabel: Record<string, LicenseType> = {
   '구독형 (SaaS)': 'SUBSCRIPTION',
-  '사용자 수 라이선스': 'USER_BASED',
   '영구 라이선스': 'PERPETUAL',
-  '볼륨 라이선스': 'VOLUME',
+  '기간제 라이선스': 'TERM',
 }
 const licenseTypeLabelByValue: Record<string, string> = Object.fromEntries(
   Object.entries(licenseTypeValueByLabel).map(([label, value]) => [value, label]),
 )
+
+const INTANGIBLE_ITEM_IMPORT_HEADERS = [
+  'categoryName',
+  'productName',
+  'provider',
+  'licenseType',
+  'isStandard',
+]
+const INTANGIBLE_ITEM_IMPORT_LICENSE_TYPES = new Set(['SUBSCRIPTION', 'PERPETUAL', 'TERM'])
+const INTANGIBLE_ITEM_IMPORT_BOOLEAN_VALUES = new Set(['true', 'false'])
 
 const licenseTypeLabel = (value?: string) => {
   if (!value) return '-'
   return licenseTypeLabelByValue[value] ?? value
 }
 
-const licenseTypeValue = (labelOrValue: string) => (
-  licenseTypeValueByLabel[labelOrValue] ?? labelOrValue
+const licenseTypeValue = (labelOrValue: string): LicenseType => (
+  licenseTypeValueByLabel[labelOrValue]
+    ?? (labelOrValue === 'SUBSCRIPTION' || labelOrValue === 'PERPETUAL' || labelOrValue === 'TERM'
+      ? labelOrValue
+      : 'SUBSCRIPTION')
 )
 
 const isCategoryDrawerOpen = ref(false)
@@ -386,6 +402,8 @@ const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 const rowsPerPageOptions = ['5개씩 보기', '10개씩 보기', '20개씩 보기', '50개씩 보기']
 const rowsPerPageText = ref('20개씩 보기')
 const uploadInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingCsv = ref(false)
+const notificationStore = useNotificationStore()
 
 const searchParams = ref({
   category: '전체 품목 보기',
@@ -459,25 +477,146 @@ const handleRegisterAsset = async (newAsset: IntangibleAssetItemCreateRequest) =
 }
 
 const handleUploadClick = () => {
+  if (isUploadingCsv.value) return
   uploadInputRef.value?.click()
 }
 
-// const handleUploadFile = async (event: Event) => {
-//   const target = event.target as HTMLInputElement
-//   const file = target.files?.[0]
-//   if (!file) return
+const getLeafCategoryNames = () => {
+  const names = new Set<string>()
 
-//   try {
-//     await intangibleItemApi.bulkCreate(file)
-//     alert('업로드가 완료되었습니다.')
-//     handleSearch()
-//   } catch (error) {
-//     console.error(error)
-//     alert('업로드 중 오류가 발생했습니다.')
-//   } finally {
-//     target.value = ''
-//   }
-// }
+  cascadingOptions.value.forEach((group) => {
+    if (group.subCategories.length === 0) {
+      names.add(group.mainCategory)
+      return
+    }
+
+    group.subCategories.forEach((subCategory) => {
+      const children = group.childCategories?.[subCategory] ?? []
+      if (children.length > 0) {
+        children.forEach((childCategory) => names.add(childCategory))
+      } else {
+        names.add(subCategory)
+      }
+    })
+  })
+
+  return names
+}
+
+const validateIntangibleItemCsv = async (file: File) => {
+  const rows = parseCsvText(await file.text())
+    .map((row) => row.map(normalizeCsvCell))
+  const shapeError = validateCsvShape(rows, INTANGIBLE_ITEM_IMPORT_HEADERS, '무형자산 품목')
+  if (shapeError) return { error: shapeError, file: null }
+
+  const normalizedRows = rows.map((row, index) => {
+    if (index === 0) return row
+
+    return [
+      row[0],
+      row[1],
+      row[2],
+      row[3],
+      row[4].toLowerCase(),
+    ]
+  })
+
+  const invalidValueRow = rows.slice(1).findIndex((row) => (
+    row[0] === ''
+      || row[1] === ''
+      || row[2] === ''
+      || !INTANGIBLE_ITEM_IMPORT_LICENSE_TYPES.has(row[3])
+      || !INTANGIBLE_ITEM_IMPORT_BOOLEAN_VALUES.has(row[4].toLowerCase())
+  ))
+
+  if (invalidValueRow >= 0) {
+    return {
+      error: `${invalidValueRow + 2}번째 줄 값을 확인해주세요. licenseType은 SUBSCRIPTION, PERPETUAL, TERM 중 하나이고 isStandard는 true 또는 false여야 합니다.`,
+      file: null,
+    }
+  }
+
+  if (cascadingOptions.value.length === 0) {
+    await loadCategories()
+  }
+
+  const leafCategoryNames = getLeafCategoryNames()
+  if (leafCategoryNames.size === 0) {
+    return {
+      error: null,
+      file: createNormalizedCsvFile(normalizedRows, file.name),
+    }
+  }
+
+  const invalidCategories = Array.from(new Set(
+    rows
+      .slice(1)
+      .map((row) => normalizeCsvCell(row[0] ?? ''))
+      .filter((categoryName) => categoryName && !leafCategoryNames.has(categoryName)),
+  ))
+
+  if (invalidCategories.length > 0) {
+    return {
+      error: `categoryName은 현재 등록된 마지막 단계 카테고리명이어야 합니다. 확인 필요: ${invalidCategories.slice(0, 5).join(', ')}`,
+      file: null,
+    }
+  }
+
+  return {
+    error: null,
+    file: createNormalizedCsvFile(normalizedRows, file.name),
+  }
+}
+
+const formatCsvUploadError = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error.errorCode
+      ? `${error.message} (${error.errorCode})`
+      : error.message
+  }
+
+  return error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
+}
+
+const handleUploadFile = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file) return
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    notificationStore.warning('CSV 파일만 업로드할 수 있습니다.', '파일 확장자를 확인해주세요.')
+    input.value = ''
+    return
+  }
+
+  isUploadingCsv.value = true
+
+  try {
+    const validation = await validateIntangibleItemCsv(file)
+    if (validation.error) {
+      notificationStore.warning('CSV 파일 형식을 확인해주세요.', validation.error)
+      return
+    }
+
+    const response = await intangibleItemApi.importCsv(validation.file ?? file)
+    notificationStore.success('무형자산 품목 일괄 등록 완료', `${response.data.length}건이 등록되었습니다.`)
+    await loadCategories()
+    handleSearch()
+  } catch (error) {
+    const message = formatCsvUploadError(error)
+    console.error('무형자산 품목 CSV 업로드 실패', {
+      error,
+      ...(error instanceof ApiError
+        ? { status: error.status, errorCode: error.errorCode, details: error.details }
+        : {}),
+    })
+    notificationStore.error('무형자산 품목 일괄 등록 실패', message)
+  } finally {
+    isUploadingCsv.value = false
+    input.value = ''
+  }
+}
 
 const serverAssetList = ref<IntangibleItem[]>([])
 const totalElements = ref(0)

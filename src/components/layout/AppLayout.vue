@@ -48,6 +48,7 @@ const {
   canPurchase,
   canViewHrWorkflow,
   canViewMyTickets,
+  canViewInspection,
 } = usePermission()
 
 const navItems = computed(() => {
@@ -84,7 +85,16 @@ const navItems = computed(() => {
       ],
     },
     { name: 'hrworkflows', to: '/hrworkflows', label: 'HR 워크플로우', icon: Workflow, show: canViewHrWorkflow.value },
-    { name: 'inspections', to: '/inspections', label: '전수조사', icon: Search, show: canManageAsset.value },
+    {
+      name: 'inspections',
+      label: '전수조사',
+      icon: Search,
+      show: canViewInspection.value,
+      children: [
+        { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canViewInspection.value },
+        { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canViewInspection.value },
+      ],
+    },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
