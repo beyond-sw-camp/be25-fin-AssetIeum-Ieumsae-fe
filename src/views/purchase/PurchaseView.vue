@@ -178,7 +178,7 @@
                     :rows="selectedPlanItems"
                     row-key="itemId"
                     empty-text="구매 품목이 없습니다."
-                    class="rounded-none! border-0! [&_table]:min-w-[860px]"
+                    class="rounded-none! border-0! [&_table]:min-w-[1100px]"
                   >
                     <template #cell-category="{ value }">
                       <span class="text-text-sub">{{ value || "-" }}</span>
@@ -188,6 +188,14 @@
                       <span class="font-semibold text-text-main">{{
                         value
                       }}</span>
+                    </template>
+
+                    <template #cell-ticketRequesterName="{ value }">
+                      <span>{{ value || "-" }}</span>
+                    </template>
+
+                    <template #cell-ticketDepartmentName="{ value }">
+                      <span>{{ value || "-" }}</span>
                     </template>
 
                     <template #cell-isStandard="{ row }">
@@ -224,6 +232,14 @@
                           <BoxIcon :size="13" />
                           자산 등록
                         </Button>
+                      </div>
+                      <div v-else-if="isPurchaseItemDeliverySettled(row)" class="flex flex-col items-center gap-1">
+                        <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
+                          {{ formatDate(row.receivedAt) }}
+                        </span>
+                        <span v-else class="text-xs font-semibold text-success">
+                          {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
+                        </span>
                       </div>
                       <Button
                         v-else
@@ -369,9 +385,9 @@
                 <span class="font-bold text-text-main">{{ value }}</span>
               </template>
 
-              <template #cell-itemSummary="{ row }">
+              <template #cell-itemName="{ row }">
                 <span class="line-clamp-1 font-semibold text-text-main">{{
-                  row.itemSummary || "-"
+                  row.itemName || "-"
                 }}</span>
               </template>
 
@@ -944,7 +960,7 @@ const STATUS_LABEL: Record<PurchasePlanStatus, string> = {
 
 const columns: Column<PurchasePlanListItem>[] = [
   { key: "planNo", label: "구매 계획 번호", width: "20%", align: "center" },
-  { key: "itemSummary", label: "요청 품목", width: "28%", align: "center" },
+  { key: "itemName", label: "요청 품목", width: "28%", align: "center" },
   { key: "requesterName", label: "신청 팀원", width: "14%", align: "center" },
   { key: "itemCount", label: "품목 수", width: "10%", align: "center" },
   { key: "estimatedAmount", label: "예상 금액", width: "16%", align: "center" },
@@ -952,12 +968,14 @@ const columns: Column<PurchasePlanListItem>[] = [
 ];
 
 const planItemColumns: Column<PurchasePlanItem>[] = [
-  { key: "category", label: "분류", width: "14%", align: "center" },
-  { key: "itemName", label: "품목명", width: "24%", align: "center" },
-  { key: "isStandard", label: "표준 여부", width: "12%", align: "center" },
-  { key: "quantity", label: "수량", width: "10%", align: "center" },
-  { key: "estimatedUnitPrice", label: "단가", width: "14%", align: "center" },
-  { key: "totalAmount", label: "합계", width: "14%", align: "center" },
+  { key: "category", label: "분류", width: "11%", align: "center" },
+  { key: "itemName", label: "품목명", width: "20%", align: "center" },
+  { key: "ticketRequesterName", label: "요청자", width: "10%", align: "center" },
+  { key: "ticketDepartmentName", label: "요청 부서", width: "12%", align: "center" },
+  { key: "isStandard", label: "표준 여부", width: "10%", align: "center" },
+  { key: "quantity", label: "수량", width: "8%", align: "center" },
+  { key: "estimatedUnitPrice", label: "단가", width: "12%", align: "center" },
+  { key: "totalAmount", label: "합계", width: "12%", align: "center" },
   { key: "delivery", label: "납품", width: "12%", align: "center" },
 ];
 
@@ -1746,9 +1764,15 @@ function canConfirmDelivery(item: PurchasePlanItem) {
 }
 
 function canRegisterAssetFromItem(item: PurchasePlanItem) {
+  void item;
+  if (!selectedPlan.value) return false;
+  return displayPlanStatus(selectedPlan.value) === "DELIVERED";
+}
+
+function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
   if (item.receivedAt) return true;
   if (!selectedPlan.value) return false;
-  return ["DELIVERED", "COMPLETED"].includes(displayPlanStatus(selectedPlan.value));
+  return displayPlanStatus(selectedPlan.value) === "COMPLETED";
 }
 
 function isConfirmingPurchaseItem(item: PurchasePlanItem) {
@@ -1770,13 +1794,18 @@ function getStatusLabel(status: PurchasePlanStatus) {
 
 function getStatusBadgeClass(status: PurchasePlanStatus) {
   if (status === "APPROVED")
-    return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-200";
-  if (status === "REJECTED") return "bg-danger/10 text-danger";
-  if (status === "CANCELLED") return "bg-surface-secondary text-text-muted";
-  if (status === "ORDERED") return "bg-primary/10 text-primary";
-  if (status === "DELIVERED" || status === "COMPLETED")
-    return "bg-success/10 text-success";
-  return "bg-surface-secondary text-text-sub";
+    return "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-950/35 dark:text-sky-200";
+  if (status === "REJECTED")
+    return "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200";
+  if (status === "CANCELLED")
+    return "border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300";
+  if (status === "ORDERED")
+    return "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-200";
+  if (status === "DELIVERED")
+    return "border border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900/60 dark:bg-teal-950/30 dark:text-teal-200";
+  if (status === "COMPLETED")
+    return "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
+  return "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200";
 }
 
 function toStatusOption(value: string | number): PurchasePlanStatus | "" {

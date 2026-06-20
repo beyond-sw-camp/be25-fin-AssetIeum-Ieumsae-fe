@@ -13,6 +13,7 @@ import type {
   PurchasePlanTangibleAssetRegisterRequest,
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
+  PurchasePolicy,
 } from '@/types/purchase'
 
 type PurchasePlanItemResponse = PurchasePlanItem & {
@@ -26,6 +27,16 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   id?: number | string
   unitPrice?: number
   estimatedAmount?: number
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
+}
+
+type PurchasePlanListItemResponse = PurchasePlanListItem & {
+  itemName?: string | null
+  itemSummary?: string | null
+  items?: PurchasePlanItemResponse[]
 }
 
 function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown> | undefined {
@@ -74,22 +85,53 @@ function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
   }
 }
 
+function formatPurchasePlanItemName(firstItemName: string | null | undefined, itemCount: number) {
+  const normalizedName = firstItemName?.trim() || '-'
+  if (/\s외\s\d+종$/.test(normalizedName)) return normalizedName
+  const extraCount = Math.max(Number(itemCount || 0) - 1, 0)
+  return extraCount > 0 ? `${normalizedName} 외 ${extraCount}종` : normalizedName
+}
+
+function normalizeListItem(item: PurchasePlanListItemResponse): PurchasePlanListItem {
+  const itemCount = Number(item.itemCount ?? item.items?.length ?? 0)
+  const firstItemName = item.itemName
+    ?? item.itemSummary
+    ?? item.items?.[0]?.itemName
+    ?? item.items?.[0]?.productName
+    ?? item.items?.[0]?.name
+    ?? '-'
+  const itemName = formatPurchasePlanItemName(firstItemName, itemCount)
+
+  return {
+    ...item,
+    itemName,
+    itemSummary: itemName,
+    itemCount,
+    estimatedAmount: Number(item.estimatedAmount ?? 0),
+    purchaseRequestStatus: item.purchaseRequestStatus ?? item.status ?? 'REQUESTED',
+  }
+}
 
 function normalizePlanPage(data: PurchasePlanPage | PurchasePlanListItem[]): PurchasePlanPage {
   if (Array.isArray(data)) {
+    const content = data.map((item) => normalizeListItem(item as PurchasePlanListItemResponse))
     return {
-      content: data,
+      content,
       page: 0,
-      size: data.length,
-      totalElements: data.length,
-      totalPages: data.length > 0 ? 1 : 0,
+      size: content.length,
+      totalElements: content.length,
+      totalPages: content.length > 0 ? 1 : 0,
     }
   }
 
+  const content = Array.isArray(data.content)
+    ? data.content.map((item) => normalizeListItem(item as PurchasePlanListItemResponse))
+    : []
+
   return {
     ...data,
-    content: Array.isArray(data.content) ? data.content : [],
-    totalElements: Number(data.totalElements ?? data.content?.length ?? 0),
+    content,
+    totalElements: Number(data.totalElements ?? content.length ?? 0),
     totalPages: Number(data.totalPages ?? 0),
   }
 }
@@ -144,6 +186,9 @@ export const purchaseApi = {
       data,
     )
   },
+
+  getPolicy: () =>
+    api.get<PurchasePolicy>('/purchase-policies'),
 
   updatePolicy: (data: PurchasePolicyUpdateRequest) =>
     api.put<PurchasePolicyUpdateResponse>('/purchase-policies', data),

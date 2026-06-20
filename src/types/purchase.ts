@@ -41,6 +41,7 @@ export interface PurchasePlanListItem {
   planNo: string
   estimatedAmount: number
   itemCount: number
+  itemName: string
   createdAt: string
   updatedAt: string
   deletedAt?: string | null
@@ -86,6 +87,10 @@ export interface PurchasePlanItem {
   assetType?: AssetType
   isStandard?: boolean
   ticketId?: number | string | null
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
   receivedAt?: string | null
 }
 
@@ -146,16 +151,16 @@ export type PurchasePlanAssetRegisterRequest =
   | PurchasePlanIntangibleAssetRegisterRequest
 
 export interface PurchasePolicyUpdateRequest {
-  purchaseMode: PurchasePolicyMode
-  allowDirectPurchase: boolean
-  allowParallelOperation: boolean
+  purchaseMethod: PurchasePolicyMode
   overPercentageLimit: number
 }
 
-export interface PurchasePolicyUpdateResponse {
+export interface PurchasePolicy {
   policyId: string
   purchaseMethod: PurchasePolicyMode
   overPercentageLimit: number
 }
+
+export type PurchasePolicyUpdateResponse = PurchasePolicy
 
 export type PurchasePlanPage = PageResponse<PurchasePlanListItem>
