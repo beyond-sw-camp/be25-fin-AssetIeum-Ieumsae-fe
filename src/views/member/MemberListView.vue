@@ -418,12 +418,7 @@ const registerRoleOptions: Array<{
   { value: 'ASSET_MANAGER', label: ROLE_LABEL.ASSET_MANAGER },
 ]
 
-// 최상위 회사 노드는 조직 구조 표시용이므로 실제 사원 소속 선택지에서 제외한다.
-const selectableDepartments = computed(() =>
-  departmentStore.departments.filter(
-    ({ parentDepartmentId }) => parentDepartmentId !== null,
-  ),
-)
+const selectableDepartments = computed(() => departmentStore.departments)
 
 const departmentFilterOptions = computed<DropdownOption[]>(() => [
   { label: '전체 부서', value: '' },

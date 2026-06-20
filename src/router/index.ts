@@ -53,7 +53,7 @@ const router = createRouter({
           path: 'organization',
           name: 'Organization',
           component: () => import('@/views/organization/OrganizationView.vue'),
-          meta: { title: '조직도', roles: ['ADMIN'] },
+          meta: { title: '조직도', roles: ['ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'] },
         },
 
         // ─── 사원 관리 ───────────────────────────────
@@ -104,6 +104,19 @@ const router = createRouter({
             },
           ],
         },
+        
+        // ─── 유형자산 ────────────────────────────────
+        {
+          path: 'assets/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetList',
+              component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
+              meta: { title: '유형자산 목록' },
+            },
+          ],
+        },
 
         // ─── 유형자산 품목 ────────────────────────────────
         {
@@ -117,19 +130,6 @@ const router = createRouter({
             }
           ]
         }, 
-
-        // ─── 유형자산 ────────────────────────────────
-        {
-          path: 'assets/tangible',
-          children: [
-            {
-              path: '',
-              name: 'TangibleAssetList',
-              component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
-              meta: { title: '유형자산 목록' },
-            },
-          ],
-        },
 
         // ─── 무형자산 품목 ────────────────────────────────
         {
@@ -168,16 +168,16 @@ const router = createRouter({
           path: 'inspections',
           children: [
             {
-              path: '',
-              name: 'InspectionList',
-              component: () => import('@/views/inspection/InspectionListView.vue'),
-              meta: { title: '전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              path: 'tangible',
+              name: 'TangibleInspection',
+              component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
+              meta: { title: '유형자산 전수조사', roles: ['ASSET_TEAM', 'ASSET_MANAGER'] },
             },
             {
-              path: ':InspectionId',
-              name: 'InspectionDetail',
-              component: () => import('@/views/inspection/InspectionDetailView.vue'),
-              meta: { title: '전수조사 상세' },
+              path: 'intangible',
+              name: 'IntangibleInspection',
+              component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
+              meta: { title: '무형자산 전수조사', roles: ['ASSET_TEAM', 'ASSET_MANAGER'] },
             },
           ],
         },
@@ -187,7 +187,7 @@ const router = createRouter({
           path: 'hrworkflows',
           name: 'Hrworkflows',
           component: () => import('@/views/hr/HrWorkflowView.vue'),
-          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER'] },
+          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN'] },
         },
         
         // ─── 예산 관리 ───────────────────────────────
