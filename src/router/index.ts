@@ -183,14 +183,6 @@ const router = createRouter({
           component: () => import('@/views/hr/HrWorkflowView.vue'),
           meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN'] },
         },
-        
-        // ─── 예산 관리 ───────────────────────────────
-        {
-          path: 'budget',
-          name: 'Budget',
-          component: () => import('@/views/budget/BudgetView.vue'),
-          meta: { title: '예산 관리', roles: ['ADMIN'] },
-        },
 
         // ─── 구매 관리 ───────────────────────────────
         {

@@ -30,7 +30,6 @@ import {
   ShoppingCart,
   Ticket,
   Users,
-  Wallet,
   Workflow,
 } from 'lucide-vue-next'
 
@@ -98,7 +97,6 @@ const navItems = computed(() => {
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
-    { name: 'budget', to: '/budget', label: '예산 관리', icon: Wallet, show: canManageCompany.value },
     {
       name: 'logs',
       label: '로그',
