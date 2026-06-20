@@ -229,17 +229,24 @@ export interface ActiveRentalAsset {
 }
 
 export interface MaintenanceAvailableAsset {
+  assetType?: AssetType
   assignmentId?: string
   assetId?: string
   assetCode?: string
+  itemId?: string
   tangibleAssetItemId?: string
+  intangibleAssetItemId?: string
   categoryId?: string
   categoryName?: string
   productName?: string
   manufacturer?: string
   modelName?: string
+  provider?: string | null
   serialNumber?: string
+  licenseCode?: string | null
   assignedAt?: string
+  returnDueDate?: string | null
+  expiredAt?: string | null
 }
 
 export interface RentalExtensionRequestCreate {
@@ -249,21 +256,19 @@ export interface RentalExtensionRequestCreate {
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: string
-  maintenanceReason: string
+  assignmentId: string
+  requestDetail: string
 }
 
 export interface ReturnRequestCreate {
   assetType: AssetType
-  assetId: string
-  returnReason: string
+  assignmentId: string
+  requestReason: string
 }
 
 export interface PurchaseReturnRequestCreate {
-  assetType: AssetType
-  assetId: string
-  type: 'DIRECT_RETURN' | 'ASSET_MANAGER_RETURN'
-  returnReason: string
+  assignmentId: string
+  requestReason: string
 }
 
 // =====================================================

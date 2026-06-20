@@ -275,16 +275,22 @@ export const ticketCreateApi = {
 
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/maintenance-requests', body),
+    api.post<TicketCreateResponse>('/tickets/maintenance', body),
 
   getMaintenanceAvailableAssets: () =>
     api.get<MaintenanceAvailableAsset[]>('/tickets/maintenance/available-assets'),
 
   /** 반납 요청 */
   createReturnRequest: (body: ReturnRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/returns', body),
+    api.post<TicketCreateResponse>('/tickets/asset-returns', body),
+
+  getReturnAvailableAssets: (params?: { assetType?: string }) =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/asset-returns/available-assets', compactParams(params)),
 
   /** 반품/환불 요청 */
   createPurchaseReturnRequest: (body: PurchaseReturnRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/purchase-returns', body),
+
+  getPurchaseReturnAvailableAssets: () =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/purchase-returns/available-assets'),
 }

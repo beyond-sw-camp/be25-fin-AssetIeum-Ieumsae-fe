@@ -2285,6 +2285,49 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
   }
 }
 
+function toTangibleAvailableAssignedAsset(assignment: MockTangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'TANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    tangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.assetName ?? asset?.assetItemName,
+    manufacturer: item?.manufacturer,
+    modelName: item?.modelName,
+    serialNumber: asset?.serialNumber ?? asset?.serialNo,
+    assignedAt: assignment.assignedAt,
+    returnDueDate: assignment.endedAt,
+  }
+}
+
+function toIntangibleAvailableAssignedAsset(assignment: MockIntangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = intangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = intangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'INTANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    intangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.productName ?? asset?.assetItemName,
+    provider: item?.vendor ?? asset?.vendor,
+    licenseCode: asset?.licenseKey,
+    assignedAt: assignment.assignedAt,
+    expiredAt: asset?.expiredAt ?? assignment.endedAt,
+  }
+}
+
 export const handlers = [
   http.get(`${API_PREFIX}/dashboard/admin/assets/summary`, ({ request }) => (
     HttpResponse.json(ok(
@@ -4123,39 +4166,79 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/maintenance-requests`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/asset-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangibleReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+    const intangibleReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const returnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangibleReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangibleReturnAssets),
+    ]
+
+    return HttpResponse.json(ok(returnAssets, 'Available return assets loaded.'))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/purchase-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const purchaseReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+
+    return HttpResponse.json(ok(purchaseReturnAssets, 'Available purchase return assets loaded.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/maintenance`, async ({ request }) => {
     const body = await request.json() as MaintenanceRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'MAINTENANCE_REQUEST',
-        body.maintenanceReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        body.requestDetail,
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : null,
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
-          maintenanceReason: body.maintenanceReason,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '유지보수 요청 티켓 등록에 성공했습니다.',
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/returns`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/asset-returns`, async ({ request }) => {
     const body = await request.json() as ReturnRequestCreate
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'ASSET_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
           assetType: body.assetType,
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
-          returnReason: body.returnReason,
         },
       ),
       '자산 반납 요청 티켓 등록에 성공했습니다.',
@@ -4164,17 +4247,18 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tickets/purchase-returns`, async ({ request }) => {
     const body = await request.json() as PurchaseReturnRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'PURCHASE_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : null,
         undefined,
         {
-          assetType: body.assetType,
-          assetId: body.assetId,
-          returnReason: body.returnReason,
+          assetType: 'TANGIBLE',
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '반품 요청 티켓 등록에 성공했습니다.',
