@@ -564,6 +564,7 @@ import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
 import { useAuthStore } from '@/stores'
 import type {
   AssetType,
+  ActiveRentalAsset,
   DropdownOption,
   IntangibleAsset,
   IntangibleItem,
@@ -585,6 +586,7 @@ interface SelectableAsset extends AssetRadioItem {
   manufacturer?: string
   licenseType?: string | null
   usageType?: TangibleAssetUsageType | null
+  assignmentId?: string | null
   returnDueDate?: string | null
 }
 
@@ -1095,6 +1097,23 @@ function toTangibleAssetOption(asset: TangibleAsset): SelectableAsset {
   }
 }
 
+function toActiveRentalAssetOption(asset: ActiveRentalAsset): SelectableAsset {
+  return {
+    id: String(asset.assignmentId ?? ''),
+    name: asset.productName ?? asset.assetCode ?? '',
+    description: [
+      asset.assetCode,
+      asset.serialNumber,
+      asset.manufacturer,
+      asset.modelName,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    usageType: 'TEMPORARY',
+    assignmentId: asset.assignmentId,
+    returnDueDate: asset.currentReturnDueDate,
+  }
+}
+
 function toIntangibleAssetOption(asset: IntangibleAsset): SelectableAsset {
   return {
     id: String(asset.assetId),
@@ -1217,9 +1236,10 @@ async function loadOwnedAssets() {
   const results = await Promise.allSettled([
     tangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
     intangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
+    ticketCreateApi.getActiveRentalAssets(),
   ])
 
-  const [tangibleAssetsResult, intangibleAssetsResult] = results
+  const [tangibleAssetsResult, intangibleAssetsResult, activeRentalAssetsResult] = results
 
   ownedAssetOptions.value = [
     ...(tangibleAssetsResult.status === 'fulfilled'
@@ -1227,6 +1247,9 @@ async function loadOwnedAssets() {
       : []),
     ...(intangibleAssetsResult.status === 'fulfilled'
       ? intangibleAssetsResult.value.data.content.map(toIntangibleAssetOption)
+      : []),
+    ...(activeRentalAssetsResult.status === 'fulfilled'
+      ? activeRentalAssetsResult.value.data.map(toActiveRentalAssetOption)
       : []),
   ].filter((item) => item.id)
 
@@ -1506,8 +1529,8 @@ async function handleSubmit() {
         break
       case 'RENTAL_EXTENSION':
         response = await ticketCreateApi.createRentalExtension({
-          assetId: selectedAssetId(),
-          requestedDueDate: form.requestedDueDate,
+          assignmentId: selectedAssetId(),
+          requestedDueDate: toRentalDateTime(form.requestedDueDate, '18:00:00'),
           requestReason,
         })
         break

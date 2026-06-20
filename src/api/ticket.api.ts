@@ -7,6 +7,7 @@ import type {
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
+  ActiveRentalAsset,
   RentalAvailableItem,
   RentalRequestCreate,
   RentalExtensionRequestCreate,
@@ -264,9 +265,12 @@ export const ticketCreateApi = {
   }) =>
     api.get<PageResponse<RentalAvailableItem>>('/tickets/rentals/available-items', compactParams(params)),
 
+  getActiveRentalAssets: () =>
+    api.get<ActiveRentalAsset[]>('/tickets/rentals/active-assets'),
+
   /** 대여 연장 요청 */
   createRentalExtension: (body: RentalExtensionRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/rental-extensions', body),
+    api.post<TicketCreateResponse>('/tickets/rentals/extensions', body),
 
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>

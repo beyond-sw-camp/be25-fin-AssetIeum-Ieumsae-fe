@@ -28,6 +28,7 @@ import type {
   PurchaseReturnRequestCreate,
   PurchaseRequestMethod,
   RentalAvailableItem,
+  ActiveRentalAsset,
   RentalExtensionRequestCreate,
   RentalRequestCreate,
   ReturnRequestCreate,
@@ -4033,18 +4034,54 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/rental-extensions`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/rentals/active-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const activeRentalAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && assignment.assignmentType === 'TEMPORARY'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<ActiveRentalAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+          currentReturnDueDate: assignment.endedAt ?? asset?.returnDueDate ?? undefined,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      activeRentalAssets,
+      '??ъ쨷???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/rentals/extensions`, async ({ request }) => {
     const body = await request.json() as RentalExtensionRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'RENTAL_EXTENSION',
         body.requestReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : '대여 연장 자산',
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
           requestedDueDate: body.requestedDueDate,
         },

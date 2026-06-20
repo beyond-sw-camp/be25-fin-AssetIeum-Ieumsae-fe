@@ -67,6 +67,7 @@ export interface TicketDetail {
   expectedPrice?: number | null
   actualAmount?: number | null
   assetId?: string | null
+  assignmentId?: string | null
   assetStatus?: string | null
   startedAt?: string | null
   rentalStartDate?: string | null
@@ -74,6 +75,7 @@ export interface TicketDetail {
   rentalDueDate?: string | null
   previousDueDate?: string | null
   changedDueDate?: string | null
+  currentReturnDueDate?: string | null
   maintenanceReason?: string | null
   maintenanceResult?: string | null
   maintenanceCompletedAt?: string | null
@@ -211,8 +213,23 @@ export interface RentalAvailableItem {
   availableAssetCount?: number
 }
 
+export interface ActiveRentalAsset {
+  assignmentId?: string
+  assetId?: string
+  assetCode?: string
+  tangibleAssetItemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  manufacturer?: string
+  modelName?: string
+  serialNumber?: string
+  assignedAt?: string
+  currentReturnDueDate?: string
+}
+
 export interface RentalExtensionRequestCreate {
-  assetId: string
+  assignmentId: string
   requestedDueDate: string
   requestReason: string
 }
