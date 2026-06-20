@@ -141,11 +141,9 @@ const toTangibleAssetCreateBody = (body: TangibleAssetCreateRequest) => compactB
 
 
 const toTangibleAssetUpdateBody = (body: TangibleAssetUpdateRequest) => compactBody({
-  tangibleAssetStatus: body.tangibleAssetStatus ?? body.tangibleAssetstatus ?? body.status,
-  memberId: body.memberId ?? body.assignedMemberId,
-  departmentId: body.departmentId,
+  tangibleAssetStatus: body.tangibleAssetStatus,
   location: body.location,
-  usedStartedAt: toLocalDateTime(body.usedStartedAt ?? body.startedAt),
+  usedStartedAt: toLocalDateTime(body.usedStartedAt),
   returnDueDate: toLocalDateTime(body.returnDueDate),
   usageType: body.usageType,
 })
@@ -227,6 +225,13 @@ export const tangibleItemApi = {
   create: (body: TangibleAssetItemCreateRequest) =>
     api.post<TangibleAssetItem>('/tangible-asset/items', toTangibleItemCreateBody(body)),
 
+  /** 유형자산 품목 CSV 일괄 등록 */
+  importCsv: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload<TangibleAssetItem[]>('/tangible-asset/items/import', formData)
+  },
+
   /** 유형자산 품목 수정 */
   update: (itemId: string, body: TangibleAssetItemUpdateRequest) =>
     api.patch<TangibleAssetItem>(`/tangible-asset/items/${itemId}`, toTangibleItemUpdateBody(body)),
@@ -242,6 +247,13 @@ export const tangibleAssetApi = {
   /** 유형자산 등록 */
   create: (body: TangibleAssetCreateRequest) =>
     api.post<TangibleAsset>('/tangible-asset/assets', toTangibleAssetCreateBody(body)),
+
+  /** 유형자산 CSV 일괄 등록 */
+  importCsv: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload<TangibleAsset[]>('/tangible-asset/assets/import', formData)
+  },
 
   /** 유형자산 목록 조회 */
   getList: (params?: TangibleAssetListFilter) =>
@@ -316,17 +328,16 @@ export const intangibleItemApi = {
   create: (body: IntangibleAssetItemCreateRequest) =>
     api.post<IntangibleItem>('/intangible-asset/items', toIntangibleItemBody(body)),
 
+  /** 무형자산 품목 CSV 일괄 등록 */
+  importCsv: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload<IntangibleItem[]>('/intangible-asset/items/import', formData)
+  },
+
   /** 무형자산 품목 수정 */
   update: (itemId: string, body: IntangibleAssetItemUpdateRequest) =>
     api.patch<IntangibleItem>(`/intangible-asset/items/${itemId}`, toIntangibleItemBody(body)),
-
-  // TODO: 무형자산 품목 일괄 등록
-  /** 무형자산 품목 일괄 등록 (CSV/Excel) */
-  // bulkCreate: (file: File) => {
-  //   const formData = new FormData()
-  //   formData.append('file', file)
-  //   return api.upload('/assets/intangible/items/bulk', formData)
-  // },
 
   /** 무형자산 품목 삭제 */
   delete: (itemId: string) =>
@@ -347,6 +358,13 @@ export const intangibleAssetApi = {
   /** 무형자산 등록 */
   create: (body: IntangibleAssetCreateRequest) =>
     api.post<IntangibleAsset>('/intangible-asset/assets', toIntangibleAssetCreateBody(body)),
+
+  /** 무형자산 CSV 일괄 등록 */
+  importCsv: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.upload<IntangibleAsset[]>('/intangible-asset/assets/import', formData)
+  },
 
   /** 무형자산 수정 */
   update: (assetId: string, body: Partial<IntangibleAssetUpdateRequest>) =>
@@ -376,12 +394,4 @@ export const intangibleAssetApi = {
       `/intangible-asset/assets/${assetId}/cancel`,
       compactBody(body),
     ),
-
-  // TODO: 무형자산 일괄 등록 
-  // /** 무형자산 일괄 등록 (CSV/Excel) */
-  // bulkCreate: (file: File) => {
-  //   const formData = new FormData()
-  //   formData.append('file', file)
-  //   return api.upload('/intangible-asset/assets/bulk', formData)
-  // },
 }

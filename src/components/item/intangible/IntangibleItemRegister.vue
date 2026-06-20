@@ -85,7 +85,7 @@ import { computed, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Input from '@/components/common/Input.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import type { IntangibleAssetItemCreateRequest } from '@/types'
+import type { IntangibleAssetItemCreateRequest, LicenseType } from '@/types'
 
 interface CategoryGroup {
   categoryId?: string
@@ -111,13 +111,19 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'register-asset'])
 
-const licenseTypeOptions = ['구독형 (SaaS)', '사용자 수 라이선스', '영구 라이선스', '볼륨 라이선스']
-const licenseTypeValueByLabel: Record<string, string> = {
+const licenseTypeOptions = ['구독형 (SaaS)', '영구 라이선스', '기간제 라이선스']
+const licenseTypeValueByLabel: Record<string, LicenseType> = {
   '구독형 (SaaS)': 'SUBSCRIPTION',
-  '사용자 수 라이선스': 'USER_BASED',
   '영구 라이선스': 'PERPETUAL',
-  '볼륨 라이선스': 'VOLUME',
+  '기간제 라이선스': 'TERM',
 }
+
+const toLicenseType = (labelOrValue: string): LicenseType => (
+  licenseTypeValueByLabel[labelOrValue]
+    ?? (labelOrValue === 'SUBSCRIPTION' || labelOrValue === 'PERPETUAL' || labelOrValue === 'TERM'
+      ? labelOrValue
+      : 'SUBSCRIPTION')
+)
 
 const formData = ref<RegisterForm>({
   productName: '',
@@ -175,7 +181,7 @@ const handleSave = () => {
   const payload: IntangibleAssetItemCreateRequest = {
     categoryId,
     productName: formData.value.productName.trim(),
-    licenseType: licenseTypeValueByLabel[formData.value.licenseType] ?? formData.value.licenseType,
+    licenseType: toLicenseType(formData.value.licenseType),
     provider: formData.value.vendor.trim(),
     isStandard: formData.value.isStandard,
   }

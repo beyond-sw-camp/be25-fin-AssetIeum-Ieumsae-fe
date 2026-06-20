@@ -55,10 +55,7 @@ export function usePermission() {
   const canViewDepartmentTickets = computed(() =>
     canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER')
   )
-
-  // HR 라이프사이클 워크플로우 조회/실행은 부서책임자 역할 기준이다.
-  const canViewHrWorkflow = computed(() => hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER'))
-
+  
   const canViewAllTickets = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
@@ -85,9 +82,18 @@ export function usePermission() {
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
-  // HR 템플릿 등록 (구매자산팀장, 부서책임자)
+  // HR 템플릿 등록
   const canRegisterHrTemplate = computed(() => 
-    hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER')
+    hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
+  )
+
+  // HR 라이프사이클 워크플로우 조회/실행
+  const canViewHrWorkflow = computed(() => 
+    hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
+  )
+
+  const canViewInspection = computed(() => 
+    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   return {
@@ -112,5 +118,6 @@ export function usePermission() {
     canRegisterAsset,
     canUpdateAsset,
     canRegisterHrTemplate,
+    canViewInspection
   }
 }

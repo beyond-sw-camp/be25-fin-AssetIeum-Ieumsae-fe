@@ -12,6 +12,23 @@
 
       <!-- TODO: 자산 등록 시 부서, 사용자 에러 고치기 -->
       <div class="flex flex-wrap items-center gap-2">
+        <Button
+          v-if="canRegisterAsset"
+          variant="outline"
+          :loading="isUploadingCsv"
+          @click="handleCsvUploadClick"
+        >
+          <Upload :size="15" />
+          CSV 파일 업로드
+        </Button>
+        <input
+          ref="csvUploadInputRef"
+          type="file"
+          accept=".csv,text/csv"
+          class="hidden"
+          @change="handleCsvUploadChange"
+        />
+
         <Button v-if="canRegisterAsset" variant="primary" @click="openRegisterDrawer">
           <Plus :size="15" />
           자산 등록
@@ -177,10 +194,11 @@ import Button from '@/components/common/Button.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
-import { Plus, Layers, ChevronLeft, ChevronRight, Search, Tag } from 'lucide-vue-next';
+import { Plus, Layers, ChevronLeft, ChevronRight, Search, Tag, Upload } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { memberApi } from '@/api/member.api'
+import { useNotificationStore } from '@/stores'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
@@ -221,8 +239,11 @@ const isDetailDrawerOpen = ref(false);
 const selectedAsset = ref<TangibleAssetRow | null>(null);
 const isReferenceDataLoaded = ref(false)
 const referenceDataPromise = ref<Promise<void> | null>(null)
+const csvUploadInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingCsv = ref(false)
 const { canRegisterAsset, role } = usePermission()
 const auth = useAuthStore()
+const notificationStore = useNotificationStore()
 
 const currentMemberId = computed(() => {
   const user = auth.user as {
@@ -309,6 +330,38 @@ const handleAssetRegistered = (asset: TangibleAsset) => {
 
   handleSearch()
 };
+
+const handleCsvUploadClick = () => {
+  if (isUploadingCsv.value) return
+  csvUploadInputRef.value?.click()
+}
+
+const handleCsvUploadChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file) return
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    notificationStore.warning('CSV 파일만 업로드할 수 있습니다.', '파일 확장자를 확인해주세요.')
+    input.value = ''
+    return
+  }
+
+  isUploadingCsv.value = true
+
+  try {
+    const response = await tangibleAssetApi.importCsv(file)
+    notificationStore.success('유형자산 일괄 등록 완료', `${response.data.length}건이 등록되었습니다.`)
+    handleSearch()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'CSV 업로드 중 오류가 발생했습니다.'
+    notificationStore.error('유형자산 일괄 등록 실패', message)
+  } finally {
+    isUploadingCsv.value = false
+    input.value = ''
+  }
+}
 
 const openRegisterDrawer = () => {
   isRegisterDrawerOpen.value = true
@@ -494,11 +547,28 @@ const categoryIdByName = (categoryName: string) => {
 }
 
 type AssetResponseAliases = TangibleAsset & {
+  assigned_member_id?: string | null
+  assigned_member_name?: string | null
+  currentUserId?: string | null
+  current_user_id?: string | null
+  current_user_name?: string | null
+  current_user_member_no?: string | null
+  userId?: string | null
+  user_id?: string | null
+  user_name?: string | null
+  member_id?: string | null
+  member_name?: string | null
+  department_id?: string | null
+  department_name?: string | null
+  currentDepartmentId?: string | null
+  currentDepartmentName?: string | null
+  current_department_id?: string | null
+  current_department_name?: string | null
   memberName?: string | null
   locationName?: string | null
-  member?: Partial<Member> | null
-  user?: Partial<Member> | null
-  department?: Partial<Department> | null
+  member?: (Partial<Member> & { id?: string; member_id?: string; member_name?: string }) | null
+  user?: (Partial<Member> & { id?: string; userId?: string; user_id?: string; userName?: string; user_name?: string }) | null
+  department?: (Partial<Department> & { id?: string; department_id?: string; department_name?: string }) | null
   asset?: Record<string, unknown> | null
   tangibleAsset?: Record<string, unknown> | null
 }
@@ -569,12 +639,48 @@ const getAssetId = (asset: TangibleAsset) => {
     || findNestedAssetId(asset)
 }
 
+const firstText = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (trimmed) return trimmed
+  }
+
+  return null
+}
+
 const getMemberId = (asset: AssetResponseAliases) => (
-  asset.assignedMemberId ?? asset.memberId ?? asset.member?.memberId ?? asset.user?.memberId ?? null
+  firstText(
+    asset.assignedMemberId,
+    asset.assigned_member_id,
+    asset.currentUserId,
+    asset.current_user_id,
+    asset.memberId,
+    asset.member_id,
+    asset.userId,
+    asset.user_id,
+    asset.member?.memberId,
+    asset.member?.id,
+    asset.member?.member_id,
+    asset.user?.memberId,
+    asset.user?.id,
+    asset.user?.userId,
+    asset.user?.user_id,
+  )
 )
 
 const getDepartmentId = (asset: AssetResponseAliases) => (
-  asset.departmentId ?? asset.department?.departmentId ?? asset.member?.departmentId ?? asset.user?.departmentId ?? null
+  firstText(
+    asset.departmentId,
+    asset.department_id,
+    asset.currentDepartmentId,
+    asset.current_department_id,
+    asset.department?.departmentId,
+    asset.department?.id,
+    asset.department?.department_id,
+    asset.member?.departmentId,
+    asset.user?.departmentId,
+  )
 )
 
 const getMemberName = (asset: AssetResponseAliases) => {
@@ -582,16 +688,25 @@ const getMemberName = (asset: AssetResponseAliases) => {
   const member = memberId ? members.value.find((candidate) => candidate.memberId === memberId) : undefined
   const currentUserLabel = asset.currentUserName
     ? `${asset.currentUserName}${asset.currentUserMemberNo ? `(${asset.currentUserMemberNo})` : ''}`
+    : asset.current_user_name
+      ? `${asset.current_user_name}${asset.current_user_member_no ? `(${asset.current_user_member_no})` : ''}`
     : null
 
-  return asset.assignedMemberName
-    ?? asset.memberName
-    ?? asset.userName
-    ?? currentUserLabel
-    ?? asset.member?.name
-    ?? asset.user?.name
-    ?? member?.name
-    ?? null
+  return firstText(
+    asset.assignedMemberName,
+    asset.assigned_member_name,
+    currentUserLabel,
+    asset.memberName,
+    asset.member_name,
+    asset.userName,
+    asset.user_name,
+    asset.member?.name,
+    asset.member?.member_name,
+    asset.user?.name,
+    asset.user?.userName,
+    asset.user?.user_name,
+    member?.name,
+  )
 }
 
 const getDepartmentName = (asset: AssetResponseAliases) => {
@@ -600,11 +715,16 @@ const getDepartmentName = (asset: AssetResponseAliases) => {
   const memberId = getMemberId(asset)
   const member = memberId ? members.value.find((candidate) => candidate.memberId === memberId) : undefined
 
-  return asset.departmentName
-    ?? asset.department?.name
-    ?? member?.departmentName
-    ?? department?.name
-    ?? null
+  return firstText(
+    asset.departmentName,
+    asset.department_name,
+    asset.currentDepartmentName,
+    asset.current_department_name,
+    asset.department?.name,
+    asset.department?.department_name,
+    member?.departmentName,
+    department?.name,
+  )
 }
 
 const toAssetRow = (asset: TangibleAsset): TangibleAssetRow => {
@@ -721,6 +841,10 @@ const loadServerData = async () => {
 
     if (searchParams.value.keyword.trim()) {
       params.keyword = searchParams.value.keyword.trim();
+    }
+
+    if (!isReferenceDataLoaded.value) {
+      await loadReferenceData()
     }
 
     const response = await tangibleAssetApi.getList(params);

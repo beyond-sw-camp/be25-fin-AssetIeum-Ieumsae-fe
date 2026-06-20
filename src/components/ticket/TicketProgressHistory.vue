@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <TicketDetailCard title="진행 히스토리" class="h-full">
     <template #icon>
       <History :size="18" class="text-primary" />
@@ -198,7 +198,7 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
 function failureStepIndex(status: TicketStatus) {
   if (status === 'DEPARTMENT_REJECTED') return 1
   if (status === 'ASSET_REJECTED') return 2
-  if (status === 'CANCELED') return 1
+  if (status === 'CANCELLED') return 1
   return -1
 }
 
@@ -246,7 +246,7 @@ const processSteps = computed<ProcessStep[]>(() => {
     } else if (index < failureIndex) {
       state = 'completed'
     } else if (index === failureIndex) {
-      state = ticket.status === 'CANCELED' ? 'canceled' : 'rejected'
+      state = ticket.status === 'CANCELLED' ? 'canceled' : 'rejected'
     } else if (failureIndex >= 0) {
       state = 'pending'
     } else if (index < currentIndex) {
