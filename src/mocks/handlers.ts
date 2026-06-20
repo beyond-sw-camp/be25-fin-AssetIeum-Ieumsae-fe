@@ -4192,12 +4192,24 @@ export const handlers = [
 
   http.get(`${API_PREFIX}/tickets/purchase-returns/available-assets`, ({ request }) => {
     const requester = getAuthenticatedMember(request)
-    const purchaseReturnAssets = tangibleAssetAssignments
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangiblePurchaseReturnAssets = tangibleAssetAssignments
       .filter((assignment) => (
         assignment.assignmentStatus === 'ASSIGNED'
         && (!requester || assignment.memberId === requester.memberId)
       ))
       .map(toTangibleAvailableAssignedAsset)
+    const intangiblePurchaseReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const purchaseReturnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangiblePurchaseReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangiblePurchaseReturnAssets),
+    ]
 
     return HttpResponse.json(ok(purchaseReturnAssets, 'Available purchase return assets loaded.'))
   }),
@@ -4247,16 +4259,18 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tickets/purchase-returns`, async ({ request }) => {
     const body = await request.json() as PurchaseReturnRequestCreate
-    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'PURCHASE_RETURN',
         body.requestReason,
-        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : null,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
-          assetType: 'TANGIBLE',
+          assetType: body.assetType,
           assignmentId: body.assignmentId,
           assetId: assignment?.assetId,
         },

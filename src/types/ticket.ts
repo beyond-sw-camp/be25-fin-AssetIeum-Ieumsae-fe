@@ -267,6 +267,7 @@ export interface ReturnRequestCreate {
 }
 
 export interface PurchaseReturnRequestCreate {
+  assetType: AssetType
   assignmentId: string
   requestReason: string
 }

@@ -691,6 +691,7 @@ const showsAssetType = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'DIRECT_PURCHASE'
   || selectedKind.value === 'RETURN'
+  || selectedKind.value === 'PURCHASE_RETURN'
 ))
 
 const showsPurchaseRequestAssetType = computed(() => (
@@ -790,7 +791,7 @@ const visibleAssetOptions = computed(() => {
     return returnAssetOptions.value.filter((item) => item.assetType === form.assetType)
   }
   if (selectedKind.value === 'PURCHASE_RETURN') {
-    return purchaseReturnAssetOptions.value
+    return purchaseReturnAssetOptions.value.filter((item) => item.assetType === form.assetType)
   }
   if (selectedKind.value === 'MAINTENANCE') {
     return form.assetServiceType === 'RETURN'
@@ -1335,7 +1336,7 @@ async function loadRequestAvailableAssets() {
       return
     }
 
-    const response = await ticketCreateApi.getPurchaseReturnAvailableAssets()
+    const response = await ticketCreateApi.getPurchaseReturnAvailableAssets({ assetType: form.assetType })
     purchaseReturnAssetOptions.value = response.data.map(toAvailableAssignedAssetOption).filter((item) => item.id)
   } catch (error) {
     if (selectedKind.value === 'RETURN') {
@@ -1539,7 +1540,7 @@ function handleAssetTypeChange(assetType: AssetType) {
   pendingSelectedAssetId.value = ''
   invalidateAssetSearch()
 
-  if (selectedKind.value === 'RETURN') {
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
     void loadRequestAvailableAssets()
   }
 }
@@ -1655,6 +1656,7 @@ async function handleSubmit() {
       case 'MAINTENANCE':
         response = form.assetServiceType === 'RETURN'
           ? await ticketCreateApi.createPurchaseReturnRequest({
+            assetType: 'TANGIBLE',
             assignmentId: selectedAssetId(),
             requestReason,
           })
@@ -1672,6 +1674,7 @@ async function handleSubmit() {
         break
       case 'PURCHASE_RETURN':
         response = await ticketCreateApi.createPurchaseReturnRequest({
+          assetType: form.assetType,
           assignmentId: selectedAssetId(),
           requestReason,
         })

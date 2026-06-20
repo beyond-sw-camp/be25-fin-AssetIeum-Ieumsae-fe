@@ -291,6 +291,6 @@ export const ticketCreateApi = {
   createPurchaseReturnRequest: (body: PurchaseReturnRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/purchase-returns', body),
 
-  getPurchaseReturnAvailableAssets: () =>
-    api.get<MaintenanceAvailableAsset[]>('/tickets/purchase-returns/available-assets'),
+  getPurchaseReturnAvailableAssets: (params?: { assetType?: string }) =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/purchase-returns/available-assets', compactParams(params)),
 }
