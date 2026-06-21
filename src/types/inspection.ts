@@ -39,6 +39,7 @@ export interface InspectionResponse {
 
 export interface InspectionSearchResponse {
   inspectionId?: string
+  groupKey?: string
   targetType?: InspectionTargetType
   targetName?: string | null
   inspectorName?: string | null
@@ -75,6 +76,8 @@ export interface InspectionDetailResultItem {
   followUpId?: string | number | null
   productName: string | null
   assetCode: string | null
+  memberId?: string | null
+  memberName?: string | null
   followUpRequired: boolean
   userResponseContent: string | null
   actionDetail?: string | null
@@ -86,6 +89,8 @@ export interface InspectionUninspectedAssetItem {
   productName: string | null
   assetCode: string | null
   category: string | null
+  memberId?: string | null
+  memberName?: string | null
 }
 
 export interface InspectionStatisticsResponse {
@@ -136,6 +141,8 @@ export interface InspectionFollowUpResponse {
   productName?: string | null
   assetCode?: string | null
   responseContent?: string | null
+  memberId?: string | null
+  memberName?: string | null
   processedBy?: string | number
   processorName?: string | null
   status?: InspectionFollowUpStatus
@@ -181,6 +188,8 @@ export interface EmployeeInspectionTargetResponse {
   tangibleAssetId?: string | number | null
   intangibleAssetId?: string | number | null
   assetId?: string | number | null
+  memberId?: string | null
+  memberName?: string | null
   assetCode?: string | null
   productName?: string | null
   itemName?: string | null

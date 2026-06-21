@@ -15,6 +15,9 @@
         <p class="mt-1 truncate text-xs text-text-sub">
           {{ target.assetCode }} · {{ target.category }}
         </p>
+        <p v-if="target.memberName !== '-'" class="mt-1 truncate text-xs text-text-sub">
+          대상 사용자 {{ target.memberName }}
+        </p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <span :class="inspectionStatusBadgeClass(target.inspectionStatus)">
@@ -39,6 +42,8 @@ export interface MobileInspectionTarget {
   inspectionTargetId: string
   inspectionId: string
   inspectionStatus: InspectionStatus
+  memberId: string
+  memberName: string
   productName: string
   assetCode: string
   category: string
@@ -50,8 +55,8 @@ export interface MobileInspectionTarget {
 const inspectionStatusLabel: Record<InspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 defineProps<{
