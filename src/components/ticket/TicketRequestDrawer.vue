@@ -157,6 +157,40 @@
         요청 유형 다시 선택
       </button>
 
+      <section v-if="selectedKind === 'RENTAL' || selectedKind === 'RENTAL_EXTENSION'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          대여 요청 유형 <span class="text-primary">*</span>
+        </p>
+        <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
+          <button
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              selectedKind === 'RENTAL'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="selectedKind = 'RENTAL'; form.selectedAssetId = ''; pendingSelectedAssetId = ''"
+          >
+            대여 신청
+          </button>
+          <button
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              selectedKind === 'RENTAL_EXTENSION'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="selectedKind = 'RENTAL_EXTENSION'; form.selectedAssetId = ''; pendingSelectedAssetId = ''"
+          >
+            대여 연장
+          </button>
+        </div>
+      </section>
+
+
+
       <section v-if="selectedKind === 'MAINTENANCE'" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           서비스 유형 <span class="text-primary">*</span>
@@ -284,11 +318,11 @@
 
       <section v-else-if="showsAssetType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
-          자산 유형 <span class="text-primary">*</span>
+          {{ selectedKind === 'RETURN' ? '반납/해지 유형' : '자산 유형' }} <span class="text-primary">*</span>
         </p>
         <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
           <button
-            v-for="option in assetTypeOptions"
+            v-for="option in (selectedKind === 'RETURN' ? returnTypeOptions : assetTypeOptions)"
             :key="option.value"
             type="button"
             :class="[
@@ -604,6 +638,10 @@ const authStore = useAuthStore()
 const assetTypeOptions = [
   { label: '유형 자산', value: 'TANGIBLE' as const },
   { label: '무형 자산', value: 'INTANGIBLE' as const },
+]
+const returnTypeOptions = [
+  { label: '유형 자산 반납', value: 'TANGIBLE' as const },
+  { label: '무형 자산 해지', value: 'INTANGIBLE' as const },
 ]
 const assetScopeOptions = [
   { label: '공용 자산', value: 'DEPARTMENT' as const },
@@ -1013,7 +1051,7 @@ function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset
       item.manufacturer,
       item.modelName,
       availableCount,
-    ].filter(Boolean).join(' 쨌 '),
+    ].filter(Boolean).join(' · '),
     assetType: 'TANGIBLE',
     isStandard: item.isStandard,
     categoryId: item.categoryId,
@@ -1123,7 +1161,7 @@ function toActiveRentalAssetOption(asset: ActiveRentalAsset): SelectableAsset {
       asset.serialNumber,
       asset.manufacturer,
       asset.modelName,
-    ].filter(Boolean).join(' 쨌 '),
+    ].filter(Boolean).join(' · '),
     assetType: 'TANGIBLE',
     usageType: 'TEMPORARY',
     assignmentId: asset.assignmentId,
@@ -1141,7 +1179,7 @@ function toMaintenanceAvailableAssetOption(asset: MaintenanceAvailableAsset): Se
       asset.manufacturer,
       asset.modelName,
       asset.assignedAt ? `배정일: ${formatDate(asset.assignedAt)}` : null,
-    ].filter(Boolean).join(' 쨌 '),
+    ].filter(Boolean).join(' · '),
     assetType: 'TANGIBLE',
     assignmentId: asset.assignmentId,
   }
@@ -1158,9 +1196,9 @@ function toAvailableAssignedAssetOption(asset: MaintenanceAvailableAsset): Selec
       asset.serialNumber ?? asset.licenseCode,
       asset.manufacturer ?? asset.provider,
       asset.modelName,
-      asset.returnDueDate ? `諛섎궔 ?덉젙?? ${formatDate(asset.returnDueDate)}` : null,
-      asset.expiredAt ? `留뚮즺?? ${formatDate(asset.expiredAt)}` : null,
-    ].filter(Boolean).join(' 夷?'),
+      asset.returnDueDate ? `반납 예정일: ${formatDate(asset.returnDueDate)}` : null,
+      asset.expiredAt ? `만료일: ${formatDate(asset.expiredAt)}` : null,
+    ].filter(Boolean).join(' · '),
     assetType,
     assignmentId: asset.assignmentId,
     returnDueDate: asset.returnDueDate ?? asset.expiredAt ?? null,
@@ -1346,7 +1384,7 @@ async function loadRequestAvailableAssets() {
     }
     assetErrorMessage.value = error instanceof Error
       ? error.message
-      : '?먯궛 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??'
+      : '자산 목록을 불러오지 못했습니다.'
   } finally {
     hasSearchedAssets.value = true
     isAssetsLoading.value = false
