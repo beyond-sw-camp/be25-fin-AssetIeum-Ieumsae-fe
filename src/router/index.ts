@@ -28,6 +28,18 @@ const router = createRouter({
       component: () => import('@/views/auth/LoginView.vue'),
       meta: { requiresAuth: false, title: '로그인' },
     },
+    {
+      path: '/mobile/login',
+      name: 'MobileLogin',
+      component: () => import('@/views/inspection/mobile/MobileLoginView.vue'),
+      meta: { requiresAuth: false, title: '모바일 로그인' },
+    },
+    {
+      path: '/mobile/inspections',
+      name: 'MobileInspection',
+      component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
+      meta: { requiresAuth: true, title: '모바일 자산 검수', roles: ['EMPLOYEE', 'ASSET_TEAM'] },
+    },
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
     {
       path: '/',
@@ -43,6 +55,12 @@ const router = createRouter({
         },
 
         // ─── 조직도 ─────────────────────────────────
+        {
+          path: 'system/companies',
+          name: 'SystemCompanies',
+          component: () => import('@/views/system/SystemAdminView.vue'),
+          meta: { title: '회사 관리', roles: ['SUPER_ADMIN'] },
+        },
         {
           path: 'organization',
           name: 'Organization',
@@ -87,7 +105,7 @@ const router = createRouter({
               component: () => import('@/views/ticket/TicketManagementView.vue'),
               meta: {
                 title: '티켓 관리',
-                roles: ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+                roles: ['ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
               },
             },
             {
@@ -165,27 +183,27 @@ const router = createRouter({
               path: 'tangible',
               name: 'TangibleInspection',
               component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
-              meta: { title: '유형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              meta: { title: '유형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
             },
             {
               path: 'tangible/respond',
-              name: 'TangibleInspectionResponse',
-              component: () => import('@/views/inspection/employee/EmployeeInspectionResponseView.vue'),
-              props: { assetType: 'tangible' },
-              meta: { title: '내 유형자산 전수조사', roles: ['EMPLOYEE'] },
+              redirect: { name: 'TangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'mobile',
+              redirect: { name: 'MobileInspection' },
             },
             {
               path: 'intangible',
               name: 'IntangibleInspection',
               component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
-              meta: { title: '무형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              meta: { title: '무형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
             },
             {
               path: 'intangible/respond',
-              name: 'IntangibleInspectionResponse',
-              component: () => import('@/views/inspection/employee/EmployeeInspectionResponseView.vue'),
-              props: { assetType: 'intangible' },
-              meta: { title: '내 무형자산 전수조사', roles: ['EMPLOYEE'] },
+              redirect: { name: 'IntangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
             },
           ],
         },
@@ -203,7 +221,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 계획', roles: ['SUPER_ADMIN', 'ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+          meta: { title: '구매 계획', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
         },
 
         // ─── 로그 ─────────────────────────────────────
@@ -284,6 +302,18 @@ router.beforeEach(async (to) => {
 
   // 인증 불필요 페이지
   if (to.meta.requiresAuth === false) {
+    if (to.name === 'Login' && isMobileViewport()) {
+      return auth.isAuthenticated && canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'MobileLogin', query: to.query }
+    }
+
+    if (auth.isAuthenticated && to.name === 'MobileLogin') {
+      return canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'Dashboard' }
+    }
+
     if (auth.isAuthenticated && to.name === 'Login') {
       return { name: 'Dashboard' }
     }
@@ -292,18 +322,39 @@ router.beforeEach(async (to) => {
 
   // 미인증 → 로그인 페이지로
   if (!auth.isAuthenticated) {
+    if (to.path.startsWith('/mobile')) {
+      return { name: 'MobileLogin', query: { redirect: to.fullPath } }
+    }
+
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
 
   // 역할 체크
+  if (to.name === 'Dashboard' && auth.currentRole === 'SUPER_ADMIN') {
+    return { name: 'SystemCompanies' }
+  }
+
   if (to.meta.roles && to.meta.roles.length > 0) {
-    const canAccessAllPages = auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN'
+    const canAccessAllPages = auth.currentRole === 'ADMIN'
     if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
       return { name: 'Dashboard' } // 권한 없으면 대시보드로
     }
   }
 
+  if (to.name === 'Dashboard' && canUseMobileInspectionRole(auth.currentRole) && isMobileViewport()) {
+    return { name: 'MobileInspection' }
+  }
+
   return true
 })
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+}
+
+function canUseMobileInspectionRole(role: Role | null) {
+  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
+}
 
 export default router

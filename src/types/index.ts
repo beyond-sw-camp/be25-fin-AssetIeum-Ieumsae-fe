@@ -3,6 +3,7 @@
 // =====================================================
 
 export * from './common'
+export * from './company'
 export * from './member'
 export * from './department'
 export * from './asset'
@@ -14,3 +15,4 @@ export * from './purchase'
 export * from './report'
 export * from './hr'
 export * from './inspection'
+export * from './purchase'

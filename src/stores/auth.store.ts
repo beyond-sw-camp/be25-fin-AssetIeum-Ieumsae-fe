@@ -6,13 +6,25 @@ import type { AuthUser, LoginRequest, PasswordChangeRequest, Role } from '@/type
 
 const ACCESS_TOKEN_KEY = 'accessToken'
 const AUTH_USER_KEY = 'authUser'
+const VALID_ROLES: Role[] = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'DEPARTMENT_MANAGER',
+  'ASSET_TEAM',
+  'ASSET_MANAGER',
+  'EMPLOYEE',
+]
 
 function decodeTokenPayload(token: string): Record<string, unknown> | null {
   try {
     const [, payload] = token.split('.')
     if (!payload) return null
 
-    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const normalizedPayload = base64Payload.padEnd(
+      base64Payload.length + ((4 - (base64Payload.length % 4)) % 4),
+      '=',
+    )
     const decodedPayload = decodeURIComponent(
       Array.from(atob(normalizedPayload), (char) => (
         `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`
@@ -36,11 +48,49 @@ function stringClaim(payload: Record<string, unknown> | null, keys: string[]) {
   return undefined
 }
 
-function withTokenClaims(userInfo: AuthUser, token: string): AuthUser {
+function roleClaim(payload: Record<string, unknown> | null) {
+  if (!payload) return undefined
+
+  for (const key of ['role', 'authority', 'auth']) {
+    const value = payload[key]
+    if (typeof value === 'string' && value) return value
+  }
+
+  for (const key of ['roles', 'authorities']) {
+    const value = payload[key]
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item) return item
+
+        if (item && typeof item === 'object') {
+          const record = item as Record<string, unknown>
+          if (typeof record.authority === 'string' && record.authority) return record.authority
+          if (typeof record.role === 'string' && record.role) return record.role
+        }
+      }
+    }
+  }
+
+  return undefined
+}
+
+function normalizeRole(role: unknown): Role | null {
+  const normalizedRole = typeof role === 'string'
+    ? role.replace(/^ROLE_/, '').trim().toUpperCase()
+    : null
+
+  return VALID_ROLES.find((roleValue) => roleValue === normalizedRole) ?? null
+}
+
+function withTokenClaims(userInfo: AuthUser, token: string): AuthUser | null {
   const payload = decodeTokenPayload(token)
+  const role = normalizeRole(roleClaim(payload)) ?? normalizeRole(userInfo.role)
+
+  if (!role) return null
 
   return {
     ...userInfo,
+    role,
     companyId: userInfo.companyId ?? stringClaim(payload, ['companyId', 'company_id']),
   }
 }
@@ -53,6 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!accessToken.value && !!user.value)
   const currentRole = computed<Role | null>(() => user.value?.role ?? null)
+  const isSystemAdmin = computed(() => currentRole.value === 'SUPER_ADMIN')
   const isSuperAdmin = computed(() => currentRole.value === 'SUPER_ADMIN')
   const isAdmin = computed(() => currentRole.value === 'ADMIN')
   const isDepartmentManager = computed(() => currentRole.value === 'DEPARTMENT_MANAGER')
@@ -66,6 +117,9 @@ export const useAuthStore = defineStore('auth', () => {
       const { accessToken: token, refreshToken: _refreshToken, ...userInfo } = res.data
       void _refreshToken
       const normalizedUserInfo = withTokenClaims(userInfo, token)
+      if (!normalizedUserInfo) {
+        throw new Error('사용자 권한 정보를 확인할 수 없습니다.')
+      }
 
       user.value = normalizedUserInfo
       accessToken.value = token
@@ -121,7 +175,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      user.value = withTokenClaims(JSON.parse(storedUser) as AuthUser, token)
+      const restoredUser = withTokenClaims(JSON.parse(storedUser) as AuthUser, token)
+      if (!restoredUser) {
+        clearAuth()
+        return false
+      }
+
+      user.value = restoredUser
       accessToken.value = token
       localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user.value))
       return true
@@ -138,6 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
     isChangingPassword,
     isAuthenticated,
     currentRole,
+    isSystemAdmin,
     isSuperAdmin,
     isAdmin,
     isDepartmentManager,

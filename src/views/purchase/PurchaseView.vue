@@ -1,5 +1,7 @@
 <template>
-  <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
+  <div
+    class="relative flex h-full min-h-0 flex-col bg-background text-text-main"
+  >
     <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
       <section
         v-if="selectedPlanId"
@@ -73,16 +75,16 @@
                       {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
                     </span>
                     <span class="text-sm text-text-sub">
-                      신청 팀원 {{ selectedPlan.requesterName || '-' }} · 생성일
+                      신청 팀원 {{ selectedPlan.requesterName || "-" }} · 생성일
                       {{ formatDateTime(selectedPlan.createdAt) }}
                     </span>
                   </div>
                 </div>
 
                 <div
-                    v-if="canChangeStatus && statusActionOptions.length > 0"
-                    class="w-full shrink-0 lg:w-60"
-                  >
+                  v-if="canChangeStatus && statusActionOptions.length > 0"
+                  class="w-full shrink-0 lg:w-60"
+                >
                   <div class="mb-1.5 flex items-center justify-between gap-2">
                     <label
                       for="purchase-plan-status-selector"
@@ -215,8 +217,14 @@
                     </template>
 
                     <template #cell-delivery="{ row }">
-                      <div v-if="canRegisterAssetFromItem(row)" class="flex flex-col items-center gap-1">
-                        <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
+                      <div
+                        v-if="canRegisterAssetFromItem(row)"
+                        class="flex flex-col items-center gap-1"
+                      >
+                        <span
+                          v-if="row.receivedAt"
+                          class="text-xs font-semibold text-success"
+                        >
                           {{ formatDate(row.receivedAt) }}
                         </span>
                         <span v-else class="text-xs font-semibold text-success">
@@ -233,8 +241,14 @@
                           자산 등록
                         </Button>
                       </div>
-                      <div v-else-if="isPurchaseItemDeliverySettled(row)" class="flex flex-col items-center gap-1">
-                        <span v-if="row.receivedAt" class="text-xs font-semibold text-success">
+                      <div
+                        v-else-if="isPurchaseItemDeliverySettled(row)"
+                        class="flex flex-col items-center gap-1"
+                      >
+                        <span
+                          v-if="row.receivedAt"
+                          class="text-xs font-semibold text-success"
+                        >
                           {{ formatDate(row.receivedAt) }}
                         </span>
                         <span v-else class="text-xs font-semibold text-success">
@@ -536,8 +550,14 @@
                 class="pointer-events-none h-4 w-4 rounded border-border text-primary focus:ring-primary"
                 :checked="selectedTicketIds.includes(row.ticketId)"
                 :disabled="!row.canCreate"
-                :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
-                :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
+                :title="
+                  row.canCreate ? '구매 계획 대상 선택' : row.disabledReason
+                "
+                :aria-label="
+                  row.canCreate
+                    ? `${row.ticket.ticketNo} 선택`
+                    : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`
+                "
                 tabindex="-1"
               />
             </template>
@@ -775,7 +795,9 @@
             >
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <Button class="w-full" variant="outline" @click="closeCreateDrawer">취소</Button>
+            <Button class="w-full" variant="outline" @click="closeCreateDrawer"
+              >취소</Button
+            >
             <Button
               class="w-full"
               :disabled="planRequestItems.length === 0 || isCreatingPlan"
@@ -934,7 +956,10 @@ const STATUS_FILTER_OPTIONS: DropdownOption[] = [
   { label: "취소", value: "CANCELLED" },
 ];
 
-const PURCHASE_PLAN_STATUS_TRANSITIONS: Record<PurchasePlanStatus, PurchasePlanStatus[]> = {
+const PURCHASE_PLAN_STATUS_TRANSITIONS: Record<
+  PurchasePlanStatus,
+  PurchasePlanStatus[]
+> = {
   REQUESTED: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["ORDERED"],
   ORDERED: ["DELIVERED"],
@@ -976,8 +1001,18 @@ const columns: Column<PurchasePlanListItem>[] = [
 const planItemColumns: Column<PurchasePlanItem>[] = [
   { key: "category", label: "분류", width: "11%", align: "center" },
   { key: "itemName", label: "품목명", width: "20%", align: "center" },
-  { key: "ticketRequesterName", label: "요청자", width: "10%", align: "center" },
-  { key: "ticketDepartmentName", label: "요청 부서", width: "12%", align: "center" },
+  {
+    key: "ticketRequesterName",
+    label: "요청자",
+    width: "10%",
+    align: "center",
+  },
+  {
+    key: "ticketDepartmentName",
+    label: "요청 부서",
+    width: "12%",
+    align: "center",
+  },
   { key: "isStandard", label: "표준 여부", width: "10%", align: "center" },
   { key: "quantity", label: "수량", width: "8%", align: "center" },
   { key: "estimatedUnitPrice", label: "단가", width: "12%", align: "center" },
@@ -1076,14 +1111,12 @@ const intangibleCategoryOptions = computed(() =>
 );
 
 const directCategoryOptions = computed<DropdownOption[]>(() => {
-  const categories = directItemForm.value.assetType === "INTANGIBLE"
-    ? intangibleCategoryOptions.value
-    : tangibleCategoryOptions.value;
+  const categories =
+    directItemForm.value.assetType === "INTANGIBLE"
+      ? intangibleCategoryOptions.value
+      : tangibleCategoryOptions.value;
 
-  return [
-    { label: "분류 선택", value: "" },
-    ...categories,
-  ];
+  return [{ label: "분류 선택", value: "" }, ...categories];
 });
 
 const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
@@ -1172,7 +1205,8 @@ const canSaveSelectedStatus = computed(() => {
 const statusActionOptions = computed<DropdownOption[]>(() => {
   if (!selectedPlan.value) return [];
   const currentStatus = displayPlanStatus(selectedPlan.value);
-  const allowedNextStatuses = PURCHASE_PLAN_STATUS_TRANSITIONS[currentStatus] ?? [];
+  const allowedNextStatuses =
+    PURCHASE_PLAN_STATUS_TRANSITIONS[currentStatus] ?? [];
   return STATUS_ALL_OPTIONS.filter((opt) =>
     allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
   );
@@ -1205,7 +1239,8 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
         status: "ORDERED",
         label: "발주",
         variant: "outline",
-        className: "border-primary! bg-white! text-primary! hover:bg-primary/5!",
+        className:
+          "border-primary! bg-white! text-primary! hover:bg-primary/5!",
       },
     ];
   }
@@ -1218,23 +1253,28 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
         status: "DELIVERED",
         label: "납품확인",
         variant: "outline",
-        className: "border-primary! bg-white! text-primary! hover:bg-primary/5!",
+        className:
+          "border-primary! bg-white! text-primary! hover:bg-primary/5!",
       },
     ];
   }
 
   if (currentStatus === "DELIVERED") {
-    const hasRegisterableItem = selectedPlanItems.value.some(canRegisterAssetFromItem);
+    const hasRegisterableItem = selectedPlanItems.value.some(
+      canRegisterAssetFromItem,
+    );
 
     return [
       ...(hasRegisterableItem
-        ? [{
-            key: "register-asset",
-            action: "register-asset" as const,
-            label: "자산 등록",
-            variant: "outline" as const,
-            className: "border-primary! text-primary! hover:bg-primary/5!",
-          }]
+        ? [
+            {
+              key: "register-asset",
+              action: "register-asset" as const,
+              label: "자산 등록",
+              variant: "outline" as const,
+              className: "border-primary! text-primary! hover:bg-primary/5!",
+            },
+          ]
         : []),
       {
         key: "status-completed",
@@ -1364,10 +1404,7 @@ onMounted(() => {
 });
 
 async function refreshList() {
-  await Promise.all([
-    fetchPlans(),
-    fetchStatistics(),
-  ]);
+  await Promise.all([fetchPlans(), fetchStatistics()]);
 }
 
 async function fetchPlans() {
@@ -1810,7 +1847,11 @@ async function confirmDelivery(item: PurchasePlanItem) {
 }
 
 function canConfirmDelivery(item: PurchasePlanItem) {
-  if (!canChangeStatus.value || getPurchasePlanItemId(item) == null || item.receivedAt)
+  if (
+    !canChangeStatus.value ||
+    getPurchasePlanItemId(item) == null ||
+    item.receivedAt
+  )
     return false;
   if (!selectedPlan.value) return false;
 
@@ -1832,7 +1873,11 @@ function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
 
 function isConfirmingPurchaseItem(item: PurchasePlanItem) {
   const itemId = getPurchasePlanItemId(item);
-  return isConfirmingItem.value !== null && itemId !== null && isConfirmingItem.value === itemId;
+  return (
+    isConfirmingItem.value !== null &&
+    itemId !== null &&
+    isConfirmingItem.value === itemId
+  );
 }
 
 function displayListStatus(plan: PurchasePlanListItem): PurchasePlanStatus {
@@ -1923,7 +1968,10 @@ function collectCategoryNames(value: unknown): string[] {
     ...collectCategoryNames(category.subCategories),
   ];
 
-  if (category.childCategories && typeof category.childCategories === "object") {
+  if (
+    category.childCategories &&
+    typeof category.childCategories === "object"
+  ) {
     Object.entries(category.childCategories).forEach(([name, children]) => {
       names.push(...collectCategoryNames(name));
       names.push(...collectCategoryNames(children));

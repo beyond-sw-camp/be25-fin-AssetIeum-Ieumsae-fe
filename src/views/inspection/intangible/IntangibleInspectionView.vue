@@ -20,7 +20,10 @@
       </Button>
     </header>
 
-    <section class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5">
+    <section
+      v-if="canManageInspection"
+      class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5"
+    >
       <article
         v-for="card in summaryCards"
         :key="card.label"
@@ -74,7 +77,7 @@
               menu-align="right"
             />
           </div>
-          <div class="w-40 shrink-0">
+          <div v-if="canManageInspection" class="w-40 shrink-0">
             <Dropdown
               v-model="filters.inspector"
               :options="inspectorFilterOptions"
@@ -167,12 +170,14 @@
     </section>
 
     <IntangibleInspectionRegister
+      v-if="canManageInspection"
       :is-open="isRegisterDrawerOpen"
       @close="closeRegisterDrawer"
       @registered="handleInspectionRegistered"
     />
 
     <IntangibleInspectionDetail
+      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
       @close="selectedInspection = null"
@@ -192,9 +197,11 @@ import IntangibleInspectionDetail from '@/components/inspection/intangible/Intan
 import IntangibleInspectionRegister from '@/components/inspection/intangible/IntangibleInspectionRegister.vue'
 import { intangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
+import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
+  InspectionStatisticsResponse,
   InspectionStatus,
   InspectorType,
 } from '@/types/inspection'
@@ -232,9 +239,10 @@ const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   CLOSED: '후속 처리 중',
 }
 
-const { hasRole } = usePermission()
+const { canManageInspection } = usePermission()
 
 const inspections = ref<IntangibleInspectionRow[]>([])
+const statistics = ref<InspectionStatisticsResponse>({})
 const selectedInspection = ref<IntangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
 const isLoading = ref(false)
@@ -255,7 +263,7 @@ const appliedFilters = reactive({
 })
 
 const canRegisterInspection = computed(() => (
-  hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+  canManageInspection.value
 ))
 
 const columns: Column<IntangibleInspectionRow>[] = [
@@ -285,7 +293,12 @@ const inspectorFilterOptions = computed<DropdownOption[]>(() => [
   })),
 ])
 
-const emptyText = computed(() => loadError.value || '등록된 무형자산 전수조사가 없습니다.')
+const emptyText = computed(() => (
+  loadError.value
+  || (canManageInspection.value
+    ? '등록된 무형자산 전수조사가 없습니다.'
+    : '배정된 무형자산 전수조사가 없습니다.')
+))
 
 const filteredRows = computed(() => {
   const keyword = appliedFilters.keyword.trim().toLowerCase()
@@ -324,57 +337,52 @@ const rangeText = computed(() => {
 })
 
 const summaryCards = computed<SummaryCard[]>(() => {
-  const rows = inspections.value
-  const readyRows = rows.filter((item) => item.status === 'READY')
-  const inProgressRows = rows.filter((item) => item.status === 'IN_PROGRESS')
-  const completedRows = rows.filter((item) => item.status === 'COMPLETED')
-  const totalAssets = rows.reduce((sum, item) => sum + item.targetAssetCount, 0)
-  const readyAssets = readyRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
-  const inProgressAssets = inProgressRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
-  const completedAssets = completedRows.reduce((sum, item) => sum + item.completedAssetCount, 0)
-  const unprocessedAssets = rows.reduce(
-    (sum, item) => sum + Math.max(item.targetAssetCount - item.completedAssetCount, 0),
-    0,
-  )
-  const followUpInProgressAssets = rows.reduce((sum, item) => sum + item.followUpCount, 0)
-  const followUpCompletedAssets = 0
+  const totalInspectionCount = numberValue(statistics.value.totalInspectionCount) ?? 0
+  const readyInspectionCount = numberValue(statistics.value.readyInspectionCount) ?? 0
+  const inProgressInspectionCount = numberValue(statistics.value.inProgressInspectionCount) ?? 0
+  const completedInspectionCount = numberValue(statistics.value.completedInspectionCount) ?? 0
+  const inProgressTargetAssetCount = numberValue(statistics.value.inProgressTargetAssetCount) ?? 0
+  const completedTargetAssetCount = numberValue(statistics.value.completedTargetAssetCount) ?? 0
+  const unprocessedAssetCount = numberValue(statistics.value.unprocessedAssetCount) ?? 0
+  const followUpInProgressAssetCount = numberValue(statistics.value.followUpInProgressAssetCount) ?? 0
+  const followUpCompletedAssetCount = numberValue(statistics.value.followUpCompletedAssetCount) ?? 0
 
   return [
     {
       label: '전체 전수조사 현황',
-      value: totalAssets,
+      value: totalInspectionCount,
       items: [
-        { label: '진행 전', value: readyAssets },
-        { label: '진행 중', value: inProgressAssets },
-        { label: '완료', value: completedAssets },
+        { label: '진행 전', value: readyInspectionCount },
+        { label: '진행 중', value: inProgressInspectionCount },
+        { label: '완료', value: completedInspectionCount },
       ],
     },
     {
       label: '진행 중인 전수조사',
-      value: inProgressAssets,
+      value: inProgressInspectionCount,
       items: [
-        { label: '조사 대상 자산', value: inProgressAssets },
+        { label: '조사 대상 자산', value: inProgressTargetAssetCount },
       ],
     },
     {
       label: '완료된 전수조사',
-      value: completedAssets,
+      value: completedInspectionCount,
       items: [
-        { label: '조사 완료 자산', value: completedAssets },
+        { label: '조사 완료 자산', value: completedTargetAssetCount },
       ],
     },
     {
       label: '미처리 자산',
-      value: unprocessedAssets,
+      value: unprocessedAssetCount,
       items: [
-        { label: '조사 대상 자산', value: unprocessedAssets },
+        { label: '조사 대상 자산', value: unprocessedAssetCount },
       ],
     },
     {
       label: '후속 처리 중',
-      value: followUpInProgressAssets,
+      value: followUpInProgressAssetCount,
       items: [
-        { label: '처리 완료', value: followUpCompletedAssets },
+        { label: '처리 완료', value: followUpCompletedAssetCount },
       ],
     },
   ]
@@ -416,6 +424,7 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: IntangibleInspectionRow) {
+  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -517,44 +526,32 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
   }
 }
 
-async function hydrateDetailCounts(row: IntangibleInspectionRow): Promise<IntangibleInspectionRow> {
-  if (!row.inspectionId) return row
-
-  try {
-    const response = await intangibleInspectionApi.getDetail(row.inspectionId)
-    const inspectionResults = Array.isArray(response.data.inspectionResults)
-      ? response.data.inspectionResults
-      : []
-    const uninspectedAssets = Array.isArray(response.data.uninspectedAssets)
-      ? response.data.uninspectedAssets
-      : []
-    const completedAssetCount = inspectionResults.length
-    const targetAssetCount = completedAssetCount + uninspectedAssets.length
-    const followUpCount = inspectionResults.filter((item) => item.followUpRequired).length
-
-    return {
-      ...row,
-      targetAssetCount,
-      completedAssetCount,
-      followUpCount,
-    }
-  } catch {
-    return row
-  }
-}
-
 async function loadInspectionData() {
   isLoading.value = true
   loadError.value = ''
 
   try {
-    const response = await intangibleInspectionApi.getList({ page: 0, size: 1000 })
-    const content = response.data.content
+    if (!canManageInspection.value) {
+      const response = await intangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
+      const content = Array.isArray(response.data.content) ? response.data.content : []
+      inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
+      statistics.value = {}
+      currentPage.value = 0
+      return
+    }
+
+    const [listResponse, statisticsResponse] = await Promise.all([
+      intangibleInspectionApi.getList({ page: 0, size: 1000 }),
+      intangibleInspectionApi.getStatistics(),
+    ])
+    const content = listResponse.data.content
     const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
-    inspections.value = await Promise.all(rows.map(hydrateDetailCounts))
+    inspections.value = rows
+    statistics.value = statisticsResponse.data
     currentPage.value = 0
   } catch {
     inspections.value = []
+    statistics.value = {}
     loadError.value = '전수조사 목록을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false

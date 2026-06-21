@@ -22,6 +22,7 @@ import { computed, ref } from 'vue'
 import {
   BarChart3,
   Building2,
+  Building,
   FileText,
   Laptop,
   LayoutDashboard,
@@ -49,8 +50,7 @@ const {
   canViewHrWorkflow,
   canViewMyTickets,
   canViewInspection,
-  canManageInspection,
-  canRespondInspection,
+  canManagePlatform,
 } = usePermission()
 
 const canViewOperationReports = computed(() =>
@@ -58,6 +58,12 @@ const canViewOperationReports = computed(() =>
 )
 
 const navItems = computed(() => {
+  if (canManagePlatform.value) {
+    return [
+      { name: 'system-companies', to: '/system/companies', label: '회사 관리', icon: Building, show: true },
+    ]
+  }
+
   const menuConfig = [
     { name: 'dashboard', to: '/', label: '대시보드', icon: LayoutDashboard, show: true },
     {
@@ -97,10 +103,8 @@ const navItems = computed(() => {
       icon: Search,
       show: canViewInspection.value,
       children: [
-        { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canManageInspection.value },
-        { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canManageInspection.value },
-        { name: 'tangible-response', to: '/inspections/tangible/respond', label: '유형자산', show: canRespondInspection.value },
-        { name: 'intangible-response', to: '/inspections/intangible/respond', label: '무형자산', show: canRespondInspection.value },
+        { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canViewInspection.value },
+        { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canViewInspection.value },
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
