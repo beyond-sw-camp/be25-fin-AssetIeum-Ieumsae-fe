@@ -440,11 +440,9 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
 
     targets.value = Array.from(uniqueTargets.values())
     totalElements.value = targets.value.length
-    const initialTarget = targets.value.find((target) => (
-      target.inspectionTargetId === options.selectedTargetId
-    )) ?? targets.value.find((target) => (
-      !target.isResponded && target.inspectionStatus === 'IN_PROGRESS'
-    )) ?? targets.value[0] ?? null
+    const initialTarget = options.selectedTargetId
+      ? targets.value.find((target) => target.inspectionTargetId === options.selectedTargetId) ?? null
+      : null
     if (initialTarget) {
       selectTarget(initialTarget, { preserveMessage: options.preserveMessage })
     } else {
