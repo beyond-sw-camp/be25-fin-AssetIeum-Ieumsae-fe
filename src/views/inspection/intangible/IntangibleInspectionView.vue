@@ -198,7 +198,6 @@ import IntangibleInspectionRegister from '@/components/inspection/intangible/Int
 import { intangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
-import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -222,7 +221,6 @@ interface IntangibleInspectionRow extends Record<string, unknown> {
   targetAssetCount: number
   completedAssetCount: number
   followUpCount: number
-  followUpCompletedCount: number
   description: string
 }
 
@@ -238,8 +236,8 @@ interface SummaryCard {
 const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '조사 완료',
-  CLOSED: '조사 종료',
+  COMPLETED: '완료',
+  CLOSED: '후속 처리 중',
 }
 
 const { canManageInspection } = usePermission()
@@ -480,6 +478,38 @@ function getTargetNameLabel(item: InspectionSearchResponse) {
   return '조사 대상'
 }
 
+function startOfDay(date: Date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function dateTimeValue(value: string) {
+  if (!value) return null
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function resolveInspectionStatusByPeriod(
+  startDate: string,
+  endDate: string,
+  fallbackStatus: IntangibleInspectionStatus,
+): IntangibleInspectionStatus {
+  const today = startOfDay(new Date())
+  const start = dateTimeValue(startDate)
+  const end = dateTimeValue(endDate)
+
+  if (!start || !end) return fallbackStatus
+
+  const startDay = startOfDay(start)
+  const endDay = startOfDay(end)
+
+  if (today < startDay) return 'READY'
+  if (today <= endDay) return 'IN_PROGRESS'
+  return 'COMPLETED'
+}
+
 function toInspectionRow(item: InspectionSearchResponse, index: number): IntangibleInspectionRow {
   const rawStatus = item.inspectionStatus ?? item.status ?? 'READY'
   const inspectorType = item.inspectorType
@@ -494,15 +524,7 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
     inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
-    status: resolveInspectionStatus({
-      startDate,
-      endDate,
-      fallbackStatus: rawStatus,
-      unrespondedCount: item.targetAssetCount === undefined
-        ? undefined
-        : Math.max(item.targetAssetCount - (item.inspectedAssetCount ?? item.completedAssetCount ?? 0), 0),
-      followUpCount: item.followUpRequiredCount,
-    }),
+    status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),
     inspectorDepartment: '-',
     inspectorName: inspectorName || '-',
     startDate,
@@ -513,7 +535,6 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
       item.completedAssetCount,
     ) ?? 0,
     followUpCount: numberValue(item.followUpRequiredCount) ?? 0,
-    followUpCompletedCount: 0,
     description: item.description ?? '',
   }
 }
