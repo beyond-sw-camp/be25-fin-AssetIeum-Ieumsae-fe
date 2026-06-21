@@ -38,7 +38,7 @@ const router = createRouter({
       path: '/mobile/inspections',
       name: 'MobileInspection',
       component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
-      meta: { requiresAuth: true, title: '모바일 자산 검수', roles: ['EMPLOYEE'] },
+      meta: { requiresAuth: true, title: '모바일 자산 검수', roles: ['EMPLOYEE', 'ASSET_TEAM'] },
     },
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
     {
@@ -290,13 +290,13 @@ router.beforeEach(async (to) => {
   // 인증 불필요 페이지
   if (to.meta.requiresAuth === false) {
     if (to.name === 'Login' && isMobileViewport()) {
-      return auth.isAuthenticated && auth.currentRole === 'EMPLOYEE'
+      return auth.isAuthenticated && canUseMobileInspectionRole(auth.currentRole)
         ? { name: 'MobileInspection' }
         : { name: 'MobileLogin', query: to.query }
     }
 
     if (auth.isAuthenticated && to.name === 'MobileLogin') {
-      return auth.currentRole === 'EMPLOYEE'
+      return canUseMobileInspectionRole(auth.currentRole)
         ? { name: 'MobileInspection' }
         : { name: 'Dashboard' }
     }
@@ -324,7 +324,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.name === 'Dashboard' && auth.currentRole === 'EMPLOYEE' && isMobileViewport()) {
+  if (to.name === 'Dashboard' && canUseMobileInspectionRole(auth.currentRole) && isMobileViewport()) {
     return { name: 'MobileInspection' }
   }
 
@@ -334,6 +334,10 @@ router.beforeEach(async (to) => {
 function isMobileViewport() {
   if (typeof window === 'undefined') return false
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+}
+
+function canUseMobileInspectionRole(role: Role | null) {
+  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
 }
 
 export default router

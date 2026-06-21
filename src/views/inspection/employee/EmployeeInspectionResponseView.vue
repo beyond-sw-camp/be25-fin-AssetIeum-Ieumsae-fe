@@ -1,6 +1,6 @@
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
-    <header class="page-header flex shrink-0 items-center justify-between px-3 pt-3">
+    <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">ASSET ITEM</p>
         <h1 class="page-title">{{ pageTitle }}</h1>
@@ -41,7 +41,7 @@
           </div>
           <div class="w-52 shrink-0">
             <Input
-              :id="`${props.assetType}-employee-inspection-keyword`"
+              :id="`${props.assetType}-inspection-keyword`"
               v-model="filters.keyword"
               placeholder="조사 대상 검색"
               @keyup.enter="applySearch"
@@ -166,8 +166,18 @@ const isLoading = ref(false)
 const loadError = ref('')
 const currentPage = ref(0)
 const pageSize = ref(10)
-const filters = reactive({ status: '', responded: '', keyword: '' })
-const appliedFilters = reactive({ status: '', responded: '', keyword: '' })
+
+const filters = reactive({
+  status: '',
+  responded: '',
+  keyword: '',
+})
+
+const appliedFilters = reactive({
+  status: '',
+  responded: '',
+  keyword: '',
+})
 
 const inspectionApi = computed(() => (
   props.assetType === 'intangible' ? intangibleInspectionApi : tangibleInspectionApi
@@ -199,10 +209,12 @@ const pageSizeOptions: DropdownOption[] = [10, 20, 50].map((value) => ({
   label: `${value}개씩 보기`,
   value: String(value),
 }))
+
 const statusFilterOptions: DropdownOption[] = [
   { label: '- 전체 -', value: '' },
   ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
 ]
+
 const respondedFilterOptions: DropdownOption[] = [
   { label: '- 응답 여부 -', value: '' },
   { label: '응답 대기', value: 'pending' },
@@ -211,15 +223,33 @@ const respondedFilterOptions: DropdownOption[] = [
 
 const filteredRows = computed(() => {
   const keyword = appliedFilters.keyword.trim().toLowerCase()
+
   return inspections.value.filter((inspection) => {
     const isCompleted = inspection.respondedCount === inspection.assetCount
     const matchesStatus = !appliedFilters.status || inspection.status === appliedFilters.status
     const matchesResponded = !appliedFilters.responded
       || (appliedFilters.responded === 'completed' ? isCompleted : !isCompleted)
-    const matchesKeyword = !keyword || inspection.targetName.toLowerCase().includes(keyword)
+    const matchesKeyword = !keyword
+      || inspection.targetName.toLowerCase().includes(keyword)
+
     return matchesStatus && matchesResponded && matchesKeyword
   })
 })
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)))
+const pagedRows = computed(() => {
+  const start = currentPage.value * pageSize.value
+  return filteredRows.value.slice(start, start + pageSize.value)
+})
+const visiblePages = computed(() => (
+  Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(0, 5)
+))
+const rangeText = computed(() => {
+  if (filteredRows.value.length === 0) return '0-0건'
+  const start = currentPage.value * pageSize.value + 1
+  const end = Math.min((currentPage.value + 1) * pageSize.value, filteredRows.value.length)
+  return `${start}-${end}건`
+})
+
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)))
 const pagedRows = computed(() => {
   const start = currentPage.value * pageSize.value
@@ -253,40 +283,47 @@ function inspectionStatusValue(value: unknown): InspectionStatus {
 }
 
 function targetLabel(targets: EmployeeInspectionTargetResponse[]) {
-  const names = Array.from(new Set(
+  const productNames = Array.from(new Set(
     targets.map((target) => textValue(target.productName, target.itemName)).filter(Boolean),
   ))
-  if (names.length === 0) return '배정 자산'
-  if (names.length === 1) return names[0] ?? '배정 자산'
-  return `${names[0]} 외 ${names.length - 1}개 품목`
+  if (productNames.length === 0) return '배정 자산'
+  if (productNames.length === 1) return productNames[0] ?? '배정 자산'
+  return `${productNames[0]} 외 ${productNames.length - 1}개 품목`
 }
 
-function toInspectionRows(targets: EmployeeInspectionTargetResponse[]): EmployeeInspectionRow[] {
-  const groups = new Map<string, EmployeeInspectionTargetResponse[]>()
+function toInspectionRows(targets: EmployeeInspectionTargetResponse[]) {
+  const groupedTargets = new Map<string, EmployeeInspectionTargetResponse[]>()
+
   targets.forEach((target) => {
     const inspectionId = textValue(target.inspectionId)
     if (!inspectionId) return
-    groups.set(inspectionId, [...(groups.get(inspectionId) ?? []), target])
+    groupedTargets.set(inspectionId, [...(groupedTargets.get(inspectionId) ?? []), target])
   })
 
-  return Array.from(groups.entries()).map(([inspectionId, group]) => {
-    const first = group[0]
+  return Array.from(groupedTargets.entries()).map(([inspectionId, inspectionTargets]) => {
+    const firstTarget = inspectionTargets[0]
+    const respondedCount = inspectionTargets.filter((target) => (
+      booleanValue(target.isResponded, target.responded)
+    )).length
+
     return {
       inspectionId,
-      targetName: targetLabel(group),
+      targetName: targetLabel(inspectionTargets),
       executor: '소유자 응답',
-      status: inspectionStatusValue(first?.inspectionStatus),
+      status: inspectionStatusValue(firstTarget?.inspectionStatus),
       responseStatus: '',
-      assetCount: group.length,
-      respondedCount: group.filter(isResponded).length,
-      startDate: textValue(first?.startDate),
-      endDate: textValue(first?.endDate),
+      assetCount: inspectionTargets.length,
+      respondedCount,
+      startDate: textValue(firstTarget?.startDate),
+      endDate: textValue(firstTarget?.endDate),
     }
   })
 }
 
 function applySearch() {
-  Object.assign(appliedFilters, filters)
+  appliedFilters.status = filters.status
+  appliedFilters.responded = filters.responded
+  appliedFilters.keyword = filters.keyword
   currentPage.value = 0
 }
 

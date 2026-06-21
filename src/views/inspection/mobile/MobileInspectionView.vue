@@ -188,9 +188,13 @@
         v-model:follow-up-requests="form.followUpRequests"
         :target="selectedTarget"
         :submitting="isSubmitting"
-        :disabled="!selectedTarget || selectedTarget.isResponded"
+        :disabled="isResponseDisabled"
         @submit="handleSubmit"
       />
+
+      <p v-if="responseAvailabilityText" class="mt-3 text-xs leading-relaxed text-text-sub">
+        {{ responseAvailabilityText }}
+      </p>
 
       <p
         v-if="message"
@@ -232,7 +236,7 @@ import {
 } from '@/api/inspection.api'
 import { ApiError } from '@/api/client'
 import type { DropdownOption } from '@/types'
-import type { EmployeeInspectionTargetResponse } from '@/types/inspection'
+import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 import { useAuthStore } from '@/stores'
 import { ROLE_LABEL } from '@/utils/labels'
 
@@ -306,6 +310,18 @@ const respondedFilterOptions: DropdownOption[] = [
 const pendingCount = computed(() => targets.value.filter((target) => !target.isResponded).length)
 const respondedCount = computed(() => targets.value.filter((target) => target.isResponded).length)
 const emptyText = computed(() => loadError.value || '배정된 검수 대상 자산이 없습니다.')
+const isResponseDisabled = computed(() => (
+  !selectedTarget.value
+  || selectedTarget.value.isResponded
+  || selectedTarget.value.inspectionStatus !== 'IN_PROGRESS'
+))
+const responseAvailabilityText = computed(() => {
+  if (!selectedTarget.value) return ''
+  if (selectedTarget.value.isResponded) return '이미 응답이 등록된 자산입니다.'
+  if (selectedTarget.value.inspectionStatus === 'READY') return '전수조사 시작일부터 응답할 수 있습니다.'
+  if (selectedTarget.value.inspectionStatus !== 'IN_PROGRESS') return '응답 기간이 종료된 자산입니다.'
+  return ''
+})
 
 onErrorCaptured((error) => {
   renderError.value = error instanceof Error
@@ -366,10 +382,19 @@ function booleanValue(...values: unknown[]) {
   return typeof value === 'boolean' ? value : false
 }
 
+function inspectionStatusValue(value: unknown): InspectionStatus {
+  if (value === 'READY' || value === 'IN_PROGRESS' || value === 'COMPLETED' || value === 'CLOSED') {
+    return value
+  }
+
+  return 'READY'
+}
+
 function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTarget {
   return {
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
+    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
     productName: textValue(item.productName, item.itemName) || '-',
     assetCode: textValue(item.assetCode, item.licenseCode) || '-',
     category: textValue(item.category, item.categoryName) || '-',
@@ -397,14 +422,32 @@ async function loadTargets() {
   message.value = ''
 
   try {
-    const response = authStore.currentRole === 'ASSET_TEAM'
-      ? await inspectionApi.value.getTargets({ page: 0, size: 100 })
-      : await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
-    const content = Array.isArray(response.data?.content) ? response.data.content : []
+    const responses = authStore.currentRole === 'ASSET_TEAM'
+      ? await Promise.all([
+          inspectionApi.value.getTargets({ page: 0, size: 100 }),
+          inspectionApi.value.getMyTargets({ page: 0, size: 100 }),
+        ])
+      : [await inspectionApi.value.getMyTargets({ page: 0, size: 100 })]
+    const content = responses.flatMap((response) => (
+      Array.isArray(response.data?.content) ? response.data.content : []
+    ))
+    const uniqueTargets = new Map<string, MobileInspectionTarget>()
 
-    targets.value = content.map(toTargetRow)
-    totalElements.value = response.data?.totalElements ?? content.length
-    selectedTarget.value = targets.value.find((target) => !target.isResponded) ?? targets.value[0] ?? null
+    content
+      .map(toTargetRow)
+      .filter((target) => target.inspectionTargetId)
+      .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
+
+    targets.value = Array.from(uniqueTargets.values())
+    totalElements.value = targets.value.length
+    const initialTarget = targets.value.find((target) => (
+      !target.isResponded && target.inspectionStatus === 'IN_PROGRESS'
+    )) ?? targets.value[0] ?? null
+    if (initialTarget) {
+      selectTarget(initialTarget)
+    } else {
+      selectedTarget.value = null
+    }
   } catch {
     targets.value = []
     totalElements.value = 0
@@ -416,7 +459,7 @@ async function loadTargets() {
 }
 
 async function handleSubmit() {
-  if (!selectedTarget.value || selectedTarget.value.isResponded || !form.responseContent.trim()) {
+  if (isResponseDisabled.value || !selectedTarget.value || !form.responseContent.trim()) {
     isSuccess.value = false
     message.value = '응답할 자산과 확인 내용을 입력해주세요.'
     return
