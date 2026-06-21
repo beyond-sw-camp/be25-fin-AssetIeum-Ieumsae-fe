@@ -24,6 +24,8 @@ export function usePermission() {
   // 회사 최고 관리자 전용 기능 여부
   const canManageCompany = computed(() => canAccessAllPages.value)
 
+  const canManagePurchasePolicy = computed(() => hasRole('ADMIN'))
+
   // 사원 등록, 부서 변경, 퇴사 처리 권한
   const canManageMembers = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
@@ -58,7 +60,7 @@ export function usePermission() {
   
   const canViewAllTickets = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
-  )
+)
 
   const canManageTickets = computed(() =>
     canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER')
@@ -81,7 +83,7 @@ export function usePermission() {
   const canUpdateAsset = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
-
+  
   // HR 템플릿 등록
   const canRegisterHrTemplate = computed(() => 
     hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
@@ -92,8 +94,16 @@ export function usePermission() {
     hasRole('ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN')
   )
 
-  const canViewInspection = computed(() => 
-    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  const canManageInspection = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
+  const canRespondInspection = computed(() =>
+    hasRole('EMPLOYEE')
+  )
+
+  const canViewInspection = computed(() =>
+    canManageInspection.value || canRespondInspection.value
   )
 
   return {
@@ -102,6 +112,7 @@ export function usePermission() {
     canAccessAllPages,
     canManagePlatform,
     canManageCompany,
+    canManagePurchasePolicy,
     canManageMembers,
     canManageDepartment,
     canEditOrganization,
@@ -118,6 +129,8 @@ export function usePermission() {
     canRegisterAsset,
     canUpdateAsset,
     canRegisterHrTemplate,
-    canViewInspection
+    canViewInspection,
+    canManageInspection,
+    canRespondInspection,
   }
 }

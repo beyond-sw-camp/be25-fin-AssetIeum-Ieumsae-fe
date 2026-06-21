@@ -1,12 +1,16 @@
 import api from './client'
 import type {
   TicketListItem,
+  PurchasePlanCandidateTicket,
   TicketDetail,
   TicketListFilter,
   TicketStatistics,
   StandardAssetRequestCreate,
   NonStandardAssetRequestCreate,
   DirectPurchaseRequestCreate,
+  ActiveRentalAsset,
+  MaintenanceAvailableAsset,
+  RentalAvailableItem,
   RentalRequestCreate,
   RentalExtensionRequestCreate,
   MaintenanceRequestCreate,
@@ -33,6 +37,14 @@ import type {
   PageResponse,
 } from '@/types'
 import { normalizeTicketStatus } from '@/utils/labels'
+
+function compactParams<T extends object>(params?: T) {
+  if (!params) return undefined
+
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  )
+}
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
 
@@ -127,6 +139,12 @@ export const ticketApi = {
 
   getStatistics: () =>
     api.get<TicketStatistics>('/tickets/statistics'),
+
+  getPurchasePlanCandidates: (params?: { page?: number; size?: number }) =>
+    api.get<PageResponse<PurchasePlanCandidateTicket>>(
+      '/tickets/purchase-plan-candidates',
+      compactParams(params),
+    ),
 
   /** 티켓 상세 조회 */
   getDetail: async (ticketId: string) => {
@@ -246,19 +264,40 @@ export const ticketCreateApi = {
   createRentalRequest: (body: RentalRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/rentals', body),
 
+  getRentalAvailableItems: (params?: {
+    categoryId?: string
+    isStandard?: string | boolean
+    keyword?: string
+    page?: number
+    size?: number
+  }) =>
+    api.get<PageResponse<RentalAvailableItem>>('/tickets/rentals/available-items', compactParams(params)),
+
+  getActiveRentalAssets: () =>
+    api.get<ActiveRentalAsset[]>('/tickets/rentals/active-assets'),
+
   /** 대여 연장 요청 */
   createRentalExtension: (body: RentalExtensionRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/rental-extensions', body),
+    api.post<TicketCreateResponse>('/tickets/rentals/extensions', body),
 
   /** 유지보수 요청 */
   createMaintenanceRequest: (body: MaintenanceRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/maintenance-requests', body),
+    api.post<TicketCreateResponse>('/tickets/maintenance', body),
+
+  getMaintenanceAvailableAssets: () =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/maintenance/available-assets'),
 
   /** 반납 요청 */
   createReturnRequest: (body: ReturnRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/returns', body),
+    api.post<TicketCreateResponse>('/tickets/asset-returns', body),
+
+  getReturnAvailableAssets: (params?: { assetType?: string }) =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/asset-returns/available-assets', compactParams(params)),
 
   /** 반품/환불 요청 */
   createPurchaseReturnRequest: (body: PurchaseReturnRequestCreate) =>
     api.post<TicketCreateResponse>('/tickets/purchase-returns', body),
+
+  getPurchaseReturnAvailableAssets: (params?: { assetType?: string }) =>
+    api.get<MaintenanceAvailableAsset[]>('/tickets/purchase-returns/available-assets', compactParams(params)),
 }
