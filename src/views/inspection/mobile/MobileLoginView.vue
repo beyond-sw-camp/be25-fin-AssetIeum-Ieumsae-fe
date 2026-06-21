@@ -23,18 +23,6 @@
       </div>
 
       <form class="flex flex-col justify-center h-full mt-auto mb-10 space-y-4" novalidate @submit.prevent="handleLogin">
-        <div
-          v-if="previousUserName"
-          class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-text-sub"
-        >
-          <p class="font-semibold text-text-main">
-            {{ previousUserName }} 계정의 로그인 상태를 정리했습니다.
-          </p>
-          <p class="mt-1 text-xs leading-relaxed">
-            모바일 자산 검수는 사원 또는 구매자산팀 계정으로 이용할 수 있습니다. 아래에서 다시 로그인해주세요.
-          </p>
-        </div>
-
         <Input
           id="mobile-company-code"
           v-model="form.companyCode"
