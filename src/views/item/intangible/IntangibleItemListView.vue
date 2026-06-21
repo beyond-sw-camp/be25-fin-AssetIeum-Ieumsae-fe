@@ -135,7 +135,7 @@
           <Dropdown
             v-model="rowsPerPageText"
             :options="rowsPerPageOptions"
-            class="w-36"
+            class="w-30"
           />
           <span class="text-xs text-text-sub whitespace-nowrap">
             총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
