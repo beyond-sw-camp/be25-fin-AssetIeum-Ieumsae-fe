@@ -1,7 +1,7 @@
 <template>
   <InspectionRegister
     :is-open="isOpen"
-    asset-type="tangible"
+    asset-type="intangible"
     @close="emit('close')"
     @registered="emit('registered')"
   />
