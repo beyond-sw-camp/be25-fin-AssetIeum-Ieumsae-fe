@@ -265,6 +265,21 @@ const rangeText = computed(() => {
   return `${start}-${end}건`
 })
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)))
+const pagedRows = computed(() => {
+  const start = currentPage.value * pageSize.value
+  return filteredRows.value.slice(start, start + pageSize.value)
+})
+const visiblePages = computed(() => (
+  Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(0, 5)
+))
+const rangeText = computed(() => {
+  if (filteredRows.value.length === 0) return '0-0건'
+  const start = currentPage.value * pageSize.value + 1
+  const end = Math.min((currentPage.value + 1) * pageSize.value, filteredRows.value.length)
+  return `${start}-${end}건`
+})
+
 function textValue(...values: unknown[]) {
   return values.find((value): value is string | number => (
     (typeof value === 'string' && value.trim().length > 0) || typeof value === 'number'
