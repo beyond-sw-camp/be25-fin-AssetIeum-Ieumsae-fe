@@ -104,7 +104,7 @@
         <Table
           :columns="columns"
           :rows="pagedRows"
-          row-key="inspectionId"
+          row-key="rowKey"
           :loading="isLoading"
           :empty-text="emptyText"
           @row-click="openDetailDrawer"
@@ -208,6 +208,7 @@ import type {
 type TangibleInspectionStatus = InspectionStatus
 
 interface TangibleInspectionRow extends Record<string, unknown> {
+  rowKey: string
   inspectionId: string
   targetName: string
   executor: string
@@ -508,8 +509,11 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Tangibl
   const startDate = textValue(item.startDate)
   const endDate = textValue(item.endDate)
 
+  const inspectionId = textValue(item.inspectionId) || `inspection-${index}`
+
   return {
-    inspectionId: textValue(item.inspectionId) || `inspection-${index}`,
+    rowKey: textValue(item.groupKey) || inspectionId,
+    inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
     status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),

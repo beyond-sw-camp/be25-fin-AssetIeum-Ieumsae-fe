@@ -180,6 +180,7 @@ import type {
 } from '@/types/inspection'
 
 interface InspectionRow extends Record<string, unknown> {
+  rowKey: string
   inspectionId: string
   targetName: string
   executor: string
@@ -199,6 +200,7 @@ interface ResultRow extends Record<string, unknown> {
   followUpId: string
   productName: string
   assetCode: string
+  memberName: string
   responseContent: string
   followUpRequired: boolean
   actionDetail: string
@@ -209,6 +211,7 @@ interface UninspectedRow extends Record<string, unknown> {
   productName: string
   assetCode: string
   category: string
+  memberName: string
 }
 
 const props = defineProps<{
@@ -237,16 +240,18 @@ const tabs = [
 ] as const
 
 const resultColumns: Column<ResultRow>[] = [
-  { key: 'productName', label: '제품명', width: '24%' },
-  { key: 'assetCode', label: '자산코드', width: '20%' },
+  { key: 'productName', label: '제품명', width: '20%' },
+  { key: 'assetCode', label: '자산코드', width: '17%' },
+  { key: 'memberName', label: '대상 사용자', width: '15%' },
   { key: 'followUpRequired', label: '후속처리 여부', width: '16%', align: 'center' },
-  { key: 'responseContent', label: '사용자 응답 내용', width: '40%' },
+  { key: 'responseContent', label: '사용자 응답 내용', width: '32%' },
 ]
 
 const uninspectedColumns: Column<UninspectedRow>[] = [
-  { key: 'productName', label: '제품명', width: '38%' },
-  { key: 'category', label: '카테고리', width: '28%' },
-  { key: 'assetCode', label: '자산코드', width: '34%' },
+  { key: 'productName', label: '제품명', width: '28%' },
+  { key: 'category', label: '카테고리', width: '22%' },
+  { key: 'assetCode', label: '자산코드', width: '27%' },
+  { key: 'memberName', label: '대상 사용자', width: '23%' },
 ]
 
 const resultFilterOptions: DropdownOption[] = [
@@ -289,6 +294,7 @@ const resultRows = computed<ResultRow[]>(() => (
     followUpId: textValue(item.inspectionFollowUpId, item.followUpId),
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
+    memberName: item.memberName ?? '-',
     responseContent: item.userResponseContent ?? '',
     followUpRequired: item.followUpRequired,
     actionDetail: textValue(item.actionDetail),
@@ -329,6 +335,7 @@ const followUpRows = computed<InspectionFollowUpPanelRow[]>(() => {
       inspectionResultId: row.inspectionResultId,
       productName: row.productName,
       assetCode: row.assetCode,
+      memberName: row.memberName,
       responseContent: row.responseContent,
       actionDetail: row.actionDetail,
       status: row.followUpStatus,
@@ -398,6 +405,7 @@ function toFollowUpRow(item: InspectionFollowUpResponse, index: number): Inspect
     inspectionResultId,
     productName: textValue(item.productName) || '-',
     assetCode: textValue(item.assetCode) || '-',
+    memberName: textValue(item.memberName) || '-',
     responseContent: textValue(item.responseContent),
     actionDetail: textValue(item.actionDetail),
     status: followUpStatusValue(item.status ?? item.followUpStatus ?? item.inspectionFollowUpStatus),
@@ -414,6 +422,7 @@ function toUninspectedRow(item: InspectionUninspectedAssetItem): UninspectedRow 
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
     category: item.category ?? '-',
+    memberName: item.memberName ?? '-',
   }
 }
 
