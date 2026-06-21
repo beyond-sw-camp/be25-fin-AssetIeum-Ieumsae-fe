@@ -11,6 +11,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { AUDIT_LOG_ACTION_LABEL, LOG_SUBJECT_TYPE_LABEL } from '@/utils/logLabels'
 import type { AuditLog } from '@/types'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const props = defineProps<{
 }>()
 
 interface AuditLogDisplayRow extends Record<string, unknown> {
-  auditLogId: string
+  auditLogId: string | number
   createdAt: string
   memberInfo: string
   targetSummary: string
@@ -50,20 +51,24 @@ const formatDateTime = (value: string) => {
   }).format(date).replace(/\. /g, '-').replace('.', '')
 }
 
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
+
+function subjectSummary(row: AuditLog) {
+  const subjectId = !row.subjectId || row.subjectId === EMPTY_UUID ? '-' : row.subjectId
+  return `${LOG_SUBJECT_TYPE_LABEL[row.subjectType]}(${subjectId})`
+}
+
 const displayRows = computed<AuditLogDisplayRow[]>(() => props.rows.map((row) => {
-  const auditRow = row as AuditLog & {
-    memberInfo?: string
-    logType?: string
-    actionType?: string
-  }
+  const memberName = row.actorName ?? row.memberName ?? '-'
+  const memberNumber = row.actorMemberNo ?? row.memberNo ?? row.actorId ?? row.memberId ?? '-'
 
   return {
-    auditLogId: String(auditRow.auditLogId),
-    createdAt: formatDateTime(auditRow.createdAt),
-    memberInfo: auditRow.memberInfo ?? `${auditRow.memberName}(${auditRow.memberId})`,
-    targetSummary: `${auditRow.targetType}(${auditRow.targetId})`,
-    description: auditRow.description,
-    action: auditRow.logType ?? auditRow.actionType ?? '-',
+    auditLogId: row.auditLogId,
+    createdAt: formatDateTime(row.createdAt),
+    memberInfo: `${memberName}(${memberNumber})`,
+    targetSummary: subjectSummary(row),
+    description: row.afterValue ?? '-',
+    action: AUDIT_LOG_ACTION_LABEL[row.action],
   }
 }))
 </script>

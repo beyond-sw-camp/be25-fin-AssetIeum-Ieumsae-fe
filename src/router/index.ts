@@ -238,19 +238,20 @@ const router = createRouter({
         },
         {
           path: 'logs',
-          redirect: { name: 'AuditLog' },
-        },
-        {
-          path: 'logs/audit',
-          name: 'AuditLog',
-          component: () => import('@/views/log/LogView.vue'),
-          meta: { title: '감사로그', roles: ['ADMIN'] },
-        },
-        {
-          path: 'logs/activity',
-          name: 'ActivityLog',
-          component: () => import('@/views/log/LogView.vue'),
-          meta: { title: '활동로그', roles: ['ADMIN'] },
+          children: [
+            {
+              path: '/audit',
+              name: 'AuditLog',
+              component: () => import('@/views/log/LogView.vue'),
+              meta: { title: '감사로그', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+            },
+            {
+              path: '/activity',
+              name: 'ActivityLog',
+              component: () => import('@/views/log/LogView.vue'),
+              meta: { title: '활동로그', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+            },
+          ]
         },
 
         // ─── 내 정보 ─────────────────────────────────
