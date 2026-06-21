@@ -1,98 +1,46 @@
 <template>
-  <div class="rounded-xl border border-border bg-surface p-5 shadow-sm">
-    <h2 class="mb-5 text-base font-bold text-text-main">라이프 사이클 진행 현황</h2>
+  <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+    <h2 class="mb-5 text-base font-bold text-text-main">HR 라이프 사이클 현황</h2>
 
-    <div class="grid gap-4 lg:grid-cols-[0.7fr_1.25fr_1.1fr]">
-      <section class="rounded-lg border border-border bg-surface p-4">
-        <h3 class="mb-4 text-base font-bold text-text-main">카테고리 필터링</h3>
-        <div class="space-y-3">
+    <div class="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+      <section class="rounded-lg border border-border p-4">
+        <h3 class="mb-4 text-sm font-bold text-text-main">인사 이벤트</h3>
+        <div v-if="events.length" class="space-y-3">
           <div
-            v-for="category in data.categories"
-            :key="category.id"
-            class="flex items-center justify-between text-sm"
+            v-for="event in events"
+            :key="event.eventId"
+            class="flex items-center gap-3 rounded-lg bg-surface-secondary px-3 py-3"
           >
-            <div class="flex items-center gap-3">
-              <span
-                class="flex h-5 w-5 items-center justify-center rounded border"
-                :class="category.checked ? 'border-primary bg-primary text-white' : 'border-border bg-surface'"
-              >
-                <Check v-if="category.checked" :size="14" />
-              </span>
-              <span class="font-semibold text-text-main">{{ category.label }}</span>
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <component :is="eventIcon(event.eventType)" :size="18" />
             </div>
-            <span class="text-text-sub">{{ category.count }}건</span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-bold text-text-main">
+                {{ event.eventType }} · {{ event.memberName }}
+              </p>
+              <p class="mt-1 truncate text-xs text-text-sub">
+                {{ event.departmentName }} · {{ formatDate(event.eventDate) }}
+              </p>
+            </div>
+            <div class="shrink-0 text-right">
+              <p class="text-xs font-semibold text-primary">{{ dDayText(event) }}</p>
+              <p class="mt-1 text-xs text-text-sub">{{ event.status }}</p>
+            </div>
           </div>
         </div>
-        <Button class="mt-5 w-full" variant="primary" size="sm">
-          필터 적용
-        </Button>
+        <p v-else class="py-10 text-center text-sm text-text-sub">인사 이벤트가 없습니다.</p>
       </section>
 
-      <section class="rounded-lg border border-border bg-surface p-4">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-base font-bold text-text-main">인사 이벤트</h3>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="flex h-6 w-6 items-center justify-center rounded border border-border text-text-sub"
-              aria-label="이전 이벤트"
-            >
-              <ChevronLeft :size="14" />
-            </button>
-            <button
-              type="button"
-              class="flex h-6 w-6 items-center justify-center rounded border border-border text-text-sub"
-              aria-label="다음 이벤트"
-            >
-              <ChevronRight :size="14" />
-            </button>
-          </div>
-        </div>
-
-        <div class="space-y-5">
-          <div
-            v-for="event in data.events"
-            :key="event.id"
-            class="grid grid-cols-[32px_1fr_auto_auto] items-center gap-3 text-sm"
-          >
-            <component :is="eventIcon(event.type)" class="text-text-main" :size="24" />
-            <div>
-              <p class="font-bold text-text-main">{{ event.title }}</p>
-              <p class="mt-1 text-xs text-text-sub">{{ event.description }}</p>
+      <section class="rounded-lg border border-border p-4">
+        <h3 class="mb-4 text-sm font-bold text-text-main">이벤트 상태</h3>
+        <div class="space-y-4">
+          <div v-for="item in statusItems" :key="item.label">
+            <div class="mb-2 flex items-center justify-between text-sm">
+              <span class="font-semibold text-text-main">{{ item.label }}</span>
+              <span class="text-text-sub">{{ item.count }}건 · {{ item.percentage }}%</span>
             </div>
-            <span class="text-text-sub">{{ event.date }}</span>
-            <span class="font-semibold text-text-sub">{{ event.dueText }}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="rounded-lg border border-border bg-surface p-4">
-        <h3 class="mb-5 text-base font-bold text-text-main">HR 이벤트 상태</h3>
-        <div class="space-y-5">
-          <div
-            v-for="status in data.statuses"
-            :key="status.id"
-            class="grid grid-cols-[44px_1fr] gap-3"
-          >
-            <div
-              class="flex h-9 w-9 items-center justify-center rounded-lg"
-              :class="status.iconClass"
-            >
-              <component :is="statusIcon(status.id)" :size="20" />
-            </div>
-            <div>
-              <p class="font-bold text-text-main">{{ status.label }}</p>
-              <div class="mt-1 flex items-center gap-3 text-sm text-text-sub">
-                <span>{{ status.current }}건/{{ status.total }}건</span>
-                <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-secondary">
-                  <div
-                    class="h-full rounded-full"
-                    :class="status.colorClass"
-                    :style="{ width: `${status.percent}%` }"
-                  ></div>
-                </div>
-                <span>{{ status.percent }}%</span>
-              </div>
+            <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
+              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
             </div>
           </div>
         </div>
@@ -102,33 +50,51 @@
 </template>
 
 <script setup lang="ts">
-import {
-  Box,
-  Check,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  LogIn,
-  LogOut,
-  MoveLeft,
-  RefreshCcw,
-} from 'lucide-vue-next'
-import Button from '@/components/common/Button.vue'
-import type { DashboardDepartmentLifecycle, DashboardLifecycleEvent } from '@/mocks/dashboard.data'
+import { computed } from 'vue'
+import { LogIn, LogOut, MoveRight, Pause, RotateCcw } from 'lucide-vue-next'
 
-defineProps<{
-  data: DashboardDepartmentLifecycle
+import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
+
+const props = defineProps<{
+  events: HrLifecycleEvent[]
+  statistics: HrEventStatistics
 }>()
 
-const eventIcon = (type: DashboardLifecycleEvent['type']) => {
-  if (type === 'join') return LogIn
-  if (type === 'move') return MoveLeft
-  return LogOut
+const statusItems = computed(() => [
+  { label: '대기', count: props.statistics.pendingCount, percentage: props.statistics.pendingPercentage, colorClass: 'bg-warning' },
+  { label: '진행 중', count: props.statistics.inProgressCount, percentage: props.statistics.inProgressPercentage, colorClass: 'bg-primary' },
+  { label: '완료', count: props.statistics.completedCount, percentage: props.statistics.completedPercentage, colorClass: 'bg-success' },
+  { label: '취소', count: props.statistics.cancelledCount, percentage: props.statistics.cancelledPercentage, colorClass: 'bg-danger' },
+])
+
+function eventIcon(type: string) {
+  if (type === '입사') return LogIn
+  if (type === '퇴사') return LogOut
+  if (type === '부서이동') return MoveRight
+  if (type === '휴직') return Pause
+  return RotateCcw
 }
 
-const statusIcon = (id: string) => {
-  if (id === 'paid') return CheckCircle2
-  if (id === 'collecting') return RefreshCcw
-  return Box
+function formatDate(value: string) {
+  if (!value) return '-'
+  
+  const date = new Date(value)
+  
+  if (isNaN(date.getTime())) {
+    console.warn(`[formatDate] 유효하지 않은 날짜 데이터가 들어왔습니다: "${value}"`)
+    return '-'
+  }
+  
+  return new Intl.DateTimeFormat('ko-KR', { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(date)
+}
+
+function dDayText(event: HrLifecycleEvent) {
+  const value = event.dDay ?? event.dday ?? 0
+  if (value === 0) return 'D-DAY'
+  return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
 }
 </script>
