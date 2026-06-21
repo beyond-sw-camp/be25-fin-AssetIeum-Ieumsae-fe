@@ -198,6 +198,7 @@ import IntangibleInspectionRegister from '@/components/inspection/intangible/Int
 import { intangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -221,6 +222,7 @@ interface IntangibleInspectionRow extends Record<string, unknown> {
   targetAssetCount: number
   completedAssetCount: number
   followUpCount: number
+  followUpCompletedCount: number
   description: string
 }
 
@@ -236,8 +238,8 @@ interface SummaryCard {
 const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 const { canManageInspection } = usePermission()
@@ -338,52 +340,61 @@ const rangeText = computed(() => {
 })
 
 const summaryCards = computed<SummaryCard[]>(() => {
-  const totalInspectionCount = numberValue(statistics.value.totalInspectionCount) ?? 0
-  const readyInspectionCount = numberValue(statistics.value.readyInspectionCount) ?? 0
-  const inProgressInspectionCount = numberValue(statistics.value.inProgressInspectionCount) ?? 0
-  const completedInspectionCount = numberValue(statistics.value.completedInspectionCount) ?? 0
-  const inProgressTargetAssetCount = numberValue(statistics.value.inProgressTargetAssetCount) ?? 0
-  const completedTargetAssetCount = numberValue(statistics.value.completedTargetAssetCount) ?? 0
-  const unprocessedAssetCount = numberValue(statistics.value.unprocessedAssetCount) ?? 0
-  const followUpInProgressAssetCount = numberValue(statistics.value.followUpInProgressAssetCount) ?? 0
-  const followUpCompletedAssetCount = numberValue(statistics.value.followUpCompletedAssetCount) ?? 0
+  const rows = inspections.value
+  const readyRows = rows.filter((item) => item.status === 'READY')
+  const inProgressRows = rows.filter((item) => item.status === 'IN_PROGRESS')
+  const completedRows = rows.filter((item) => item.status === 'COMPLETED')
+  const totalAssets = rows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const readyAssets = readyRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const inProgressAssets = inProgressRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const completedAssets = completedRows.reduce((sum, item) => sum + item.completedAssetCount, 0)
+  const unprocessedAssets = rows.reduce(
+    (sum, item) => sum + Math.max(item.targetAssetCount - item.completedAssetCount, 0),
+    0,
+  )
+  const followUpInProgressAssets = numberValue(
+    statistics.value.followUpInProgressAssetCount,
+  ) ?? rows.reduce((sum, item) => sum + item.followUpCount, 0)
+  const followUpCompletedAssets = numberValue(
+    statistics.value.followUpCompletedAssetCount,
+  ) ?? 0
 
   return [
     {
       label: '전체 전수조사 현황',
-      value: totalInspectionCount,
+      value: totalAssets,
       items: [
-        { label: '진행 전', value: readyInspectionCount },
-        { label: '진행 중', value: inProgressInspectionCount },
-        { label: '완료', value: completedInspectionCount },
+        { label: '진행 전', value: readyAssets },
+        { label: '진행 중', value: inProgressAssets },
+        { label: '완료', value: completedAssets },
       ],
     },
     {
       label: '진행 중인 전수조사',
-      value: inProgressInspectionCount,
+      value: inProgressAssets,
       items: [
-        { label: '조사 대상 자산', value: inProgressTargetAssetCount },
+        { label: '조사 대상 자산', value: inProgressAssets },
       ],
     },
     {
       label: '완료된 전수조사',
-      value: completedInspectionCount,
+      value: completedAssets,
       items: [
-        { label: '조사 완료 자산', value: completedTargetAssetCount },
+        { label: '조사 완료 자산', value: completedAssets },
       ],
     },
     {
       label: '미처리 자산',
-      value: unprocessedAssetCount,
+      value: unprocessedAssets,
       items: [
-        { label: '조사 대상 자산', value: unprocessedAssetCount },
+        { label: '조사 대상 자산', value: unprocessedAssets },
       ],
     },
     {
       label: '후속 처리 중',
-      value: followUpInProgressAssetCount,
+      value: followUpInProgressAssets,
       items: [
-        { label: '처리 완료', value: followUpCompletedAssetCount },
+        { label: '처리 완료', value: followUpCompletedAssets },
       ],
     },
   ]
@@ -469,38 +480,6 @@ function getTargetNameLabel(item: InspectionSearchResponse) {
   return '조사 대상'
 }
 
-function startOfDay(date: Date) {
-  const nextDate = new Date(date)
-  nextDate.setHours(0, 0, 0, 0)
-  return nextDate
-}
-
-function dateTimeValue(value: string) {
-  if (!value) return null
-
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function resolveInspectionStatusByPeriod(
-  startDate: string,
-  endDate: string,
-  fallbackStatus: IntangibleInspectionStatus,
-): IntangibleInspectionStatus {
-  const today = startOfDay(new Date())
-  const start = dateTimeValue(startDate)
-  const end = dateTimeValue(endDate)
-
-  if (!start || !end) return fallbackStatus
-
-  const startDay = startOfDay(start)
-  const endDay = startOfDay(end)
-
-  if (today < startDay) return 'READY'
-  if (today <= endDay) return 'IN_PROGRESS'
-  return 'COMPLETED'
-}
-
 function toInspectionRow(item: InspectionSearchResponse, index: number): IntangibleInspectionRow {
   const rawStatus = item.inspectionStatus ?? item.status ?? 'READY'
   const inspectorType = item.inspectorType
@@ -515,7 +494,15 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
     inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
-    status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),
+    status: resolveInspectionStatus({
+      startDate,
+      endDate,
+      fallbackStatus: rawStatus,
+      unrespondedCount: item.targetAssetCount === undefined
+        ? undefined
+        : Math.max(item.targetAssetCount - (item.inspectedAssetCount ?? item.completedAssetCount ?? 0), 0),
+      followUpCount: item.followUpRequiredCount,
+    }),
     inspectorDepartment: '-',
     inspectorName: inspectorName || '-',
     startDate,
@@ -526,7 +513,45 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
       item.completedAssetCount,
     ) ?? 0,
     followUpCount: numberValue(item.followUpRequiredCount) ?? 0,
+    followUpCompletedCount: 0,
     description: item.description ?? '',
+  }
+}
+
+async function hydrateDetailCounts(row: IntangibleInspectionRow): Promise<IntangibleInspectionRow> {
+  if (!row.inspectionId) return row
+
+  try {
+    const response = await intangibleInspectionApi.getDetail(row.inspectionId)
+    const inspectionResults = Array.isArray(response.data.inspectionResults)
+      ? response.data.inspectionResults
+      : []
+    const uninspectedAssets = Array.isArray(response.data.uninspectedAssets)
+      ? response.data.uninspectedAssets
+      : []
+
+    const followUpCount = inspectionResults.filter((item) => item.followUpRequired).length
+    const followUpCompletedCount = inspectionResults.filter((item) => (
+      item.followUpRequired && (item.followUpStatus === 'COMPLETED' || item.status === 'COMPLETED')
+    )).length
+
+    return {
+      ...row,
+      status: resolveInspectionStatus({
+        startDate: row.startDate,
+        endDate: row.endDate,
+        fallbackStatus: row.status,
+        unrespondedCount: uninspectedAssets.length,
+        followUpCount,
+        completedFollowUpCount: followUpCompletedCount,
+      }),
+      targetAssetCount: inspectionResults.length + uninspectedAssets.length,
+      completedAssetCount: inspectionResults.length,
+      followUpCount,
+      followUpCompletedCount,
+    }
+  } catch {
+    return row
   }
 }
 
@@ -544,14 +569,23 @@ async function loadInspectionData() {
       return
     }
 
-    const [listResponse, statisticsResponse] = await Promise.all([
+    const [listResult, statisticsResult] = await Promise.allSettled([
       intangibleInspectionApi.getList({ page: 0, size: 1000 }),
       intangibleInspectionApi.getStatistics(),
     ])
-    const content = listResponse.data.content
-    const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
-    inspections.value = rows
-    statistics.value = statisticsResponse.data
+
+    if (listResult.status === 'rejected') {
+      inspections.value = []
+      loadError.value = '전수조사 목록을 불러오지 못했습니다.'
+    } else {
+      const content = listResult.value.data.content
+      const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
+      inspections.value = await Promise.all(rows.map(hydrateDetailCounts))
+    }
+
+    statistics.value = statisticsResult.status === 'fulfilled'
+      ? statisticsResult.value.data
+      : {}
     currentPage.value = 0
   } catch {
     inspections.value = []

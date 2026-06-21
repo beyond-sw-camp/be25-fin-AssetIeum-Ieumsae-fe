@@ -55,8 +55,8 @@ export interface MobileInspectionTarget {
 const inspectionStatusLabel: Record<InspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 defineProps<{

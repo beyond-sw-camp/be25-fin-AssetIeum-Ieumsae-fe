@@ -238,6 +238,7 @@ import { ApiError } from '@/api/client'
 import type { DropdownOption } from '@/types'
 import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 import { useAuthStore } from '@/stores'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import { ROLE_LABEL } from '@/utils/labels'
 
 type MobileAssetType = 'tangible' | 'intangible'
@@ -317,7 +318,9 @@ const emptyText = computed(() => loadError.value || '배정된 검수 대상 자
 const isResponseDisabled = computed(() => (
   !selectedTarget.value
   || selectedTarget.value.isResponded
-  || selectedTarget.value.inspectionStatus !== 'IN_PROGRESS'
+  || selectedTarget.value.inspectionStatus === 'READY'
+  || selectedTarget.value.inspectionStatus === 'COMPLETED'
+  || selectedTarget.value.inspectionStatus === 'CLOSED'
 ))
 const responseAvailabilityText = computed(() => {
   if (!selectedTarget.value) return ''
@@ -398,7 +401,11 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   return {
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
-    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
+    inspectionStatus: resolveInspectionStatus({
+      startDate: textValue(item.startDate),
+      endDate: textValue(item.endDate),
+      fallbackStatus: inspectionStatusValue(item.inspectionStatus),
+    }),
     memberId: textValue(item.memberId),
     memberName: textValue(item.memberName) || '-',
     productName: textValue(item.productName, item.itemName) || '-',
@@ -410,14 +417,14 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   }
 }
 
-function selectTarget(target: MobileInspectionTarget) {
+function selectTarget(target: MobileInspectionTarget, options: { preserveMessage?: boolean } = {}) {
   selectedTarget.value = target
   form.responseContent = target.isResponded ? '이미 응답이 등록된 자산입니다.' : ''
   form.followUpRequests = false
-  message.value = ''
+  if (!options.preserveMessage) message.value = ''
 }
 
-async function loadTargets() {
+async function loadTargets(options: { selectedTargetId?: string; preserveMessage?: boolean } = {}) {
   if (!canUseMobileInspection.value) {
     loadError.value = authIssue.value
     return
@@ -425,7 +432,7 @@ async function loadTargets() {
 
   isLoading.value = true
   loadError.value = ''
-  message.value = ''
+  if (!options.preserveMessage) message.value = ''
 
   try {
     const responses = isAssetTeamRole(authStore.currentRole)
@@ -447,17 +454,20 @@ async function loadTargets() {
     targets.value = Array.from(uniqueTargets.values())
     totalElements.value = targets.value.length
     const initialTarget = targets.value.find((target) => (
+      target.inspectionTargetId === options.selectedTargetId
+    )) ?? targets.value.find((target) => (
       !target.isResponded && target.inspectionStatus === 'IN_PROGRESS'
     )) ?? targets.value[0] ?? null
     if (initialTarget) {
-      selectTarget(initialTarget)
+      selectTarget(initialTarget, { preserveMessage: options.preserveMessage })
     } else {
       selectedTarget.value = null
     }
   } catch {
-    targets.value = []
-    totalElements.value = 0
-    selectedTarget.value = null
+    if (targets.value.length === 0) {
+      totalElements.value = 0
+      selectedTarget.value = null
+    }
     loadError.value = '검수 대상 자산을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
@@ -475,16 +485,25 @@ async function handleSubmit() {
   message.value = ''
 
   try {
-    await inspectionApi.value.createResponse(selectedTarget.value.inspectionTargetId, {
+    const targetId = selectedTarget.value.inspectionTargetId
+    await inspectionApi.value.createResponse(targetId, {
       responseContent: form.responseContent,
       followUpRequests: form.followUpRequests,
     })
 
+    targets.value = targets.value.map((target) => (
+      target.inspectionTargetId === targetId
+        ? { ...target, isResponded: true }
+        : target
+    ))
     isSuccess.value = true
     message.value = '검수 응답이 등록되었습니다.'
     form.responseContent = ''
     form.followUpRequests = false
-    await loadTargets()
+    await Promise.allSettled([
+      inspectionApi.value.getResponse(targetId),
+      loadTargets({ selectedTargetId: targetId, preserveMessage: true }),
+    ])
   } catch (error) {
     isSuccess.value = false
     message.value = error instanceof ApiError

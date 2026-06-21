@@ -170,6 +170,7 @@ import InspectionFollowUpPanel, {
 } from '@/components/inspection/common/InspectionFollowUpPanel.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionDetailResponse,
@@ -228,8 +229,8 @@ const emit = defineEmits<{
 const statusLabel: Record<InspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 const tabs = [
@@ -281,9 +282,6 @@ const displayTargetName = computed(() => inspectionInfo.value?.targetName ?? pro
 const displayInspectorName = computed(() => inspectionInfo.value?.inspectorName ?? props.inspection?.inspectorName ?? '-')
 const displayInspectorType = computed(() => (
   inspectorTypeLabel(inspectionInfo.value?.inspectorType) || props.inspection?.executor || '-'
-))
-const displayStatus = computed<InspectionStatus>(() => (
-  inspectionInfo.value?.inspectionStatus ?? props.inspection?.status ?? 'READY'
 ))
 const displayStartDate = computed(() => inspectionInfo.value?.startDate ?? props.inspection?.startDate ?? '')
 const displayEndDate = computed(() => inspectionInfo.value?.endDate ?? props.inspection?.endDate ?? '')
@@ -341,6 +339,17 @@ const followUpRows = computed<InspectionFollowUpPanelRow[]>(() => {
       status: row.followUpStatus,
     }))
 })
+
+const displayStatus = computed<InspectionStatus>(() => resolveInspectionStatus({
+  startDate: displayStartDate.value,
+  endDate: displayEndDate.value,
+  fallbackStatus: inspectionInfo.value?.inspectionStatus ?? props.inspection?.status ?? 'READY',
+  unrespondedCount: detail.value ? uninspectedRows.value.length : undefined,
+  followUpCount: detail.value ? followUpRows.value.length : undefined,
+  completedFollowUpCount: detail.value
+    ? followUpRows.value.filter((row) => row.status === 'COMPLETED').length
+    : undefined,
+}))
 
 const completionRate = computed(() => {
   const totalCount = resultRows.value.length + uninspectedRows.value.length
