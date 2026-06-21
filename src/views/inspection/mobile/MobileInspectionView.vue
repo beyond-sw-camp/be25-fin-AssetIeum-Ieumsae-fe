@@ -291,8 +291,12 @@ function getStoredRole() {
   }
 }
 
+function isAssetTeamRole(role: string | null | undefined) {
+  return role === 'ASSET_TEAM' || role === 'ASSET_MANAGER' || role === 'ADMIN'
+}
+
 function canUseMobileInspectionRole(role: string | null | undefined) {
-  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
+  return role === 'EMPLOYEE' || isAssetTeamRole(role)
 }
 
 const inspectionApi = computed(() => (
@@ -422,7 +426,7 @@ async function loadTargets() {
   message.value = ''
 
   try {
-    const responses = authStore.currentRole === 'ASSET_TEAM'
+    const responses = isAssetTeamRole(authStore.currentRole)
       ? await Promise.all([
           inspectionApi.value.getTargets({ page: 0, size: 100 }),
           inspectionApi.value.getMyTargets({ page: 0, size: 100 }),

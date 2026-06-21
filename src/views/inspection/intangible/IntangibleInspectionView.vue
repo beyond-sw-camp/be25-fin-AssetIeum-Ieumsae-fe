@@ -20,7 +20,10 @@
       </Button>
     </header>
 
-    <section class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5">
+    <section
+      v-if="canManageInspection"
+      class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5"
+    >
       <article
         v-for="card in summaryCards"
         :key="card.label"
@@ -74,7 +77,7 @@
               menu-align="right"
             />
           </div>
-          <div class="w-40 shrink-0">
+          <div v-if="canManageInspection" class="w-40 shrink-0">
             <Dropdown
               v-model="filters.inspector"
               :options="inspectorFilterOptions"
@@ -167,12 +170,14 @@
     </section>
 
     <IntangibleInspectionRegister
+      v-if="canManageInspection"
       :is-open="isRegisterDrawerOpen"
       @close="closeRegisterDrawer"
       @registered="handleInspectionRegistered"
     />
 
     <IntangibleInspectionDetail
+      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
       @close="selectedInspection = null"
@@ -192,6 +197,7 @@ import IntangibleInspectionDetail from '@/components/inspection/intangible/Intan
 import IntangibleInspectionRegister from '@/components/inspection/intangible/IntangibleInspectionRegister.vue'
 import { intangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
+import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -233,7 +239,7 @@ const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   CLOSED: '후속 처리 중',
 }
 
-const { hasRole } = usePermission()
+const { canManageInspection } = usePermission()
 
 const inspections = ref<IntangibleInspectionRow[]>([])
 const statistics = ref<InspectionStatisticsResponse>({})
@@ -257,7 +263,7 @@ const appliedFilters = reactive({
 })
 
 const canRegisterInspection = computed(() => (
-  hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+  canManageInspection.value
 ))
 
 const columns: Column<IntangibleInspectionRow>[] = [
@@ -287,7 +293,12 @@ const inspectorFilterOptions = computed<DropdownOption[]>(() => [
   })),
 ])
 
-const emptyText = computed(() => loadError.value || '등록된 무형자산 전수조사가 없습니다.')
+const emptyText = computed(() => (
+  loadError.value
+  || (canManageInspection.value
+    ? '등록된 무형자산 전수조사가 없습니다.'
+    : '배정된 무형자산 전수조사가 없습니다.')
+))
 
 const filteredRows = computed(() => {
   const keyword = appliedFilters.keyword.trim().toLowerCase()
@@ -413,6 +424,7 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: IntangibleInspectionRow) {
+  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -519,6 +531,15 @@ async function loadInspectionData() {
   loadError.value = ''
 
   try {
+    if (!canManageInspection.value) {
+      const response = await intangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
+      const content = Array.isArray(response.data.content) ? response.data.content : []
+      inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
+      statistics.value = {}
+      currentPage.value = 0
+      return
+    }
+
     const [listResponse, statisticsResponse] = await Promise.all([
       intangibleInspectionApi.getList({ page: 0, size: 1000 }),
       intangibleInspectionApi.getStatistics(),

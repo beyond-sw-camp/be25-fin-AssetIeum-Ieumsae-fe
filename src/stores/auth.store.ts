@@ -20,7 +20,11 @@ function decodeTokenPayload(token: string): Record<string, unknown> | null {
     const [, payload] = token.split('.')
     if (!payload) return null
 
-    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const normalizedPayload = base64Payload.padEnd(
+      base64Payload.length + ((4 - (base64Payload.length % 4)) % 4),
+      '=',
+    )
     const decodedPayload = decodeURIComponent(
       Array.from(atob(normalizedPayload), (char) => (
         `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`
