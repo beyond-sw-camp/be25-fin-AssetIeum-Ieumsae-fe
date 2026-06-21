@@ -198,6 +198,7 @@ import IntangibleInspectionRegister from '@/components/inspection/intangible/Int
 import { intangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -221,6 +222,7 @@ interface IntangibleInspectionRow extends Record<string, unknown> {
   targetAssetCount: number
   completedAssetCount: number
   followUpCount: number
+  followUpCompletedCount: number
   description: string
 }
 
@@ -236,8 +238,8 @@ interface SummaryCard {
 const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 const { canManageInspection } = usePermission()
@@ -493,7 +495,15 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
     inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
-    status: rawStatus,
+    status: resolveInspectionStatus({
+      startDate,
+      endDate,
+      fallbackStatus: rawStatus,
+      unrespondedCount: item.targetAssetCount === undefined
+        ? undefined
+        : Math.max(item.targetAssetCount - (item.inspectedAssetCount ?? item.completedAssetCount ?? 0), 0),
+      followUpCount: item.followUpRequiredCount,
+    }),
     inspectorDepartment: '-',
     inspectorName: inspectorName || '-',
     startDate,
@@ -504,6 +514,7 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
       item.completedAssetCount,
     ) ?? 0,
     followUpCount: numberValue(item.followUpRequiredCount) ?? 0,
+    followUpCompletedCount: 0,
     description: item.description ?? '',
   }
 }
@@ -520,11 +531,25 @@ async function hydrateDetailCounts(row: IntangibleInspectionRow): Promise<Intang
       ? response.data.uninspectedAssets
       : []
 
+    const followUpCount = inspectionResults.filter((item) => item.followUpRequired).length
+    const followUpCompletedCount = inspectionResults.filter((item) => (
+      item.followUpRequired && (item.followUpStatus === 'COMPLETED' || item.status === 'COMPLETED')
+    )).length
+
     return {
       ...row,
+      status: resolveInspectionStatus({
+        startDate: row.startDate,
+        endDate: row.endDate,
+        fallbackStatus: row.status,
+        unrespondedCount: uninspectedAssets.length,
+        followUpCount,
+        completedFollowUpCount: followUpCompletedCount,
+      }),
       targetAssetCount: inspectionResults.length + uninspectedAssets.length,
       completedAssetCount: inspectionResults.length,
-      followUpCount: inspectionResults.filter((item) => item.followUpRequired).length,
+      followUpCount,
+      followUpCompletedCount,
     }
   } catch {
     return row
