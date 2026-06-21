@@ -23,7 +23,7 @@
       </div>
 
       <form class="flex flex-col justify-center h-full mt-auto mb-10 space-y-4" novalidate @submit.prevent="handleLogin">
-ㄴ        <Input
+        <Input
           id="mobile-company-code"
           v-model="form.companyCode"
           label="회사 코드"
