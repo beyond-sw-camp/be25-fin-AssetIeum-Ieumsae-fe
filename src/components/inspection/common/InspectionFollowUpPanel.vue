@@ -43,18 +43,22 @@
         <Dropdown
           :model-value="drafts[row.key]?.status ?? row.status"
           :options="getFollowUpStatusOptions(row.status)"
-          :disabled="row.status === 'COMPLETED'"
+          :disabled="!row.followUpId || row.status === 'COMPLETED'"
           menu-strategy="fixed"
           @update:model-value="updateDraftStatus(row.key, $event)"
         />
         <textarea
           :value="drafts[row.key]?.actionDetail ?? row.actionDetail"
-          :disabled="row.status === 'COMPLETED'"
+          :disabled="!row.followUpId || row.status === 'COMPLETED'"
           class="min-h-20 w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
           placeholder="처리 내용을 입력하세요."
           @input="updateDraftAction(row.key, ($event.target as HTMLTextAreaElement).value)"
         />
       </div>
+
+      <p v-if="!row.followUpId" class="mt-3 text-xs text-text-muted">
+        후속 처리 상세 정보를 확인할 수 없습니다.
+      </p>
 
       <div class="mt-3 flex justify-end">
         <Button

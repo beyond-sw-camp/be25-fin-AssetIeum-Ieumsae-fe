@@ -16,9 +16,14 @@
           {{ target.assetCode }} · {{ target.category }}
         </p>
       </div>
-      <span :class="target.isResponded ? 'badge-success' : 'badge-warning'">
-        {{ target.isResponded ? '완료' : '대기' }}
-      </span>
+      <div class="flex shrink-0 items-center gap-2">
+        <span :class="inspectionStatusBadgeClass(target.inspectionStatus)">
+          {{ inspectionStatusLabel[target.inspectionStatus] }}
+        </span>
+        <span :class="target.isResponded ? 'badge-success' : 'badge-warning'">
+          {{ target.isResponded ? '응답 완료' : '응답 대기' }}
+        </span>
+      </div>
     </div>
 
     <p class="mt-3 text-xs text-text-sub">
@@ -28,15 +33,25 @@
 </template>
 
 <script setup lang="ts">
+import type { InspectionStatus } from '@/types/inspection'
+
 export interface MobileInspectionTarget {
   inspectionTargetId: string
   inspectionId: string
+  inspectionStatus: InspectionStatus
   productName: string
   assetCode: string
   category: string
   isResponded: boolean
   startDate: string
   endDate: string
+}
+
+const inspectionStatusLabel: Record<InspectionStatus, string> = {
+  READY: '진행 전',
+  IN_PROGRESS: '진행 중',
+  COMPLETED: '완료',
+  CLOSED: '후속 처리 중',
 }
 
 defineProps<{
@@ -54,5 +69,13 @@ function formatDate(value: string) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(value))
+}
+
+function inspectionStatusBadgeClass(status: InspectionStatus) {
+  if (status === 'IN_PROGRESS') {
+    return 'rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary'
+  }
+  if (status === 'COMPLETED') return 'badge-success'
+  return 'badge-warning'
 }
 </script>

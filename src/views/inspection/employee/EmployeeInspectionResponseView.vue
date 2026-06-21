@@ -1,187 +1,159 @@
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
-    <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-end md:justify-between">
+    <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle">INSPECTION</p>
+        <p class="page-subtitle mb-1">ASSET ITEM</p>
         <h1 class="page-title">{{ pageTitle }}</h1>
-        <p class="mt-2 text-sm text-text-sub">
-          내게 지정된 자산을 확인하고 전수조사 응답을 등록합니다.
-        </p>
       </div>
-      <Button variant="secondary" :disabled="isLoading" @click="loadTargets">
-        새로고침
-      </Button>
     </header>
 
-    <section class="mx-3 mb-4 grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_28rem]">
-      <div class="card flex min-h-0 flex-col overflow-hidden border border-border bg-surface">
-        <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-2">
-            <Dropdown
-              v-model="respondedFilter"
-              :options="respondedFilterOptions"
-              class="w-32"
-              menu-strategy="fixed"
-            />
-            <span class="text-xs text-text-sub">총 {{ totalElements }}개 자산</span>
-          </div>
-          <Input
-            id="inspection-target-keyword"
-            v-model="keyword"
-            class="md:w-64!"
-            placeholder="제품명, 자산 코드 검색"
+    <section class="card mx-3 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-surface">
+      <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-2">
+          <Dropdown
+            :model-value="String(pageSize)"
+            :options="pageSizeOptions"
+            menu-strategy="fixed"
+            class="w-30"
+            @update:model-value="handlePageSizeChange"
           />
+          <span class="whitespace-nowrap text-xs text-text-sub">
+            총 {{ filteredRows.length }}건 중 {{ rangeText }}
+          </span>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <div v-if="isLoading" class="space-y-3">
-            <div
-              v-for="index in 4"
-              :key="index"
-              class="h-24 animate-pulse rounded-lg border border-border bg-surface-secondary"
+        <div class="flex flex-wrap justify-end gap-2">
+          <div class="w-36 shrink-0">
+            <Dropdown
+              v-model="filters.status"
+              :options="statusFilterOptions"
+              menu-strategy="fixed"
+              menu-align="right"
             />
           </div>
-
-          <div
-            v-else-if="filteredTargets.length === 0"
-            class="rounded-lg border border-dashed border-border px-6 py-16 text-center"
-          >
-            <p class="text-sm font-semibold text-text-main">{{ emptyText }}</p>
-            <p class="mt-2 text-xs text-text-sub">응답 대상이 배정되면 이곳에 표시됩니다.</p>
+          <div class="w-36 shrink-0">
+            <Dropdown
+              v-model="filters.responded"
+              :options="respondedFilterOptions"
+              menu-strategy="fixed"
+              menu-align="right"
+            />
           </div>
-
-          <div v-else class="space-y-3">
-            <button
-              v-for="target in filteredTargets"
-              :key="target.inspectionTargetId"
-              type="button"
-              :class="[
-                'flex w-full flex-col gap-3 rounded-lg border px-4 py-4 text-left transition md:flex-row md:items-center md:justify-between',
-                selectedTarget?.inspectionTargetId === target.inspectionTargetId
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-surface hover:border-primary/40',
-              ]"
-              @click="selectTarget(target)"
-            >
-              <div class="min-w-0">
-                <p class="truncate text-sm font-bold text-text-main">{{ target.productName }}</p>
-                <p class="mt-1 text-xs text-text-sub">
-                  {{ target.assetCode }} · {{ target.category }}
-                </p>
-                <p class="mt-2 text-xs text-text-muted">
-                  {{ formatDate(target.startDate) }} ~ {{ formatDate(target.endDate) }}
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-2">
-                <span :class="statusBadgeClass(target.inspectionStatus)">
-                  {{ inspectionStatusLabel[target.inspectionStatus] }}
-                </span>
-                <span :class="target.isResponded ? 'badge-success' : 'badge-warning'">
-                  {{ target.isResponded ? '응답 완료' : '응답 대기' }}
-                </span>
-              </div>
-            </button>
+          <div class="w-52 shrink-0">
+            <Input
+              :id="`${props.assetType}-inspection-keyword`"
+              v-model="filters.keyword"
+              placeholder="조사 대상 검색"
+              @keyup.enter="applySearch"
+            />
           </div>
+          <Button class="w-20" @click="applySearch">
+            <Search :size="14" />
+            검색
+          </Button>
         </div>
       </div>
 
-      <aside class="card flex min-h-0 flex-col overflow-hidden border border-border bg-surface">
-        <div class="shrink-0 border-b border-border px-5 py-4">
-          <p class="text-base font-bold text-text-main">전수조사 응답</p>
-          <p class="mt-1 text-xs text-text-sub">진행 중인 대상 자산에 응답할 수 있습니다.</p>
-        </div>
-
-        <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="handleSubmit">
-          <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-            <div v-if="selectedTarget" class="rounded-lg bg-surface-secondary px-4 py-4">
-              <p class="text-sm font-bold text-text-main">{{ selectedTarget.productName }}</p>
-              <p class="mt-2 text-xs text-text-sub">
-                {{ selectedTarget.assetCode }} · {{ selectedTarget.category }}
-              </p>
-            </div>
-            <div v-else class="rounded-lg border border-dashed border-border p-8 text-center text-sm text-text-muted">
-              응답할 자산을 선택해주세요.
-            </div>
-
-            <label class="flex items-start gap-3 text-sm font-semibold text-text-main">
-              <input
-                v-model="form.followUpRequests"
-                type="checkbox"
-                class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                :disabled="!canSubmit"
-              >
-              <span>
-                후속 처리 필요
-                <span class="mt-1 block text-xs font-normal text-text-sub">
-                  자산 정보나 실제 상태가 다르면 선택해주세요.
-                </span>
-              </span>
-            </label>
-
+      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <Table
+          :columns="columns"
+          :rows="pagedRows"
+          row-key="inspectionId"
+          :loading="isLoading"
+          :empty-text="emptyText"
+        >
+          <template #cell-targetName="{ row }">
             <div>
-              <label for="inspection-response-content" class="text-sm font-semibold text-text-main">
-                응답 내용 <span class="text-primary">*</span>
-              </label>
-              <textarea
-                id="inspection-response-content"
-                v-model="form.responseContent"
-                class="mt-2 min-h-40 w-full resize-none rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-surface-secondary disabled:text-text-muted"
-                placeholder="예: 현재 사용 중이며 이상 없습니다."
-                :disabled="!canSubmit"
-              />
+              <p class="font-semibold text-text-main">{{ row.targetName }}</p>
+              <p class="mt-1 text-xs text-text-muted">대상 자산 {{ row.assetCount }}개</p>
             </div>
+          </template>
 
-            <p
-              v-if="message"
-              :class="[
-                'rounded-lg border px-4 py-3 text-sm',
-                isSuccess
-                  ? 'border-success/30 bg-success/5 text-success'
-                  : 'border-danger/30 bg-danger/5 text-danger',
-              ]"
-            >
-              {{ message }}
-            </p>
-          </div>
+          <template #cell-status="{ row }">
+            <span :class="statusBadgeClass(row.status)">
+              {{ STATUS_LABEL[row.status] }}
+            </span>
+          </template>
 
-          <div class="shrink-0 border-t border-border px-5 py-4">
-            <Button
-              type="submit"
-              class="w-full"
-              :disabled="!isReady"
-              :loading="isSubmitting"
-            >
-              응답 등록하기
-            </Button>
-          </div>
-        </form>
-      </aside>
+          <template #cell-responseStatus="{ row }">
+            <span :class="row.respondedCount === row.assetCount ? 'badge-success' : 'badge-warning'">
+              {{ row.respondedCount }}/{{ row.assetCount }} 응답
+            </span>
+          </template>
+
+          <template #cell-startDate="{ value: startDate }">
+            <span>{{ formatDate(startDate as string) }}</span>
+          </template>
+
+          <template #cell-endDate="{ value: endDate }">
+            <span>{{ formatDate(endDate as string) }}</span>
+          </template>
+        </Table>
+      </div>
+
+      <div class="flex shrink-0 items-center justify-center border-t border-border px-4 py-3">
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+            :disabled="currentPage === 0"
+            aria-label="이전 페이지"
+            @click="changePage(currentPage - 1)"
+          >
+            <ChevronLeft :size="16" />
+          </button>
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            type="button"
+            :class="[
+              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
+              currentPage === page - 1
+                ? 'bg-primary text-white'
+                : 'text-text-sub hover:bg-surface-secondary',
+            ]"
+            @click="changePage(page - 1)"
+          >
+            {{ page }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
+            :disabled="currentPage >= totalPages - 1"
+            aria-label="다음 페이지"
+            @click="changePage(currentPage + 1)"
+          >
+            <ChevronRight :size="16" />
+          </button>
+        </div>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
-import { ApiError } from '@/api/client'
 import type { DropdownOption } from '@/types'
 import type {
   EmployeeInspectionTargetResponse,
   InspectionStatus,
 } from '@/types/inspection'
 
-interface InspectionTargetRow {
-  inspectionTargetId: string
+interface EmployeeInspectionRow extends Record<string, unknown> {
   inspectionId: string
-  inspectionStatus: InspectionStatus
-  productName: string
-  assetCode: string
-  category: string
-  isResponded: boolean
+  targetName: string
+  executor: string
+  status: InspectionStatus
+  responseStatus: string
+  assetCount: number
+  respondedCount: number
   startDate: string
   endDate: string
 }
@@ -192,63 +164,94 @@ const props = withDefaults(defineProps<{
   assetType: 'tangible',
 })
 
-const targets = ref<InspectionTargetRow[]>([])
-const selectedTarget = ref<InspectionTargetRow | null>(null)
+const inspections = ref<EmployeeInspectionRow[]>([])
 const isLoading = ref(false)
-const isSubmitting = ref(false)
-const isSuccess = ref(false)
-const message = ref('')
 const loadError = ref('')
-const totalElements = ref(0)
-const keyword = ref('')
-const respondedFilter = ref('')
+const currentPage = ref(0)
+const pageSize = ref(10)
 
-const form = reactive({
-  responseContent: '',
-  followUpRequests: false,
+const filters = reactive({
+  status: '',
+  responded: '',
+  keyword: '',
+})
+
+const appliedFilters = reactive({
+  status: '',
+  responded: '',
+  keyword: '',
 })
 
 const inspectionApi = computed(() => (
   props.assetType === 'intangible' ? intangibleInspectionApi : tangibleInspectionApi
 ))
 const pageTitle = computed(() => (
-  props.assetType === 'intangible' ? '내 무형자산 전수조사' : '내 유형자산 전수조사'
+  props.assetType === 'intangible' ? '무형자산 전수조사' : '유형자산 전수조사'
 ))
-const emptyText = computed(() => loadError.value || '배정된 전수조사 대상이 없습니다.')
-const canSubmit = computed(() => (
-  Boolean(selectedTarget.value)
-  && selectedTarget.value?.inspectionStatus === 'IN_PROGRESS'
-  && !selectedTarget.value?.isResponded
-))
-const isReady = computed(() => (
-  canSubmit.value && form.responseContent.trim().length > 0 && !isSubmitting.value
+const emptyText = computed(() => (
+  loadError.value || `배정된 ${props.assetType === 'intangible' ? '무형자산' : '유형자산'} 전수조사가 없습니다.`
 ))
 
-const respondedFilterOptions: DropdownOption[] = [
-  { label: '전체', value: '' },
-  { label: '응답 대기', value: 'false' },
-  { label: '응답 완료', value: 'true' },
-]
-
-const inspectionStatusLabel: Record<InspectionStatus, string> = {
+const STATUS_LABEL: Record<InspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
   COMPLETED: '완료',
   CLOSED: '후속 처리 중',
 }
 
-const filteredTargets = computed(() => {
-  const query = keyword.value.trim().toLowerCase()
+const columns: Column<EmployeeInspectionRow>[] = [
+  { key: 'targetName', label: '조사 대상', width: '24%' },
+  { key: 'executor', label: '조사 방식', width: '16%' },
+  { key: 'status', label: '조사 상태', width: '15%' },
+  { key: 'responseStatus', label: '응답 현황', width: '17%' },
+  { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
+  { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
+]
 
-  return targets.value.filter((target) => {
-    const matchesResponded = !respondedFilter.value
-      || String(target.isResponded) === respondedFilter.value
-    const matchesKeyword = !query
-      || [target.productName, target.assetCode, target.category]
-        .some((value) => value.toLowerCase().includes(query))
+const pageSizeOptions: DropdownOption[] = [10, 20, 50].map((value) => ({
+  label: `${value}개씩 보기`,
+  value: String(value),
+}))
 
-    return matchesResponded && matchesKeyword
+const statusFilterOptions: DropdownOption[] = [
+  { label: '- 전체 -', value: '' },
+  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
+]
+
+const respondedFilterOptions: DropdownOption[] = [
+  { label: '- 응답 여부 -', value: '' },
+  { label: '응답 대기', value: 'pending' },
+  { label: '응답 완료', value: 'completed' },
+]
+
+const filteredRows = computed(() => {
+  const keyword = appliedFilters.keyword.trim().toLowerCase()
+
+  return inspections.value.filter((inspection) => {
+    const isCompleted = inspection.respondedCount === inspection.assetCount
+    const matchesStatus = !appliedFilters.status || inspection.status === appliedFilters.status
+    const matchesResponded = !appliedFilters.responded
+      || (appliedFilters.responded === 'completed' ? isCompleted : !isCompleted)
+    const matchesKeyword = !keyword
+      || inspection.targetName.toLowerCase().includes(keyword)
+
+    return matchesStatus && matchesResponded && matchesKeyword
   })
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)))
+const pagedRows = computed(() => {
+  const start = currentPage.value * pageSize.value
+  return filteredRows.value.slice(start, start + pageSize.value)
+})
+const visiblePages = computed(() => (
+  Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(0, 5)
+))
+const rangeText = computed(() => {
+  if (filteredRows.value.length === 0) return '0-0건'
+  const start = currentPage.value * pageSize.value + 1
+  const end = Math.min((currentPage.value + 1) * pageSize.value, filteredRows.value.length)
+  return `${start}-${end}건`
 })
 
 function textValue(...values: unknown[]) {
@@ -269,94 +272,68 @@ function inspectionStatusValue(value: unknown): InspectionStatus {
   return 'READY'
 }
 
-function toTargetRow(item: EmployeeInspectionTargetResponse): InspectionTargetRow {
-  return {
-    inspectionTargetId: textValue(item.inspectionTargetId),
-    inspectionId: textValue(item.inspectionId),
-    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
-    productName: textValue(item.productName, item.itemName) || '-',
-    assetCode: textValue(item.assetCode, item.licenseCode) || '-',
-    category: textValue(item.category, item.categoryName) || '-',
-    isResponded: booleanValue(item.isResponded, item.responded),
-    startDate: textValue(item.startDate),
-    endDate: textValue(item.endDate),
-  }
+function targetLabel(targets: EmployeeInspectionTargetResponse[]) {
+  const productNames = Array.from(new Set(
+    targets.map((target) => textValue(target.productName, target.itemName)).filter(Boolean),
+  ))
+  if (productNames.length === 0) return '배정 자산'
+  if (productNames.length === 1) return productNames[0] ?? '배정 자산'
+  return `${productNames[0]} 외 ${productNames.length - 1}개 품목`
 }
 
-function selectTarget(target: InspectionTargetRow) {
-  selectedTarget.value = target
-  form.responseContent = ''
-  form.followUpRequests = false
-  message.value = ''
+function toInspectionRows(targets: EmployeeInspectionTargetResponse[]) {
+  const groupedTargets = new Map<string, EmployeeInspectionTargetResponse[]>()
 
-  if (target.isResponded) {
-    void loadRegisteredResponse(target.inspectionTargetId)
-  }
-}
+  targets.forEach((target) => {
+    const inspectionId = textValue(target.inspectionId)
+    if (!inspectionId) return
+    groupedTargets.set(inspectionId, [...(groupedTargets.get(inspectionId) ?? []), target])
+  })
 
-async function loadRegisteredResponse(targetId: string) {
-  try {
-    const response = await inspectionApi.value.getResponse(targetId)
-    form.responseContent = response.data.responseContent ?? ''
-    form.followUpRequests = Boolean(response.data.followUpRequests)
-  } catch {
-    message.value = '등록된 응답을 불러오지 못했습니다.'
-    isSuccess.value = false
-  }
-}
+  return Array.from(groupedTargets.entries()).map(([inspectionId, inspectionTargets]) => {
+    const firstTarget = inspectionTargets[0]
+    const respondedCount = inspectionTargets.filter((target) => (
+      booleanValue(target.isResponded, target.responded)
+    )).length
 
-async function loadTargets() {
-  isLoading.value = true
-  loadError.value = ''
-
-  try {
-    const response = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
-    targets.value = response.data.content.map(toTargetRow)
-    totalElements.value = response.data.totalElements
-    const initialTarget = targets.value.find((target) => !target.isResponded) ?? targets.value[0] ?? null
-    if (initialTarget) {
-      selectTarget(initialTarget)
-    } else {
-      selectedTarget.value = null
+    return {
+      inspectionId,
+      targetName: targetLabel(inspectionTargets),
+      executor: '소유자 응답',
+      status: inspectionStatusValue(firstTarget?.inspectionStatus),
+      responseStatus: '',
+      assetCount: inspectionTargets.length,
+      respondedCount,
+      startDate: textValue(firstTarget?.startDate),
+      endDate: textValue(firstTarget?.endDate),
     }
-  } catch {
-    targets.value = []
-    selectedTarget.value = null
-    totalElements.value = 0
-    loadError.value = '전수조사 대상을 불러오지 못했습니다.'
-  } finally {
-    isLoading.value = false
-  }
+  })
 }
 
-async function handleSubmit() {
-  if (!selectedTarget.value || !isReady.value) return
+function applySearch() {
+  appliedFilters.status = filters.status
+  appliedFilters.responded = filters.responded
+  appliedFilters.keyword = filters.keyword
+  currentPage.value = 0
+}
 
-  isSubmitting.value = true
-  message.value = ''
+function handlePageSizeChange(value: string | number) {
+  const nextSize = Number(value)
+  if (!Number.isInteger(nextSize) || nextSize <= 0) return
+  pageSize.value = nextSize
+  currentPage.value = 0
+}
 
-  try {
-    await inspectionApi.value.createResponse(selectedTarget.value.inspectionTargetId, {
-      responseContent: form.responseContent,
-      followUpRequests: form.followUpRequests,
-    })
-    isSuccess.value = true
-    message.value = '전수조사 응답이 등록되었습니다.'
-    await loadTargets()
-  } catch (error) {
-    isSuccess.value = false
-    message.value = error instanceof ApiError
-      ? error.message
-      : '전수조사 응답을 등록하지 못했습니다.'
-  } finally {
-    isSubmitting.value = false
-  }
+function changePage(page: number) {
+  if (page < 0 || page >= totalPages.value) return
+  currentPage.value = page
 }
 
 function statusBadgeClass(status: InspectionStatus) {
-  if (status === 'IN_PROGRESS') return 'bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-semibold'
+  if (status === 'READY') return 'badge-warning'
+  if (status === 'IN_PROGRESS') return 'rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary'
   if (status === 'COMPLETED') return 'badge-success'
-  return 'badge-warning'
+  return 'rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600'
 }
 
 function formatDate(value: string) {
@@ -368,5 +345,22 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
-onMounted(loadTargets)
+async function loadInspections() {
+  isLoading.value = true
+  loadError.value = ''
+
+  try {
+    const response = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
+    const content = Array.isArray(response.data?.content) ? response.data.content : []
+    inspections.value = toInspectionRows(content)
+    currentPage.value = 0
+  } catch {
+    inspections.value = []
+    loadError.value = '전수조사 목록을 불러오지 못했습니다.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadInspections)
 </script>
