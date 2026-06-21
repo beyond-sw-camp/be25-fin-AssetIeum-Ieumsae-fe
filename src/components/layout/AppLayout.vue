@@ -5,6 +5,7 @@
 
     <div class="mt-16 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-full flex-none overflow-hidden">
       <Sidebar
+        v-if="!canManagePlatform"
         v-model:collapsed="collapsed"
         :nav-items="navItems"
         class="shrink-0"
