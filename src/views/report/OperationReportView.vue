@@ -190,11 +190,33 @@ const usersError = ref('')
 const returnError = ref('')
 const purchaseError = ref('')
 
-const overdueItems = ref<DepartmentOverdueReportItem[]>([])
-const userItems = ref<RepeatedOverdueUserReportItem[]>([])
-const returnItems = ref<ReturnRequestReportItem[]>([])
-const purchaseItems = ref<PurchaseRequestReportItem[]>([])
-const returnSummaryRaw = ref<ReturnRequestReportSummary>({})
+// TODO: API 명세 확정 후 실제 API 데이터로 교체
+const overdueItems = ref<DepartmentOverdueReportItem[]>([
+  { departmentName: '프론트엔드팀', unreturnedAssetCount: 18, delayedReturnCount: 7, totalOverdueDays: 46 },
+  { departmentName: '플랫폼개발본부', unreturnedAssetCount: 13, delayedReturnCount: 4, totalOverdueDays: 28 },
+  { departmentName: '구매자산팀', unreturnedAssetCount: 6, delayedReturnCount: 2, totalOverdueDays: 11 },
+])
+const userItems = ref<RepeatedOverdueUserReportItem[]>([
+  { memberName: '박◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 5, totalOverdueDays: 24, latestOverdueDate: '2026-06-12' },
+  { memberName: '이◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 3, totalOverdueDays: 14, latestOverdueDate: '2026-06-03' },
+  { memberName: '최◌◌', departmentName: '플랫폼개발본부', delayedReturnCount: 2, totalOverdueDays: 9, latestOverdueDate: '2026-05-28' },
+])
+const returnItems = ref<ReturnRequestReportItem[]>([
+  { departmentName: '프론트엔드팀', createdCount: 16, completedCount: 11, averageProcessingDays: 3, overdueDays: 12 },
+  { departmentName: '플랫폼개발본부', createdCount: 9, completedCount: 7, averageProcessingDays: 2, overdueDays: 5 },
+  { departmentName: '구매자산팀', createdCount: 4, completedCount: 4, averageProcessingDays: 1, overdueDays: 0 },
+])
+const purchaseItems = ref<PurchaseRequestReportItem[]>([
+  { departmentName: '프론트엔드팀', requestCount: 22, cumulativeQuantity: 41, approvedCount: 16, completedCount: 9 },
+  { departmentName: '플랫폼개발본부', requestCount: 14, cumulativeQuantity: 27, approvedCount: 10, completedCount: 7 },
+  { departmentName: '구매자산팀', requestCount: 7, cumulativeQuantity: 13, approvedCount: 5, completedCount: 4 },
+])
+const returnSummaryRaw = ref<ReturnRequestReportSummary>({
+  createdCount: 29,
+  completedCount: 22,
+  averageProcessingDays: 2,
+  overdueDays: 17,
+})
 
 const userColumns: Column<TableRow>[] = [
   { key: 'rank', label: '순위', align: 'center', width: '4rem' },
@@ -290,70 +312,70 @@ const purchaseQuantityChartItems = computed(() =>
 )
 
 async function loadOverdueAssets() {
-  overdueLoading.value = true
-  overdueError.value = ''
-  try {
-    const response = await reportApi.getOverdueAssets(requestParams.value)
-    overdueItems.value = response.data.content
-  } catch (error) {
-    overdueError.value = getErrorMessage(error)
-  } finally {
-    overdueLoading.value = false
-  }
+  // overdueLoading.value = true
+  // overdueError.value = ''
+  // try {
+  //   const response = await reportApi.getOverdueAssets(requestParams.value)
+  //   overdueItems.value = response.data.content
+  // } catch (error) {
+  //   overdueError.value = getErrorMessage(error)
+  // } finally {
+  //   overdueLoading.value = false
+  // }
 }
 
 async function loadRepeatedOverdueUsers() {
-  usersLoading.value = true
-  usersError.value = ''
-  try {
-    const response = await reportApi.getRepeatedOverdueUsers({
-      ...requestParams.value,
-      minOverdueCount: 2,
-    })
-    userItems.value = response.data.content
-  } catch (error) {
-    usersError.value = getErrorMessage(error)
-  } finally {
-    usersLoading.value = false
-  }
+  // usersLoading.value = true
+  // usersError.value = ''
+  // try {
+  //   const response = await reportApi.getRepeatedOverdueUsers({
+  //     ...requestParams.value,
+  //     minOverdueCount: 2,
+  //   })
+  //   userItems.value = response.data.content
+  // } catch (error) {
+  //   usersError.value = getErrorMessage(error)
+  // } finally {
+  //   usersLoading.value = false
+  // }
 }
 
 async function loadReturnRequests() {
-  returnLoading.value = true
-  returnError.value = ''
-  try {
-    const response = await reportApi.getReturnRequests(requestParams.value)
-    const data = response.data
-    returnSummaryRaw.value = data.summary ?? buildSummaryFromReturnItems(data)
-    returnItems.value = data.content ?? data.items ?? []
-  } catch (error) {
-    returnError.value = getErrorMessage(error)
-  } finally {
-    returnLoading.value = false
-  }
+  // returnLoading.value = true
+  // returnError.value = ''
+  // try {
+  //   const response = await reportApi.getReturnRequests(requestParams.value)
+  //   const data = response.data
+  //   returnSummaryRaw.value = data.summary ?? buildSummaryFromReturnItems(data)
+  //   returnItems.value = data.content ?? data.items ?? []
+  // } catch (error) {
+  //   returnError.value = getErrorMessage(error)
+  // } finally {
+  //   returnLoading.value = false
+  // }
 }
 
 async function loadPurchaseRequests() {
-  purchaseLoading.value = true
-  purchaseError.value = ''
-  try {
-    const response = await reportApi.getPurchaseRequests(requestParams.value)
-    purchaseItems.value = response.data.content
-  } catch (error) {
-    purchaseError.value = getErrorMessage(error)
-  } finally {
-    purchaseLoading.value = false
-  }
+  // purchaseLoading.value = true
+  // purchaseError.value = ''
+  // try {
+  //   const response = await reportApi.getPurchaseRequests(requestParams.value)
+  //   purchaseItems.value = response.data.content
+  // } catch (error) {
+  //   purchaseError.value = getErrorMessage(error)
+  // } finally {
+  //   purchaseLoading.value = false
+  // }
 }
 
 async function refreshAll() {
-  if (!canViewOperationReports.value) return
-  await Promise.all([
-    loadOverdueAssets(),
-    loadRepeatedOverdueUsers(),
-    loadReturnRequests(),
-    loadPurchaseRequests(),
-  ])
+  // if (!canViewOperationReports.value) return
+  // await Promise.all([
+  //   loadOverdueAssets(),
+  //   loadRepeatedOverdueUsers(),
+  //   loadReturnRequests(),
+  //   loadPurchaseRequests(),
+  // ])
 }
 
 function buildSummaryFromReturnItems(data: ReturnRequestReportResponse): ReturnRequestReportSummary {
