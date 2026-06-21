@@ -9,12 +9,23 @@ import type {
   PurchasePlanListItem,
   PurchasePlanPage,
   PurchasePlanStatistics,
+  PurchasePlanStatus,
   PurchasePlanStatusChangeRequest,
   PurchasePlanTangibleAssetRegisterRequest,
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
   PurchasePolicy,
 } from '@/types/purchase'
+
+const PURCHASE_PLAN_STATUSES = new Set([
+  'REQUESTED',
+  'APPROVED',
+  'REJECTED',
+  'ORDERED',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+])
 
 type PurchasePlanItemResponse = PurchasePlanItem & {
   productName?: string | null
@@ -37,6 +48,21 @@ type PurchasePlanListItemResponse = PurchasePlanListItem & {
   itemName?: string | null
   itemSummary?: string | null
   items?: PurchasePlanItemResponse[]
+}
+
+function normalizePurchasePlanStatus(data: Record<string, unknown>): PurchasePlanStatus {
+  const statusCandidates = [
+    data.purchaseRequestStatus,
+    data.status,
+    data.planStatus,
+    data.purchasePlanStatus,
+    data.requestStatus,
+  ]
+  const status = statusCandidates.find(
+    (value) => typeof value === 'string' && PURCHASE_PLAN_STATUSES.has(value),
+  )
+
+  return typeof status === 'string' ? status as PurchasePlanStatus : 'REQUESTED'
 }
 
 function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown> | undefined {
@@ -76,9 +102,12 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
 }
 
 function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
+  const purchaseRequestStatus = normalizePurchasePlanStatus(data as unknown as Record<string, unknown>)
+
   return {
     ...data,
-    purchaseRequestStatus: data.purchaseRequestStatus ?? data.status ?? 'REQUESTED',
+    purchaseRequestStatus,
+    status: purchaseRequestStatus,
     items: Array.isArray(data.items)
       ? data.items.map((item) => normalizePlanItem(item as PurchasePlanItemResponse))
       : [],
@@ -102,13 +131,16 @@ function normalizeListItem(item: PurchasePlanListItemResponse): PurchasePlanList
     ?? '-'
   const itemName = formatPurchasePlanItemName(firstItemName, itemCount)
 
+  const purchaseRequestStatus = normalizePurchasePlanStatus(item as unknown as Record<string, unknown>)
+
   return {
     ...item,
     itemName,
     itemSummary: itemName,
     itemCount,
     estimatedAmount: Number(item.estimatedAmount ?? 0),
-    purchaseRequestStatus: item.purchaseRequestStatus ?? item.status ?? 'REQUESTED',
+    purchaseRequestStatus,
+    status: purchaseRequestStatus,
   }
 }
 

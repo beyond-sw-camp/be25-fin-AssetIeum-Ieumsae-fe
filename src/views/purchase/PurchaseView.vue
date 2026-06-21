@@ -245,6 +245,7 @@
                         v-else
                         variant="outline"
                         size="sm"
+                        class="min-w-[5.75rem] whitespace-nowrap px-3!"
                         :disabled="
                           !canConfirmDelivery(row) ||
                           isConfirmingPurchaseItem(row)
@@ -477,15 +478,17 @@
     >
       <Button
         v-for="action in footerStatusActions"
-        :key="action.status"
+        :key="action.key ?? action.status ?? action.label"
         :variant="action.variant"
         :class="action.className"
-        class="shrink-0"
+        class="min-w-[5.75rem] shrink-0 whitespace-nowrap px-3!"
         :disabled="isStatusSaving"
         :loading="isStatusSaving && pendingReviewStatus === action.status"
-        @click="reviewPlan(action.status)"
+        @click="handleFooterAction(action)"
       >
         <ShoppingCart v-if="action.status === 'ORDERED'" :size="16" />
+        <PackageCheck v-else-if="action.status === 'DELIVERED'" :size="16" />
+        <BoxIcon v-else-if="action.action === 'register-asset'" :size="16" />
         {{ action.label }}
       </Button>
     </div>
@@ -900,8 +903,10 @@ interface DirectItemForm {
 }
 
 interface FooterStatusAction {
-  status: PurchasePlanStatus;
+  key?: string;
   label: string;
+  action?: "change-status" | "register-asset";
+  status?: PurchasePlanStatus;
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   className?: string;
 }
@@ -1179,6 +1184,8 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   if (currentStatus === "REQUESTED") {
     return [
       {
+        key: "status-rejected",
+        action: "change-status",
         status: "REJECTED",
         label: "반려",
         variant: "outline",
@@ -1191,10 +1198,47 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   if (currentStatus === "APPROVED") {
     return [
       {
+        key: "status-ordered",
+        action: "change-status",
         status: "ORDERED",
         label: "발주",
         variant: "outline",
         className: "border-primary! bg-white! text-primary! hover:bg-primary/5!",
+      },
+    ];
+  }
+
+  if (currentStatus === "ORDERED") {
+    return [
+      {
+        key: "status-delivered",
+        action: "change-status",
+        status: "DELIVERED",
+        label: "납품확인",
+        variant: "outline",
+        className: "border-primary! bg-white! text-primary! hover:bg-primary/5!",
+      },
+    ];
+  }
+
+  if (currentStatus === "DELIVERED") {
+    const hasRegisterableItem = selectedPlanItems.value.some(canRegisterAssetFromItem);
+
+    return [
+      ...(hasRegisterableItem
+        ? [{
+            key: "register-asset",
+            action: "register-asset" as const,
+            label: "자산 등록",
+            variant: "outline" as const,
+            className: "border-primary! text-primary! hover:bg-primary/5!",
+          }]
+        : []),
+      {
+        key: "status-completed",
+        action: "change-status",
+        status: "COMPLETED",
+        label: "완료",
       },
     ];
   }
@@ -1715,6 +1759,17 @@ async function reviewPlan(status: PurchasePlanStatus) {
   pendingReviewStatus.value = null;
 }
 
+async function handleFooterAction(action: FooterStatusAction) {
+  if (action.action === "register-asset") {
+    openFirstAssetRegisterDrawer();
+    return;
+  }
+
+  if (action.status) {
+    await reviewPlan(action.status);
+  }
+}
+
 function changeSelectedStatus() {
   if (!nextStatus.value) return;
   changeStatus(nextStatus.value);
@@ -1958,6 +2013,12 @@ function openAssetRegisterDrawer(item: PurchasePlanItem) {
   assetRegisterTargetItem.value = item;
   isAssetRegisterDrawerOpen.value = true;
   void fetchAssetRegisterReferenceData();
+}
+
+function openFirstAssetRegisterDrawer() {
+  const targetItem = selectedPlanItems.value.find(canRegisterAssetFromItem);
+  if (!targetItem) return;
+  openAssetRegisterDrawer(targetItem);
 }
 
 function closeAssetRegisterDrawer() {
