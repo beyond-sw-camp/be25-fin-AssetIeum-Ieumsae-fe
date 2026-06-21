@@ -1,49 +1,54 @@
 import api from './client'
-import type { IntangibleAsset, Role, TangibleAsset } from '@/types'
-import { getDashboardMockSnapshot } from '@/mocks/dashboard.data'
+import type {
+  AssetDemand,
+  BudgetOverview,
+  DashboardLifecycleEvent,
+  DepartmentBudgetDetail,
+  ExpiringAssetSummary,
+  HrEventStatistics,
+  HrLifecycleEvent,
+  OwnedAssetSummary,
+  PageResponse,
+  TicketProgressSummary,
+} from '@/types'
 
-export interface DashboardAssetsSnapshot {
-  tangibleAssets: TangibleAsset[]
-  intangibleAssets: IntangibleAsset[]
+interface DashboardScopeParams extends Record<string, unknown> {
+  departmentId?: string
 }
 
-const dashboardScopePath = (role: Role | null | undefined) => {
-  if (role === 'DEPARTMENT_MANAGER') return '/dashboard/department/assets/summary'
-  if (role === 'EMPLOYEE') return '/dashboard/employee/assets/summary'
-  return '/dashboard/admin/assets/summary'
-}
-
-const dashboardScope = (role: Role | null | undefined) => {
-  if (role === 'DEPARTMENT_MANAGER') return 'department'
-  if (role === 'EMPLOYEE') return 'employee'
-  return 'admin'
+interface PageParams extends Record<string, unknown> {
+  page?: number
+  size?: number
 }
 
 export const dashboardApi = {
-  getAssetsSnapshot: async (role: Role | null | undefined, params?: {
-    companyId?: string
-    departmentId?: string
-    memberId?: string
-  }) => {
-    try {
-      return await api.get<DashboardAssetsSnapshot>(dashboardScopePath(role), {
-        company_id: params?.companyId,
-        department_id: params?.departmentId,
-        member_id: params?.memberId,
-      })
-    } catch (error) {
-      console.warn('대시보드 API 미연결 - mock 데이터로 대체합니다.', error)
+  getTicketProgress: (params?: DashboardScopeParams) =>
+    api.get<TicketProgressSummary>('/dashboard/ticket-progress', params),
 
-      return {
-        status: 200,
-        errorCode: null,
-        message: '대시보드 mock 데이터입니다.',
-        data: getDashboardMockSnapshot({
-          scope: dashboardScope(role),
-          departmentId: params?.departmentId,
-          memberId: params?.memberId,
-        }),
-      }
-    }
-  },
+  getOwnedAssets: (params?: DashboardScopeParams) =>
+    api.get<OwnedAssetSummary>('/dashboard/owned-assets', params),
+
+  getExpiringAssets: (params?: DashboardScopeParams) =>
+    api.get<ExpiringAssetSummary>('/dashboard/expiring-assets', params),
+
+  getAssetDemands: (params?: PageParams) =>
+    api.get<PageResponse<AssetDemand>>('/dashboard/asset-demands', params),
+
+  getBudgets: (params?: PageParams) =>
+    api.get<BudgetOverview>('/dashboard/budgets', params),
+
+  getLifecycleEvents: (params?: PageParams) =>
+    api.get<PageResponse<DashboardLifecycleEvent>>('/dashboard/lifecycle-events', params),
+
+  getDepartmentBudgetDetails: (departmentId: string, year?: number) =>
+    api.get<DepartmentBudgetDetail>('/department-dashboard/budget-details', {
+      departmentId,
+      year,
+    }),
+
+  getDepartmentHrEvents: (params?: PageParams & { departmentId?: string; eventType?: string }) =>
+    api.get<PageResponse<HrLifecycleEvent>>('/department-dashboard/hr-events', params),
+
+  getDepartmentHrStatistics: (departmentId?: string) =>
+    api.get<HrEventStatistics>('/department-dashboard/hr-events/statistics', { departmentId }),
 }
