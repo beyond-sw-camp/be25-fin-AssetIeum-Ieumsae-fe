@@ -3,13 +3,72 @@ import type {
   PurchasePlanCreateRequest,
   PurchasePlanCreateResponse,
   PurchasePlanDetail,
+  PurchasePlanIntangibleAssetRegisterRequest,
+  PurchasePlanItem,
   PurchasePlanListFilter,
   PurchasePlanListItem,
   PurchasePlanPage,
+  PurchasePlanStatistics,
+  PurchasePlanStatus,
   PurchasePlanStatusChangeRequest,
+  PurchasePlanTangibleAssetRegisterRequest,
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
+  PurchasePolicy,
 } from '@/types/purchase'
+
+const PURCHASE_PLAN_STATUSES = new Set([
+  'REQUESTED',
+  'APPROVED',
+  'REJECTED',
+  'ORDERED',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+])
+
+type PurchasePlanItemResponse = PurchasePlanItem & {
+  productName?: string | null
+  name?: string | null
+  categoryName?: string | null
+  assetCategoryName?: string | null
+  purchasePlanItemId?: number | string
+  purchaseItemId?: number | string
+  planItemId?: number | string
+  purchaseRequestItemId?: number | string
+  id?: number | string
+  unitPrice?: number
+  estimatedAmount?: number
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  requesterId?: number | string | null
+  requesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
+}
+
+type PurchasePlanListItemResponse = PurchasePlanListItem & {
+  itemName?: string | null
+  itemSummary?: string | null
+  items?: PurchasePlanItemResponse[]
+}
+
+function normalizePurchasePlanStatus(data: Record<string, unknown>): PurchasePlanStatus {
+  const statusCandidates = [
+    data.purchaseRequestStatus,
+    data.status,
+    data.planStatus,
+    data.purchasePlanStatus,
+    data.requestStatus,
+  ]
+  const status = statusCandidates.find(
+    (value) => typeof value === 'string' && PURCHASE_PLAN_STATUSES.has(value),
+  )
+
+  return typeof status === 'string' ? status as PurchasePlanStatus : 'REQUESTED'
+}
 
 function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown> | undefined {
   if (!params) return undefined
@@ -25,22 +84,95 @@ function toQueryParams(params?: PurchasePlanListFilter): Record<string, unknown>
   return Object.keys(cleanedParams).length > 0 ? cleanedParams : undefined
 }
 
+function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
+  const quantity = Number(item.quantity ?? 0)
+  const estimatedUnitPrice = Number(item.estimatedUnitPrice ?? item.unitPrice ?? 0)
+  const totalAmount = Number(item.totalAmount ?? item.estimatedAmount ?? estimatedUnitPrice * quantity)
 
-function normalizePlanPage(data: PurchasePlanPage | PurchasePlanListItem[]): PurchasePlanPage {
-  if (Array.isArray(data)) {
-    return {
-      content: data,
-      page: 0,
-      size: data.length,
-      totalElements: data.length,
-      totalPages: data.length > 0 ? 1 : 0,
-    }
+  return {
+    ...item,
+    itemId:
+      item.itemId
+      ?? item.purchasePlanItemId
+      ?? item.purchaseItemId
+      ?? item.planItemId
+      ?? item.purchaseRequestItemId
+      ?? item.id,
+    category: item.category ?? item.categoryName ?? item.assetCategoryName ?? '-',
+    itemName: item.itemName ?? item.productName ?? item.name ?? '-',
+    quantity,
+    estimatedUnitPrice,
+    totalAmount,
+    ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
+    ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
+    ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
+    ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
+  const purchaseRequestStatus = normalizePurchasePlanStatus(data as unknown as Record<string, unknown>)
 
   return {
     ...data,
-    content: Array.isArray(data.content) ? data.content : [],
-    totalElements: Number(data.totalElements ?? data.content?.length ?? 0),
+    purchaseRequestStatus,
+    status: purchaseRequestStatus,
+    items: Array.isArray(data.items)
+      ? data.items.map((item) => normalizePlanItem(item as PurchasePlanItemResponse))
+      : [],
+  }
+}
+
+function formatPurchasePlanItemName(firstItemName: string | null | undefined, itemCount: number) {
+  const normalizedName = firstItemName?.trim() || '-'
+  if (/\s외\s\d+종$/.test(normalizedName)) return normalizedName
+  const extraCount = Math.max(Number(itemCount || 0) - 1, 0)
+  return extraCount > 0 ? `${normalizedName} 외 ${extraCount}종` : normalizedName
+}
+
+function normalizeListItem(item: PurchasePlanListItemResponse): PurchasePlanListItem {
+  const itemCount = Number(item.itemCount ?? item.items?.length ?? 0)
+  const firstItemName = item.itemName
+    ?? item.itemSummary
+    ?? item.items?.[0]?.itemName
+    ?? item.items?.[0]?.productName
+    ?? item.items?.[0]?.name
+    ?? '-'
+  const itemName = formatPurchasePlanItemName(firstItemName, itemCount)
+
+  const purchaseRequestStatus = normalizePurchasePlanStatus(item as unknown as Record<string, unknown>)
+
+  return {
+    ...item,
+    itemName,
+    itemSummary: itemName,
+    itemCount,
+    estimatedAmount: Number(item.estimatedAmount ?? 0),
+    purchaseRequestStatus,
+    status: purchaseRequestStatus,
+  }
+}
+
+function normalizePlanPage(data: PurchasePlanPage | PurchasePlanListItem[]): PurchasePlanPage {
+  if (Array.isArray(data)) {
+    const content = data.map((item) => normalizeListItem(item as PurchasePlanListItemResponse))
+    return {
+      content,
+      page: 0,
+      size: content.length,
+      totalElements: content.length,
+      totalPages: content.length > 0 ? 1 : 0,
+    }
+  }
+
+  const content = Array.isArray(data.content)
+    ? data.content.map((item) => normalizeListItem(item as PurchasePlanListItemResponse))
+    : []
+
+  return {
+    ...data,
+    content,
+    totalElements: Number(data.totalElements ?? content.length ?? 0),
     totalPages: Number(data.totalPages ?? 0),
   }
 }
@@ -60,8 +192,16 @@ export const purchaseApi = {
   createPlan: (data: PurchasePlanCreateRequest) =>
     api.post<PurchasePlanCreateResponse>('/purchase-plans', data),
 
-  getPlanDetail: (planId: number | string) =>
-    api.get<PurchasePlanDetail>(`/purchase-plans/${planId}`),
+  getStatistics: () =>
+    api.get<PurchasePlanStatistics>('/purchase-plans/statistics'),
+
+  getPlanDetail: async (planId: number | string) => {
+    const response = await api.get<PurchasePlanDetail>(`/purchase-plans/${planId}`)
+    return {
+      ...response,
+      data: normalizePlanDetail(response.data),
+    }
+  },
 
   deletePlan: (planId: number | string) =>
     api.delete<Record<string, never>>(`/purchase-plans/${planId}`),
@@ -70,7 +210,23 @@ export const purchaseApi = {
     api.patch<PurchasePlanDetail>(`/purchase-plans/${planId}/status`, data),
 
   confirmDelivery: (planId: number | string, itemId: number | string) =>
-    api.get<Record<string, never>>(`/purchase-plans/${planId}/items/${itemId}/confirm`),
+    api.patch<PurchasePlanItem>(`/purchase-plans/${planId}/items/${itemId}/confirm`),
+
+  registerAssets: (
+    planId: number | string,
+    itemId: number | string | null,
+    data: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest,
+  ) => {
+    const assetPath = 'serialNumbers' in data ? 'tangible-assets' : 'intangible-assets'
+    const itemPath = itemId ? `/items/${itemId}` : ''
+    return api.post<Record<string, unknown>>(
+      `/purchase-plans/${planId}${itemPath}/${assetPath}`,
+      data,
+    )
+  },
+
+  getPolicy: () =>
+    api.get<PurchasePolicy>('/purchase-policies'),
 
   updatePolicy: (data: PurchasePolicyUpdateRequest) =>
     api.put<PurchasePolicyUpdateResponse>('/purchase-policies', data),

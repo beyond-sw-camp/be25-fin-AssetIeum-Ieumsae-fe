@@ -286,7 +286,7 @@ const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 
 const route = useRoute()

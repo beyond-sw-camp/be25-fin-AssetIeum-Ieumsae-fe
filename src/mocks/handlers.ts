@@ -12,12 +12,15 @@ import type {
   IntangibleAssetCreateRequest,
   LoginRequest,
   LoginResponse,
+  MaintenanceAvailableAsset,
   MaintenanceRequestCreate,
   Member,
   MemberRegisterRequest,
   NonStandardAssetRequestCreate,
   PageResponse,
   PasswordChangeRequest,
+  PurchasePlanCandidateTicket,
+  PurchasePlanAssetRegisterRequest,
   PurchasePlanCreateRequest,
   PurchasePlanDetail,
   PurchasePlanListItem,
@@ -27,6 +30,8 @@ import type {
   PurchasePolicyUpdateResponse,
   PurchaseReturnRequestCreate,
   PurchaseRequestMethod,
+  RentalAvailableItem,
+  ActiveRentalAsset,
   RentalExtensionRequestCreate,
   RentalRequestCreate,
   ReturnRequestCreate,
@@ -75,7 +80,7 @@ const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
   'COMPLETED',
-  'CANCELED',
+  'CANCELLED',
 ])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
@@ -98,6 +103,15 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
     totalElements: content.length,
     totalPages: Math.ceil(content.length / size),
   }
+}
+
+function optionalNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department' | 'employee') {
@@ -919,7 +933,6 @@ for (const ticketId of ['209', '210', '211']) {
 
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
 ticketCanceledAt.set('212', '2026-06-15T15:00:00')
-ticketcanceledAt.set('212', '2026-06-15T15:00:00')
 
 const additionalPurchaseTickets: MockTicket[] = [
   {
@@ -1380,6 +1393,7 @@ purchasePlans = [
 function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem {
   const firstItemName = plan.items[0]?.itemName ?? '-'
   const extraCount = Math.max(plan.items.length - 1, 0)
+  const itemName = extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName
 
   return {
     planId: plan.planId,
@@ -1393,7 +1407,26 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
     purchaseRequestStatus: plan.purchaseRequestStatus,
     requesterId: plan.requesterId,
     requesterName: plan.requesterName,
-    itemSummary: extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName,
+    itemName,
+  }
+}
+
+function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
+  return {
+    ...plan,
+    items: plan.items.map((item) => {
+      const ticketDetail = item.ticketId == null
+        ? undefined
+        : ticketDetailData.get(String(item.ticketId))
+
+      return {
+        ...item,
+        ticketRequesterId: item.ticketRequesterId ?? ticketDetail?.requesterId ?? null,
+        ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
+        ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
+        ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
+      }
+    }),
   }
 }
 
@@ -1402,13 +1435,9 @@ function getPurchasePlanStatistics(): PurchasePlanStatistics {
 
   return {
     totalCount: activePlans.length,
-    requestedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REQUESTED').length,
-    approvedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'APPROVED').length,
-    rejectedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REJECTED').length,
+    approvalWaitingCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REQUESTED').length,
     orderedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'ORDERED').length,
-    deliveredCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'DELIVERED').length,
     completedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'COMPLETED').length,
-    cancelledCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'CANCELLED').length,
   }
 }
 
@@ -1424,6 +1453,74 @@ function createPurchasePlanNo(now: Date, sequence: number) {
 
 function findPurchasePlan(planId: number) {
   return purchasePlans.find((plan) => plan.planId === planId && !plan.deletedAt)
+}
+
+async function handlePurchasePlanAssetRegister(
+  planId: number,
+  itemId: string | null,
+  request: Request,
+) {
+  const plan = findPurchasePlan(planId)
+  const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+  if (!plan) {
+    return HttpResponse.json({
+      status: 404,
+      errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+      message: '구매 계획을 찾을 수 없습니다.',
+      data: null,
+    }, { status: 404 })
+  }
+
+  if (itemId) {
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+  }
+
+  const uniqueCodes = 'serialNumbers' in body
+    ? body.serialNumbers
+    : 'licenseCodes' in body
+      ? body.licenseCodes
+      : []
+  const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+  if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
+    return HttpResponse.json({
+      status: 400,
+      errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+      message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
+      data: null,
+    }, { status: 400 })
+  }
+
+  const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+    uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
+  ))
+
+  if (duplicatedCode) {
+    return HttpResponse.json({
+      status: 409,
+      errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+      message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
+      data: null,
+    }, { status: 409 })
+  }
+
+  plan.updatedAt = new Date().toISOString()
+
+  return HttpResponse.json(ok({
+    planId,
+    itemId,
+    registeredCount: uniqueCodes.length,
+  }, '구매 계획 자산을 등록했습니다.'))
 }
 
 function updateTicketForPurchasePlan(ticketId: string | number | null, plan: PurchasePlanDetail) {
@@ -2018,12 +2115,55 @@ function toLoginResponse(member: Member): LoginResponse {
   }
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - normalizedPayload.length % 4) % 4),
+      '=',
+    )
+
+    return JSON.parse(atob(paddedPayload)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function getPayloadString(payload: Record<string, unknown> | null, keys: string[]) {
+  if (!payload) return undefined
+
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+
+  return undefined
+}
+
 function getAuthenticatedMember(request: Request): Member | undefined {
   const authHeader = request.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer mock-access-token-')) return undefined
+  if (!authHeader?.startsWith('Bearer ')) return undefined
 
-  const memberNo = authHeader.replace('Bearer mock-access-token-', '')
+  const token = authHeader.replace('Bearer ', '')
+  if (token.startsWith('mock-access-token-')) {
+    const memberNo = token.replace('mock-access-token-', '')
+    return members.find((member) => member.memberNo === memberNo)
+  }
+
+  const payload = decodeJwtPayload(token)
+  const memberNo = getPayloadString(payload, ['memberNo', 'employeeNo', 'empNo'])
+  const memberId = getPayloadString(payload, ['memberId', 'employeeId', 'id', 'sub'])
+  const email = getPayloadString(payload, ['email'])
+  const role = getPayloadString(payload, ['role', 'authorities'])
+
   return members.find((member) => member.memberNo === memberNo)
+    ?? members.find((member) => member.memberId === memberId)
+    ?? members.find((member) => member.email === email)
+    ?? members.find((member) => member.role === role && member.status === 'ACTIVE')
 }
 
 function canManageAssets(member: Member | undefined): boolean {
@@ -2199,6 +2339,89 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
   }
 }
 
+function isPurchasePlanCandidateTicket(ticket: MockTicket) {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+
+  if (ticket.ticketStatus !== 'ASSET_APPROVED') return false
+  if (ticket.ticketType === 'PURCHASE_REQUEST') {
+    return ticket.requestMethod !== 'DIRECT_PURCHASE'
+  }
+  if (ticket.ticketType !== 'ASSET_REQUEST') return false
+
+  const availableCount = optionalNumber(detailRecord.availableCount ?? detailRecord.availableAssetCount)
+  if (availableCount === null || availableCount === undefined) return true
+
+  return availableCount < (detail.quantity ?? 1)
+}
+
+function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidateTicket {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+  const estimatedUnitPrice = optionalNumber(detail.expectedPrice
+    ?? detailRecord.purchasePrice
+    ?? detailRecord.unitPrice
+    ?? 0) ?? 0
+
+  return {
+    ticketId: ticket.ticketId,
+    ticketNo: ticket.ticketNo,
+    ticketType: ticket.ticketType,
+    assetType: detail.assetType ?? 'TANGIBLE',
+    requesterId: ticket.requesterId,
+    requesterName: ticket.requesterName,
+    itemName: detail.requestedItemName ?? detail.requestedItemDetail ?? detail.productName ?? ticket.requestedItemName ?? '',
+    categoryName: detail.categoryName ?? '',
+    quantity: detail.quantity ?? 1,
+    estimatedUnitPrice,
+    assetItemId: detail.assetItemId ?? null,
+    isStandard: detail.isStandard ?? null,
+  }
+}
+
+function toTangibleAvailableAssignedAsset(assignment: MockTangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'TANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    tangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.assetName ?? asset?.assetItemName,
+    manufacturer: item?.manufacturer,
+    modelName: item?.modelName,
+    serialNumber: asset?.serialNumber ?? asset?.serialNo,
+    assignedAt: assignment.assignedAt,
+    returnDueDate: assignment.endedAt,
+  }
+}
+
+function toIntangibleAvailableAssignedAsset(assignment: MockIntangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = intangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = intangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'INTANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    intangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.productName ?? asset?.assetItemName,
+    provider: item?.vendor ?? asset?.vendor,
+    licenseCode: asset?.licenseKey,
+    assignedAt: assignment.assignedAt,
+    expiredAt: asset?.expiredAt ?? assignment.endedAt,
+  }
+}
+
 export const handlers = [
   http.get(`${API_PREFIX}/dashboard/admin/assets/summary`, ({ request }) => (
     HttpResponse.json(ok(
@@ -2293,17 +2516,33 @@ export const handlers = [
         const detail = item.ticketId == null
           ? undefined
           : ticketDetailData.get(String(item.ticketId))
+        const directRequesterId = item.ticketId == null
+          ? item.ticketRequesterId ?? item.requesterId ?? purchaseRequester?.memberId ?? null
+          : null
+        const directRequesterName = item.ticketId == null
+          ? item.ticketRequesterName ?? item.requesterName ?? purchaseRequester?.name ?? null
+          : null
+        const directDepartmentId = item.ticketId == null
+          ? item.ticketDepartmentId ?? item.departmentId ?? purchaseRequester?.departmentId ?? null
+          : null
+        const directDepartmentName = item.ticketId == null
+          ? item.ticketDepartmentName ?? item.departmentName ?? purchaseRequester?.departmentName ?? null
+          : null
 
         return {
           itemId: planId * 100 + index + 1,
-          category: detail?.categoryName ?? '-',
-          itemName: item.itemName,
+          category: detail?.categoryName ?? item.categoryName ?? '-',
+          itemName: item.productName,
           quantity: item.quantity,
           estimatedUnitPrice: item.estimatedUnitPrice,
           totalAmount: item.estimatedAmount,
           assetType: item.assetType,
           isStandard: item.isStandard === 1,
           ticketId: item.ticketId,
+          ticketRequesterId: detail?.requesterId ?? directRequesterId,
+          ticketRequesterName: detail?.requesterName ?? directRequesterName,
+          ticketDepartmentId: detail?.departmentId ?? directDepartmentId,
+          ticketDepartmentName: detail?.departmentName ?? directDepartmentName,
           receivedAt: null,
         }
       }),
@@ -2337,7 +2576,7 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    return HttpResponse.json(ok(plan))
+    return HttpResponse.json(ok(toPurchasePlanDetail(plan)))
   }),
 
   http.delete(`${API_PREFIX}/purchase-plans/:planId`, ({ params }) => {
@@ -2389,7 +2628,7 @@ export const handlers = [
     return HttpResponse.json(ok(plan, '구매 계획 상태가 변경되었습니다.'))
   }),
 
-  http.get(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/confirm`, ({ params }) => {
+  http.patch(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/confirm`, ({ params }) => {
     const planId = Number(params.planId)
     const itemId = String(params.itemId)
     const plan = findPurchasePlan(planId)
@@ -2426,92 +2665,100 @@ export const handlers = [
     return HttpResponse.json(ok({}, '납품 확인이 완료되었습니다.'))
   }),
 
+  http.post(`${API_PREFIX}/purchase-plans/:planId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/assets`, async ({ params, request }) => {
+    const planId = Number(params.planId)
+    const itemId = String(params.itemId)
+    const plan = findPurchasePlan(planId)
+    const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const uniqueCodes = 'serialNumbers' in body
+      ? body.serialNumbers
+      : 'licenseCodes' in body
+        ? body.licenseCodes
+        : []
+    const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+    if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+        message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
+        data: null,
+      }, { status: 400 })
+    }
+
+    const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+      uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
+    ))
+
+    if (duplicatedCode) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+        message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
+        data: null,
+      }, { status: 409 })
+    }
+
+    plan.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok({
+      planId,
+      itemId,
+      registeredCount: uniqueCodes.length,
+    }, '구매 계획 자산이 등록되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/purchase-policies`, () => {
+    return HttpResponse.json(ok(purchasePolicy, '구매 정책 조회에 성공했습니다.'))
+  }),
+
   http.put(`${API_PREFIX}/purchase-policies`, async ({ request }) => {
     const body = await request.json() as PurchasePolicyUpdateRequest
 
     purchasePolicy = {
       policyId: purchasePolicy.policyId,
-      purchaseMethod: body.purchaseMode,
+      purchaseMethod: body.purchaseMethod,
       overPercentageLimit: body.overPercentageLimit,
     }
 
     return HttpResponse.json(ok(purchasePolicy, '구매 운영 정책이 저장되었습니다.'))
-  }),
-
-  http.get(`${API_PREFIX}/companies`, ({ request }) => {
-    const url = new URL(request.url)
-    const page = Number(url.searchParams.get('page') ?? 0)
-    const size = Number(url.searchParams.get('size') ?? 10)
-    const keyword = (url.searchParams.get('keyword') ?? '').toLowerCase()
-
-    const filteredCompanies = companies
-      .filter((company) => !company.deletedAt)
-      .filter((company) => (
-        !keyword
-        || company.companyCode.toLowerCase().includes(keyword)
-        || (company.companyName ?? '').toLowerCase().includes(keyword)
-      ))
-
-    return HttpResponse.json(ok(pageOf(filteredCompanies, page, size), '회사 목록을 조회했습니다.'))
-  }),
-
-  http.post(`${API_PREFIX}/companies`, async ({ request }) => {
-    const body = await request.json() as { companyCode?: string; companyName?: string }
-    const companyCode = body.companyCode?.trim()
-    const companyName = body.companyName?.trim()
-
-    if (!companyCode || !companyName) {
-      return HttpResponse.json({
-        status: 400,
-        errorCode: 'COMMON_001',
-        message: '회사명과 회사 코드는 필수입니다.',
-        data: null,
-      }, { status: 400 })
-    }
-
-    if (companies.some((company) => company.companyCode.toLowerCase() === companyCode.toLowerCase() && !company.deletedAt)) {
-      return HttpResponse.json({
-        status: 409,
-        errorCode: 'company-002',
-        message: '이미 등록된 회사 코드입니다.',
-        data: null,
-      }, { status: 409 })
-    }
-
-    const company: Company = {
-      companyId: crypto.randomUUID(),
-      companyCode,
-      companyName,
-      createdAt: new Date().toISOString(),
-      adminName: null,
-      adminMemberNo: null,
-      adminEmail: null,
-      memberCount: 1,
-    }
-
-    companies = [company, ...companies]
-    return HttpResponse.json(ok(company, '회사를 등록했습니다.'))
-  }),
-
-  http.delete(`${API_PREFIX}/companies/:companyId`, ({ params }) => {
-    const companyId = String(params.companyId)
-    const company = companies.find((item) => String(item.companyId) === companyId)
-
-    if (!company || company.deletedAt) {
-      return HttpResponse.json({
-        status: 404,
-        errorCode: 'COMPANY_NOT_FOUND',
-        message: '회사를 찾을 수 없습니다.',
-        data: null,
-      }, { status: 404 })
-    }
-
-    const deletedAt = new Date().toISOString()
-    companies = companies.map((item) => (
-      String(item.companyId) === companyId ? { ...item, deletedAt } : item
-    ))
-
-    return HttpResponse.json(ok({ companyId: company.companyId, deletedAt }, '회사를 삭제했습니다.'))
   }),
 
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
@@ -2627,6 +2874,19 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/purchase-plan-candidates`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const requester = getAuthenticatedMember(request)
+    const candidates = tickets
+      .filter((ticket) => canAccessTicket(requester, ticket))
+      .filter(isPurchasePlanCandidateTicket)
+      .map(toPurchasePlanCandidateTicket)
+
+    return HttpResponse.json(ok(pageOf(candidates, page, size)))
   }),
 
   http.get(`${API_PREFIX}/tickets/statistics`, ({ request }) => {
@@ -3160,7 +3420,7 @@ export const handlers = [
     const isRequester = Boolean(requester && requester.memberId === ticket.requesterId)
     const canCancelAsRequester = isRequester && CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)
     const canCancelAsAssetTeam = isAssetTeamRole(requester)
-      && !['COMPLETED', 'CANCELED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+      && !['COMPLETED', 'CANCELLED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
 
     if (!canCancelAsRequester && !canCancelAsAssetTeam) {
       return HttpResponse.json({
@@ -3172,8 +3432,8 @@ export const handlers = [
     }
 
     const updatedAt = new Date().toISOString()
-    ticket.ticketStatus = 'CANCELED'
-    ticketcanceledAt.set(ticketId, updatedAt)
+    ticket.ticketStatus = 'CANCELLED'
+    ticketCanceledAt.set(ticketId, updatedAt)
 
     return HttpResponse.json(ok({
       ticketId,
@@ -3859,6 +4119,8 @@ export const handlers = [
         {
           requestedUsageType: body.requestedUsageType,
           assetType: body.assetType,
+          assetItemId: body.assetItemId,
+          isStandard: body.isStandard,
           categoryName: body.categoryId,
           requestedItemDetail: body.requestedItemDetail,
           quantity: body.quantity,
@@ -3866,6 +4128,53 @@ export const handlers = [
         },
       ),
       '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/rentals/available-items`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const categoryId = url.searchParams.get('categoryId') ?? ''
+    const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
+
+    const availableItems = tangibleItems
+      .map<RentalAvailableItem>((item) => {
+        const availableAssetCount = tangibleAssets.filter((asset) => (
+          asset.assetItemId === item.assetItemId && asset.status === 'AVAILABLE'
+        )).length
+
+        return {
+          tangibleAssetItemId: item.assetItemId,
+          categoryId: `cat-${item.category}`,
+          categoryName: item.category,
+          productName: item.assetName,
+          manufacturer: item.manufacturer,
+          modelName: item.modelName,
+          isStandard: item.isStandard === 1,
+          availableAssetCount,
+        }
+      })
+      .filter((item) => item.availableAssetCount && item.availableAssetCount > 0)
+      .filter((item) => !categoryId || item.categoryId === categoryId)
+      .filter((item) => {
+        if (!isStandard) return true
+        return String(item.isStandard) === isStandard
+      })
+      .filter((item) => {
+        if (!keyword) return true
+        return [
+          item.productName,
+          item.categoryName,
+          item.manufacturer,
+          item.modelName,
+        ].filter(Boolean).join(' ').toLowerCase().includes(keyword)
+      })
+
+    return HttpResponse.json(ok(
+      pageOf(availableItems, page, size),
+      '???媛???덈ぉ 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
     ))
   }),
 
@@ -3891,18 +4200,54 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/rental-extensions`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/rentals/active-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const activeRentalAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && assignment.assignmentType === 'TEMPORARY'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<ActiveRentalAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+          currentReturnDueDate: assignment.endedAt ?? asset?.returnDueDate ?? undefined,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      activeRentalAssets,
+      '??ъ쨷???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/rentals/extensions`, async ({ request }) => {
     const body = await request.json() as RentalExtensionRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'RENTAL_EXTENSION',
         body.requestReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : '대여 연장 자산',
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
           requestedDueDate: body.requestedDueDate,
         },
@@ -3911,39 +4256,123 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/maintenance-requests`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/maintenance/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const maintenanceAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<MaintenanceAvailableAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      maintenanceAssets,
+      '?좎?蹂댁닔 ?붿껌 媛???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/asset-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangibleReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+    const intangibleReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const returnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangibleReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangibleReturnAssets),
+    ]
+
+    return HttpResponse.json(ok(returnAssets, 'Available return assets loaded.'))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/purchase-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangiblePurchaseReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+    const intangiblePurchaseReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const purchaseReturnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangiblePurchaseReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangiblePurchaseReturnAssets),
+    ]
+
+    return HttpResponse.json(ok(purchaseReturnAssets, 'Available purchase return assets loaded.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/maintenance`, async ({ request }) => {
     const body = await request.json() as MaintenanceRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'MAINTENANCE_REQUEST',
-        body.maintenanceReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        body.requestDetail,
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : null,
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
-          maintenanceReason: body.maintenanceReason,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '유지보수 요청 티켓 등록에 성공했습니다.',
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/returns`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/asset-returns`, async ({ request }) => {
     const body = await request.json() as ReturnRequestCreate
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'ASSET_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
           assetType: body.assetType,
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
-          returnReason: body.returnReason,
         },
       ),
       '자산 반납 요청 티켓 등록에 성공했습니다.',
@@ -3952,17 +4381,20 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tickets/purchase-returns`, async ({ request }) => {
     const body = await request.json() as PurchaseReturnRequestCreate
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'PURCHASE_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
           assetType: body.assetType,
-          assetId: body.assetId,
-          returnReason: body.returnReason,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '반품 요청 티켓 등록에 성공했습니다.',

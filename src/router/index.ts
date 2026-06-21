@@ -244,6 +244,12 @@ const router = createRouter({
           meta: { title: '설정' },
         },
         {
+          path: 'settings/purchase-policy',
+          name: 'PurchasePolicySettings',
+          component: () => import('@/views/settings/SettingsView.vue'),
+          meta: { title: '구매 운영 정책', roles: ['ADMIN'] },
+        },
+        {
           path: 'settings/password',
           name: 'PasswordChange',
           component: () => import('@/views/auth/PasswordChangeView.vue'),

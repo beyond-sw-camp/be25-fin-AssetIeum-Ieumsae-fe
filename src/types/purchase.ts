@@ -13,9 +13,18 @@ export type PurchasePolicyMode = 'ONLY_ASSET_TEAM' | 'ONLY_DIRECT_PURCHASE' | 'P
 
 export interface PurchasePlanCreateItem {
   ticketId: string | null
-  itemName: string
+  productName: string
   assetType: AssetType
   assetItemId?: string | null
+  categoryName?: string
+  requesterId?: number | string | null
+  requesterName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
   quantity: number
   isStandard: 0 | 1
   estimatedUnitPrice: number
@@ -41,6 +50,7 @@ export interface PurchasePlanListItem {
   planNo: string
   estimatedAmount: number
   itemCount: number
+  itemName: string
   createdAt: string
   updatedAt: string
   deletedAt?: string | null
@@ -53,13 +63,9 @@ export interface PurchasePlanListItem {
 
 export interface PurchasePlanStatistics {
   totalCount: number
-  requestedCount: number
-  approvedCount: number
-  rejectedCount: number
+  approvalWaitingCount: number
   orderedCount: number
-  deliveredCount: number
   completedCount: number
-  cancelledCount: number
 }
 
 export interface PurchasePlanListFilter {
@@ -72,17 +78,32 @@ export interface PurchasePlanListFilter {
 
 export interface PurchasePlanItem {
   itemId?: number | string
+  purchasePlanItemId?: number | string
+  purchaseItemId?: number | string
+  planItemId?: number | string
+  purchaseRequestItemId?: number | string
+  id?: number | string
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
   intangibleItemId?: number | string | null
   category: string
   itemName: string
+  productName?: string | null
+  name?: string | null
   quantity: number
   estimatedUnitPrice: number
   totalAmount: number
   assetType?: AssetType
   isStandard?: boolean
   ticketId?: number | string | null
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  requesterId?: number | string | null
+  requesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
   receivedAt?: string | null
 }
 
@@ -105,17 +126,54 @@ export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
 }
 
+/** 구매 계획 자산 등록 요청 - 유형자산 */
+export interface PurchasePlanTangibleAssetRegisterRequest {
+  usageType: 'TEMPORARY' | 'PERMANENT'
+  assetUsageType: 'PERSONAL' | 'DEPARTMENT' | string
+  serialNumbers: string[]
+  memberIds: (string | null)[]
+  location: string
+  purchaseDate: string
+  purchasePrice: number
+  purchaseVendor: string
+  warrantyExpiredAt: string
+  departmentId?: string | null
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
+}
+
+/** 구매 계획 자산 등록 요청 - 무형자산 */
+export interface PurchasePlanIntangibleAssetRegisterRequest {
+  licenseCodes: string[]
+  memberIds: string[][]
+  purchaseDate: string
+  purchasePrice: number
+  purchaseVendor: string
+  licenseType: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
+  seatCount: number
+  isAutoRenewal: boolean
+  billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  departmentId?: string | null
+}
+
+/** @deprecated 대신 PurchasePlanTangibleAssetRegisterRequest / PurchasePlanIntangibleAssetRegisterRequest 사용 */
+export type PurchasePlanAssetRegisterRequest =
+  | PurchasePlanTangibleAssetRegisterRequest
+  | PurchasePlanIntangibleAssetRegisterRequest
+
 export interface PurchasePolicyUpdateRequest {
-  purchaseMode: PurchasePolicyMode
-  allowDirectPurchase: boolean
-  allowParallelOperation: boolean
+  purchaseMethod: PurchasePolicyMode
   overPercentageLimit: number
 }
 
-export interface PurchasePolicyUpdateResponse {
+export interface PurchasePolicy {
   policyId: string
   purchaseMethod: PurchasePolicyMode
   overPercentageLimit: number
 }
+
+export type PurchasePolicyUpdateResponse = PurchasePolicy
 
 export type PurchasePlanPage = PageResponse<PurchasePlanListItem>

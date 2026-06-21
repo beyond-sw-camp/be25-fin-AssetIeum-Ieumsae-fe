@@ -33,7 +33,7 @@
       </div>
     </section>
 
-    <section v-if="canManageCompany" class="card mx-0 mt-4 max-w-3xl p-6">
+    <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 max-w-3xl p-6">
       <div class="mb-5 flex min-w-0 items-start gap-3">
         <div
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -59,7 +59,7 @@
               </p>
             </div>
             <span class="w-fit rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-sub">
-              조회 API 연결 예정
+              {{ isPolicyLoading ? '조회 중' : currentPolicy ? '적용 중' : '미조회' }}
             </span>
           </div>
         </div>
@@ -132,7 +132,7 @@
         </div>
 
         <div class="flex justify-end">
-          <Button :loading="isPolicySaving" :disabled="isPolicySaving" @click="savePolicy">
+          <Button :loading="isPolicySaving" :disabled="isPolicySaving || isPolicyLoading" @click="savePolicy">
             저장
           </Button>
         </div>
@@ -142,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { KeyRound, Settings2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
@@ -150,13 +150,19 @@ import { ApiError, purchaseApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import { usePermission } from '@/composables/usePermission'
 import type {
+  PurchasePolicy,
   PurchasePolicyMode,
-  PurchasePolicyUpdateRequest,
-  PurchasePolicyUpdateResponse,
 } from '@/types'
 
+interface PurchasePolicyForm {
+  purchaseMode: PurchasePolicyMode
+  allowDirectPurchase: boolean
+  allowParallelOperation: boolean
+  overPercentageLimit: number
+}
+
 const router = useRouter()
-const { canManageCompany } = usePermission()
+const { canManagePurchasePolicy } = usePermission()
 
 const purchaseModeOptions: Array<{
   label: string
@@ -180,16 +186,17 @@ const purchaseModeOptions: Array<{
   },
 ]
 
-const policyForm = reactive<PurchasePolicyUpdateRequest>({
+const policyForm = reactive<PurchasePolicyForm>({
   purchaseMode: 'PARALLEL',
   allowDirectPurchase: true,
   allowParallelOperation: true,
   overPercentageLimit: 10,
 })
+const isPolicyLoading = ref(false)
 const isPolicySaving = ref(false)
 const policyError = ref('')
 const policySavedMessage = ref('')
-const currentPolicy = ref<PurchasePolicyUpdateResponse | null>(null)
+const currentPolicy = ref<PurchasePolicy | null>(null)
 
 const currentPolicySummary = computed(() => {
   if (!currentPolicy.value) {
@@ -197,6 +204,12 @@ const currentPolicySummary = computed(() => {
   }
 
   return `${getPurchaseModeLabel(currentPolicy.value.purchaseMethod)} · 초과 허용률 ${currentPolicy.value.overPercentageLimit}%`
+})
+
+onMounted(() => {
+  if (canManagePurchasePolicy.value) {
+    void loadPolicy()
+  }
 })
 
 function setPurchaseMode(value: PurchasePolicyMode) {
@@ -212,16 +225,40 @@ async function savePolicy() {
 
   try {
     const response = await purchaseApi.updatePolicy({
-      ...policyForm,
+      purchaseMethod: policyForm.purchaseMode,
       overPercentageLimit: Number(policyForm.overPercentageLimit),
     })
     currentPolicy.value = response.data
+    applyPolicyToForm(response.data)
     policySavedMessage.value = '구매 운영 정책이 저장되었습니다.'
   } catch (error) {
     policyError.value = getErrorMessage(error, '구매 운영 정책 저장에 실패했습니다.')
   } finally {
     isPolicySaving.value = false
   }
+}
+
+async function loadPolicy() {
+  isPolicyLoading.value = true
+  policyError.value = ''
+  policySavedMessage.value = ''
+
+  try {
+    const response = await purchaseApi.getPolicy()
+    currentPolicy.value = response.data
+    applyPolicyToForm(response.data)
+  } catch (error) {
+    policyError.value = getErrorMessage(error, '구매 운영 정책 조회에 실패했습니다.')
+  } finally {
+    isPolicyLoading.value = false
+  }
+}
+
+function applyPolicyToForm(policy: PurchasePolicy) {
+  policyForm.purchaseMode = policy.purchaseMethod
+  policyForm.allowDirectPurchase = policy.purchaseMethod !== 'ONLY_ASSET_TEAM'
+  policyForm.allowParallelOperation = policy.purchaseMethod === 'PARALLEL'
+  policyForm.overPercentageLimit = Number(policy.overPercentageLimit)
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

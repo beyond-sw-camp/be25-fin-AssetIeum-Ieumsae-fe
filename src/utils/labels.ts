@@ -51,7 +51,7 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
 
 export const TICKET_STATUS_ALIASES: Record<string, TicketStatus> = {
   ASSET_APPROVE: 'ASSET_APPROVED',
-  CANCELLED: 'CANCELED',
+  CANCELLED: 'CANCELLED',
 }
 
 export function normalizeTicketStatus(status: string): TicketStatus {
