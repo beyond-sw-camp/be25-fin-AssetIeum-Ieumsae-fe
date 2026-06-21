@@ -41,8 +41,8 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
+const permission = usePermission()
 const {
-  hasRole,
   canManageCompany,
   canManageDepartment,
   canManageAsset,
@@ -52,10 +52,10 @@ const {
   canViewMyTickets,
   canViewInspection,
   canManagePlatform,
-} = usePermission()
+} = permission
 
 const canViewOperationReports = computed(() =>
-  hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
+  permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
 )
 
 const navItems = computed(() => {

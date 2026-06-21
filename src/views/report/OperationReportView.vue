@@ -176,9 +176,9 @@ import type {
 type TableRow = Record<string, string | number>
 
 const authStore = useAuthStore()
-const { hasRole } = usePermission()
+const permission = usePermission()
 
-const canViewOperationReports = computed(() => hasRole('ASSET_TEAM', 'ASSET_MANAGER'))
+const canViewOperationReports = computed(() => permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'))
 const companyId = computed(() => authStore.user?.companyId ?? '')
 
 const overdueLoading = ref(false)
