@@ -1,6 +1,7 @@
 import api from './client'
 import type {
   TicketListItem,
+  PurchasePlanCandidateTicket,
   TicketDetail,
   TicketListFilter,
   TicketStatistics,
@@ -138,6 +139,12 @@ export const ticketApi = {
 
   getStatistics: () =>
     api.get<TicketStatistics>('/tickets/statistics'),
+
+  getPurchasePlanCandidates: (params?: { page?: number; size?: number }) =>
+    api.get<PageResponse<PurchasePlanCandidateTicket>>(
+      '/tickets/purchase-plan-candidates',
+      compactParams(params),
+    ),
 
   /** 티켓 상세 조회 */
   getDetail: async (ticketId: string) => {

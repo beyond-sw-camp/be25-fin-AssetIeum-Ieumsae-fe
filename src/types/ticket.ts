@@ -123,6 +123,27 @@ export interface TicketListFilter {
   departmentId?: string
 }
 
+export interface PurchasePlanCandidateTicket {
+  ticketId: string
+  ticketNo: string
+  ticketType: TicketType
+  assetType: AssetType
+  requesterId: string
+  requesterName: string
+  itemName: string
+  categoryName: string
+  quantity: number
+  estimatedUnitPrice: number
+  assetItemId?: string | number | null
+  isStandard?: number | boolean | null
+  requestedItemName?: string | null
+  requestedItemDetail?: string | null
+  productName?: string | null
+  expectedPrice?: number | null
+  purchasePrice?: number | null
+  unitPrice?: number | null
+}
+
 export interface TicketStatistics {
   totalCount: number
   newOrPendingReviewCount: number

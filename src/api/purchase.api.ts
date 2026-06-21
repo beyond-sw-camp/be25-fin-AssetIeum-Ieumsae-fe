@@ -31,6 +31,7 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   productName?: string | null
   name?: string | null
   categoryName?: string | null
+  assetCategoryName?: string | null
   purchasePlanItemId?: number | string
   purchaseItemId?: number | string
   planItemId?: number | string
@@ -40,8 +41,12 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   estimatedAmount?: number
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
+  requesterId?: number | string | null
+  requesterName?: string | null
   ticketDepartmentId?: number | string | null
   ticketDepartmentName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
 }
 
 type PurchasePlanListItemResponse = PurchasePlanListItem & {
@@ -93,11 +98,15 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
       ?? item.planItemId
       ?? item.purchaseRequestItemId
       ?? item.id,
-    category: item.category ?? item.categoryName ?? '-',
+    category: item.category ?? item.categoryName ?? item.assetCategoryName ?? '-',
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
     quantity,
     estimatedUnitPrice,
     totalAmount,
+    ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
+    ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
+    ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
+    ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
 }
 
@@ -169,9 +178,6 @@ function normalizePlanPage(data: PurchasePlanPage | PurchasePlanListItem[]): Pur
 }
 
 export const purchaseApi = {
-  // TODO: 백엔드 구현 완료 후 구매 계획 후보 티켓 조회 API 연결
-  // GET /purchase-plans/candidate-tickets?page={page}&size={size}
-  // 현재 구매 계획 생성 화면은 ticketApi.getList({ ticketStatus: 'ASSET_APPROVED' }) 후 프론트 필터링을 사용한다.
   getPlans: async (params?: PurchasePlanListFilter) => {
     const response = await api.get<PurchasePlanPage | PurchasePlanListItem[]>(
       '/purchase-plans',

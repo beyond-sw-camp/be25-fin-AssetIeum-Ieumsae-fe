@@ -16,6 +16,15 @@ export interface PurchasePlanCreateItem {
   productName: string
   assetType: AssetType
   assetItemId?: string | null
+  categoryName?: string
+  requesterId?: number | string | null
+  requesterName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
+  ticketRequesterId?: number | string | null
+  ticketRequesterName?: string | null
+  ticketDepartmentId?: number | string | null
+  ticketDepartmentName?: string | null
   quantity: number
   isStandard: 0 | 1
   estimatedUnitPrice: number
@@ -89,8 +98,12 @@ export interface PurchasePlanItem {
   ticketId?: number | string | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
+  requesterId?: number | string | null
+  requesterName?: string | null
   ticketDepartmentId?: number | string | null
   ticketDepartmentName?: string | null
+  departmentId?: number | string | null
+  departmentName?: string | null
   receivedAt?: string | null
 }
 

@@ -18,6 +18,7 @@ import type {
   NonStandardAssetRequestCreate,
   PageResponse,
   PasswordChangeRequest,
+  PurchasePlanCandidateTicket,
   PurchasePlanAssetRegisterRequest,
   PurchasePlanCreateRequest,
   PurchasePlanDetail,
@@ -99,6 +100,15 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
     totalElements: content.length,
     totalPages: Math.ceil(content.length / size),
   }
+}
+
+function optionalNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department' | 'employee') {
@@ -2285,6 +2295,46 @@ function toTicketListItem(ticket: MockTicket): TicketListItem {
   }
 }
 
+function isPurchasePlanCandidateTicket(ticket: MockTicket) {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+
+  if (ticket.ticketStatus !== 'ASSET_APPROVED') return false
+  if (ticket.ticketType === 'PURCHASE_REQUEST') {
+    return ticket.requestMethod !== 'DIRECT_PURCHASE'
+  }
+  if (ticket.ticketType !== 'ASSET_REQUEST') return false
+
+  const availableCount = optionalNumber(detailRecord.availableCount ?? detailRecord.availableAssetCount)
+  if (availableCount === null || availableCount === undefined) return true
+
+  return availableCount < (detail.quantity ?? 1)
+}
+
+function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidateTicket {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+  const estimatedUnitPrice = optionalNumber(detail.expectedPrice
+    ?? detailRecord.purchasePrice
+    ?? detailRecord.unitPrice
+    ?? 0) ?? 0
+
+  return {
+    ticketId: ticket.ticketId,
+    ticketNo: ticket.ticketNo,
+    ticketType: ticket.ticketType,
+    assetType: detail.assetType ?? 'TANGIBLE',
+    requesterId: ticket.requesterId,
+    requesterName: ticket.requesterName,
+    itemName: detail.requestedItemName ?? detail.requestedItemDetail ?? detail.productName ?? ticket.requestedItemName ?? '',
+    categoryName: detail.categoryName ?? '',
+    quantity: detail.quantity ?? 1,
+    estimatedUnitPrice,
+    assetItemId: detail.assetItemId ?? null,
+    isStandard: detail.isStandard ?? null,
+  }
+}
+
 function toTangibleAvailableAssignedAsset(assignment: MockTangibleAssetAssignment): MaintenanceAvailableAsset {
   const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
   const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
@@ -2422,10 +2472,22 @@ export const handlers = [
         const detail = item.ticketId == null
           ? undefined
           : ticketDetailData.get(String(item.ticketId))
+        const directRequesterId = item.ticketId == null
+          ? item.ticketRequesterId ?? item.requesterId ?? purchaseRequester?.memberId ?? null
+          : null
+        const directRequesterName = item.ticketId == null
+          ? item.ticketRequesterName ?? item.requesterName ?? purchaseRequester?.name ?? null
+          : null
+        const directDepartmentId = item.ticketId == null
+          ? item.ticketDepartmentId ?? item.departmentId ?? purchaseRequester?.departmentId ?? null
+          : null
+        const directDepartmentName = item.ticketId == null
+          ? item.ticketDepartmentName ?? item.departmentName ?? purchaseRequester?.departmentName ?? null
+          : null
 
         return {
           itemId: planId * 100 + index + 1,
-          category: detail?.categoryName ?? '-',
+          category: detail?.categoryName ?? item.categoryName ?? '-',
           itemName: item.productName,
           quantity: item.quantity,
           estimatedUnitPrice: item.estimatedUnitPrice,
@@ -2433,10 +2495,10 @@ export const handlers = [
           assetType: item.assetType,
           isStandard: item.isStandard === 1,
           ticketId: item.ticketId,
-          ticketRequesterId: detail?.requesterId ?? null,
-          ticketRequesterName: detail?.requesterName ?? null,
-          ticketDepartmentId: detail?.departmentId ?? null,
-          ticketDepartmentName: detail?.departmentName ?? null,
+          ticketRequesterId: detail?.requesterId ?? directRequesterId,
+          ticketRequesterName: detail?.requesterName ?? directRequesterName,
+          ticketDepartmentId: detail?.departmentId ?? directDepartmentId,
+          ticketDepartmentName: detail?.departmentName ?? directDepartmentName,
           receivedAt: null,
         }
       }),
@@ -2765,6 +2827,19 @@ export const handlers = [
     }
 
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/purchase-plan-candidates`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const requester = getAuthenticatedMember(request)
+    const candidates = tickets
+      .filter((ticket) => canAccessTicket(requester, ticket))
+      .filter(isPurchasePlanCandidateTicket)
+      .map(toPurchasePlanCandidateTicket)
+
+    return HttpResponse.json(ok(pageOf(candidates, page, size)))
   }),
 
   http.get(`${API_PREFIX}/tickets/statistics`, ({ request }) => {

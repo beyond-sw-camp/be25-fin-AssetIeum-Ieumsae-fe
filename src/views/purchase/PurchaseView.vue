@@ -840,12 +840,14 @@ import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useAuthStore } from "@/stores";
 import type {
   AssetType,
   Department,
   DropdownOption,
   IntangibleCategoryGroup,
   Member,
+  PurchasePlanCandidateTicket,
   PurchasePlanCreateItem,
   PurchasePlanDetail,
   PurchasePlanItem,
@@ -853,15 +855,14 @@ import type {
   PurchasePlanStatistics,
   PurchasePlanStatus,
   TangibleCategoryGroup,
-  TicketListItem,
 } from "@/types";
 
 interface EligibleTicket {
   ticketId: string;
-  ticket: TicketListItem;
+  ticket: PurchasePlanCandidateTicket;
   itemName: string;
   categoryName: string;
-  assetType: TicketListItem["assetType"];
+  assetType: PurchasePlanCandidateTicket["assetType"];
   quantity: number;
   estimatedUnitPrice: number;
   assetItemId: string | null;
@@ -1007,6 +1008,7 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
 };
 
 const { hasRole } = usePermission();
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const canChangeStatus = computed(() =>
@@ -1541,19 +1543,12 @@ async function fetchEligibleTickets() {
   eligibleError.value = "";
 
   try {
-    // TODO: 백엔드 구현 완료 후 /purchase-plans/candidate-tickets API로 교체
-    // 현재는 결재 완료 티켓 목록을 조회한 뒤 구매 계획 대상 여부를 프론트에서 필터링한다.
-    const response = await ticketApi.getList({
-      ticketStatus: "ASSET_APPROVED",
+    const response = await ticketApi.getPurchasePlanCandidates({
       page: 0,
       size: 100,
     });
 
-    const planTargetTickets = response.data.content.filter(
-      isPurchasePlanTargetTicket,
-    );
-
-    eligibleTickets.value = planTargetTickets.map(toEligibleTicket);
+    eligibleTickets.value = response.data.content.map(toEligibleTicket);
   } catch (error) {
     eligibleError.value = getErrorMessage(
       error,
@@ -1564,15 +1559,20 @@ async function fetchEligibleTickets() {
   }
 }
 
-function toEligibleTicket(ticket: TicketListItem): EligibleTicket {
+function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
   const itemName =
+    ticket.itemName ||
     ticket.requestedItemName ||
     ticket.requestedItemDetail ||
     ticket.productName ||
     "";
   const quantity = ticket.quantity ?? 1;
   const estimatedUnitPrice =
-    ticket.expectedPrice ?? ticket.purchasePrice ?? ticket.unitPrice ?? 0;
+    ticket.estimatedUnitPrice ??
+    ticket.expectedPrice ??
+    ticket.purchasePrice ??
+    ticket.unitPrice ??
+    0;
   const assetItemId = parseAssetItemId(ticket.assetItemId);
   const disabledReasons: string[] = [];
 
@@ -1592,19 +1592,6 @@ function toEligibleTicket(ticket: TicketListItem): EligibleTicket {
     canCreate: disabledReasons.length === 0,
     disabledReason: disabledReasons.join(", "),
   };
-}
-
-function isPurchasePlanTargetTicket(ticket: TicketListItem) {
-  if (ticket.ticketType === "PURCHASE_REQUEST") {
-    return ticket.requestMethod !== "DIRECT_PURCHASE";
-  }
-
-  if (ticket.ticketType !== "ASSET_REQUEST") return false;
-
-  const availableCount = ticket.availableCount ?? ticket.availableAssetCount;
-  if (availableCount === null || availableCount === undefined) return true;
-
-  return availableCount < (ticket.quantity ?? 1);
 }
 
 function toggleTicketSelection(ticketId: string) {
@@ -1713,17 +1700,30 @@ async function createPlan() {
     }));
 
   const directItems: PurchasePlanCreateItem[] = directPlanItems.value.map(
-    (item) => ({
-      ticketId: null,
-      productName: item.itemName,
-      assetType: item.assetType,
-      assetItemId: null,
-      quantity: item.quantity,
-      isStandard: 0,
-      estimatedUnitPrice: item.estimatedUnitPrice,
-      estimatedAmount: item.estimatedUnitPrice * item.quantity,
-      externalUrl: item.externalUrl,
-    }),
+    (item) => {
+      const requester = authStore.user;
+
+      return {
+        ticketId: null,
+        productName: item.itemName,
+        assetType: item.assetType,
+        assetItemId: null,
+        categoryName: item.categoryName,
+        requesterId: requester?.memberId ?? null,
+        requesterName: requester?.name ?? null,
+        departmentId: requester?.departmentId ?? null,
+        departmentName: requester?.departmentName ?? null,
+        ticketRequesterId: requester?.memberId ?? null,
+        ticketRequesterName: requester?.name ?? null,
+        ticketDepartmentId: requester?.departmentId ?? null,
+        ticketDepartmentName: requester?.departmentName ?? null,
+        quantity: item.quantity,
+        isStandard: 0,
+        estimatedUnitPrice: item.estimatedUnitPrice,
+        estimatedAmount: item.estimatedUnitPrice * item.quantity,
+        externalUrl: item.externalUrl,
+      };
+    },
   );
 
   const items = [...ticketItems, ...directItems];
