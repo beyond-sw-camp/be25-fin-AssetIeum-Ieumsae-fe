@@ -285,6 +285,8 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
 const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
 ])
 
 const route = useRoute()
@@ -331,7 +333,7 @@ const isRequester = computed(() => (
 const canCancelTicket = computed(() => (
   Boolean(
     ticket.value
-    && isRequester.value
+    && (isRequester.value || isAssetTeamRole.value)
     && CANCELLABLE_TICKET_STATUSES.has(ticket.value.status),
   )
 ))
@@ -380,7 +382,9 @@ const directPurchasePaymentActionMessage = computed(() => (
 
 const cancelActionMessage = computed(() => {
   if (!ticket.value) return ''
-  if (!isRequester.value) return '요청자 본인만 이 티켓을 취소할 수 있습니다.'
+  if (!isRequester.value && !isAssetTeamRole.value) {
+    return '요청자 또는 구매자산팀 권한에서만 이 티켓을 취소할 수 있습니다.'
+  }
   if (CANCELLABLE_TICKET_STATUSES.has(ticket.value.status)) {
     return '구매자산팀 승인 전까지 요청을 취소할 수 있습니다.'
   }

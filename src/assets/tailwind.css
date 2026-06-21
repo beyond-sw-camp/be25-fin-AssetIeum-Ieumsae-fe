@@ -159,6 +159,15 @@
     box-sizing: border-box;
   }
 
+  :where(body, body *) {
+    caret-color: transparent;
+  }
+
+  :where(input, textarea, [contenteditable='true'], [contenteditable='plaintext-only'], [role='textbox']),
+  :where([contenteditable='true'] *, [contenteditable='plaintext-only'] *, [role='textbox'] *) {
+    caret-color: auto;
+  }
+
   button {
     cursor: pointer;
   }

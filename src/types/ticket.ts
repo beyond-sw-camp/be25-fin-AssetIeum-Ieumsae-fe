@@ -16,6 +16,20 @@ export interface TicketListItem extends Record<string, unknown> {
   departmentName?: string
   requestedAt: string
   ticketStatus: TicketStatus
+  status?: TicketStatus
+  detailStatus?: string | null
+  assetType?: AssetType | null
+  assetItemId?: string | number | null
+  isStandard?: number | boolean | null
+  categoryName?: string | null
+  requestedItemDetail?: string | null
+  productName?: string | null
+  quantity?: number | null
+  expectedPrice?: number | null
+  purchasePrice?: number | null
+  unitPrice?: number | null
+  availableCount?: number | null
+  availableAssetCount?: number | null
 }
 
 export interface TicketDetail {
@@ -53,6 +67,7 @@ export interface TicketDetail {
   expectedPrice?: number | null
   actualAmount?: number | null
   assetId?: string | null
+  assignmentId?: string | null
   assetStatus?: string | null
   startedAt?: string | null
   rentalStartDate?: string | null
@@ -60,6 +75,7 @@ export interface TicketDetail {
   rentalDueDate?: string | null
   previousDueDate?: string | null
   changedDueDate?: string | null
+  currentReturnDueDate?: string | null
   maintenanceReason?: string | null
   maintenanceResult?: string | null
   maintenanceCompletedAt?: string | null
@@ -107,6 +123,27 @@ export interface TicketListFilter {
   departmentId?: string
 }
 
+export interface PurchasePlanCandidateTicket {
+  ticketId: string
+  ticketNo: string
+  ticketType: TicketType
+  assetType: AssetType
+  requesterId: string
+  requesterName: string
+  itemName: string
+  categoryName: string
+  quantity: number
+  estimatedUnitPrice: number
+  assetItemId?: string | number | null
+  isStandard?: number | boolean | null
+  requestedItemName?: string | null
+  requestedItemDetail?: string | null
+  productName?: string | null
+  expectedPrice?: number | null
+  purchasePrice?: number | null
+  unitPrice?: number | null
+}
+
 export interface TicketStatistics {
   totalCount: number
   newOrPendingReviewCount: number
@@ -128,7 +165,7 @@ export type TicketRequestKind =
   | 'RETURN'
   | 'PURCHASE_RETURN'
 
-export type RequestedUsageType = 'PERSONAL' | 'TEAM'
+export type RequestedUsageType = 'PERSONAL' | 'DEPARTMENT'
 export type PurchaseRequestMethod = 'TEAM_PURCHASE' | 'DIRECT_PURCHASE'
 
 export interface TicketCreateResponse {
@@ -163,9 +200,11 @@ export interface NonStandardAssetRequestCreate {
 export interface DirectPurchaseRequestCreate {
   requestedUsageType: RequestedUsageType
   assetType: AssetType
-  categoryId: string
-  requestedItemDetail: string
-  manufacturer: string
+  isStandard: boolean
+  assetItemId: string | null
+  categoryId: string | null
+  requestedItemDetail: string | null
+  manufacturer: string | null
   licenseType: string | null
   quantity: number
   expectedPrice: number
@@ -181,28 +220,77 @@ export interface RentalRequestCreate {
   requestReason: string
 }
 
+export interface RentalAvailableItem {
+  tangibleAssetItemId?: string
+  assetItemId?: string
+  itemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  name?: string
+  manufacturer?: string
+  modelName?: string
+  isStandard?: boolean | number
+  availableAssetCount?: number
+}
+
+export interface ActiveRentalAsset {
+  assignmentId?: string
+  assetId?: string
+  assetCode?: string
+  tangibleAssetItemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  manufacturer?: string
+  modelName?: string
+  serialNumber?: string
+  assignedAt?: string
+  currentReturnDueDate?: string
+}
+
+export interface MaintenanceAvailableAsset {
+  assetType?: AssetType
+  assignmentId?: string
+  assetId?: string
+  assetCode?: string
+  itemId?: string
+  tangibleAssetItemId?: string
+  intangibleAssetItemId?: string
+  categoryId?: string
+  categoryName?: string
+  productName?: string
+  manufacturer?: string
+  modelName?: string
+  provider?: string | null
+  serialNumber?: string
+  licenseCode?: string | null
+  assignedAt?: string
+  returnDueDate?: string | null
+  expiredAt?: string | null
+}
+
 export interface RentalExtensionRequestCreate {
-  assetId: string
+  assignmentId: string
   requestedDueDate: string
   requestReason: string
 }
 
 export interface MaintenanceRequestCreate {
-  assetId: string
-  maintenanceReason: string
+  assignmentId: string
+  requestDetail: string
 }
 
 export interface ReturnRequestCreate {
   assetType: AssetType
-  assetId: string
-  returnReason: string
+  assignmentId: string
+  requestReason: string
 }
 
 export interface PurchaseReturnRequestCreate {
   assetType: AssetType
-  assetId: string
-  type: 'EMPLOYEE' | 'PURCHASE_TEAM'
-  returnReason: string
+  assignmentId: string
+  requestReason: string
 }
 
 // =====================================================

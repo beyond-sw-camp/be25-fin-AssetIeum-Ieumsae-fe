@@ -88,7 +88,7 @@
       </section>
 
       <section class="space-y-3">
-        <div class="space-y-2">
+        <div v-if="showsAssetSearch" class="space-y-2">
           <label class="text-sm font-semibold text-text-main" for="ticket-asset-category">
             자산 카테고리 선택 <span class="text-primary">*</span>
           </label>
@@ -101,7 +101,7 @@
           />
         </div>
 
-        <div class="flex items-center gap-2">
+        <div v-if="showsAssetSearch" class="flex items-center gap-2">
           <div class="relative min-w-0 flex-1">
             <Search
               :size="16"
@@ -436,7 +436,7 @@
         />
       </div>
 
-      <div v-else-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="grid grid-cols-8 gap-3">
+      <div v-else-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
           id="ticket-quantity"
           v-model="form.quantity"
@@ -564,9 +564,12 @@ import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
 import { useAuthStore } from '@/stores'
 import type {
   AssetType,
+  ActiveRentalAsset,
   DropdownOption,
   IntangibleAsset,
   IntangibleItem,
+  MaintenanceAvailableAsset,
+  RentalAvailableItem,
   RequestedUsageType,
   TangibleAsset,
   TangibleAssetItem,
@@ -584,6 +587,7 @@ interface SelectableAsset extends AssetRadioItem {
   manufacturer?: string
   licenseType?: string | null
   usageType?: TangibleAssetUsageType | null
+  assignmentId?: string | null
   returnDueDate?: string | null
 }
 
@@ -602,7 +606,7 @@ const assetTypeOptions = [
   { label: '무형 자산', value: 'INTANGIBLE' as const },
 ]
 const assetScopeOptions = [
-  { label: '공용 자산', value: 'TEAM' as const },
+  { label: '공용 자산', value: 'DEPARTMENT' as const },
   { label: '개인 자산', value: 'PERSONAL' as const },
 ]
 const assetSearchScopeOptions = [
@@ -635,12 +639,16 @@ const tangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
 const intangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
 const itemOptions = ref<SelectableAsset[]>([])
 const ownedAssetOptions = ref<SelectableAsset[]>([])
+const activeRentalAssetOptions = ref<SelectableAsset[]>([])
+const maintenanceAssetOptions = ref<SelectableAsset[]>([])
+const returnAssetOptions = ref<SelectableAsset[]>([])
+const purchaseReturnAssetOptions = ref<SelectableAsset[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
   assetServiceType: 'REPAIR' as 'REPAIR' | 'RETURN',
   directPurchaseItemType: 'STANDARD' as 'STANDARD' | 'NON_STANDARD',
-  assetUsageType: 'TEAM' as RequestedUsageType,
+  assetUsageType: 'DEPARTMENT' as RequestedUsageType,
   category: '',
   selectedAssetId: '',
   requestedItemName: '',
@@ -683,6 +691,7 @@ const showsAssetType = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || selectedKind.value === 'DIRECT_PURCHASE'
   || selectedKind.value === 'RETURN'
+  || selectedKind.value === 'PURCHASE_RETURN'
 ))
 
 const showsPurchaseRequestAssetType = computed(() => (
@@ -779,17 +788,22 @@ const visibleAssetOptions = computed(() => {
     return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
   }
   if (selectedKind.value === 'RETURN') {
-    return ownedAssetOptions.value.filter((item) => item.assetType === form.assetType)
+    return returnAssetOptions.value.filter((item) => item.assetType === form.assetType)
   }
   if (selectedKind.value === 'PURCHASE_RETURN') {
+    return purchaseReturnAssetOptions.value.filter((item) => item.assetType === form.assetType)
+  }
+  if (selectedKind.value === 'MAINTENANCE') {
+    return form.assetServiceType === 'RETURN'
+      ? purchaseReturnAssetOptions.value
+      : maintenanceAssetOptions.value
+  }
+
+  if (selectedKind.value !== 'RENTAL_EXTENSION') {
     return ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
   }
 
-  const tangibleAssets = ownedAssetOptions.value.filter((item) => item.assetType === 'TANGIBLE')
-  if (selectedKind.value !== 'RENTAL_EXTENSION') return tangibleAssets
-
-  return tangibleAssets
-    .filter((item) => item.usageType === 'TEMPORARY')
+  return activeRentalAssetOptions.value
     .map((item) => ({
       ...item,
       description: [
@@ -802,9 +816,11 @@ const visibleAssetOptions = computed(() => {
 })
 
 const assetCategoryOptions = computed(() => (
-  selectionAssetType.value === 'INTANGIBLE'
-    ? intangibleCategoryOptions.value
-    : tangibleCategoryOptions.value
+  selectedKind.value === 'RENTAL'
+    ? tangiblePurchaseCategoryOptions.value
+    : selectionAssetType.value === 'INTANGIBLE'
+      ? intangibleCategoryOptions.value
+      : tangibleCategoryOptions.value
 ))
 
 const purchaseRequestCategoryOptions = computed(() => (
@@ -814,7 +830,8 @@ const purchaseRequestCategoryOptions = computed(() => (
 ))
 
 const canSearchAssets = computed(() => Boolean(
-  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType) && assetSearchForm.category,
+  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType)
+  && (selectedKind.value === 'RENTAL' || assetSearchForm.category),
 ))
 
 const selectedAssetOption = computed(() => (
@@ -856,6 +873,12 @@ const selectionItemOptions = computed(() => {
   }
   if (selectedKind.value === 'RENTAL') {
     return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
+  }
+  if (selectedKind.value === 'RETURN') {
+    return returnAssetOptions.value.filter((item) => item.assetType === selectionAssetType.value)
+  }
+  if (selectedKind.value === 'PURCHASE_RETURN') {
+    return purchaseReturnAssetOptions.value
   }
   return itemOptions.value
 })
@@ -902,13 +925,19 @@ const dateErrorMessage = computed(() => {
 
 const positiveNumber = (value: string) => Number.isFinite(Number(value)) && Number(value) > 0
 
+function toRentalDateTime(value: string, time: '09:00:00' | '18:00:00') {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T${time}`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00`
+  return value
+}
+
 function toRequestedUsageType(
   value: '' | 'DEPARTMENT' | RequestedUsageType,
 ): RequestedUsageType {
   if (!value) {
     throw new Error('공용자산 여부를 선택해주세요.')
   }
-  return value === 'DEPARTMENT' ? 'TEAM' : value
+  return value
 }
 
 const isFormValid = computed(() => {
@@ -967,6 +996,28 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
     isStandard: item.isStandard,
     categoryId: item.categoryId,
     categoryName: item.categoryName ?? item.category,
+    manufacturer: item.manufacturer,
+  }
+}
+
+function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset {
+  const availableCount = typeof item.availableAssetCount === 'number'
+    ? `${item.availableAssetCount}개 대여 가능`
+    : null
+
+  return {
+    id: String(item.tangibleAssetItemId ?? item.assetItemId ?? item.itemId ?? ''),
+    name: item.productName ?? item.name ?? '',
+    description: [
+      item.categoryName,
+      item.manufacturer,
+      item.modelName,
+      availableCount,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    isStandard: item.isStandard,
+    categoryId: item.categoryId,
+    categoryName: item.categoryName,
     manufacturer: item.manufacturer,
   }
 }
@@ -1060,6 +1111,59 @@ function toTangibleAssetOption(asset: TangibleAsset): SelectableAsset {
     assetType: 'TANGIBLE',
     usageType: asset.usageType,
     returnDueDate: asset.returnDueDate,
+  }
+}
+
+function toActiveRentalAssetOption(asset: ActiveRentalAsset): SelectableAsset {
+  return {
+    id: String(asset.assignmentId ?? ''),
+    name: asset.productName ?? asset.assetCode ?? '',
+    description: [
+      asset.assetCode,
+      asset.serialNumber,
+      asset.manufacturer,
+      asset.modelName,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    usageType: 'TEMPORARY',
+    assignmentId: asset.assignmentId,
+    returnDueDate: asset.currentReturnDueDate,
+  }
+}
+
+function toMaintenanceAvailableAssetOption(asset: MaintenanceAvailableAsset): SelectableAsset {
+  return {
+    id: String(asset.assignmentId ?? ''),
+    name: asset.productName ?? asset.assetCode ?? '',
+    description: [
+      asset.assetCode,
+      asset.serialNumber,
+      asset.manufacturer,
+      asset.modelName,
+      asset.assignedAt ? `배정일: ${formatDate(asset.assignedAt)}` : null,
+    ].filter(Boolean).join(' 쨌 '),
+    assetType: 'TANGIBLE',
+    assignmentId: asset.assignmentId,
+  }
+}
+
+function toAvailableAssignedAssetOption(asset: MaintenanceAvailableAsset): SelectableAsset {
+  const assetType = asset.assetType ?? (asset.licenseCode ? 'INTANGIBLE' : 'TANGIBLE')
+
+  return {
+    id: String(asset.assignmentId ?? ''),
+    name: asset.productName ?? asset.assetCode ?? '',
+    description: [
+      asset.assetCode,
+      asset.serialNumber ?? asset.licenseCode,
+      asset.manufacturer ?? asset.provider,
+      asset.modelName,
+      asset.returnDueDate ? `諛섎궔 ?덉젙?? ${formatDate(asset.returnDueDate)}` : null,
+      asset.expiredAt ? `留뚮즺?? ${formatDate(asset.expiredAt)}` : null,
+    ].filter(Boolean).join(' 夷?'),
+    assetType,
+    assignmentId: asset.assignmentId,
+    returnDueDate: asset.returnDueDate ?? asset.expiredAt ?? null,
   }
 }
 
@@ -1185,9 +1289,16 @@ async function loadOwnedAssets() {
   const results = await Promise.allSettled([
     tangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
     intangibleAssetApi.getList({ page: 0, size: 100, currentUserId: memberId }),
+    ticketCreateApi.getActiveRentalAssets(),
+    ticketCreateApi.getMaintenanceAvailableAssets(),
   ])
 
-  const [tangibleAssetsResult, intangibleAssetsResult] = results
+  const [
+    tangibleAssetsResult,
+    intangibleAssetsResult,
+    activeRentalAssetsResult,
+    maintenanceAssetsResult,
+  ] = results
 
   ownedAssetOptions.value = [
     ...(tangibleAssetsResult.status === 'fulfilled'
@@ -1197,7 +1308,49 @@ async function loadOwnedAssets() {
       ? intangibleAssetsResult.value.data.content.map(toIntangibleAssetOption)
       : []),
   ].filter((item) => item.id)
+  activeRentalAssetOptions.value = activeRentalAssetsResult.status === 'fulfilled'
+    ? activeRentalAssetsResult.value.data.map(toActiveRentalAssetOption).filter((item) => item.id)
+    : []
+  maintenanceAssetOptions.value = maintenanceAssetsResult.status === 'fulfilled'
+    ? maintenanceAssetsResult.value.data.map(toMaintenanceAvailableAssetOption).filter((item) => item.id)
+    : []
 
+}
+
+async function loadRequestAvailableAssets() {
+  if (
+    selectedKind.value !== 'RETURN'
+    && selectedKind.value !== 'PURCHASE_RETURN'
+    && !(selectedKind.value === 'MAINTENANCE' && form.assetServiceType === 'RETURN')
+  ) {
+    return
+  }
+
+  isAssetsLoading.value = true
+  assetErrorMessage.value = ''
+
+  try {
+    if (selectedKind.value === 'RETURN') {
+      const response = await ticketCreateApi.getReturnAvailableAssets({ assetType: form.assetType })
+      returnAssetOptions.value = response.data.map(toAvailableAssignedAssetOption).filter((item) => item.id)
+      return
+    }
+
+    const response = await ticketCreateApi.getPurchaseReturnAvailableAssets({ assetType: form.assetType })
+    purchaseReturnAssetOptions.value = response.data.map(toAvailableAssignedAssetOption).filter((item) => item.id)
+  } catch (error) {
+    if (selectedKind.value === 'RETURN') {
+      returnAssetOptions.value = []
+    } else {
+      purchaseReturnAssetOptions.value = []
+    }
+    assetErrorMessage.value = error instanceof Error
+      ? error.message
+      : '?먯궛 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??'
+  } finally {
+    hasSearchedAssets.value = true
+    isAssetsLoading.value = false
+  }
 }
 
 async function loadSelectableAssets() {
@@ -1212,7 +1365,15 @@ async function handleAssetSearch() {
   pendingSelectedAssetId.value = ''
 
   try {
-    if (selectionAssetType.value === 'INTANGIBLE') {
+    if (selectedKind.value === 'RENTAL') {
+      const response = await ticketCreateApi.getRentalAvailableItems({
+        page: 0,
+        size: 100,
+        categoryId: assetSearchForm.category || undefined,
+        keyword: assetSearchForm.keyword.trim() || undefined,
+      })
+      itemOptions.value = response.data.content.map(toRentalAvailableItemOption).filter((item) => item.id)
+    } else if (selectionAssetType.value === 'INTANGIBLE') {
       const response = await intangibleItemApi.getList({
         page: 0,
         size: 100,
@@ -1260,7 +1421,7 @@ function resetForm() {
     assetType: 'TANGIBLE',
     assetServiceType: 'REPAIR',
     directPurchaseItemType: 'STANDARD',
-    assetUsageType: 'TEAM',
+    assetUsageType: 'DEPARTMENT',
     category: '',
     selectedAssetId: '',
     requestedItemName: '',
@@ -1285,21 +1446,32 @@ function handleKindSelect(kind: TicketRequestKind) {
   form.assetType = 'TANGIBLE'
   form.assetServiceType = 'REPAIR'
   form.directPurchaseItemType = 'STANDARD'
-  form.assetUsageType = 'TEAM'
+  form.assetUsageType = 'DEPARTMENT'
   assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
   form.selectedAssetId = ''
   assetSearchKeyword.value = ''
   errorMessage.value = ''
+  returnAssetOptions.value = []
+  purchaseReturnAssetOptions.value = []
+
+  if (kind === 'RETURN' || kind === 'PURCHASE_RETURN') {
+    void loadRequestAvailableAssets()
+  }
 }
 
 function openAssetSelection() {
   pendingSelectedAssetId.value = form.selectedAssetId
-  selectionAssetType.value = selectedKind.value === 'RENTAL' ? 'TANGIBLE' : form.assetType
+  selectionAssetType.value = selectedKind.value === 'RENTAL' || selectedKind.value === 'PURCHASE_RETURN'
+    ? 'TANGIBLE'
+    : form.assetType
   if (isStandardDirectPurchase.value) {
-    assetSearchForm.assetUsageType = form.assetUsageType === 'TEAM' ? 'DEPARTMENT' : form.assetUsageType
+    assetSearchForm.assetUsageType = form.assetUsageType === 'PERSONAL' ? 'PERSONAL' : 'DEPARTMENT'
   }
   isAssetSelectionStep.value = true
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+    void loadRequestAvailableAssets()
+  }
 }
 
 function closeAssetSelection() {
@@ -1310,7 +1482,7 @@ function closeAssetSelection() {
 
 function confirmAssetSelection() {
   if (!pendingSelectedAssetId.value) return
-  const selectedAsset = itemOptions.value.find((item) => item.id === pendingSelectedAssetId.value)
+  const selectedAsset = selectionItemOptions.value.find((item) => item.id === pendingSelectedAssetId.value)
   if (!selectedAsset) return
 
   form.assetType = selectionAssetType.value
@@ -1367,12 +1539,22 @@ function handleAssetTypeChange(assetType: AssetType) {
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
   invalidateAssetSearch()
+
+  if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
+    void loadRequestAvailableAssets()
+  }
 }
 
 function handleAssetServiceTypeChange(assetServiceType: 'REPAIR' | 'RETURN') {
   form.assetServiceType = assetServiceType
   form.selectedAssetId = ''
   form.reason = ''
+  confirmedSelectedAsset.value = null
+  assetSearchKeyword.value = ''
+
+  if (assetServiceType === 'RETURN') {
+    void loadRequestAvailableAssets()
+  }
 }
 
 function handleClose() {
@@ -1389,7 +1571,7 @@ function selectedAssetId() {
 }
 
 async function handleSubmit() {
-  if (!isFormValid.value || !selectedKind.value) return
+  if (isSubmitting.value || !isFormValid.value || !selectedKind.value) return
 
   isSubmitting.value = true
   errorMessage.value = ''
@@ -1421,6 +1603,7 @@ async function handleSubmit() {
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
+        console.log(response)
         break
       case 'DIRECT_PURCHASE':
         if (isStandardDirectPurchase.value) {
@@ -1428,6 +1611,8 @@ async function handleSubmit() {
           response = await ticketCreateApi.createDirectPurchaseRequest({
             requestedUsageType: toRequestedUsageType(form.assetUsageType),
             assetType: form.assetType,
+            isStandard: true,
+            assetItemId: form.selectedAssetId,
             categoryId: standardPayload.categoryId,
             requestedItemDetail: standardPayload.requestedItemDetail,
             manufacturer: standardPayload.manufacturer,
@@ -1440,6 +1625,8 @@ async function handleSubmit() {
           response = await ticketCreateApi.createDirectPurchaseRequest({
             requestedUsageType: toRequestedUsageType(form.assetUsageType),
             assetType: form.assetType,
+            isStandard: false,
+            assetItemId: null,
             categoryId: form.category,
             requestedItemDetail: form.requestedItemName.trim(),
             manufacturer: form.vendor.trim(),
@@ -1454,15 +1641,15 @@ async function handleSubmit() {
         response = await ticketCreateApi.createRentalRequest({
           requestedUsageType: toRequestedUsageType(assetSearchForm.assetUsageType),
           tangibleAssetItemId: form.selectedAssetId,
-          rentalStartDate: form.rentalStartDate,
-          requestedDueDate: form.rentalDueDate,
+          rentalStartDate: toRentalDateTime(form.rentalStartDate, '09:00:00'),
+          requestedDueDate: toRentalDateTime(form.rentalDueDate, '18:00:00'),
           requestReason,
         })
         break
       case 'RENTAL_EXTENSION':
         response = await ticketCreateApi.createRentalExtension({
-          assetId: selectedAssetId(),
-          requestedDueDate: form.requestedDueDate,
+          assignmentId: selectedAssetId(),
+          requestedDueDate: toRentalDateTime(form.requestedDueDate, '18:00:00'),
           requestReason,
         })
         break
@@ -1470,28 +1657,26 @@ async function handleSubmit() {
         response = form.assetServiceType === 'RETURN'
           ? await ticketCreateApi.createPurchaseReturnRequest({
             assetType: 'TANGIBLE',
-            assetId: selectedAssetId(),
-            type: 'EMPLOYEE',
-            returnReason: requestReason,
+            assignmentId: selectedAssetId(),
+            requestReason,
           })
           : await ticketCreateApi.createMaintenanceRequest({
-            assetId: selectedAssetId(),
-            maintenanceReason: requestReason,
+            assignmentId: selectedAssetId(),
+            requestDetail: requestReason,
           })
         break
       case 'RETURN':
         response = await ticketCreateApi.createReturnRequest({
           assetType: form.assetType,
-          assetId: selectedAssetId(),
-          returnReason: requestReason,
+          assignmentId: selectedAssetId(),
+          requestReason,
         })
         break
       case 'PURCHASE_RETURN':
         response = await ticketCreateApi.createPurchaseReturnRequest({
-          assetType: 'TANGIBLE',
-          assetId: selectedAssetId(),
-          type: 'EMPLOYEE',
-          returnReason: requestReason,
+          assetType: form.assetType,
+          assignmentId: selectedAssetId(),
+          requestReason,
         })
         break
     }

@@ -11,14 +11,26 @@ import type {
   IntangibleAssetCreateRequest,
   LoginRequest,
   LoginResponse,
+  MaintenanceAvailableAsset,
   MaintenanceRequestCreate,
   Member,
   MemberRegisterRequest,
   NonStandardAssetRequestCreate,
   PageResponse,
   PasswordChangeRequest,
+  PurchasePlanCandidateTicket,
+  PurchasePlanAssetRegisterRequest,
+  PurchasePlanCreateRequest,
+  PurchasePlanDetail,
+  PurchasePlanListItem,
+  PurchasePlanStatistics,
+  PurchasePlanStatus,
+  PurchasePolicyUpdateRequest,
+  PurchasePolicyUpdateResponse,
   PurchaseReturnRequestCreate,
   PurchaseRequestMethod,
+  RentalAvailableItem,
+  ActiveRentalAsset,
   RentalExtensionRequestCreate,
   RentalRequestCreate,
   ReturnRequestCreate,
@@ -64,6 +76,8 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
 const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
 ])
 
 function ok<T>(data: T, message = '요청이 성공했습니다.'): ApiResponse<T> {
@@ -86,6 +100,15 @@ function pageOf<T>(content: T[], page: number, size: number): PageResponse<T> {
     totalElements: content.length,
     totalPages: Math.ceil(content.length / size),
   }
+}
+
+function optionalNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department' | 'employee') {
@@ -157,7 +180,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
     email: 'asset@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
     departmentName: '구매자산팀',
-    role: 'ASSET_TEAM',
+    role: 'ASSET_MANAGER',
     status: 'ACTIVE',
     createdAt: '2026-01-06T09:00:00',
   },
@@ -175,12 +198,12 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
     memberId: mockMemberId(4),
     memberNo: 'EMP0004',
-    name: '최휴직',
+    name: '자산자산',
     email: 'leave@ieumtech.com',
-    departmentId: FRONTEND_DEPARTMENT_ID,
-    departmentName: '프론트엔드팀',
-    role: 'EMPLOYEE',
-    status: 'ON_LEAVE',
+    departmentId: ASSET_TEAM_DEPARTMENT_ID,
+    departmentName: '구매자산팀',
+    role: 'ASSET_TEAM',
+    status: 'ACTIVE',
     createdAt: '2026-01-08T09:00:00',
   },
   {
@@ -739,7 +762,7 @@ const ticketDetailData = new Map<string, Partial<TicketDetail>>([
   }],
   ['202', {
     detailStatus: '구매자산팀 검토 대기',
-    requestedUsageType: 'TEAM',
+    requestedUsageType: 'DEPARTMENT',
     assetType: 'TANGIBLE',
     categoryName: '사무가구',
     requestedItemName: '시디즈 T80 하이엔드 의자',
@@ -867,6 +890,132 @@ for (const ticketId of ['209', '210', '211']) {
 ticketAssetRejectionReasons.set('211', '구매 정책과 예산 기준에 맞지 않아 구매자산팀에서 반려한 테스트 데이터입니다.')
 ticketCanceledAt.set('212', '2026-06-15T15:00:00')
 
+const additionalPurchaseTickets: MockTicket[] = [
+  {
+    ticketId: '301',
+    ticketNo: 'TKT-20260616-301',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'Dell UltraSharp 27인치 4K',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-16T09:10:00',
+  },
+  {
+    ticketId: '302',
+    ticketNo: 'TKT-20260616-302',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'JetBrains All Products Pack',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(6),
+    requesterName: '최휴직',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-16T10:20:00',
+  },
+  {
+    ticketId: '303',
+    ticketNo: 'TKT-20260615-303',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'iPad Pro 13인치 M4 셀룰러',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(7),
+    requesterName: '한기획',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-15T13:40:00',
+  },
+  {
+    ticketId: '304',
+    ticketNo: 'TKT-20260615-304',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'Adobe Photoshop',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(8),
+    requesterName: '윤디자인',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-15T15:05:00',
+  },
+  {
+    ticketId: '305',
+    ticketNo: 'TKT-20260612-305',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: '4K 영상 편집 전용 워크스테이션',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(7),
+    requesterName: '한기획',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-12T11:30:00',
+  },
+  {
+    ticketId: '306',
+    ticketNo: 'TKT-20260609-306',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'Atlassian Jira Software',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-09T09:55:00',
+  },
+  {
+    ticketId: '307',
+    ticketNo: 'TKT-20260608-307',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'Dell XPS 15 9530',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(6),
+    requesterName: '최휴직',
+    departmentId: FRONTEND_DEPARTMENT_ID,
+    departmentName: '프론트엔드팀',
+    requestedAt: '2026-06-08T14:10:00',
+  },
+  {
+    ticketId: '308',
+    ticketNo: 'TKT-20260604-308',
+    ticketType: 'PURCHASE_REQUEST',
+    requestMethod: 'TEAM_PURCHASE',
+    requestedItemName: 'iPhone 15 Pro Max 512GB',
+    ticketStatus: 'ASSET_APPROVED',
+    requesterId: mockMemberId(8),
+    requesterName: '윤디자인',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '플랫폼개발본부',
+    requestedAt: '2026-06-04T16:30:00',
+  },
+]
+
+tickets = [...additionalPurchaseTickets, ...tickets]
+
+const additionalPurchaseTicketDetails: Array<[string, Partial<TicketDetail>]> = [
+  ['301', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '2', isStandard: 1, categoryName: '모니터', requestedItemName: 'Dell UltraSharp 27인치 4K', quantity: 2, expectedPrice: 720000 }],
+  ['302', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '6', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'JetBrains All Products Pack', quantity: 4, expectedPrice: 590000 }],
+  ['303', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '8', isStandard: 1, categoryName: '태블릿', requestedItemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, expectedPrice: 1850000 }],
+  ['304', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '17', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'Adobe Photoshop', quantity: 6, expectedPrice: 220000 }],
+  ['305', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '18', isStandard: 0, categoryName: '비표준 장비', requestedItemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, expectedPrice: 6800000 }],
+  ['306', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '9', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'Atlassian Jira Software', quantity: 5, expectedPrice: 680000 }],
+  ['307', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '17', isStandard: 1, categoryName: '노트북', requestedItemName: 'Dell XPS 15 9530', quantity: 4, expectedPrice: 3150000 }],
+  ['308', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '6', isStandard: 1, categoryName: '스마트폰', requestedItemName: 'iPhone 15 Pro Max 512GB', quantity: 2, expectedPrice: 1550000 }],
+]
+
+for (const [ticketId, detail] of additionalPurchaseTicketDetails) {
+  ticketDetailData.set(ticketId, detail)
+  ticketApproverIds.set(ticketId, mockMemberId(3))
+  ticketAssigneeIds.set(ticketId, mockMemberId(2))
+}
+
 let ticketComments: TicketComment[] = [
   {
     commentId: 1,
@@ -889,6 +1038,463 @@ let ticketComments: TicketComment[] = [
     updatedAt: '2026-06-01T10:35:00',
   },
 ]
+
+let purchasePlanSequence = 2
+
+let purchasePlans: PurchasePlanDetail[] = [
+  {
+    planId: 1,
+    planNo: 'PO-20260507-001',
+    purchaseRequestStatus: 'ORDERED',
+    status: 'ORDERED',
+    createdAt: '2026-05-07T09:30:00',
+    updatedAt: '2026-05-10T14:20:00',
+    estimatedAmount: 1740000,
+    actualAmount: null,
+    requesterId: mockMemberId(5),
+    requesterName: '정사원',
+    items: [
+      {
+        itemId: 101,
+        category: '노트북',
+        itemName: 'ThinkPad X1 Carbon Gen 12',
+        quantity: 1,
+        estimatedUnitPrice: 1740000,
+        totalAmount: 1740000,
+        assetType: 'TANGIBLE',
+        isStandard: true,
+        ticketId: '6',
+        receivedAt: null,
+      },
+    ],
+  },
+]
+
+let purchasePolicy: PurchasePolicyUpdateResponse = {
+  policyId: '1',
+  purchaseMethod: 'PARALLEL',
+  overPercentageLimit: 10,
+}
+
+purchasePlanSequence = 18
+purchasePlans = [
+  {
+    planId: 17,
+    planNo: 'PO-20260617-017',
+    purchaseRequestStatus: 'REQUESTED',
+    status: 'REQUESTED',
+    createdAt: '2026-06-17T09:20:00',
+    updatedAt: '2026-06-17T09:20:00',
+    estimatedAmount: 10850000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 1701, category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 3, estimatedUnitPrice: 2350000, totalAmount: 7050000, assetType: 'TANGIBLE', isStandard: true, ticketId: '209', receivedAt: null },
+      { itemId: 1702, category: '모니터', itemName: 'Dell UltraSharp 27인치 4K', quantity: 2, estimatedUnitPrice: 720000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: '301', receivedAt: null },
+      { itemId: 1703, category: '소프트웨어', itemName: 'JetBrains All Products Pack', quantity: 4, estimatedUnitPrice: 590000, totalAmount: 2360000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '302', receivedAt: null },
+    ],
+  },
+  {
+    planId: 16,
+    planNo: 'PO-20260616-016',
+    purchaseRequestStatus: 'APPROVED',
+    status: 'APPROVED',
+    createdAt: '2026-06-16T14:40:00',
+    updatedAt: '2026-06-16T16:10:00',
+    estimatedAmount: 6420000,
+    actualAmount: null,
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    items: [
+      { itemId: 1601, category: '태블릿', itemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, estimatedUnitPrice: 1850000, totalAmount: 3700000, assetType: 'TANGIBLE', isStandard: true, ticketId: '303', receivedAt: null },
+      { itemId: 1602, category: '소프트웨어', itemName: 'Adobe Photoshop', quantity: 6, estimatedUnitPrice: 220000, totalAmount: 1320000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '304', receivedAt: null },
+      { itemId: 1603, category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 10, estimatedUnitPrice: 140000, totalAmount: 1400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 15,
+    planNo: 'PO-20260615-015',
+    purchaseRequestStatus: 'ORDERED',
+    status: 'ORDERED',
+    createdAt: '2026-06-15T11:00:00',
+    updatedAt: '2026-06-16T10:30:00',
+    estimatedAmount: 24600000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 1501, category: '노트북', itemName: 'MacBook Pro 14인치 M3 Max', quantity: 5, estimatedUnitPrice: 4200000, totalAmount: 21000000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: 1502, category: '키보드', itemName: 'MX Keys S 무선 팬터그래프', quantity: 20, estimatedUnitPrice: 180000, totalAmount: 3600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 14,
+    planNo: 'PO-20260614-014',
+    purchaseRequestStatus: 'DELIVERED',
+    status: 'DELIVERED',
+    createdAt: '2026-06-14T10:30:00',
+    updatedAt: '2026-06-16T15:20:00',
+    estimatedAmount: 5400000,
+    actualAmount: 5310000,
+    requesterId: mockMemberId(1),
+    requesterName: '김관리',
+    items: [
+      { itemId: 1401, category: '모니터', itemName: '오디세이 OLED G9 게이밍 모니터', quantity: 3, estimatedUnitPrice: 1800000, totalAmount: 5400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-16T15:20:00' },
+    ],
+  },
+  {
+    planId: 13,
+    planNo: 'PO-20260613-013',
+    purchaseRequestStatus: 'COMPLETED',
+    status: 'COMPLETED',
+    createdAt: '2026-06-13T09:10:00',
+    updatedAt: '2026-06-15T18:00:00',
+    estimatedAmount: 4400000,
+    actualAmount: 4320000,
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    items: [
+      { itemId: 1301, category: '소프트웨어', itemName: 'Slack Enterprise Grid', quantity: 8, estimatedUnitPrice: 550000, totalAmount: 4400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-15T17:40:00' },
+    ],
+  },
+  {
+    planId: 12,
+    planNo: 'PO-20260612-012',
+    purchaseRequestStatus: 'REJECTED',
+    status: 'REJECTED',
+    createdAt: '2026-06-12T15:20:00',
+    updatedAt: '2026-06-12T17:30:00',
+    estimatedAmount: 9100000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 1201, category: '비표준 장비', itemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, estimatedUnitPrice: 6800000, totalAmount: 6800000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
+      { itemId: 1202, category: '스토리지', itemName: 'Thunderbolt 외장 RAID 16TB', quantity: 1, estimatedUnitPrice: 2300000, totalAmount: 2300000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
+    ],
+  },
+  {
+    planId: 11,
+    planNo: 'PO-20260611-011',
+    purchaseRequestStatus: 'CANCELLED',
+    status: 'CANCELLED',
+    createdAt: '2026-06-11T13:00:00',
+    updatedAt: '2026-06-12T08:30:00',
+    estimatedAmount: 2850000,
+    actualAmount: null,
+    requesterId: mockMemberId(1),
+    requesterName: '김관리',
+    items: [
+      { itemId: 1101, category: '스마트폰', itemName: 'Galaxy S24 Ultra 자급제', quantity: 3, estimatedUnitPrice: 950000, totalAmount: 2850000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 10,
+    planNo: 'PO-20260610-010',
+    purchaseRequestStatus: 'ORDERED',
+    status: 'ORDERED',
+    createdAt: '2026-06-10T10:40:00',
+    updatedAt: '2026-06-11T10:00:00',
+    estimatedAmount: 11800000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 1001, category: '책상', itemName: '모션데스크 E0 스마트 1600', quantity: 10, estimatedUnitPrice: 620000, totalAmount: 6200000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: 1002, category: '의자', itemName: '시디즈 T80 하이엔드 의자', quantity: 10, estimatedUnitPrice: 560000, totalAmount: 5600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 9,
+    planNo: 'PO-20260609-009',
+    purchaseRequestStatus: 'REQUESTED',
+    status: 'REQUESTED',
+    createdAt: '2026-06-09T16:30:00',
+    updatedAt: '2026-06-09T16:30:00',
+    estimatedAmount: 5200000,
+    actualAmount: null,
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    items: [
+      { itemId: 901, category: '소프트웨어', itemName: 'Atlassian Jira Software', quantity: 5, estimatedUnitPrice: 680000, totalAmount: 3400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
+      { itemId: 902, category: '소프트웨어', itemName: 'Atlassian Confluence', quantity: 5, estimatedUnitPrice: 360000, totalAmount: 1800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
+    ],
+  },
+  {
+    planId: 8,
+    planNo: 'PO-20260608-008',
+    purchaseRequestStatus: 'APPROVED',
+    status: 'APPROVED',
+    createdAt: '2026-06-08T09:45:00',
+    updatedAt: '2026-06-08T13:20:00',
+    estimatedAmount: 12600000,
+    actualAmount: null,
+    requesterId: mockMemberId(1),
+    requesterName: '김관리',
+    items: [
+      { itemId: 801, category: '노트북', itemName: 'Dell XPS 15 9530', quantity: 4, estimatedUnitPrice: 3150000, totalAmount: 12600000, assetType: 'TANGIBLE', isStandard: true, ticketId: '307', receivedAt: null },
+    ],
+  },
+  {
+    planId: 7,
+    planNo: 'PO-20260607-007',
+    purchaseRequestStatus: 'DELIVERED',
+    status: 'DELIVERED',
+    createdAt: '2026-06-07T12:00:00',
+    updatedAt: '2026-06-09T15:00:00',
+    estimatedAmount: 3750000,
+    actualAmount: 3680000,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 701, category: '보안 소프트웨어', itemName: 'AhnLab V3', quantity: 25, estimatedUnitPrice: 150000, totalAmount: 3750000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-09T14:30:00' },
+    ],
+  },
+  {
+    planId: 6,
+    planNo: 'PO-20260606-006',
+    purchaseRequestStatus: 'COMPLETED',
+    status: 'COMPLETED',
+    createdAt: '2026-06-06T10:00:00',
+    updatedAt: '2026-06-08T17:00:00',
+    estimatedAmount: 9900000,
+    actualAmount: 9840000,
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    items: [
+      { itemId: 601, category: '태블릿', itemName: 'Galaxy Tab S9 Ultra 256GB', quantity: 6, estimatedUnitPrice: 1650000, totalAmount: 9900000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-08T16:50:00' },
+    ],
+  },
+  {
+    planId: 5,
+    planNo: 'PO-20260605-005',
+    purchaseRequestStatus: 'ORDERED',
+    status: 'ORDERED',
+    createdAt: '2026-06-05T11:50:00',
+    updatedAt: '2026-06-06T09:00:00',
+    estimatedAmount: 15600000,
+    actualAmount: null,
+    requesterId: mockMemberId(1),
+    requesterName: '김관리',
+    items: [
+      { itemId: 501, category: '소프트웨어', itemName: 'GitHub Enterprise', quantity: 10, estimatedUnitPrice: 980000, totalAmount: 9800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: 502, category: '소프트웨어', itemName: 'Tableau', quantity: 4, estimatedUnitPrice: 1450000, totalAmount: 5800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 4,
+    planNo: 'PO-20260604-004',
+    purchaseRequestStatus: 'REQUESTED',
+    status: 'REQUESTED',
+    createdAt: '2026-06-04T15:30:00',
+    updatedAt: '2026-06-04T15:30:00',
+    estimatedAmount: 6100000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 401, category: '스마트폰', itemName: 'iPhone 15 Pro Max 512GB', quantity: 2, estimatedUnitPrice: 1550000, totalAmount: 3100000, assetType: 'TANGIBLE', isStandard: true, ticketId: '308', receivedAt: null },
+      { itemId: 402, category: '소프트웨어', itemName: 'Zoom', quantity: 10, estimatedUnitPrice: 300000, totalAmount: 3000000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 3,
+    planNo: 'PO-20260603-003',
+    purchaseRequestStatus: 'APPROVED',
+    status: 'APPROVED',
+    createdAt: '2026-06-03T13:20:00',
+    updatedAt: '2026-06-03T18:20:00',
+    estimatedAmount: 2480000,
+    actualAmount: null,
+    requesterId: mockMemberId(3),
+    requesterName: '이부장',
+    items: [
+      { itemId: 301, category: '주변기기', itemName: 'MX Keys S 무선 팬터그래프', quantity: 8, estimatedUnitPrice: 180000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: 302, category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 8, estimatedUnitPrice: 130000, totalAmount: 1040000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+    ],
+  },
+  {
+    planId: 2,
+    planNo: 'PO-20260602-002',
+    purchaseRequestStatus: 'COMPLETED',
+    status: 'COMPLETED',
+    createdAt: '2026-06-02T09:10:00',
+    updatedAt: '2026-06-04T17:30:00',
+    estimatedAmount: 7600000,
+    actualAmount: 7520000,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 201, category: '노트북', itemName: 'Galaxy Book4 Ultra 코어Ultra9', quantity: 2, estimatedUnitPrice: 3800000, totalAmount: 7600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-04T17:20:00' },
+    ],
+  },
+  {
+    planId: 1,
+    planNo: 'PO-20260507-001',
+    purchaseRequestStatus: 'ORDERED',
+    status: 'ORDERED',
+    createdAt: '2026-05-07T09:30:00',
+    updatedAt: '2026-05-10T14:20:00',
+    estimatedAmount: 1740000,
+    actualAmount: null,
+    requesterId: mockMemberId(2),
+    requesterName: '박자산',
+    items: [
+      { itemId: 101, category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 1, estimatedUnitPrice: 1740000, totalAmount: 1740000, assetType: 'TANGIBLE', isStandard: true, ticketId: '6', receivedAt: null },
+    ],
+  },
+]
+
+function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem {
+  const firstItemName = plan.items[0]?.itemName ?? '-'
+  const extraCount = Math.max(plan.items.length - 1, 0)
+  const itemName = extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName
+
+  return {
+    planId: plan.planId,
+    planNo: plan.planNo,
+    estimatedAmount: plan.estimatedAmount,
+    itemCount: plan.items.length,
+    createdAt: plan.createdAt,
+    updatedAt: plan.updatedAt,
+    deletedAt: plan.deletedAt ?? null,
+    status: plan.status,
+    purchaseRequestStatus: plan.purchaseRequestStatus,
+    requesterId: plan.requesterId,
+    requesterName: plan.requesterName,
+    itemName,
+  }
+}
+
+function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
+  return {
+    ...plan,
+    items: plan.items.map((item) => {
+      const ticketDetail = item.ticketId == null
+        ? undefined
+        : ticketDetailData.get(String(item.ticketId))
+
+      return {
+        ...item,
+        ticketRequesterId: item.ticketRequesterId ?? ticketDetail?.requesterId ?? null,
+        ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
+        ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
+        ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
+      }
+    }),
+  }
+}
+
+function getPurchasePlanStatistics(): PurchasePlanStatistics {
+  const activePlans = purchasePlans.filter((plan) => !plan.deletedAt)
+
+  return {
+    totalCount: activePlans.length,
+    approvalWaitingCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'REQUESTED').length,
+    orderedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'ORDERED').length,
+    completedCount: activePlans.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === 'COMPLETED').length,
+  }
+}
+
+function createPurchasePlanNo(now: Date, sequence: number) {
+  const date = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('')
+
+  return `PO-${date}-${String(sequence).padStart(3, '0')}`
+}
+
+function findPurchasePlan(planId: number) {
+  return purchasePlans.find((plan) => plan.planId === planId && !plan.deletedAt)
+}
+
+async function handlePurchasePlanAssetRegister(
+  planId: number,
+  itemId: string | null,
+  request: Request,
+) {
+  const plan = findPurchasePlan(planId)
+  const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+  if (!plan) {
+    return HttpResponse.json({
+      status: 404,
+      errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+      message: '구매 계획을 찾을 수 없습니다.',
+      data: null,
+    }, { status: 404 })
+  }
+
+  if (itemId) {
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+  }
+
+  const uniqueCodes = 'serialNumbers' in body
+    ? body.serialNumbers
+    : 'licenseCodes' in body
+      ? body.licenseCodes
+      : []
+  const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+  if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
+    return HttpResponse.json({
+      status: 400,
+      errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+      message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
+      data: null,
+    }, { status: 400 })
+  }
+
+  const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+    uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
+  ))
+
+  if (duplicatedCode) {
+    return HttpResponse.json({
+      status: 409,
+      errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+      message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
+      data: null,
+    }, { status: 409 })
+  }
+
+  plan.updatedAt = new Date().toISOString()
+
+  return HttpResponse.json(ok({
+    planId,
+    itemId,
+    registeredCount: uniqueCodes.length,
+  }, '구매 계획 자산을 등록했습니다.'))
+}
+
+function updateTicketForPurchasePlan(ticketId: string | number | null, plan: PurchasePlanDetail) {
+  if (ticketId == null) return
+  const normalizedTicketId = String(ticketId)
+  const ticket = tickets.find((item) => item.ticketId === normalizedTicketId)
+  if (!ticket) return
+
+  ticket.ticketStatus = 'IN_PROGRESS'
+  const detail = ticketDetailData.get(normalizedTicketId) ?? {}
+  ticketDetailData.set(normalizedTicketId, {
+    ...detail,
+    detailStatus: '구매 계획 생성',
+    linkedPurchasePlanId: String(plan.planId),
+    purchasePlanId: String(plan.planId),
+    orderedAt: detail.orderedAt ?? plan.updatedAt,
+  })
+}
 
 function withCurrentMemberCount(department: Department): Department {
   return {
@@ -1465,12 +2071,55 @@ function toLoginResponse(member: Member): LoginResponse {
   }
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - normalizedPayload.length % 4) % 4),
+      '=',
+    )
+
+    return JSON.parse(atob(paddedPayload)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function getPayloadString(payload: Record<string, unknown> | null, keys: string[]) {
+  if (!payload) return undefined
+
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+
+  return undefined
+}
+
 function getAuthenticatedMember(request: Request): Member | undefined {
   const authHeader = request.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer mock-access-token-')) return undefined
+  if (!authHeader?.startsWith('Bearer ')) return undefined
 
-  const memberNo = authHeader.replace('Bearer mock-access-token-', '')
+  const token = authHeader.replace('Bearer ', '')
+  if (token.startsWith('mock-access-token-')) {
+    const memberNo = token.replace('mock-access-token-', '')
+    return members.find((member) => member.memberNo === memberNo)
+  }
+
+  const payload = decodeJwtPayload(token)
+  const memberNo = getPayloadString(payload, ['memberNo', 'employeeNo', 'empNo'])
+  const memberId = getPayloadString(payload, ['memberId', 'employeeId', 'id', 'sub'])
+  const email = getPayloadString(payload, ['email'])
+  const role = getPayloadString(payload, ['role', 'authorities'])
+
   return members.find((member) => member.memberNo === memberNo)
+    ?? members.find((member) => member.memberId === memberId)
+    ?? members.find((member) => member.email === email)
+    ?? members.find((member) => member.role === role && member.status === 'ACTIVE')
 }
 
 function canManageAssets(member: Member | undefined): boolean {
@@ -1494,12 +2143,17 @@ function getDepartmentManager(departmentId: string): Member | undefined {
 }
 
 function isAssetTeamRole(member: Member | undefined): boolean {
-  return member?.role === 'ASSET_TEAM' || member?.role === 'ASSET_MANAGER'
+  return (
+    member?.role === 'ADMIN'
+    || member?.role === 'SUPER_ADMIN'
+    || member?.role === 'ASSET_TEAM'
+    || member?.role === 'ASSET_MANAGER'
+  )
 }
 
 function canAccessTicket(member: Member | undefined, ticket: MockTicket): boolean {
   if (!member) return false
-  if (member.role === 'ADMIN' || isAssetTeamRole(member)) return true
+  if (isAssetTeamRole(member)) return true
   if (member.role === 'EMPLOYEE') return ticket.requesterId === member.memberId
   if (member.role === 'DEPARTMENT_MANAGER') {
     return ticket.departmentId === member.departmentId
@@ -1615,18 +2269,112 @@ function createMockTicket(
 }
 
 function toTicketListItem(ticket: MockTicket): TicketListItem {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+
   return {
     ticketId: ticket.ticketId,
     ticketNo: ticket.ticketNo,
     ticketType: ticket.ticketType,
     requestMethod: ticket.requestMethod,
-    requestedItemName: ticket.requestedItemName,
+    requestedItemName: detail.requestedItemName ?? ticket.requestedItemName,
     requesterId: ticket.requesterId,
     requesterName: ticket.requesterName,
     departmentId: ticket.departmentId,
     departmentName: ticket.departmentName,
     requestedAt: ticket.requestedAt,
     ticketStatus: ticket.ticketStatus,
+    detailStatus: detail.detailStatus ?? null,
+    assetType: detail.assetType ?? null,
+    assetItemId: detail.assetItemId ?? null,
+    isStandard: detail.isStandard ?? null,
+    categoryName: detail.categoryName ?? null,
+    requestedItemDetail: detail.requestedItemDetail ?? null,
+    productName: detail.productName ?? null,
+    quantity: detail.quantity ?? null,
+    expectedPrice: detail.expectedPrice ?? null,
+  }
+}
+
+function isPurchasePlanCandidateTicket(ticket: MockTicket) {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+
+  if (ticket.ticketStatus !== 'ASSET_APPROVED') return false
+  if (ticket.ticketType === 'PURCHASE_REQUEST') {
+    return ticket.requestMethod !== 'DIRECT_PURCHASE'
+  }
+  if (ticket.ticketType !== 'ASSET_REQUEST') return false
+
+  const availableCount = optionalNumber(detailRecord.availableCount ?? detailRecord.availableAssetCount)
+  if (availableCount === null || availableCount === undefined) return true
+
+  return availableCount < (detail.quantity ?? 1)
+}
+
+function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidateTicket {
+  const detail = ticketDetailData.get(ticket.ticketId) ?? {}
+  const detailRecord = detail as Record<string, unknown>
+  const estimatedUnitPrice = optionalNumber(detail.expectedPrice
+    ?? detailRecord.purchasePrice
+    ?? detailRecord.unitPrice
+    ?? 0) ?? 0
+
+  return {
+    ticketId: ticket.ticketId,
+    ticketNo: ticket.ticketNo,
+    ticketType: ticket.ticketType,
+    assetType: detail.assetType ?? 'TANGIBLE',
+    requesterId: ticket.requesterId,
+    requesterName: ticket.requesterName,
+    itemName: detail.requestedItemName ?? detail.requestedItemDetail ?? detail.productName ?? ticket.requestedItemName ?? '',
+    categoryName: detail.categoryName ?? '',
+    quantity: detail.quantity ?? 1,
+    estimatedUnitPrice,
+    assetItemId: detail.assetItemId ?? null,
+    isStandard: detail.isStandard ?? null,
+  }
+}
+
+function toTangibleAvailableAssignedAsset(assignment: MockTangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'TANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    tangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.assetName ?? asset?.assetItemName,
+    manufacturer: item?.manufacturer,
+    modelName: item?.modelName,
+    serialNumber: asset?.serialNumber ?? asset?.serialNo,
+    assignedAt: assignment.assignedAt,
+    returnDueDate: assignment.endedAt,
+  }
+}
+
+function toIntangibleAvailableAssignedAsset(assignment: MockIntangibleAssetAssignment): MaintenanceAvailableAsset {
+  const asset = intangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+  const item = intangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+  return {
+    assetType: 'INTANGIBLE',
+    assignmentId: assignment.assignmentId,
+    assetId: assignment.assetId,
+    assetCode: asset?.assetCode,
+    intangibleAssetItemId: asset?.assetItemId,
+    itemId: asset?.assetItemId,
+    categoryId: item ? `cat-${item.category}` : undefined,
+    categoryName: item?.category,
+    productName: item?.productName ?? asset?.assetItemName,
+    provider: item?.vendor ?? asset?.vendor,
+    licenseCode: asset?.licenseKey,
+    assignedAt: assignment.assignedAt,
+    expiredAt: asset?.expiredAt ?? assignment.endedAt,
   }
 }
 
@@ -1651,6 +2399,323 @@ export const handlers = [
       '사원 대시보드 mock 데이터입니다.',
     ))
   )),
+
+  http.get(`${API_PREFIX}/purchase-plans`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const status = url.searchParams.get('status') ?? ''
+    const requesterId = url.searchParams.get('requesterId') ?? ''
+    const keyword = (url.searchParams.get('keyword') ?? '').trim().toLowerCase()
+
+    let filtered = purchasePlans.filter((plan) => !plan.deletedAt)
+
+    if (status) {
+      filtered = filtered.filter((plan) => (plan.status ?? plan.purchaseRequestStatus) === status)
+    }
+
+    if (requesterId) {
+      filtered = filtered.filter((plan) => String(plan.requesterId ?? '') === requesterId)
+    }
+
+    if (keyword) {
+      filtered = filtered.filter((plan) => {
+        const itemNames = plan.items.map((item) => item.itemName).join(' ')
+        return `${plan.planNo} ${itemNames} ${plan.requesterName ?? ''}`.toLowerCase().includes(keyword)
+      })
+    }
+
+    const listItems = filtered
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(toPurchasePlanListItem)
+
+    return HttpResponse.json(ok(pageOf(listItems, page, size)))
+  }),
+
+  http.get(`${API_PREFIX}/purchase-plans/statistics`, () => (
+    HttpResponse.json(ok(getPurchasePlanStatistics()))
+  )),
+
+  http.post(`${API_PREFIX}/purchase-plans`, async ({ request }) => {
+    const body = await request.json() as PurchasePlanCreateRequest
+    const items = body.items ?? []
+
+    if (!items.length) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'PURCHASE_PLAN_ITEM_REQUIRED',
+        message: '구매 계획 품목을 1개 이상 선택해 주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const now = new Date()
+    const createdAt = now.toISOString()
+    const planId = Math.max(0, ...purchasePlans.map((plan) => Number(plan.planId))) + 1
+    const actor = getAuthenticatedMember(request)
+    const purchaseRequester = actor && ['ADMIN', 'SUPER_ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(actor.role)
+      ? actor
+      : members.find((member) => member.memberId === mockMemberId(2))
+
+    const plan: PurchasePlanDetail = {
+      planId,
+      planNo: createPurchasePlanNo(now, purchasePlanSequence++),
+      purchaseRequestStatus: 'REQUESTED',
+      status: 'REQUESTED',
+      createdAt,
+      updatedAt: createdAt,
+      estimatedAmount: items.reduce((sum, item) => sum + item.estimatedAmount, 0),
+      actualAmount: null,
+      requesterId: purchaseRequester?.memberId ?? null,
+      requesterName: purchaseRequester?.name ?? null,
+      items: items.map((item, index) => {
+        const detail = item.ticketId == null
+          ? undefined
+          : ticketDetailData.get(String(item.ticketId))
+        const directRequesterId = item.ticketId == null
+          ? item.ticketRequesterId ?? item.requesterId ?? purchaseRequester?.memberId ?? null
+          : null
+        const directRequesterName = item.ticketId == null
+          ? item.ticketRequesterName ?? item.requesterName ?? purchaseRequester?.name ?? null
+          : null
+        const directDepartmentId = item.ticketId == null
+          ? item.ticketDepartmentId ?? item.departmentId ?? purchaseRequester?.departmentId ?? null
+          : null
+        const directDepartmentName = item.ticketId == null
+          ? item.ticketDepartmentName ?? item.departmentName ?? purchaseRequester?.departmentName ?? null
+          : null
+
+        return {
+          itemId: planId * 100 + index + 1,
+          category: detail?.categoryName ?? item.categoryName ?? '-',
+          itemName: item.productName,
+          quantity: item.quantity,
+          estimatedUnitPrice: item.estimatedUnitPrice,
+          totalAmount: item.estimatedAmount,
+          assetType: item.assetType,
+          isStandard: item.isStandard === 1,
+          ticketId: item.ticketId,
+          ticketRequesterId: detail?.requesterId ?? directRequesterId,
+          ticketRequesterName: detail?.requesterName ?? directRequesterName,
+          ticketDepartmentId: detail?.departmentId ?? directDepartmentId,
+          ticketDepartmentName: detail?.departmentName ?? directDepartmentName,
+          receivedAt: null,
+        }
+      }),
+    }
+
+    purchasePlans = [plan, ...purchasePlans]
+    for (const item of items) {
+      updateTicketForPurchasePlan(item.ticketId, plan)
+    }
+
+    return HttpResponse.json(ok({
+      planId: plan.planId,
+      planNo: plan.planNo,
+      estimatedAmount: plan.estimatedAmount,
+      itemCount: plan.items.length,
+      createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt,
+    }, '구매 계획이 등록되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/purchase-plans/:planId`, ({ params }) => {
+    const planId = Number(params.planId)
+    const plan = findPurchasePlan(planId)
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    return HttpResponse.json(ok(toPurchasePlanDetail(plan)))
+  }),
+
+  http.delete(`${API_PREFIX}/purchase-plans/:planId`, ({ params }) => {
+    const planId = Number(params.planId)
+    const plan = findPurchasePlan(planId)
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    plan.deletedAt = new Date().toISOString()
+    plan.updatedAt = plan.deletedAt
+
+    return HttpResponse.json(ok({}, '구매 계획이 삭제되었습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/purchase-plans/:planId/status`, async ({ params, request }) => {
+    const planId = Number(params.planId)
+    const plan = findPurchasePlan(planId)
+    const body = await request.json() as { status?: PurchasePlanStatus }
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    if (!body.status) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'PURCHASE_PLAN_STATUS_REQUIRED',
+        message: '변경할 상태를 선택해 주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    plan.status = body.status
+    plan.purchaseRequestStatus = body.status
+    plan.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok(plan, '구매 계획 상태가 변경되었습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/confirm`, ({ params }) => {
+    const planId = Number(params.planId)
+    const itemId = String(params.itemId)
+    const plan = findPurchasePlan(planId)
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    item.receivedAt = updatedAt
+    plan.updatedAt = updatedAt
+
+    if (plan.items.every((planItem) => planItem.receivedAt)) {
+      plan.status = 'DELIVERED'
+      plan.purchaseRequestStatus = 'DELIVERED'
+    }
+
+    return HttpResponse.json(ok({}, '납품 확인이 완료되었습니다.'))
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), null, request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/tangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/intangible-assets`, async ({ params, request }) => {
+    return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/assets`, async ({ params, request }) => {
+    const planId = Number(params.planId)
+    const itemId = String(params.itemId)
+    const plan = findPurchasePlan(planId)
+    const body = await request.json() as PurchasePlanAssetRegisterRequest
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const uniqueCodes = 'serialNumbers' in body
+      ? body.serialNumbers
+      : 'licenseCodes' in body
+        ? body.licenseCodes
+        : []
+    const uniqueCodeLabel = 'licenseCodes' in body ? '라이선스 코드' : '시리얼 번호'
+
+    if (!Array.isArray(uniqueCodes) || uniqueCodes.length === 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'ASSET_UNIQUE_CODE_REQUIRED',
+        message: `${uniqueCodeLabel}를 1개 이상 입력해 주세요.`,
+        data: null,
+      }, { status: 400 })
+    }
+
+    const duplicatedCode = uniqueCodes.find((uniqueCode, index, uniqueCodeList) => (
+      uniqueCode && uniqueCodeList.indexOf(uniqueCode) !== index
+    ))
+
+    if (duplicatedCode) {
+      return HttpResponse.json({
+        status: 409,
+        errorCode: 'ASSET_UNIQUE_CODE_DUPLICATED',
+        message: `중복된 ${uniqueCodeLabel}가 있습니다.`,
+        data: null,
+      }, { status: 409 })
+    }
+
+    plan.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok({
+      planId,
+      itemId,
+      registeredCount: uniqueCodes.length,
+    }, '구매 계획 자산이 등록되었습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/purchase-policies`, () => {
+    return HttpResponse.json(ok(purchasePolicy, '구매 정책 조회에 성공했습니다.'))
+  }),
+
+  http.put(`${API_PREFIX}/purchase-policies`, async ({ request }) => {
+    const body = await request.json() as PurchasePolicyUpdateRequest
+
+    purchasePolicy = {
+      policyId: purchasePolicy.policyId,
+      purchaseMethod: body.purchaseMethod,
+      overPercentageLimit: body.overPercentageLimit,
+    }
+
+    return HttpResponse.json(ok(purchasePolicy, '구매 운영 정책이 저장되었습니다.'))
+  }),
 
   http.post(`${API_PREFIX}/auth/login`, async ({ request }) => {
     const credentials = await request.json() as LoginRequest
@@ -1764,6 +2829,19 @@ export const handlers = [
     return HttpResponse.json(ok(pageOf(filteredTickets.map(toTicketListItem), page, size)))
   }),
 
+  http.get(`${API_PREFIX}/tickets/purchase-plan-candidates`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const requester = getAuthenticatedMember(request)
+    const candidates = tickets
+      .filter((ticket) => canAccessTicket(requester, ticket))
+      .filter(isPurchasePlanCandidateTicket)
+      .map(toPurchasePlanCandidateTicket)
+
+    return HttpResponse.json(ok(pageOf(candidates, page, size)))
+  }),
+
   http.get(`${API_PREFIX}/tickets/statistics`, ({ request }) => {
     const requester = getAuthenticatedMember(request)
     const accessibleTickets = tickets.filter((ticket) => canAccessTicket(requester, ticket))
@@ -1774,7 +2852,7 @@ export const handlers = [
     ))
   }),
 
-  http.get(`${API_PREFIX}/tickets/:ticketId`, ({ params, request }) => {
+  http.get(`${API_PREFIX}/tickets/asset-requests/:ticketId`, ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const requester = getAuthenticatedMember(request)
@@ -1867,7 +2945,7 @@ export const handlers = [
     return HttpResponse.json(ok(detail))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/approve`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/:approvalType/approve`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const actor = getAuthenticatedMember(request)
@@ -1889,11 +2967,17 @@ export const handlers = [
       }, { status: 403 })
     }
 
-    const body = await request.json() as TicketApproveRequest
+    const approvalType = String(params.approvalType)
+    const body = {
+      approver: approvalType === 'asset-approval' ? 'ASSET_TEAM' : 'DEPARTMENT_MANAGER',
+    } as TicketApproveRequest
     const updatedAt = new Date().toISOString()
 
     if (body.approver === 'DEPARTMENT_MANAGER') {
-      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+      if (
+        ticket.ticketStatus !== 'REQUESTED'
+        || (actor.role !== 'DEPARTMENT_MANAGER' && !isAssetTeamRole(actor))
+      ) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'INVALID_TICKET_REVIEW_STATUS',
@@ -1930,7 +3014,7 @@ export const handlers = [
     }, '티켓 승인에 성공했습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/reject`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/:approvalType/reject`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const actor = getAuthenticatedMember(request)
@@ -1952,7 +3036,14 @@ export const handlers = [
       }, { status: 403 })
     }
 
-    const body = await request.json() as TicketRejectRequest
+    const approvalType = String(params.approvalType)
+    const requestBody = await request.json() as Partial<TicketRejectRequest> & {
+      rejectionReason?: string
+    }
+    const body = {
+      rejectionType: approvalType === 'asset-approval' ? 'ASSET_TEAM' : 'DEPARTMENT_MANAGER',
+      rejectionReason: requestBody.rejectionReason ?? '',
+    } as TicketRejectRequest
     if (!body.rejectionReason?.trim()) {
       return HttpResponse.json({
         status: 400,
@@ -1964,7 +3055,10 @@ export const handlers = [
 
     const updatedAt = new Date().toISOString()
     if (body.rejectionType === 'DEPARTMENT_MANAGER') {
-      if (actor.role !== 'DEPARTMENT_MANAGER' || ticket.ticketStatus !== 'REQUESTED') {
+      if (
+        ticket.ticketStatus !== 'REQUESTED'
+        || (actor.role !== 'DEPARTMENT_MANAGER' && !isAssetTeamRole(actor))
+      ) {
         return HttpResponse.json({
           status: 409,
           errorCode: 'INVALID_TICKET_REVIEW_STATUS',
@@ -2260,6 +3354,47 @@ export const handlers = [
       currentStatus: nextStatus,
       updatedAt,
     }, '티켓 상태 변경에 성공했습니다.'))
+  }),
+
+  http.patch(`${API_PREFIX}/tickets/:ticketId/cancel`, ({ params, request }) => {
+    const ticketId = String(params.ticketId)
+    const ticket = tickets.find((item) => item.ticketId === ticketId)
+    const requester = getAuthenticatedMember(request)
+
+    if (!ticket) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'TICKET_NOT_FOUND',
+        message: '티켓을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const isRequester = Boolean(requester && requester.memberId === ticket.requesterId)
+    const canCancelAsRequester = isRequester && CANCELLABLE_TICKET_STATUSES.has(ticket.ticketStatus)
+    const canCancelAsAssetTeam = isAssetTeamRole(requester)
+      && !['COMPLETED', 'CANCELLED', 'DEPARTMENT_REJECTED', 'ASSET_REJECTED'].includes(ticket.ticketStatus)
+
+    if (!canCancelAsRequester && !canCancelAsAssetTeam) {
+      return HttpResponse.json({
+        status: 403,
+        errorCode: 'FORBIDDEN',
+        message: '요청자 또는 구매자산팀 권한에서만 티켓을 취소할 수 있습니다.',
+        data: null,
+      }, { status: 403 })
+    }
+
+    const updatedAt = new Date().toISOString()
+    ticket.ticketStatus = 'CANCELLED'
+    ticketCanceledAt.set(ticketId, updatedAt)
+
+    return HttpResponse.json(ok({
+      ticketId,
+      ticketNo: ticket.ticketNo,
+      ticketStatus: ticket.ticketStatus,
+      cancelledAt: updatedAt,
+      canceledAt: updatedAt,
+    }, '티켓 취소에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/maintence/collect`, ({ params, request }) => {
@@ -2937,6 +4072,8 @@ export const handlers = [
         {
           requestedUsageType: body.requestedUsageType,
           assetType: body.assetType,
+          assetItemId: body.assetItemId,
+          isStandard: body.isStandard,
           categoryName: body.categoryId,
           requestedItemDetail: body.requestedItemDetail,
           quantity: body.quantity,
@@ -2944,6 +4081,53 @@ export const handlers = [
         },
       ),
       '직접 구매 자산 요청 티켓 등록에 성공했습니다.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/rentals/available-items`, ({ request }) => {
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const size = Number(url.searchParams.get('size') ?? 10)
+    const categoryId = url.searchParams.get('categoryId') ?? ''
+    const keyword = url.searchParams.get('keyword')?.toLowerCase() ?? ''
+    const isStandard = url.searchParams.get('isStandard') ?? ''
+
+    const availableItems = tangibleItems
+      .map<RentalAvailableItem>((item) => {
+        const availableAssetCount = tangibleAssets.filter((asset) => (
+          asset.assetItemId === item.assetItemId && asset.status === 'AVAILABLE'
+        )).length
+
+        return {
+          tangibleAssetItemId: item.assetItemId,
+          categoryId: `cat-${item.category}`,
+          categoryName: item.category,
+          productName: item.assetName,
+          manufacturer: item.manufacturer,
+          modelName: item.modelName,
+          isStandard: item.isStandard === 1,
+          availableAssetCount,
+        }
+      })
+      .filter((item) => item.availableAssetCount && item.availableAssetCount > 0)
+      .filter((item) => !categoryId || item.categoryId === categoryId)
+      .filter((item) => {
+        if (!isStandard) return true
+        return String(item.isStandard) === isStandard
+      })
+      .filter((item) => {
+        if (!keyword) return true
+        return [
+          item.productName,
+          item.categoryName,
+          item.manufacturer,
+          item.modelName,
+        ].filter(Boolean).join(' ').toLowerCase().includes(keyword)
+      })
+
+    return HttpResponse.json(ok(
+      pageOf(availableItems, page, size),
+      '???媛???덈ぉ 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
     ))
   }),
 
@@ -2969,18 +4153,54 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/rental-extensions`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/rentals/active-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const activeRentalAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && assignment.assignmentType === 'TEMPORARY'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<ActiveRentalAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+          currentReturnDueDate: assignment.endedAt ?? asset?.returnDueDate ?? undefined,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      activeRentalAssets,
+      '??ъ쨷???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
+    ))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/rentals/extensions`, async ({ request }) => {
     const body = await request.json() as RentalExtensionRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'RENTAL_EXTENSION',
         body.requestReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : '대여 연장 자산',
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
           requestedDueDate: body.requestedDueDate,
         },
@@ -2989,39 +4209,123 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/maintenance-requests`, async ({ request }) => {
+  http.get(`${API_PREFIX}/tickets/maintenance/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const maintenanceAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map<MaintenanceAvailableAsset>((assignment) => {
+        const asset = tangibleAssets.find((item) => String(item.assetId) === assignment.assetId)
+        const item = tangibleItems.find((entry) => entry.assetItemId === asset?.assetItemId)
+
+        return {
+          assignmentId: assignment.assignmentId,
+          assetId: assignment.assetId,
+          assetCode: asset?.assetCode,
+          tangibleAssetItemId: asset?.assetItemId,
+          categoryId: item ? `cat-${item.category}` : undefined,
+          categoryName: item?.category,
+          productName: item?.assetName ?? asset?.assetItemName,
+          manufacturer: item?.manufacturer,
+          modelName: item?.modelName,
+          serialNumber: asset?.serialNumber ?? asset?.serialNo,
+          assignedAt: assignment.assignedAt,
+        }
+      })
+
+    return HttpResponse.json(ok(
+      maintenanceAssets,
+      '?좎?蹂댁닔 ?붿껌 媛???먯궛 紐⑸줉 議고쉶???깃났?덉뒿?덈떎.',
+    ))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/asset-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangibleReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+    const intangibleReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const returnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangibleReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangibleReturnAssets),
+    ]
+
+    return HttpResponse.json(ok(returnAssets, 'Available return assets loaded.'))
+  }),
+
+  http.get(`${API_PREFIX}/tickets/purchase-returns/available-assets`, ({ request }) => {
+    const requester = getAuthenticatedMember(request)
+    const url = new URL(request.url)
+    const assetType = url.searchParams.get('assetType') as AssetType | null
+    const tangiblePurchaseReturnAssets = tangibleAssetAssignments
+      .filter((assignment) => (
+        assignment.assignmentStatus === 'ASSIGNED'
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toTangibleAvailableAssignedAsset)
+    const intangiblePurchaseReturnAssets = intangibleAssetAssignments
+      .filter((assignment) => (
+        (assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED')
+        && (!requester || assignment.memberId === requester.memberId)
+      ))
+      .map(toIntangibleAvailableAssignedAsset)
+    const purchaseReturnAssets = [
+      ...(assetType === 'INTANGIBLE' ? [] : tangiblePurchaseReturnAssets),
+      ...(assetType === 'TANGIBLE' ? [] : intangiblePurchaseReturnAssets),
+    ]
+
+    return HttpResponse.json(ok(purchaseReturnAssets, 'Available purchase return assets loaded.'))
+  }),
+
+  http.post(`${API_PREFIX}/tickets/maintenance`, async ({ request }) => {
     const body = await request.json() as MaintenanceRequestCreate
+    const assignment = tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'MAINTENANCE_REQUEST',
-        body.maintenanceReason,
-        getMockAssetName('TANGIBLE', body.assetId),
+        body.requestDetail,
+        assignment ? getMockAssetName('TANGIBLE', assignment.assetId) : null,
         undefined,
         {
           assetType: 'TANGIBLE',
-          assetId: body.assetId,
-          maintenanceReason: body.maintenanceReason,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '유지보수 요청 티켓 등록에 성공했습니다.',
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/returns`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/asset-returns`, async ({ request }) => {
     const body = await request.json() as ReturnRequestCreate
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'ASSET_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
           assetType: body.assetType,
-          assetId: body.assetId,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
           quantity: 1,
-          returnReason: body.returnReason,
         },
       ),
       '자산 반납 요청 티켓 등록에 성공했습니다.',
@@ -3030,17 +4334,20 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/tickets/purchase-returns`, async ({ request }) => {
     const body = await request.json() as PurchaseReturnRequestCreate
+    const assignment = body.assetType === 'INTANGIBLE'
+      ? intangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
+      : tangibleAssetAssignments.find((item) => item.assignmentId === body.assignmentId)
     return HttpResponse.json(ok(
       createMockTicket(
         request,
         'PURCHASE_RETURN',
-        body.returnReason,
-        getMockAssetName(body.assetType, body.assetId),
+        body.requestReason,
+        assignment ? getMockAssetName(body.assetType, assignment.assetId) : null,
         undefined,
         {
           assetType: body.assetType,
-          assetId: body.assetId,
-          returnReason: body.returnReason,
+          assignmentId: body.assignmentId,
+          assetId: assignment?.assetId,
         },
       ),
       '반품 요청 티켓 등록에 성공했습니다.',

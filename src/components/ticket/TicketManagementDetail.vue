@@ -50,7 +50,7 @@
                 </h1>
               </div>
             </div>
-            <div v-if="isAssetTeamRole" class="w-full shrink-0 lg:w-60">
+            <div v-if="canShowStatusChange" class="w-full shrink-0 lg:w-60">
               <div class="mb-1.5 flex items-center justify-between gap-2">
                 <label
                   for="ticket-status-selector"
@@ -615,10 +615,11 @@ import type {
 import {
   formatCurrency,
   formatDate,
+  getTicketStatusLabel,
   getTicketTypeLabel,
   INTANGIBLE_STATUS_LABEL,
+  normalizeTicketStatus,
   TANGIBLE_STATUS_LABEL,
-  TICKET_STATUS_LABEL,
 } from '@/utils/labels'
 
 interface DetailItem {
@@ -663,6 +664,11 @@ const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
+const MANUAL_STATUS_CHANGE_OPTIONS: TicketStatus[] = [
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+]
 const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
   'RENTAL_EXTENSION',
@@ -730,7 +736,15 @@ const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
 
 const ticketStatusOptions = computed<DropdownOption[]>(() => (
-  Object.entries(TICKET_STATUS_LABEL).map(([value, label]) => ({ value, label }))
+  [
+    ...(ticket.value && !MANUAL_STATUS_CHANGE_OPTIONS.includes(ticket.value.status)
+      ? [ticket.value.status]
+      : []),
+    ...MANUAL_STATUS_CHANGE_OPTIONS,
+  ].map((value) => ({
+    value,
+    label: getTicketStatusLabel(value),
+  }))
 ))
 
 const isDepartmentManagerRole = computed(() => authStore.currentRole === 'DEPARTMENT_MANAGER')
@@ -751,8 +765,10 @@ const isRequester = computed(() => (
 const canDepartmentReview = computed(() => (
   Boolean(
     ticket.value
-    && isDepartmentManagerRole.value
-    && !isRequester.value
+    && (
+      isAssetTeamRole.value
+      || (isDepartmentManagerRole.value && !isRequester.value)
+    )
     && ticket.value.status === 'REQUESTED',
   )
 ))
@@ -880,10 +896,18 @@ const canCompleteMaintenance = computed(() => (
     && !ticket.value.completedAt,
   )
 ))
-const canChangeStatus = computed(() => (
+const canShowStatusChange = computed(() => (
   Boolean(
     ticket.value
     && isAssetTeamRole.value
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
+  )
+))
+const canChangeStatus = computed(() => (
+  Boolean(
+    ticket.value
+    && canShowStatusChange.value
+    && MANUAL_STATUS_CHANGE_OPTIONS.includes(selectedTicketStatus.value)
     && selectedTicketStatus.value !== ticket.value.status
     && !isActionSubmitting.value,
   )
@@ -1126,7 +1150,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         linkLabel: '구매 계획으로 가기',
         linkTo: {
           name: 'Purchase',
-          query: { purchasePlanId: linkedPurchasePlanId.value },
+          query: { planId: linkedPurchasePlanId.value },
         },
       }
     : {
@@ -1135,7 +1159,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
       }
 
   return [
-    { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
+    { label: '현재 상태', value: getTicketStatusLabel(ticket.value.status) },
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
       : { label: '내부 상태', value: internalStatusLabel(ticket.value) },
@@ -1345,9 +1369,13 @@ async function loadTicketDetail() {
 
   try {
     const response = await ticketApi.getDetail(props.ticketId)
-    ticket.value = response.data
-    selectedTicketStatus.value = response.data.status
-    await resolvePurchaseRequestAssignability(response.data)
+    const detail = {
+      ...response.data,
+      status: normalizeTicketStatus(response.data.status),
+    }
+    ticket.value = detail
+    selectedTicketStatus.value = detail.status
+    await resolvePurchaseRequestAssignability(detail)
   } catch (error) {
     ticket.value = null
     purchaseRequestAssignable.value = false
@@ -1567,7 +1595,9 @@ async function handleReject(reason: string) {
 }
 
 function handleTicketStatusSelect(value: string | number) {
-  selectedTicketStatus.value = value as TicketStatus
+  const status = String(value) as TicketStatus
+  if (!MANUAL_STATUS_CHANGE_OPTIONS.includes(status)) return
+  selectedTicketStatus.value = status
 }
 
 async function handleChangeStatus() {
@@ -1576,7 +1606,11 @@ async function handleChangeStatus() {
   isChangingStatus.value = true
 
   try {
-    await ticketApi.changeStatus(ticket.value.ticketId, selectedTicketStatus.value)
+    if (selectedTicketStatus.value === 'CANCELLED') {
+      await ticketApi.cancel(ticket.value.ticketId)
+    } else {
+      await ticketApi.changeStatus(ticket.value.ticketId, selectedTicketStatus.value)
+    }
     await reloadAfterAction()
     notificationStore.success('티켓 상태가 변경되었습니다.')
   } catch (error) {

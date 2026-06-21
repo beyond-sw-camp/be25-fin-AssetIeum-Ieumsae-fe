@@ -169,7 +169,7 @@ const toIntangibleItemBody = (body: IntangibleAssetItemCreateRequest | Intangibl
 })
 
 const toIntangibleAssetCreateBody = (body: IntangibleAssetCreateRequest) => compactBody({
-  intangibleItemId: body.intangibleItemId,
+  intangibleItemId: body.intangibleItemId ?? body.assetItemId,
   licenseCode: body.licenseCode,
   seatCount: body.seatCount,
   isAutoRenewal: body.isAutoRenewal,

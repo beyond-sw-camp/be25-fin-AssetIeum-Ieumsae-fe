@@ -24,6 +24,8 @@ export function usePermission() {
   // 회사 최고 관리자 전용 기능 여부
   const canManageCompany = computed(() => canAccessAllPages.value)
 
+  const canManagePurchasePolicy = computed(() => hasRole('ADMIN'))
+
   // 사원 등록, 부서 변경, 퇴사 처리 권한
   const canManageMembers = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
@@ -110,6 +112,7 @@ export function usePermission() {
     canAccessAllPages,
     canManagePlatform,
     canManageCompany,
+    canManagePurchasePolicy,
     canManageMembers,
     canManageDepartment,
     canEditOrganization,
