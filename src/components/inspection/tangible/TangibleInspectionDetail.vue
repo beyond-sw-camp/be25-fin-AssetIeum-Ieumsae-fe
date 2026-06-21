@@ -13,6 +13,7 @@ import InspectionDetail from '@/components/inspection/common/InspectionDetail.vu
 import type { InspectionStatus } from '@/types/inspection'
 
 interface TangibleInspectionRow extends Record<string, unknown> {
+  rowKey: string
   inspectionId: string
   targetName: string
   executor: string
