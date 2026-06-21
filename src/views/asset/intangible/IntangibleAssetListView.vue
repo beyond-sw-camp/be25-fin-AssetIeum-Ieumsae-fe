@@ -80,7 +80,7 @@
           <Dropdown
             v-model="rowsPerPageText"
             :options="rowsPerPageOptions"
-            class="w-36"
+            class="w-30"
           />
           <span class="text-xs text-text-sub whitespace-nowrap">
             총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
@@ -854,6 +854,10 @@ const categoryIdByName = (categoryName: string) => {
   if (!categoryName || categoryName === ALL_CATEGORY) return ''
 
   for (const group of cascadingOptions.value) {
+    if (categoryName === group.categoryId) {
+      return group.categoryId ?? ''
+    }
+
     if (categoryName === group.mainCategory) {
       return group.categoryId ?? ''
     }
@@ -862,8 +866,16 @@ const categoryIdByName = (categoryName: string) => {
       return group.subCategoryIds[categoryName]
     }
 
+    if (Object.values(group.subCategoryIds ?? {}).includes(categoryName)) {
+      return categoryName
+    }
+
     if (group.childCategoryIds?.[categoryName]) {
       return group.childCategoryIds[categoryName]
+    }
+
+    if (Object.values(group.childCategoryIds ?? {}).includes(categoryName)) {
+      return categoryName
     }
   }
 
