@@ -226,6 +226,17 @@ const router = createRouter({
 
         // ─── 로그 ─────────────────────────────────────
         {
+          path: 'reports/operations',
+          name: 'OperationReport',
+          // TODO: AWS S3/CloudFront 배포 전 성능 점검 시 ECharts 청크 크기 최적화 검토.
+          // 현재 라우트 단위 lazy import는 적용되어 있으며, 필요하면 차트 컴포넌트/echarts vendor chunk를 추가 분리한다.
+          component: () => import('@/views/report/OperationReportView.vue'),
+          meta: {
+            title: '운영 리포트',
+            roles: ['ASSET_TEAM', 'ASSET_MANAGER'],
+          },
+        },
+        {
           path: 'logs',
           redirect: { name: 'AuditLog' },
         },

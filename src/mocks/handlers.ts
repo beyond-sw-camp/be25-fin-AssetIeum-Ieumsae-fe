@@ -29,6 +29,10 @@ import type {
   PurchasePolicyUpdateRequest,
   PurchasePolicyUpdateResponse,
   PurchaseReturnRequestCreate,
+  DepartmentOverdueReportItem,
+  PurchaseRequestReportItem,
+  RepeatedOverdueUserReportItem,
+  ReturnRequestReportResponse,
   PurchaseRequestMethod,
   RentalAvailableItem,
   ActiveRentalAsset,
@@ -179,6 +183,30 @@ let departments: Department[] = [
 function mockMemberId(sequence: number): string {
   return `55555555-5555-5555-5555-${String(sequence).padStart(12, '0')}`
 }
+
+const reportDepartmentOverdueRows: DepartmentOverdueReportItem[] = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', unreturnedAssetCount: 18, delayedReturnCount: 7, totalOverdueDays: 46 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', unreturnedAssetCount: 13, delayedReturnCount: 4, totalOverdueDays: 28 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', unreturnedAssetCount: 6, delayedReturnCount: 2, totalOverdueDays: 11 },
+]
+
+const reportRepeatedOverdueUserRows: RepeatedOverdueUserReportItem[] = [
+  { memberId: mockMemberId(4), memberNo: 'EMP0004', memberName: '박지연', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', delayedReturnCount: 5, totalOverdueDays: 24, latestOverdueDate: '2026-06-12' },
+  { memberId: mockMemberId(5), memberNo: 'EMP0005', memberName: '이민수', departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', delayedReturnCount: 3, totalOverdueDays: 14, latestOverdueDate: '2026-06-03' },
+  { memberId: mockMemberId(3), memberNo: 'EMP0003', memberName: '최하늘', departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', delayedReturnCount: 2, totalOverdueDays: 9, latestOverdueDate: '2026-05-28' },
+]
+
+const reportReturnRequestRows: NonNullable<ReturnRequestReportResponse['content']> = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', createdCount: 16, completedCount: 11, averageProcessingDays: 3, overdueDays: 12 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', createdCount: 9, completedCount: 7, averageProcessingDays: 2, overdueDays: 5 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', createdCount: 4, completedCount: 4, averageProcessingDays: 1, overdueDays: 0 },
+]
+
+const reportPurchaseRequestRows: PurchaseRequestReportItem[] = [
+  { departmentId: FRONTEND_DEPARTMENT_ID, departmentName: '프론트엔드팀', requestCount: 22, cumulativeQuantity: 41, approvedCount: 16, completedCount: 9 },
+  { departmentId: PLATFORM_DEPARTMENT_ID, departmentName: '플랫폼개발본부', requestCount: 14, cumulativeQuantity: 27, approvedCount: 10, completedCount: 7 },
+  { departmentId: ASSET_TEAM_DEPARTMENT_ID, departmentName: '구매자산팀', requestCount: 7, cumulativeQuantity: 13, approvedCount: 5, completedCount: 4 },
+]
 
 function getDepartmentNamePath(departmentId: string): string {
   const names: string[] = []

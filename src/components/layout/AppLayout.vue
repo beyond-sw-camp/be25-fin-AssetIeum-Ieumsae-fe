@@ -20,6 +20,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+  BarChart3,
   Building2,
   Building,
   FileText,
@@ -40,6 +41,7 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
+const permission = usePermission()
 const {
   canManageCompany,
   canManageDepartment,
@@ -50,7 +52,11 @@ const {
   canViewMyTickets,
   canViewInspection,
   canManagePlatform,
-} = usePermission()
+} = permission
+
+const canViewOperationReports = computed(() =>
+  permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
+)
 
 const navItems = computed(() => {
   if (canManagePlatform.value) {
@@ -103,6 +109,7 @@ const navItems = computed(() => {
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
+    { name: 'operation-report', to: '/reports/operations', label: '운영 리포트', icon: BarChart3, show: canViewOperationReports.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     {
