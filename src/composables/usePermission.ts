@@ -16,7 +16,7 @@ export function usePermission() {
     return !!role.value && roles.includes(role.value)
   }
 
-  const canAccessAllPages = computed(() => hasRole('ADMIN', 'SUPER_ADMIN'))
+  const canAccessAllPages = computed(() => hasRole('ADMIN'))
 
   // 회사 등록 및 회사 ADMIN 생성 화면은 관련 API 확정 후 연결한다.
   const canManagePlatform = computed(() => hasRole('SUPER_ADMIN'))

@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { getDashboardMockSnapshot } from './dashboard.data'
 import type {
   ApiResponse,
+  Company,
   Department,
   DepartmentChangeRequest,
   DepartmentCreateRequest,
@@ -56,6 +57,8 @@ import type {
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const MOCK_COMPANY_CODE = 'COMP001'
+const SYSTEM_COMPANY_CODE = 'SYSTEM'
+const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
 const FRONTEND_DEPARTMENT_ID = '44444444-4444-4444-4444-444444444444'
@@ -118,7 +121,37 @@ function filterDashboardSnapshot(request: Request, scope: 'admin' | 'department'
   return getDashboardMockSnapshot({ scope, departmentId: departmentId ?? undefined, memberId: memberId ?? undefined })
 }
 
+let companies: Company[] = [
+  {
+    companyId: MOCK_COMPANY_ID,
+    companyCode: MOCK_COMPANY_CODE,
+    companyName: '이음테크',
+    createdAt: '2026-01-02T09:00:00',
+    adminName: '김관리',
+    adminMemberNo: 'EMP0001',
+    adminEmail: 'admin@ieumtech.com',
+    memberCount: 16,
+  },
+  {
+    companyId: '00000000-0000-0000-0000-000000000002',
+    companyCode: 'PLAYDATA',
+    companyName: '플레이데이터',
+    createdAt: '2026-03-11T09:00:00',
+    adminName: null,
+    adminMemberNo: null,
+    adminEmail: null,
+    memberCount: 0,
+  },
+]
+
 let departments: Department[] = [
+  {
+    departmentId: ROOT_DEPARTMENT_ID,
+    parentDepartmentId: null,
+    name: '이음테크',
+    memberCount: 0,
+    createdAt: '2026-01-02T09:00:00',
+  },
   {
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
     parentDepartmentId: null,
@@ -162,6 +195,17 @@ function getDepartmentNamePath(departmentId: string): string {
 }
 
 const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
+  {
+    memberId: mockMemberId(0),
+    memberNo: 'SYSADMIN',
+    name: '시스템 관리자',
+    email: 'system@asset-ieum.com',
+    departmentId: PLATFORM_DEPARTMENT_ID,
+    departmentName: '시스템 관리',
+    role: 'SUPER_ADMIN',
+    status: 'ACTIVE',
+    createdAt: '2026-01-01T09:00:00',
+  },
   {
     memberId: mockMemberId(1),
     memberNo: 'EMP0001',
@@ -2721,8 +2765,11 @@ export const handlers = [
     const credentials = await request.json() as LoginRequest
     const member = members.find((item) => item.memberNo === credentials.memberNo)
 
+    const isSystemLogin = credentials.companyCode === SYSTEM_COMPANY_CODE && member?.role === 'SUPER_ADMIN'
+    const isCompanyLogin = credentials.companyCode === MOCK_COMPANY_CODE && member?.role !== 'SUPER_ADMIN'
+
     if (
-      credentials.companyCode !== MOCK_COMPANY_CODE ||
+      (!isSystemLogin && !isCompanyLogin) ||
       !member ||
       memberPasswords.get(member.memberNo) !== credentials.password
     ) {
@@ -4426,7 +4473,7 @@ export const handlers = [
       memberNo: body.memberNo,
       name: body.name,
       email: body.email ?? null,
-      departmentId: body.departmentId,
+      departmentId: department.departmentId,
       departmentName: department.name,
       departmentNamePath: getDepartmentNamePath(department.departmentId),
       role: body.role,

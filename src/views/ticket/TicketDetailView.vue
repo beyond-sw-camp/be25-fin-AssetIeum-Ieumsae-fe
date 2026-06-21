@@ -835,6 +835,7 @@ async function handleCancelTicket() {
   isCancelling.value = true
 
   try {
+    await ticketApi.cancel(ticketId.value)
     await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
     isCancelModalOpen.value = false
     await loadTicketDetail()
