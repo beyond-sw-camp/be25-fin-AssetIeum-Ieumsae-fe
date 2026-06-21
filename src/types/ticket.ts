@@ -1,4 +1,4 @@
-import type { AssetType, Role, TicketType, TicketStatus } from './common'
+import type { AssetType, PageResponse, Role, TicketType, TicketStatus } from './common'
 
 // =====================================================
 // 티켓(Ticket) 공통 타입
@@ -52,6 +52,8 @@ export interface TicketDetail {
   approverName: string | null
   assigneeId: string | number | null
   assigneeName: string | null
+  actions?: TicketActions | null
+  histories?: TicketHistory[] | null
   requestReason: string | null
   // TODO: API 명세/백엔드 확인 필요 - 티켓 상세 응답은 현재 공통 정보만 정의되어 있다.
   // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
@@ -111,6 +113,23 @@ export interface TicketDetail {
   canceledAt: string | null
   requestedAt: string
   updatedAt: string
+}
+
+export interface TicketActions {
+  canApproveDepartment?: boolean
+  canRejectDepartment?: boolean
+  canAssignAsset?: boolean
+  canApproveAsset?: boolean
+  canRejectAsset?: boolean
+  canChangeProcessingStatus?: boolean
+  canUpdateReturnDueDate?: boolean
+  canCollectAsset?: boolean
+  canCompleteReturn?: boolean
+}
+
+export interface TicketHistory {
+  status: TicketStatus
+  processedAt: string
 }
 
 export interface TicketListFilter {
@@ -315,6 +334,45 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface RentalAssignableAsset {
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  status: string
+  location?: string | null
+  reservedAsset?: boolean
+}
+
+export interface RentalAssignableAssetsResponse {
+  requestedItem: {
+    itemId: string
+    name: string
+    manufacturer?: string | null
+  }
+  reservedAsset?: RentalAssignableAsset | null
+  assets: PageResponse<RentalAssignableAsset>
+}
+
+export interface RentalAssignRequest {
+  assetId: string
+}
+
+export interface RentalAssignResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  rentalStatus: string
+  requesterId: string
+  requesterName: string
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  itemId: string
+  itemName: string
+  rentalStartDate: string
+  requestedDueDate: string
+}
+
 export interface MaintenanceCollectResponse {
   ticketId: string
   tangibleAssetId: string | number
@@ -362,14 +420,21 @@ export interface TicketAssignMeResponse {
 }
 
 export interface RentalExtensionProcessRequest {
-  changedDueDate: string
+  changedDueDate?: string
+  returnDueDate?: string
 }
 
 export interface RentalExtensionProcessResponse {
   ticketId: string
+  ticketNo?: string
   assetId: string | null
-  changedDueDate: string
+  assetCode?: string
+  serialNumber?: string | null
+  changedDueDate?: string
+  previousReturnDueDate?: string
+  returnDueDate?: string
   ticketStatus: TicketStatus
+  rentalStatus?: string
   processedAt: string
   completedAt: string
 }

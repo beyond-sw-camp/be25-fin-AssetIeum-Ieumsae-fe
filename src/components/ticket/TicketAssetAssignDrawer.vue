@@ -189,6 +189,7 @@ import {
   intangibleItemApi,
   tangibleAssetApi,
   tangibleItemApi,
+  ticketApi,
 } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
@@ -198,6 +199,7 @@ import type {
   AssetType,
   DropdownOption,
   IntangibleItem,
+  RentalAssignableAsset,
   TangibleAsset,
   TangibleAssetItem,
   TicketDetail,
@@ -288,7 +290,10 @@ const visibleItemOptions = computed(() => (
   itemOptions.value.filter((item) => !isRequestedItem(item))
 ))
 
-const canSearchItems = computed(() => Boolean(selectedCategory.value || keyword.value.trim()))
+const canSearchItems = computed(() => (
+  props.ticket?.ticketType === 'RENTAL'
+  || Boolean(selectedCategory.value || keyword.value.trim())
+))
 
 const emptyItemTitle = computed(() => {
   if (!hasSearchedItems.value) return '자산 분류를 선택하거나 품목명을 입력하고 조회를 눌러주세요.'
@@ -392,6 +397,36 @@ async function loadItems(options: { selectSuggested?: boolean } = {}) {
   hasSearchedItems.value = true
 
   try {
+    if (props.ticket?.ticketType === 'RENTAL') {
+      const response = await ticketApi.getRentalAssignableAssets(props.ticket.ticketId, {
+        page: 0,
+        size: 20,
+        keyword: keyword.value.trim() || undefined,
+      })
+      const requestedItem = response.data.requestedItem
+      const availableCount = [
+        response.data.reservedAsset?.assetId,
+        ...response.data.assets.content.map((asset) => asset.assetId),
+      ].filter(Boolean).length
+
+      tangibleItems.value = [{
+        assetItemId: requestedItem.itemId,
+        itemId: requestedItem.itemId,
+        itemNo: requestedItem.itemId,
+        name: requestedItem.name,
+        productName: requestedItem.name,
+        category: props.ticket.categoryName ?? '',
+        categoryName: props.ticket.categoryName ?? '',
+        manufacturer: requestedItem.manufacturer ?? '',
+        modelName: '',
+        vendor: '',
+        purchasePrice: 0,
+        stockCount: availableCount,
+        availableCount,
+      }]
+      return
+    }
+
     if (assetType.value === 'TANGIBLE') {
       const response = await tangibleItemApi.getList({
         page: 0,
@@ -433,7 +468,7 @@ async function handleSubmit() {
 
   validationMessage.value = ''
   const item = selectedItem.value
-  if (item.availableCount < requestedQuantity.value) {
+  if (props.ticket.ticketType !== 'RENTAL' && item.availableCount < requestedQuantity.value) {
     showInsufficientQuantityToast(item.availableCount)
     return
   }
@@ -467,6 +502,24 @@ async function handleSubmit() {
 }
 
 async function loadAssignableAssetIds(itemId: string, quantity: number) {
+  if (props.ticket?.ticketType === 'RENTAL') {
+    const response = await ticketApi.getRentalAssignableAssets(props.ticket.ticketId, {
+      page: 0,
+      size: Math.max(quantity, 20),
+      keyword: keyword.value.trim() || undefined,
+    })
+    const reservedAssetId = response.data.reservedAsset?.assetId
+    const assetIds = response.data.assets.content
+      .filter((asset: RentalAssignableAsset) => asset.status === 'AVAILABLE' || asset.reservedAsset)
+      .map((asset) => asset.assetId)
+      .filter(Boolean)
+
+    return [
+      ...(reservedAssetId ? [reservedAssetId] : []),
+      ...assetIds.filter((assetId: string) => assetId !== reservedAssetId),
+    ].slice(0, quantity)
+  }
+
   if (assetType.value === 'TANGIBLE') {
     const response = await tangibleAssetApi.getList({
       page: 0,

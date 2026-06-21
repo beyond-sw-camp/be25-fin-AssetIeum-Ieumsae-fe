@@ -257,6 +257,7 @@ import type {
 import {
   formatCurrency,
   formatDate,
+  getTicketDetailStatusLabel,
   getTicketTypeLabel,
   INTANGIBLE_STATUS_LABEL,
   TANGIBLE_STATUS_LABEL,
@@ -438,7 +439,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
 
   const commonItems: DetailItem[] = [
     { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
-    { label: '세부 상태', value: ticket.value.detailStatus ?? '-' },
+    { label: '세부 상태', value: getTicketDetailStatusLabel(ticket.value.detailStatus) },
     { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
   ]
 
@@ -600,7 +601,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     requestedDueDate: formatDate(ticket.value.requestedDueDate),
     maintenanceReason: ticket.value.maintenanceReason ?? ticket.value.requestReason ?? '-',
     processedAt: formatDate(ticket.value.processedAt),
-    maintenanceResult: ticket.value.maintenanceResult ?? ticket.value.detailStatus ?? '-',
+    maintenanceResult: ticket.value.maintenanceResult ?? getTicketDetailStatusLabel(ticket.value.detailStatus),
     returnReason: ticket.value.returnReason ?? ticket.value.requestReason ?? '-',
     collected: ticket.value.collectedAt ? 'Y' : 'N',
     refundAmount: formatCurrency(ticket.value.refundAmount),
@@ -836,7 +837,6 @@ async function handleCancelTicket() {
 
   try {
     await ticketApi.cancel(ticketId.value)
-    await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
     isCancelModalOpen.value = false
     await loadTicketDetail()
     notificationStore.success('요청이 취소되었습니다.')

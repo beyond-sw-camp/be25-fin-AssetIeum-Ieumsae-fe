@@ -299,7 +299,7 @@
       class="absolute -inset-x-4 -bottom-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-6 py-2"
     >
       <Button
-        v-if="canDepartmentReview"
+        v-if="canDepartmentReject"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="isActionSubmitting"
@@ -361,7 +361,7 @@
         반납 예정일 변경
       </Button>
       <Button
-        v-if="canAssetReview"
+        v-if="canAssetReject"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="isActionSubmitting"
@@ -615,6 +615,7 @@ import type {
 import {
   formatCurrency,
   formatDate,
+  getTicketDetailStatusLabel,
   getTicketStatusLabel,
   getTicketTypeLabel,
   INTANGIBLE_STATUS_LABEL,
@@ -762,18 +763,31 @@ const isRequester = computed(() => (
     && String(ticket.value.requesterId) === authStore.user.memberId,
   )
 ))
+function ticketActionAllowed(key: keyof NonNullable<TicketDetail['actions']>, fallback: boolean) {
+  const value = ticket.value?.actions?.[key]
+  return typeof value === 'boolean' ? value : fallback
+}
 const canDepartmentReview = computed(() => (
-  Boolean(
+  ticketActionAllowed('canApproveDepartment', Boolean(
     ticket.value
     && (
       isAssetTeamRole.value
       || (isDepartmentManagerRole.value && !isRequester.value)
     )
     && ticket.value.status === 'REQUESTED',
-  )
+  ))
+))
+const canDepartmentReject = computed(() => (
+  ticketActionAllowed('canRejectDepartment', canDepartmentReview.value)
 ))
 const canAssetReview = computed(() => (
-  Boolean(ticket.value && isAssetTeamRole.value && ticket.value.status === 'DEPARTMENT_APPROVED')
+  ticketActionAllowed(
+    'canApproveAsset',
+    Boolean(ticket.value && isAssetTeamRole.value && ticket.value.status === 'DEPARTMENT_APPROVED'),
+  )
+))
+const canAssetReject = computed(() => (
+  ticketActionAllowed('canRejectAsset', canAssetReview.value)
 ))
 const isDirectPurchaseTicket = computed(() => (
   Boolean(
@@ -817,12 +831,14 @@ const isAssetCollectTicket = computed(() => (
   )
 ))
 const canAssignAsset = computed(() => (
-  Boolean(
+  ticketActionAllowed('canAssignAsset', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)
     && (
-      ticket.value.ticketType === 'PURCHASE_REQUEST'
+      ticket.value.ticketType === 'RENTAL'
+        ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
+        : ticket.value.ticketType === 'PURCHASE_REQUEST'
         ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
         : ticket.value.status === 'ASSET_APPROVED'
     )
@@ -836,7 +852,7 @@ const canAssignAsset = computed(() => (
         )
       )
     )
-  )
+  ))
 ))
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
@@ -859,12 +875,12 @@ const canGoToAssetRegistration = computed(() => (
   )
 ))
 const canChangeRentalExtensionDueDate = computed(() => (
-  Boolean(
+  ticketActionAllowed('canUpdateReturnDueDate', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ticket.value.ticketType === 'RENTAL_EXTENSION'
-    && ticket.value.status === 'ASSET_APPROVED',
-  )
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
+  ))
 ))
 const canAssignMe = computed(() => (
   Boolean(
@@ -876,13 +892,13 @@ const canAssignMe = computed(() => (
   )
 ))
 const canCollectAsset = computed(() => (
-  Boolean(
+  ticketActionAllowed('canCollectAsset', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && isAssetCollectTicket.value
     && ticket.value.status === 'ASSET_APPROVED'
     && !ticket.value.collectedAt,
-  )
+  ))
 ))
 const canCompleteMaintenance = computed(() => (
   Boolean(
@@ -897,11 +913,11 @@ const canCompleteMaintenance = computed(() => (
   )
 ))
 const canShowStatusChange = computed(() => (
-  Boolean(
+  ticketActionAllowed('canChangeProcessingStatus', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
-  )
+  ))
 ))
 const canChangeStatus = computed(() => (
   Boolean(
@@ -923,7 +939,9 @@ const shouldShowActionBottomBar = computed(() => (
     && !errorMessage.value
     && (
       canDepartmentReview.value
+      || canDepartmentReject.value
       || canAssetReview.value
+      || canAssetReject.value
       || canAssignAsset.value
       || canChangeRentalExtensionDueDate.value
       || canConfirmDirectPurchasePayment.value
@@ -1266,7 +1284,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     previousDueDate: formatDate(ticket.value.previousDueDate),
     changedDueDate: formatDate(ticket.value.changedDueDate),
     maintenanceReason: ticket.value.maintenanceReason ?? ticket.value.requestReason ?? '-',
-    maintenanceResult: ticket.value.maintenanceResult ?? ticket.value.detailStatus ?? '-',
+    maintenanceResult: ticket.value.maintenanceResult ?? getTicketDetailStatusLabel(ticket.value.detailStatus),
     processedAt: formatDate(ticket.value.processedAt),
     refundAmount: formatCurrency(ticket.value.refundAmount),
   }]
@@ -1332,7 +1350,7 @@ function internalStatusLabel(detail: TicketDetail): string {
       : '유지보수 결과 등록 완료 - 재할당 대기'
   }
 
-  return detail.detailStatus ?? '-'
+  return getTicketDetailStatusLabel(detail.detailStatus)
 }
 
 function assetStatusLabel(status: string | null | undefined): string {
@@ -1737,7 +1755,7 @@ async function handleRentalExtensionDueDateChange() {
 
   try {
     await ticketApi.changeRentalExtensionDueDate(ticket.value.ticketId, {
-      changedDueDate: rentalExtensionDueDate.value,
+      returnDueDate: toRentalReturnDueDateTime(rentalExtensionDueDate.value),
     })
     rentalExtensionDrawerOpen.value = false
     await reloadAfterAction()
@@ -1751,6 +1769,10 @@ async function handleRentalExtensionDueDateChange() {
   } finally {
     isChangingRentalExtensionDueDate.value = false
   }
+}
+
+function toRentalReturnDueDateTime(value: string) {
+  return value.includes('T') ? value : `${value}T18:00:00`
 }
 
 async function handleConfirmDirectPurchasePayment() {
@@ -1860,15 +1882,23 @@ async function handleAssetAssign(payload: AssetItemAssignPayload) {
   assetAssignErrorMessage.value = ''
 
   try {
-    for (const assetId of payload.assetIds) {
-      await ticketApi.assignAsset(ticket.value.ticketId, {
-        assetType: payload.assetType,
-        assetId,
-        memberId: payload.memberId,
-        returnDueDate: payload.returnDueDate,
-      })
+    if (ticket.value.ticketType === 'RENTAL') {
+      const assetId = payload.assetIds[0]
+      if (!assetId) {
+        throw new Error('할당할 대여 자산을 확인할 수 없습니다.')
+      }
+      await ticketApi.assignRentalAsset(ticket.value.ticketId, { assetId })
+    } else {
+      for (const assetId of payload.assetIds) {
+        await ticketApi.assignAsset(ticket.value.ticketId, {
+          assetType: payload.assetType,
+          assetId,
+          memberId: payload.memberId,
+          returnDueDate: payload.returnDueDate,
+        })
+      }
+      await ticketApi.changeStatus(ticket.value.ticketId, 'COMPLETED')
     }
-    await ticketApi.changeStatus(ticket.value.ticketId, 'COMPLETED')
     assetAssignDrawerOpen.value = false
     await reloadAfterAction()
     notificationStore.success(`${payload.itemName} ${payload.quantity}개가 할당되어 티켓이 처리 완료되었습니다.`)

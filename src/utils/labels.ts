@@ -63,6 +63,43 @@ export function getTicketStatusLabel(status: string): string {
   return TICKET_STATUS_LABEL[normalizedStatus] ?? status
 }
 
+export const TICKET_DETAIL_STATUS_LABEL: Record<string, string> = {
+  REQUESTED: '요청 접수',
+  DEPARTMENT_APPROVED: '부서 승인 완료',
+  DEPARTMENT_REJECTED: '부서 반려',
+  ASSET_APPROVED: '구매자산팀 승인 완료',
+  ASSET_REJECTED: '구매자산팀 반려',
+  IN_PROGRESS: '처리 중',
+  COMPLETED: '처리 완료',
+  CANCELLED: '요청 취소',
+  RESERVED: '자산 예약 완료',
+  ASSIGNED: '자산 배정 완료',
+  EXTENSION_REQUESTED: '대여 연장 요청',
+  RETURN_DUE_DATE_UPDATED: '반납 예정일 변경 완료',
+  COLLECTED: '자산 회수 완료',
+  RETURN_COLLECTED: '자산 회수 완료',
+  RETURNED: '반납 완료',
+  RETURNED_TO_VENDOR: '공급처 반품 완료',
+  REFUNDED: '환불 완료',
+  REPAIRING: '수리 중',
+  REPAIR_COMPLETED: '수리 완료',
+  PURCHASE_PLANNED: '구매 계획 연결',
+  ORDERED: '주문 완료',
+  RECEIVED: '입고 완료',
+  REGISTERED: '자산 등록 완료',
+  PROOF_PENDING: '구매 증빙 대기',
+  PROOF_SUBMITTED: '구매 증빙 제출',
+  CONFIRMED: '확인 완료',
+}
+
+export function getTicketDetailStatusLabel(status: string | null | undefined): string {
+  if (!status) return '-'
+  const normalizedStatus = status.trim().toUpperCase()
+  return TICKET_DETAIL_STATUS_LABEL[normalizedStatus]
+    ?? TICKET_STATUS_LABEL[normalizeTicketStatus(normalizedStatus)]
+    ?? status
+}
+
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   ASSET_REQUEST: '자산 요청',
   RENTAL: '대여 요청',

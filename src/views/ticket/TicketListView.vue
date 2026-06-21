@@ -249,8 +249,6 @@ async function fetchTickets() {
   errorMessage.value = ''
 
   try {
-    // TODO: 로그인 사용자 memberId는 UUID지만 명세의 requesterId는 integer다.
-    // 백엔드가 인증 사용자 범위로 목록을 제한하는지 확인 후 requesterId 전달 여부를 확정한다.
     const response = await ticketApi.getList({
       page: 0,
       size: 999,
@@ -259,9 +257,13 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
-      requesterId: authStore.user?.memberId,
     })
-    tickets.value = response.data.content
+
+    const currentMemberId = authStore.user?.memberId
+    const hasRequesterScope = response.data.content.some((ticket) => ticket.requesterId !== undefined)
+    tickets.value = currentMemberId && hasRequesterScope
+      ? response.data.content.filter((ticket) => String(ticket.requesterId) === currentMemberId)
+      : response.data.content
   } catch (error) {
     const isEmpty = error instanceof ApiError
       && error.status === 404

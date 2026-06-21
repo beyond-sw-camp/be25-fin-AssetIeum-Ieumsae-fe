@@ -174,6 +174,9 @@ const props = defineProps<{
 }>()
 
 function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
+  const historyDate = historyStepDate(ticket, key)
+  if (historyDate) return historyDate
+
   if (key === 'created') return ticket.requestedAt
   if (key === 'department') {
     return ticket.departmentApprovedAt ?? ticket.departmentRejectedAt ?? undefined
@@ -193,6 +196,20 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
     return ticket.maintenanceCompletedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
   }
   return state === 'current' ? ticket.updatedAt : undefined
+}
+
+function historyStepDate(ticket: TicketDetail, key: ProcessStepKey) {
+  const histories = ticket.histories ?? []
+  const statusesByStep: Partial<Record<ProcessStepKey, TicketStatus[]>> = {
+    created: ['REQUESTED'],
+    department: ['DEPARTMENT_APPROVED', 'DEPARTMENT_REJECTED'],
+    review: ['ASSET_APPROVED', 'ASSET_REJECTED'],
+    action: ['IN_PROGRESS'],
+    completed: ['COMPLETED', 'CANCELLED'],
+  }
+  const statuses = statusesByStep[key] ?? []
+
+  return histories.find((history) => statuses.includes(history.status))?.processedAt
 }
 
 function failureStepIndex(status: TicketStatus) {
