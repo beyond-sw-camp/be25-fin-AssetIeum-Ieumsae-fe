@@ -342,7 +342,7 @@ const filteredRows = computed(() => {
     const matchesResponded = !respondedFilter.value
       || String(target.isResponded) === respondedFilter.value
     const matchesKeyword = !query
-      || [target.productName, target.assetCode, target.category]
+      || [target.productName, target.assetCode, target.category, target.memberName]
         .some((value) => value.toLowerCase().includes(query))
 
     return matchesResponded && matchesKeyword
@@ -399,6 +399,8 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
     inspectionStatus: inspectionStatusValue(item.inspectionStatus),
+    memberId: textValue(item.memberId),
+    memberName: textValue(item.memberName) || '-',
     productName: textValue(item.productName, item.itemName) || '-',
     assetCode: textValue(item.assetCode, item.licenseCode) || '-',
     category: textValue(item.category, item.categoryName) || '-',

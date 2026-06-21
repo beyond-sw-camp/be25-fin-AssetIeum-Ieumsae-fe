@@ -15,6 +15,9 @@
         <p class="mt-1 truncate text-xs text-text-sub">
           {{ target.assetCode }} · {{ target.category }}
         </p>
+        <p v-if="target.memberName !== '-'" class="mt-1 truncate text-xs text-text-sub">
+          대상 사용자 {{ target.memberName }}
+        </p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <span :class="inspectionStatusBadgeClass(target.inspectionStatus)">
@@ -39,6 +42,8 @@ export interface MobileInspectionTarget {
   inspectionTargetId: string
   inspectionId: string
   inspectionStatus: InspectionStatus
+  memberId: string
+  memberName: string
   productName: string
   assetCode: string
   category: string
