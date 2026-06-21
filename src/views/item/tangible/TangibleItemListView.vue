@@ -131,6 +131,7 @@
           <Dropdown
             v-model="rowsPerPageText"
             :options="rowsPerPageOptions"
+            class="w-30"
           />
           <span class="text-xs text-text-sub whitespace-nowrap">
             총 {{ totalElements }}개 항목 중 {{ itemRangeText }}
@@ -384,36 +385,14 @@ const cascadingOptions = ref<CategoryGroup[]>([]);
 
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm());
 
-const getSelectableSubCategories = (group: CategoryGroup) => (
-  group.subCategories.filter((category) => !category.endsWith(' - 전체'))
-);
-
-const getCategoryFilterNames = () => {
-  const selectedCategory = searchParams.value.categoryName;
-  if (!selectedCategory || selectedCategory === '전체 품목 보기') return [];
-
-  for (const group of cascadingOptions.value) {
-    if (selectedCategory === group.mainCategory || selectedCategory === `${group.mainCategory} - 전체`) {
-      return getSelectableSubCategories(group);
-    }
-
-    const childCategories = group.childCategories ?? {};
-    if (childCategories[selectedCategory]) {
-      return [selectedCategory, ...childCategories[selectedCategory]];
-    }
-
-    if (group.subCategories.includes(selectedCategory)) {
-      return [selectedCategory];
-    }
-  }
-
-  return [selectedCategory];
-};
-
 const categoryIdByName = (categoryName: string) => {
   if (!categoryName || categoryName === '카테고리 선택' || categoryName === '전체 품목 보기') return '';
 
   for (const group of cascadingOptions.value) {
+    if (categoryName === group.categoryId) {
+      return group.categoryId ?? '';
+    }
+
     if (categoryName === group.mainCategory || categoryName === `${group.mainCategory} - 전체`) {
       return group.categoryId ?? '';
     }
@@ -422,8 +401,16 @@ const categoryIdByName = (categoryName: string) => {
       return group.subCategoryIds[categoryName];
     }
 
+    if (Object.values(group.subCategoryIds ?? {}).includes(categoryName)) {
+      return categoryName;
+    }
+
     if (group.childCategoryIds?.[categoryName]) {
       return group.childCategoryIds[categoryName];
+    }
+
+    if (Object.values(group.childCategoryIds ?? {}).includes(categoryName)) {
+      return categoryName;
     }
   }
 
@@ -762,24 +749,19 @@ const loadServerData = async () => {
   isLoading.value = true;
 
   try {
-    const categoryFilterNames = getCategoryFilterNames();
-    const shouldFilterClientSide = categoryFilterNames.length > 1;
     const selectedCategoryId = categoryIdByName(searchParams.value.categoryName);
     const params: {
       page: number
       size: number
       categoryId?: string
-      categoryName?: string
       keyword?: string
     } = {
-      page: shouldFilterClientSide ? 0 : searchParams.value.page,
-      size: shouldFilterClientSide ? 999 : searchParams.value.size,
+      page: searchParams.value.page,
+      size: searchParams.value.size,
     };
 
-    if (!shouldFilterClientSide && selectedCategoryId) {
+    if (selectedCategoryId) {
       params.categoryId = selectedCategoryId;
-    } else if (categoryFilterNames.length === 1) {
-      params.categoryName = categoryFilterNames[0];
     }
 
     if (searchParams.value.keyword.trim()) {
@@ -817,17 +799,6 @@ const loadServerData = async () => {
       }
     });
     listError.value = '';
-
-    if (shouldFilterClientSide) {
-      const filteredRows = rows.filter((row) => categoryFilterNames.includes(row.category));
-      const start = searchParams.value.page * searchParams.value.size;
-      const end = start + searchParams.value.size;
-
-      serverAssetList.value = filteredRows.slice(start, end);
-      totalElements.value = filteredRows.length;
-      totalPages.value = Math.ceil(filteredRows.length / searchParams.value.size);
-      return;
-    }
 
     serverAssetList.value = rows;
     totalElements.value = response.data.totalElements;

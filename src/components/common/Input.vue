@@ -32,7 +32,9 @@
 
       <div
         v-if="isCalendarOpen"
-        class="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border bg-surface p-3 shadow-xl"
+        ref="calendarRef"
+        :style="calendarStyle"
+        class="fixed z-[10030] w-72 rounded-xl border border-border bg-surface p-3 shadow-xl"
       >
         <div class="mb-3 flex items-center justify-between">
           <button
@@ -118,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 interface Props {
@@ -156,6 +158,8 @@ const emit = defineEmits<{
 
 const isCalendarOpen = ref(false)
 const datePickerRef = ref<HTMLElement | null>(null)
+const calendarRef = ref<HTMLElement | null>(null)
+const calendarStyle = ref<Record<string, string>>({})
 const visibleDate = ref(resolveDate(String(props.modelValue || '')))
 const weekDays = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -220,10 +224,15 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
-const toggleCalendar = () => {
+const toggleCalendar = async () => {
   if (props.disabled) return
   visibleDate.value = resolveDate(String(props.modelValue || ''))
   isCalendarOpen.value = !isCalendarOpen.value
+
+  if (isCalendarOpen.value) {
+    await nextTick()
+    updateCalendarPosition()
+  }
 }
 
 const moveMonth = (amount: number) => {
@@ -232,6 +241,7 @@ const moveMonth = (amount: number) => {
 
 const selectDate = (value: string) => {
   emit('update:modelValue', value)
+  isCalendarOpen.value = false
 }
 
 const selectToday = () => {
@@ -245,8 +255,31 @@ const handleOutsidePointerDown = (event: PointerEvent) => {
   const target = event.target
   if (!(target instanceof Node)) return
   if (datePickerRef.value?.contains(target)) return
+  if (calendarRef.value?.contains(target)) return
 
   isCalendarOpen.value = false
+}
+
+const updateCalendarPosition = () => {
+  if (!isCalendarOpen.value || !datePickerRef.value) return
+
+  const rect = datePickerRef.value.getBoundingClientRect()
+  const calendarWidth = 288
+  const calendarHeight = calendarRef.value?.offsetHeight || 340
+  const padding = 12
+  const gap = 8
+  const maxLeft = Math.max(padding, window.innerWidth - calendarWidth - padding)
+  const left = Math.min(Math.max(rect.right - calendarWidth, padding), maxLeft)
+  const belowTop = rect.bottom + gap
+  const aboveTop = rect.top - calendarHeight - gap
+  const top = belowTop + calendarHeight <= window.innerHeight - padding
+    ? belowTop
+    : Math.max(padding, aboveTop)
+
+  calendarStyle.value = {
+    left: `${left}px`,
+    top: `${top}px`,
+  }
 }
 
 function resolveDate(value: string) {
@@ -269,11 +302,21 @@ watch(() => props.disabled, (disabled) => {
   if (disabled) isCalendarOpen.value = false
 })
 
+watch(isCalendarOpen, async (open) => {
+  if (!open) return
+  await nextTick()
+  updateCalendarPosition()
+})
+
 onMounted(() => {
   document.addEventListener('pointerdown', handleOutsidePointerDown)
+  window.addEventListener('resize', updateCalendarPosition)
+  window.addEventListener('scroll', updateCalendarPosition, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleOutsidePointerDown)
+  window.removeEventListener('resize', updateCalendarPosition)
+  window.removeEventListener('scroll', updateCalendarPosition, true)
 })
 </script>

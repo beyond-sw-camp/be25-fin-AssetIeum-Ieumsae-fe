@@ -152,7 +152,7 @@
     <template #footer>
       <div class="flex gap-2">
         <Button class="flex-1" :disabled="isSaving" @click="emit('close')">
-          닫기
+          저장
         </Button>
       </div>
     </template>
