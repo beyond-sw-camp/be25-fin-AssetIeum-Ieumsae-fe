@@ -1,14 +1,10 @@
 <template>
-  <main class="mx-auto flex h-screen min-h-screen w-full max-w-md flex-col bg-background text-text-main md:border-x md:border-border">
-    <section class="flex flex-1 flex-col px-5 pb-6 pt-10">
-      <div class="mb-10">
-        <p class="text-sm font-extrabold text-primary">
+  <main class="mx-auto flex justify-center h-screen min-h-screen w-full max-w-md flex-col bg-background text-text-main md:border-x md:border-border">
+    <section class="flex justify-center flex-col px-5 pb-6 pt-10">
+      <div class="mb-20">
+        <p class="text-4xl font-bold text-primary">
           자산이음
         </p>
-        <h1 class="mt-4 text-3xl font-black leading-tight text-text-main">
-          모바일<br />
-          자산 검수
-        </h1>
         <p class="mt-4 text-sm leading-relaxed text-text-sub">
           로그인 후 배정된 전수조사 자산을 확인하고 QR로 검수 결과를 등록하세요.
         </p>
@@ -26,7 +22,7 @@
         <p>lastRejectedRole: {{ lastRejectedRole || '-' }}</p>
       </div>
 
-      <form class="mt-auto space-y-4" novalidate @submit.prevent="handleLogin">
+      <form class="flex flex-col justify-center h-full mt-auto mb-10 space-y-4" novalidate @submit.prevent="handleLogin">
         <div
           v-if="previousUserName"
           class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-text-sub"
@@ -87,7 +83,7 @@
         <Button
           type="submit"
           size="lg"
-          class="w-full"
+          class="mt-3 h-13! w-full"
           :loading="auth.isLoading"
         >
           {{ auth.isLoading ? '로그인 중...' : '로그인' }}

@@ -27,7 +27,7 @@
             자산 검수
           </h1>
           <p class="mt-2 text-sm leading-relaxed text-text-sub">
-            QR을 스캔하거나 목록에서 자산을 선택해 검수 결과를 등록해주세요.
+            {{ inspectionGuideText }}
           </p>
         </div>
 
@@ -64,11 +64,11 @@
         v-if="user"
         class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-surface-secondary px-3 py-3"
       >
-        <div class="min-w-0">
+        <div class="min-w-0 flex gap-1.5">
           <p class="truncate text-sm font-bold text-text-main">
             {{ user.name }}
           </p>
-          <p class="mt-1 truncate text-xs text-text-sub">
+          <p class="mt-0.5 text-xs text-text-sub">
             {{ user.departmentName || '-' }}
           </p>
         </div>
@@ -95,17 +95,17 @@
       </div>
 
       <div class="mt-4 grid grid-cols-3 gap-2">
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
-          <p class="text-xs font-semibold text-text-muted">전체</p>
-          <p class="mt-1 text-lg font-bold text-text-main">{{ totalElements }}</p>
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
+          <p class="mt-1 text-xs font-semibold text-text-muted">전체</p>
+          <p class="text-lg font-bold text-text-main">{{ totalElements }}</p>
         </div>
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
           <p class="text-xs font-semibold text-text-muted">대기</p>
-          <p class="mt-1 text-lg font-bold text-primary">{{ pendingCount }}</p>
+          <p class="text-lg font-bold text-primary">{{ pendingCount }}</p>
         </div>
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
           <p class="text-xs font-semibold text-text-muted">완료</p>
-          <p class="mt-1 text-lg font-bold text-success">{{ respondedCount }}</p>
+          <p class="text-lg font-bold text-success">{{ respondedCount }}</p>
         </div>
       </div>
     </header>
@@ -126,26 +126,16 @@
         </Button>
       </div>
 
-      <div v-else class="-mx-4 min-w-0 overflow-x-hidden bg-background px-4 pb-3">
-        <Button class="w-full" size="lg" @click="isScannerOpen = true">
+      <div v-else class="min-w-0 overflow-x-hidden bg-background px-4 pb-3">
+        <Button
+          v-if="assetType === 'tangible'"
+          class="h-13! w-full"
+          size="lg"
+          @click="isScannerOpen = true"
+        >
           <ScanLine :size="18" />
           자산 검수하기
         </Button>
-
-        <div class="mt-3 grid min-w-0 grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)] gap-2">
-          <Dropdown
-            v-model="respondedFilter"
-            :options="respondedFilterOptions"
-            class="w-full min-w-0"
-            menu-strategy="fixed"
-          />
-          <Input
-            id="mobile-inspection-keyword"
-            v-model="keyword"
-            class="min-w-0 flex-1"
-            placeholder="제품명, 자산 번호 검색"
-          />
-        </div>
       </div>
 
       <div v-if="!authIssue && isLoading" class="space-y-3">
@@ -180,7 +170,7 @@
     </main>
 
     <section
-      v-if="!authIssue"
+      v-if="!authIssue && selectedTarget"
       class="min-w-0 shrink-0 border-t border-border bg-surface px-4 py-4"
     >
       <InspectionResponseForm
@@ -210,7 +200,7 @@
     </section>
 
     <InspectionQrScanner
-      v-if="isScannerOpen"
+      v-if="assetType === 'tangible' && isScannerOpen"
       @detected="handleDetectedCode"
       @close="isScannerOpen = false"
     />
@@ -223,8 +213,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ScanLine } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
-import Dropdown from '@/components/common/Dropdown.vue'
-import Input from '@/components/common/Input.vue'
 import InspectionQrScanner from '@/components/inspection/mobile/InspectionQrScanner.vue'
 import InspectionResponseForm from '@/components/inspection/mobile/InspectionResponseForm.vue'
 import InspectionTargetCard, {
@@ -235,7 +223,6 @@ import {
   tangibleInspectionApi,
 } from '@/api/inspection.api'
 import { ApiError } from '@/api/client'
-import type { DropdownOption } from '@/types'
 import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 import { useAuthStore } from '@/stores'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
@@ -306,15 +293,14 @@ const inspectionApi = computed(() => (
     : intangibleInspectionApi
 ))
 
-const respondedFilterOptions: DropdownOption[] = [
-  { label: '전체', value: '' },
-  { label: '대기', value: 'false' },
-  { label: '완료', value: 'true' },
-]
-
 const pendingCount = computed(() => targets.value.filter((target) => !target.isResponded).length)
 const respondedCount = computed(() => targets.value.filter((target) => target.isResponded).length)
 const emptyText = computed(() => loadError.value || '배정된 검수 대상 자산이 없습니다.')
+const inspectionGuideText = computed(() => (
+  assetType.value === 'tangible'
+    ? 'QR을 스캔하거나 목록에서 자산을 선택해 검수 결과를 등록해주세요.'
+    : '목록에서 무형자산을 선택해 검수 결과를 등록해주세요.'
+))
 const isResponseDisabled = computed(() => (
   !selectedTarget.value
   || selectedTarget.value.isResponded
@@ -372,6 +358,7 @@ function assetTypeButtonClass(type: MobileAssetType) {
 
 function changeAssetType(type: MobileAssetType) {
   if (assetType.value === type) return
+  isScannerOpen.value = false
   router.replace({ query: { ...route.query, assetType: type } })
 }
 
@@ -453,11 +440,9 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
 
     targets.value = Array.from(uniqueTargets.values())
     totalElements.value = targets.value.length
-    const initialTarget = targets.value.find((target) => (
-      target.inspectionTargetId === options.selectedTargetId
-    )) ?? targets.value.find((target) => (
-      !target.isResponded && target.inspectionStatus === 'IN_PROGRESS'
-    )) ?? targets.value[0] ?? null
+    const initialTarget = options.selectedTargetId
+      ? targets.value.find((target) => target.inspectionTargetId === options.selectedTargetId) ?? null
+      : null
     if (initialTarget) {
       selectTarget(initialTarget, { preserveMessage: options.preserveMessage })
     } else {
