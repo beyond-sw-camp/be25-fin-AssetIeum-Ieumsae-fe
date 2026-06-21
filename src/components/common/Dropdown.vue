@@ -1,12 +1,12 @@
 <template>
-  <div ref="rootRef" class="relative w-full text-left" :class="$attrs.class">
+  <div ref="rootRef" class="relative min-w-0 text-left" :class="$attrs.class || 'w-full'">
     <button
-      :id="props.id"
+      :id="buttonId"
       type="button"
-      :disabled="props.disabled"
+      :disabled="isDisabled"
       :class="[
         'w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20',
-        props.disabled && 'cursor-not-allowed bg-surface-secondary text-text-muted opacity-60 hover:bg-surface-secondary focus:ring-0'
+        isDisabled && 'cursor-not-allowed bg-surface-secondary text-text-muted opacity-60 hover:bg-surface-secondary focus:ring-0'
       ]"
       @click="toggleOpen"
     >
@@ -88,7 +88,7 @@
           </div>
 
           <ul
-            v-if="activeGroup === group.mainCategory"
+            v-if="isPanelGroupExpanded(group)"
             class="border-l border-border/70 ml-4 pl-2"
           >
             <li
@@ -123,7 +123,7 @@
               </div>
 
               <ul
-                v-if="activeSubCategory === subCategory && getSmallCategories(group, subCategory).length"
+                v-if="isPanelSubCategoryExpanded(subCategory) && getSmallCategories(group, subCategory).length"
                 class="border-l border-border/60 ml-4 pl-2"
               >
                 <li
@@ -258,7 +258,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | number]
 }>()
 const rootRef = ref<HTMLElement | null>(null)
-const dropdownId = crypto.randomUUID()
+const dropdownId = createDropdownId()
 const isOpen = ref(false)
 const activeGroup = ref<string | null>(null)
 const activeSubCategory = ref<string | null>(null)
@@ -266,10 +266,20 @@ const effectiveSubmenuDirection = ref<'left' | 'right'>('right')
 const effectiveNestedSubmenuDirection = ref<'left' | 'right'>('right')
 const isPanelDropdown = ref(false)
 
+function createDropdownId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `dropdown-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 const menuAlign = computed(() => props.menuAlign ?? 'left')
 const menuDirection = computed(() => props.menuDirection ?? 'down')
 const menuStrategy = computed(() => props.menuStrategy ?? 'absolute')
 const submenuDirection = computed(() => props.submenuDirection ?? 'right')
+const buttonId = computed(() => props.id)
+const isDisabled = computed(() => props.disabled)
 const submenuWidth = 176
 const viewportPadding = 12
 const fixedMenuGap = 4
@@ -301,7 +311,7 @@ const isSimpleOptions = computed(() => {
   return categoryOptions.value.length === 0
 })
 
-const simpleOptions = computed<DropdownOption[]>(() => {
+const allSimpleOptions = computed<DropdownOption[]>(() => {
   if (!isSimpleOptions.value) return []
 
   return props.options.flatMap((option) => {
@@ -311,8 +321,12 @@ const simpleOptions = computed<DropdownOption[]>(() => {
   })
 })
 
+const simpleOptions = computed<DropdownOption[]>(() => {
+  return allSimpleOptions.value
+})
+
 const selectedLabel = computed(() => {
-  const selectedOption = simpleOptions.value.find((option) => option.value === props.modelValue)
+  const selectedOption = allSimpleOptions.value.find((option) => option.value === props.modelValue)
   if (selectedOption) return selectedOption.label
   const selectedGroupLabel = getSelectedCategoryLabel()
   if (selectedGroupLabel) return selectedGroupLabel
@@ -405,12 +419,12 @@ const getSelectedCategoryLabel = () => {
 
     for (const subCategory of getMiddleCategories(group)) {
       if (selectedValue === subCategory || selectedValue === group.subCategoryIds?.[subCategory]) {
-        return `${group.mainCategory} > ${subCategory}`
+        return subCategory
       }
 
       for (const smallCategory of getSmallCategories(group, subCategory)) {
         if (selectedValue === smallCategory || selectedValue === group.childCategoryIds?.[smallCategory]) {
-          return `${group.mainCategory} > ${subCategory} > ${smallCategory}`
+          return smallCategory
         }
       }
     }
@@ -490,6 +504,14 @@ const togglePanelGroup = (groupName: string) => {
 const togglePanelSubCategory = (subCategory: string) => {
   activeSubCategory.value = activeSubCategory.value === subCategory ? null : subCategory
 }
+
+const isPanelGroupExpanded = (group: CategoryGroup) => (
+  activeGroup.value === group.mainCategory
+)
+
+const isPanelSubCategoryExpanded = (subCategory: string) => (
+  activeSubCategory.value === subCategory
+)
 
 const closeDropdown = () => {
   isOpen.value = false

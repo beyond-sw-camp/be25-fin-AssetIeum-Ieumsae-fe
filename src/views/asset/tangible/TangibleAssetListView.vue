@@ -10,7 +10,6 @@
         </h1>
       </div>
 
-      <!-- TODO: 자산 등록 시 부서, 사용자 에러 고치기 -->
       <div class="flex flex-wrap items-center gap-2">
         <Button
           v-if="canRegisterAsset"
@@ -95,8 +94,6 @@
               root-option="전체 품목 보기"
               menu-align="right"
               submenu-direction="left"
-              searchable
-              search-placeholder="품목 검색"
               class="w-44 text-text-sub"
             >
               <template #icon>
