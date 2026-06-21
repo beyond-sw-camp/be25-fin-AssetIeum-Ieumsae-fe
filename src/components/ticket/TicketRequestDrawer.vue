@@ -1603,7 +1603,7 @@ async function handleSubmit() {
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
-        console.log(response);
+        console.log(response)
         break
       case 'DIRECT_PURCHASE':
         if (isStandardDirectPurchase.value) {
