@@ -2,7 +2,7 @@
   <InspectionDetail
     :is-open="isOpen"
     :inspection="inspection"
-    asset-type="tangible"
+    asset-type="intangible"
     @close="emit('close')"
     @refresh="emit('refresh')"
   />
@@ -12,7 +12,7 @@
 import InspectionDetail from '@/components/inspection/common/InspectionDetail.vue'
 import type { InspectionStatus } from '@/types/inspection'
 
-interface TangibleInspectionRow extends Record<string, unknown> {
+interface IntangibleInspectionRow extends Record<string, unknown> {
   inspectionId: string
   targetName: string
   executor: string
@@ -29,7 +29,7 @@ interface TangibleInspectionRow extends Record<string, unknown> {
 
 defineProps<{
   isOpen: boolean
-  inspection: TangibleInspectionRow | null
+  inspection: IntangibleInspectionRow | null
 }>()
 
 const emit = defineEmits<{
