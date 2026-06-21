@@ -271,15 +271,15 @@ function inspectionStatusValue(value: unknown): InspectionStatus {
 
 function toTargetRow(item: EmployeeInspectionTargetResponse): InspectionTargetRow {
   return {
-    inspectionTargetId: textValue(item.inspectionTargetId, item.inspection_target_id),
-    inspectionId: textValue(item.inspectionId, item.inspection_id),
-    inspectionStatus: inspectionStatusValue(item.inspectionStatus ?? item.inspection_status),
-    productName: textValue(item.productName, item.product_name, item.itemName, item.item_name) || '-',
-    assetCode: textValue(item.assetCode, item.asset_code, item.licenseCode, item.license_code) || '-',
-    category: textValue(item.category, item.categoryName, item.category_name) || '-',
-    isResponded: booleanValue(item.isResponded, item.is_responded, item.responded),
-    startDate: textValue(item.startDate, item.start_date),
-    endDate: textValue(item.endDate, item.end_date),
+    inspectionTargetId: textValue(item.inspectionTargetId),
+    inspectionId: textValue(item.inspectionId),
+    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
+    productName: textValue(item.productName, item.itemName) || '-',
+    assetCode: textValue(item.assetCode, item.licenseCode) || '-',
+    category: textValue(item.category, item.categoryName) || '-',
+    isResponded: booleanValue(item.isResponded, item.responded),
+    startDate: textValue(item.startDate),
+    endDate: textValue(item.endDate),
   }
 }
 
@@ -289,6 +289,20 @@ function selectTarget(target: InspectionTargetRow) {
   form.followUpRequests = false
   message.value = ''
 
+  if (target.isResponded) {
+    void loadRegisteredResponse(target.inspectionTargetId)
+  }
+}
+
+async function loadRegisteredResponse(targetId: string) {
+  try {
+    const response = await inspectionApi.value.getResponse(targetId)
+    form.responseContent = response.data.responseContent ?? ''
+    form.followUpRequests = Boolean(response.data.followUpRequests)
+  } catch {
+    message.value = '등록된 응답을 불러오지 못했습니다.'
+    isSuccess.value = false
+  }
 }
 
 async function loadTargets() {
@@ -322,8 +336,7 @@ async function handleSubmit() {
   message.value = ''
 
   try {
-    await inspectionApi.value.createResponse(selectedTarget.value.inspectionId, {
-      inspectionTargetId: selectedTarget.value.inspectionTargetId,
+    await inspectionApi.value.createResponse(selectedTarget.value.inspectionTargetId, {
       responseContent: form.responseContent,
       followUpRequests: form.followUpRequests,
     })
