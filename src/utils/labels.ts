@@ -39,7 +39,7 @@ export function getIntangibleStatusLabel(status: string | null | undefined, fall
 }
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
-  REQUESTED: '부서 승인 대기',
+  REQUESTED: '요청됨',
   DEPARTMENT_APPROVED: '자산팀 검토 대기',
   DEPARTMENT_REJECTED: '부서 반려',
   ASSET_APPROVED: '자산팀 승인',

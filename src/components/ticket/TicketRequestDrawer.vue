@@ -157,6 +157,40 @@
         요청 유형 다시 선택
       </button>
 
+      <section v-if="selectedKind === 'RENTAL' || selectedKind === 'RENTAL_EXTENSION'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          대여 요청 유형 <span class="text-primary">*</span>
+        </p>
+        <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
+          <button
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              selectedKind === 'RENTAL'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="selectedKind = 'RENTAL'; form.selectedAssetId = ''; pendingSelectedAssetId = ''"
+          >
+            대여 신청
+          </button>
+          <button
+            type="button"
+            :class="[
+              'rounded-lg px-3 py-2 text-xs font-semibold transition',
+              selectedKind === 'RENTAL_EXTENSION'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-main',
+            ]"
+            @click="selectedKind = 'RENTAL_EXTENSION'; form.selectedAssetId = ''; pendingSelectedAssetId = ''"
+          >
+            대여 연장
+          </button>
+        </div>
+      </section>
+
+
+
       <section v-if="selectedKind === 'MAINTENANCE'" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           서비스 유형 <span class="text-primary">*</span>
@@ -284,11 +318,11 @@
 
       <section v-else-if="showsAssetType" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
-          자산 유형 <span class="text-primary">*</span>
+          {{ selectedKind === 'RETURN' ? '반납/해지 유형' : '자산 유형' }} <span class="text-primary">*</span>
         </p>
         <div class="grid grid-cols-2 rounded-xl bg-surface-secondary p-1">
           <button
-            v-for="option in assetTypeOptions"
+            v-for="option in (selectedKind === 'RETURN' ? returnTypeOptions : assetTypeOptions)"
             :key="option.value"
             type="button"
             :class="[
@@ -604,6 +638,10 @@ const authStore = useAuthStore()
 const assetTypeOptions = [
   { label: '유형 자산', value: 'TANGIBLE' as const },
   { label: '무형 자산', value: 'INTANGIBLE' as const },
+]
+const returnTypeOptions = [
+  { label: '유형 자산 반납', value: 'TANGIBLE' as const },
+  { label: '무형 자산 해지', value: 'INTANGIBLE' as const },
 ]
 const assetScopeOptions = [
   { label: '공용 자산', value: 'DEPARTMENT' as const },
