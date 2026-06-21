@@ -42,12 +42,14 @@
       <div class="mt-4 grid gap-3 md:grid-cols-[12rem_1fr]">
         <Dropdown
           :model-value="drafts[row.key]?.status ?? row.status"
-          :options="followUpStatusOptions"
+          :options="getFollowUpStatusOptions(row.status)"
+          :disabled="row.status === 'COMPLETED'"
           menu-strategy="fixed"
           @update:model-value="updateDraftStatus(row.key, $event)"
         />
         <textarea
           :value="drafts[row.key]?.actionDetail ?? row.actionDetail"
+          :disabled="row.status === 'COMPLETED'"
           class="min-h-20 w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
           placeholder="처리 내용을 입력하세요."
           @input="updateDraftAction(row.key, ($event.target as HTMLTextAreaElement).value)"
@@ -57,7 +59,7 @@
       <div class="mt-3 flex justify-end">
         <Button
           size="sm"
-          :disabled="!row.followUpId || !isChanged(row)"
+          :disabled="!row.followUpId || row.status === 'COMPLETED' || !isChanged(row)"
           :loading="submittingId === row.followUpId"
           @click="emit('update-status', row, normalizeDraft(row))"
         >
@@ -109,11 +111,19 @@ const followUpStatusLabel: Record<InspectionFollowUpStatus, string> = {
   COMPLETED: '처리 완료',
 }
 
-const followUpStatusOptions: DropdownOption[] = [
-  { label: '처리 대기', value: 'PENDING' },
-  { label: '처리 중', value: 'IN_PROGRESS' },
-  { label: '처리 완료', value: 'COMPLETED' },
-]
+const followUpStatusOptions: Record<InspectionFollowUpStatus, DropdownOption[]> = {
+  PENDING: [
+    { label: '처리 대기', value: 'PENDING' },
+    { label: '처리 중', value: 'IN_PROGRESS' },
+  ],
+  IN_PROGRESS: [
+    { label: '처리 중', value: 'IN_PROGRESS' },
+    { label: '처리 완료', value: 'COMPLETED' },
+  ],
+  COMPLETED: [
+    { label: '처리 완료', value: 'COMPLETED' },
+  ],
+}
 
 const drafts = ref<Record<string, FollowUpDraft>>({})
 
@@ -148,6 +158,10 @@ function normalizeDraft(row: InspectionFollowUpPanelRow): FollowUpDraft {
     status: row.status,
     actionDetail: row.actionDetail,
   }
+}
+
+function getFollowUpStatusOptions(status: InspectionFollowUpStatus) {
+  return followUpStatusOptions[status]
 }
 
 function isChanged(row: InspectionFollowUpPanelRow) {
