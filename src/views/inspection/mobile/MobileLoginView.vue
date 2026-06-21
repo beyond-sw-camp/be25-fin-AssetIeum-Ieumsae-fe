@@ -130,7 +130,7 @@ const isDebugAuth = computed(() => route.query.debugAuth === '1')
 const storedRole = computed(() => getStoredRole())
 
 function canUseMobileInspectionRole(role: string | null | undefined) {
-  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
+  return role === 'EMPLOYEE' || role === 'ASSET_TEAM' || role === 'ASSET_MANAGER' || role === 'ADMIN'
 }
 
 function getStoredRole() {
