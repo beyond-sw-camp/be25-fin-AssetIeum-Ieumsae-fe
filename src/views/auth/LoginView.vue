@@ -114,7 +114,12 @@ function validateForm() {
 
 function getRedirectPath() {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
-  return redirect?.startsWith('/') && redirect !== '/login' ? redirect : '/'
+  if (redirect?.startsWith('/') && redirect !== '/login') return redirect
+  return isMobileViewport() ? '/mobile/inspections' : '/'
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
 }
 
 async function handleLogin() {

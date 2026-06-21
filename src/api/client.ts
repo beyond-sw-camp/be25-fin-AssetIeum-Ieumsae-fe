@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import type { ApiResponse } from '@/types'
+import { AUTH_EXPIRED_EVENT } from '@/utils/authSession'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const ACCESS_TOKEN_KEY = 'accessToken'
@@ -46,8 +47,9 @@ export const httpClient = axios.create({
 
 httpClient.interceptors.request.use((config) => {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+  const isAuthRequest = config.url?.includes('/auth/')
 
-  if (accessToken) {
+  if (accessToken && !isAuthRequest) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
 
@@ -73,6 +75,10 @@ function clearStoredAuth() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem('authUser')
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+  }
 }
 
 httpClient.interceptors.response.use(

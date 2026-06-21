@@ -20,7 +20,10 @@
       </Button>
     </header>
 
-    <section class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5">
+    <section
+      v-if="canManageInspection"
+      class="grid shrink-0 grid-cols-1 gap-3 px-3 pb-3 md:grid-cols-2 xl:grid-cols-5"
+    >
       <article
         v-for="card in summaryCards"
         :key="card.label"
@@ -74,7 +77,7 @@
               menu-align="right"
             />
           </div>
-          <div class="w-40 shrink-0">
+          <div v-if="canManageInspection" class="w-40 shrink-0">
             <Dropdown
               v-model="filters.inspector"
               :options="inspectorFilterOptions"
@@ -167,12 +170,14 @@
     </section>
 
     <TangibleInspectionRegister
+      v-if="canManageInspection"
       :is-open="isRegisterDrawerOpen"
       @close="closeRegisterDrawer"
       @registered="handleInspectionRegistered"
     />
 
     <TangibleInspectionDetail
+      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
       @close="selectedInspection = null"
@@ -192,6 +197,7 @@ import TangibleInspectionDetail from '@/components/inspection/tangible/TangibleI
 import TangibleInspectionRegister from '@/components/inspection/tangible/TangibleInspectionRegister.vue'
 import { tangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
+import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -232,7 +238,7 @@ const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
   CLOSED: '후속 처리 중',
 }
 
-const { hasRole } = usePermission()
+const { canManageInspection } = usePermission()
 
 const inspections = ref<TangibleInspectionRow[]>([])
 const selectedInspection = ref<TangibleInspectionRow | null>(null)
@@ -255,7 +261,7 @@ const appliedFilters = reactive({
 })
 
 const canRegisterInspection = computed(() => (
-  hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+  canManageInspection.value
 ))
 
 const columns: Column<TangibleInspectionRow>[] = [
@@ -285,7 +291,12 @@ const inspectorFilterOptions = computed<DropdownOption[]>(() => [
   })),
 ])
 
-const emptyText = computed(() => loadError.value || '등록된 유형자산 전수조사가 없습니다.')
+const emptyText = computed(() => (
+  loadError.value
+  || (canManageInspection.value
+    ? '등록된 유형자산 전수조사가 없습니다.'
+    : '배정된 유형자산 전수조사가 없습니다.')
+))
 
 const filteredRows = computed(() => {
   const keyword = appliedFilters.keyword.trim().toLowerCase()
@@ -416,6 +427,7 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: TangibleInspectionRow) {
+  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -546,6 +558,14 @@ async function loadInspectionData() {
   loadError.value = ''
 
   try {
+    if (!canManageInspection.value) {
+      const response = await tangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
+      const content = Array.isArray(response.data.content) ? response.data.content : []
+      inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
+      currentPage.value = 0
+      return
+    }
+
     const response = await tangibleInspectionApi.getList({ page: 0, size: 1000 })
     const content = response.data.content
     const rows = Array.isArray(content) ? content.map(toInspectionRow) : []

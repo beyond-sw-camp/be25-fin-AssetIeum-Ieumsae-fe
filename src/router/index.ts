@@ -28,6 +28,18 @@ const router = createRouter({
       component: () => import('@/views/auth/LoginView.vue'),
       meta: { requiresAuth: false, title: '로그인' },
     },
+    {
+      path: '/mobile/login',
+      name: 'MobileLogin',
+      component: () => import('@/views/inspection/mobile/MobileLoginView.vue'),
+      meta: { requiresAuth: false, title: '모바일 로그인' },
+    },
+    {
+      path: '/mobile/inspections',
+      name: 'MobileInspection',
+      component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
+      meta: { requiresAuth: true, title: '모바일 자산 검수', roles: ['EMPLOYEE', 'ASSET_TEAM'] },
+    },
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
     {
       path: '/',
@@ -165,27 +177,27 @@ const router = createRouter({
               path: 'tangible',
               name: 'TangibleInspection',
               component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
-              meta: { title: '유형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              meta: { title: '유형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
             },
             {
               path: 'tangible/respond',
-              name: 'TangibleInspectionResponse',
-              component: () => import('@/views/inspection/employee/EmployeeInspectionResponseView.vue'),
-              props: { assetType: 'tangible' },
-              meta: { title: '내 유형자산 전수조사', roles: ['EMPLOYEE'] },
+              redirect: { name: 'TangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'mobile',
+              redirect: { name: 'MobileInspection' },
             },
             {
               path: 'intangible',
               name: 'IntangibleInspection',
               component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
-              meta: { title: '무형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+              meta: { title: '무형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
             },
             {
               path: 'intangible/respond',
-              name: 'IntangibleInspectionResponse',
-              component: () => import('@/views/inspection/employee/EmployeeInspectionResponseView.vue'),
-              props: { assetType: 'intangible' },
-              meta: { title: '내 무형자산 전수조사', roles: ['EMPLOYEE'] },
+              redirect: { name: 'IntangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
             },
           ],
         },
@@ -273,6 +285,18 @@ router.beforeEach(async (to) => {
 
   // 인증 불필요 페이지
   if (to.meta.requiresAuth === false) {
+    if (to.name === 'Login' && isMobileViewport()) {
+      return auth.isAuthenticated && canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'MobileLogin', query: to.query }
+    }
+
+    if (auth.isAuthenticated && to.name === 'MobileLogin') {
+      return canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'Dashboard' }
+    }
+
     if (auth.isAuthenticated && to.name === 'Login') {
       return { name: 'Dashboard' }
     }
@@ -281,6 +305,10 @@ router.beforeEach(async (to) => {
 
   // 미인증 → 로그인 페이지로
   if (!auth.isAuthenticated) {
+    if (to.path.startsWith('/mobile')) {
+      return { name: 'MobileLogin', query: { redirect: to.fullPath } }
+    }
+
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
 
@@ -292,7 +320,20 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (to.name === 'Dashboard' && canUseMobileInspectionRole(auth.currentRole) && isMobileViewport()) {
+    return { name: 'MobileInspection' }
+  }
+
   return true
 })
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+}
+
+function canUseMobileInspectionRole(role: Role | null) {
+  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
+}
 
 export default router
