@@ -42,6 +42,7 @@ import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
 const {
+  hasRole,
   canManageCompany,
   canManageDepartment,
   canManageAsset,
@@ -108,6 +109,7 @@ const navItems = computed(() => {
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },
+    { name: 'operation-report', to: '/reports/operations', label: '운영 리포트', icon: BarChart3, show: canViewOperationReports.value },
     { name: 'organization', to: '/organization', label: '조직도', icon: Building2, show: canManageDepartment.value },
     { name: 'members', to: '/members', label: '사원 관리', icon: Users, show: canManageCompany.value },
     {
