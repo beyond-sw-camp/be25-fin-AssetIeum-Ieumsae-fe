@@ -9,4 +9,5 @@ export { tangibleItemApi, tangibleAssetApi, intangibleItemApi, intangibleAssetAp
 export { ticketApi, ticketCreateApi } from './ticket.api'
 export { purchaseApi } from './purchase.api'
 export { logApi } from './log.api'
+export { tangibleInspectionApi, intangibleInspectionApi } from './inspection.api'
 export { ApiError, default as apiClient } from './client'

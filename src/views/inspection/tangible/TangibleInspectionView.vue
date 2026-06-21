@@ -30,15 +30,20 @@
           {{ card.label }}
         </p>
         <p class="mt-4 text-3xl font-bold text-text-main">
-          {{ card.value }}건
+          {{ card.value.toLocaleString() }}건
         </p>
-        <div class="mt-5 grid grid-cols-3 gap-2 text-xs">
+        <div
+          :class="[
+            'mt-5 grid gap-2 text-xs',
+            card.items.length === 1 ? 'grid-cols-1' : 'grid-cols-3',
+          ]"
+        >
           <div v-for="item in card.items" :key="item.label">
             <p class="font-semibold text-text-main">
               {{ item.label }}
             </p>
             <p class="mt-2 font-bold text-text-sub">
-              {{ item.value }}건
+              {{ item.value.toLocaleString() }}건
             </p>
           </div>
         </div>
@@ -51,35 +56,41 @@
           <Dropdown
             :model-value="String(pageSize)"
             :options="pageSizeOptions"
-            class="w-34"
+            menu-strategy="fixed"
+            class="w-30"
             @update:model-value="handlePageSizeChange"
           />
-          <span class="text-xs text-text-sub">
+          <span class="text-xs text-text-sub whitespace-nowrap">
             총 {{ filteredRows.length }}건 중 {{ rangeText }}
           </span>
         </div>
 
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <Dropdown
-            v-model="filters.status"
-            :options="statusFilterOptions"
-            class="w-36"
-            menu-align="right"
-          />
-          <Dropdown
-            v-model="filters.inspector"
-            :options="inspectorFilterOptions"
-            class="w-40"
-            menu-align="right"
-          />
-          <Input
-            id="inspection-keyword"
-            v-model="filters.keyword"
-            class="w-52"
-            placeholder="조사 대상 검색"
-            @keyup.enter="applySearch"
-          />
-          <Button size="md" @click="applySearch">
+        <div class="flex justify-end gap-2">
+          <div class="w-36 shrink-0">
+            <Dropdown
+              v-model="filters.status"
+              :options="statusFilterOptions"
+              menu-strategy="fixed"
+              menu-align="right"
+            />
+          </div>
+          <div class="w-40 shrink-0">
+            <Dropdown
+              v-model="filters.inspector"
+              :options="inspectorFilterOptions"
+              menu-strategy="fixed"
+              menu-align="right"
+            />
+          </div>
+          <div class="w-40 shrink-0">
+            <Input
+              id="inspection-keyword"
+              v-model="filters.keyword"
+              placeholder="조사 대상 검색"
+              @keyup.enter="applySearch"
+            />
+          </div>
+          <Button class="w-20" @click="applySearch">
             <Search :size="14" />
             검색
           </Button>
@@ -91,7 +102,8 @@
           :columns="columns"
           :rows="pagedRows"
           row-key="inspectionId"
-          empty-text="등록된 유형자산 전수조사가 없습니다."
+          :loading="isLoading"
+          :empty-text="emptyText"
           @row-click="openDetailDrawer"
         >
           <template #cell-targetName="{ value: targetName }">
@@ -105,7 +117,7 @@
           </template>
 
           <template #cell-inspectorName="{ row }">
-            <span class="text-text-sub">{{ row.inspectorDepartment }} - {{ row.inspectorName }}</span>
+            <span class="text-text-sub">{{ row.inspectorName }}</span>
           </template>
 
           <template #cell-startDate="{ value: startDate }">
@@ -154,134 +166,40 @@
       </div>
     </section>
 
-    <BaseDrawer
+    <TangibleInspectionRegister
       :is-open="isRegisterDrawerOpen"
-      title="전수조사 계획 등록"
-      body-class="p-0"
-      hide-footer
       @close="closeRegisterDrawer"
-    >
-      <form class="flex h-full flex-col" @submit.prevent="handleRegisterInspection">
-        <div class="flex-1 space-y-5 overflow-y-auto px-8 py-7">
-          <Input
-            id="inspection-description"
-            v-model="registerForm.description"
-            label="조사명"
-            placeholder="예: 개발팀 보유 유형자산 전수조사"
-            required
-          />
+      @registered="handleInspectionRegistered"
+    />
 
-          <div class="space-y-2">
-            <label class="text-sm font-semibold text-text-main" for="inspection-target-type">
-              조사 대상
-            </label>
-            <Dropdown
-              id="inspection-target-type"
-              v-model="registerForm.targetType"
-              :options="targetTypeOptions"
-              menu-strategy="fixed"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-semibold text-text-main" for="inspection-inspector">
-              조사 담당자
-            </label>
-            <Dropdown
-              id="inspection-inspector"
-              v-model="registerForm.inspector"
-              :options="registerInspectorOptions"
-              menu-strategy="fixed"
-            />
-          </div>
-
-          <div class="grid gap-4 md:grid-cols-2">
-            <Input
-              id="inspection-start-date"
-              v-model="registerForm.startDate"
-              type="date"
-              label="시작일"
-              required
-            />
-            <Input
-              id="inspection-end-date"
-              v-model="registerForm.endDate"
-              type="date"
-              label="종료일"
-              required
-            />
-          </div>
-
-          <p
-            v-if="registerError"
-            class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
-          >
-            {{ registerError }}
-          </p>
-        </div>
-
-        <div class="shrink-0 border-t border-border px-8 py-5">
-          <Button
-            class="w-full"
-            type="submit"
-            :disabled="!isRegisterReady"
-          >
-            등록하기
-          </Button>
-        </div>
-      </form>
-    </BaseDrawer>
-
-    <BaseDrawer
+    <TangibleInspectionDetail
       :is-open="Boolean(selectedInspection)"
-      title="전수조사 상세"
-      body-class="p-0"
-      hide-footer
+      :inspection="selectedInspection"
       @close="selectedInspection = null"
-    >
-      <div v-if="selectedInspection" class="flex h-full flex-col">
-        <div class="flex-1 space-y-5 overflow-y-auto px-8 py-7">
-          <div class="rounded-lg border border-border bg-surface p-5">
-            <p class="text-xs font-bold text-primary">조사 대상</p>
-            <h3 class="mt-2 text-xl font-bold text-text-main">
-              {{ selectedInspection.targetName }}
-            </h3>
-            <p class="mt-2 text-sm text-text-sub">
-              {{ selectedInspection.description }}
-            </p>
-          </div>
-
-          <div class="grid gap-3 md:grid-cols-2">
-            <DetailItem label="조사 수행자" :value="selectedInspection.executor" />
-            <DetailItem label="조사 담당자" :value="`${selectedInspection.inspectorDepartment} - ${selectedInspection.inspectorName}`" />
-            <DetailItem label="조사 상태" :value="STATUS_LABEL[selectedInspection.status]" />
-            <DetailItem label="조사 대상 자산" :value="`${selectedInspection.targetAssetCount.toLocaleString()}건`" />
-            <DetailItem label="응답 완료" :value="`${selectedInspection.completedAssetCount.toLocaleString()}건`" />
-            <DetailItem label="후속 처리" :value="`${selectedInspection.followUpCount.toLocaleString()}건`" />
-            <DetailItem label="시작일" :value="formatDate(selectedInspection.startDate)" />
-            <DetailItem label="종료일" :value="formatDate(selectedInspection.endDate)" />
-          </div>
-        </div>
-      </div>
-    </BaseDrawer>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-vue-next'
 
-import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import TangibleInspectionDetail from '@/components/inspection/tangible/TangibleInspectionDetail.vue'
+import TangibleInspectionRegister from '@/components/inspection/tangible/TangibleInspectionRegister.vue'
+import { tangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import type { DropdownOption } from '@/types'
-import type { InspectionStatus } from '@/types/inspection'
+import type {
+  InspectionSearchResponse,
+  InspectionStatus,
+  InspectorType,
+} from '@/types/inspection'
 
 type TangibleInspectionStatus = InspectionStatus
-type TangibleInspectionTargetType = 'ALL' | 'DEPARTMENT' | 'CATEGORY'
 
 interface TangibleInspectionRow extends Record<string, unknown> {
   inspectionId: string
@@ -307,19 +225,6 @@ interface SummaryCard {
   }>
 }
 
-const DetailItem = defineComponent({
-  props: {
-    label: { type: String, required: true },
-    value: { type: String, required: true },
-  },
-  setup(props) {
-    return () => h('div', { class: 'rounded-lg border border-border bg-surface p-4' }, [
-      h('p', { class: 'text-xs font-semibold text-text-muted' }, props.label),
-      h('p', { class: 'mt-2 text-sm font-bold text-text-main' }, props.value),
-    ])
-  },
-})
-
 const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
@@ -327,108 +232,15 @@ const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
   CLOSED: '후속 처리 중',
 }
 
-const TARGET_TYPE_LABEL: Record<TangibleInspectionTargetType, string> = {
-  ALL: '전체 유형자산',
-  DEPARTMENT: '부서',
-  CATEGORY: '품목',
-}
-
-const SAMPLE_INSPECTIONS: TangibleInspectionRow[] = [
-  {
-    inspectionId: 'TIN-20260612-001',
-    targetName: '개발팀',
-    executor: '구매자산팀',
-    status: 'READY',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '구매자산팀 - 구○○',
-    startDate: '2026-06-12',
-    endDate: '2026-06-29',
-    targetAssetCount: 1248,
-    completedAssetCount: 0,
-    followUpCount: 0,
-    description: '개발팀 보유 유형자산 전수조사',
-  },
-  {
-    inspectionId: 'TIN-20260602-002',
-    targetName: '노트북',
-    executor: '구매자산팀',
-    status: 'IN_PROGRESS',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '구매자산팀 - 이○○',
-    startDate: '2026-06-02',
-    endDate: '2026-06-19',
-    targetAssetCount: 428,
-    completedAssetCount: 217,
-    followUpCount: 8,
-    description: '노트북 보유 현황 및 QR 확인 조사',
-  },
-  {
-    inspectionId: 'TIN-20260605-003',
-    targetName: 'PC',
-    executor: '구매자산팀',
-    status: 'IN_PROGRESS',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '구매자산팀 - 임□□',
-    startDate: '2026-06-05',
-    endDate: '2026-06-22',
-    targetAssetCount: 519,
-    completedAssetCount: 321,
-    followUpCount: 11,
-    description: '사무실 PC 실물 확인 및 사용자 응답 조사',
-  },
-  {
-    inspectionId: 'TIN-20260512-004',
-    targetName: 'PC',
-    executor: '사원',
-    status: 'COMPLETED',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '김□□',
-    startDate: '2026-05-12',
-    endDate: '2026-06-01',
-    targetAssetCount: 356,
-    completedAssetCount: 356,
-    followUpCount: 2,
-    description: '사용자 확인 기반 PC 보유 여부 조사',
-  },
-  {
-    inspectionId: 'TIN-20260512-005',
-    targetName: '모니터',
-    executor: '사원',
-    status: 'COMPLETED',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '김□□',
-    startDate: '2026-05-12',
-    endDate: '2026-06-01',
-    targetAssetCount: 812,
-    completedAssetCount: 812,
-    followUpCount: 6,
-    description: '모니터 배정 현황 및 위치 확인 조사',
-  },
-  {
-    inspectionId: 'TIN-20260512-006',
-    targetName: '프론트엔드팀',
-    executor: '구매자산팀',
-    status: 'CLOSED',
-    inspectorDepartment: '구매자산팀',
-    inspectorName: '박□□',
-    startDate: '2026-05-12',
-    endDate: '2026-06-01',
-    targetAssetCount: 214,
-    completedAssetCount: 189,
-    followUpCount: 19,
-    description: '프론트엔드팀 미응답 및 불일치 후속 처리',
-  },
-]
-
 const { hasRole } = usePermission()
 
-const inspections = ref<TangibleInspectionRow[]>([...SAMPLE_INSPECTIONS])
+const inspections = ref<TangibleInspectionRow[]>([])
 const selectedInspection = ref<TangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
-const registerError = ref('')
+const isLoading = ref(false)
+const loadError = ref('')
 const currentPage = ref(0)
 const pageSize = ref(10)
-const appliedKeyword = ref('')
 
 const filters = reactive({
   status: '',
@@ -436,23 +248,21 @@ const filters = reactive({
   keyword: '',
 })
 
-const registerForm = reactive({
-  description: '',
-  targetType: 'DEPARTMENT' as TangibleInspectionTargetType,
-  inspector: 'ASSET_TEAM',
-  startDate: '',
-  endDate: '',
+const appliedFilters = reactive({
+  status: '',
+  inspector: '',
+  keyword: '',
 })
 
 const canRegisterInspection = computed(() => (
-  hasRole('ADMIN', 'SUPER_ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
+  hasRole('ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER')
 ))
 
 const columns: Column<TangibleInspectionRow>[] = [
   { key: 'targetName', label: '조사 대상', width: '18%' },
-  { key: 'executor', label: '조사 수행자', width: '16%' },
+  { key: 'executor', label: '조사 방식', width: '16%' },
   { key: 'status', label: '조사 상태', width: '16%' },
-  { key: 'inspectorName', label: '조사 담당자', width: '22%' },
+  { key: 'inspectorName', label: '조사 수행자', width: '22%' },
   { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
   { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
 ]
@@ -468,29 +278,21 @@ const statusFilterOptions: DropdownOption[] = [
 ]
 
 const inspectorFilterOptions = computed<DropdownOption[]>(() => [
-  { label: '- 조사 담당자 -', value: '' },
+  { label: '- 조사 수행자 -', value: '' },
   ...Array.from(new Set(inspections.value.map((item) => item.inspectorName))).map((name) => ({
     label: name,
     value: name,
   })),
 ])
 
-const targetTypeOptions: DropdownOption[] = Object.entries(TARGET_TYPE_LABEL).map(([value, label]) => ({
-  label,
-  value,
-}))
-
-const registerInspectorOptions: DropdownOption[] = [
-  { label: '구매자산팀', value: 'ASSET_TEAM' },
-  { label: '사원 본인', value: 'EMPLOYEE' },
-]
+const emptyText = computed(() => loadError.value || '등록된 유형자산 전수조사가 없습니다.')
 
 const filteredRows = computed(() => {
-  const keyword = appliedKeyword.value.trim().toLowerCase()
+  const keyword = appliedFilters.keyword.trim().toLowerCase()
 
   return inspections.value.filter((item) => {
-    const matchesStatus = !filters.status || item.status === filters.status
-    const matchesInspector = !filters.inspector || item.inspectorName === filters.inspector
+    const matchesStatus = !appliedFilters.status || item.status === appliedFilters.status
+    const matchesInspector = !appliedFilters.inspector || item.inspectorName === appliedFilters.inspector
     const matchesKeyword = !keyword || [
       item.targetName,
       item.executor,
@@ -523,73 +325,59 @@ const rangeText = computed(() => {
 
 const summaryCards = computed<SummaryCard[]>(() => {
   const rows = inspections.value
-  const ready = rows.filter((item) => item.status === 'READY').length
-  const inProgress = rows.filter((item) => item.status === 'IN_PROGRESS').length
-  const completed = rows.filter((item) => item.status === 'COMPLETED').length
-  const closed = rows.filter((item) => item.status === 'CLOSED').length
-  const targetAssets = rows.reduce((sum, item) => sum + item.targetAssetCount, 0)
-  const completedAssets = rows.reduce((sum, item) => sum + item.completedAssetCount, 0)
-  const followUps = rows.reduce((sum, item) => sum + item.followUpCount, 0)
+  const readyRows = rows.filter((item) => item.status === 'READY')
+  const inProgressRows = rows.filter((item) => item.status === 'IN_PROGRESS')
+  const completedRows = rows.filter((item) => item.status === 'COMPLETED')
+  const totalAssets = rows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const readyAssets = readyRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const inProgressAssets = inProgressRows.reduce((sum, item) => sum + item.targetAssetCount, 0)
+  const completedAssets = completedRows.reduce((sum, item) => sum + item.completedAssetCount, 0)
+  const unprocessedAssets = rows.reduce(
+    (sum, item) => sum + Math.max(item.targetAssetCount - item.completedAssetCount, 0),
+    0,
+  )
+  const followUpInProgressAssets = rows.reduce((sum, item) => sum + item.followUpCount, 0)
+  const followUpCompletedAssets = 0
 
   return [
     {
       label: '전체 전수조사 현황',
-      value: rows.length,
+      value: totalAssets,
       items: [
-        { label: '진행 전', value: ready },
-        { label: '진행 중', value: inProgress },
-        { label: '완료', value: completed },
+        { label: '진행 전', value: readyAssets },
+        { label: '진행 중', value: inProgressAssets },
+        { label: '완료', value: completedAssets },
       ],
     },
     {
       label: '진행 중인 전수조사',
-      value: inProgress,
+      value: inProgressAssets,
       items: [
-        { label: '조사 대상 자산', value: targetAssets },
-        { label: '응답 완료 자산', value: completedAssets },
-        { label: '후속 처리', value: followUps },
+        { label: '조사 대상 자산', value: inProgressAssets },
       ],
     },
     {
       label: '완료된 전수조사',
-      value: completed,
+      value: completedAssets,
       items: [
         { label: '조사 완료 자산', value: completedAssets },
-        { label: '후속 처리 완료', value: closed },
-        { label: '미처리', value: followUps },
       ],
     },
     {
       label: '미처리 자산',
-      value: rows.reduce((sum, item) => sum + Math.max(item.targetAssetCount - item.completedAssetCount, 0), 0),
+      value: unprocessedAssets,
       items: [
-        { label: '조사 대상 자산', value: targetAssets },
-        { label: '응답 완료', value: completedAssets },
-        { label: '미응답', value: targetAssets - completedAssets },
+        { label: '조사 대상 자산', value: unprocessedAssets },
       ],
     },
     {
       label: '후속 처리 중',
-      value: followUps,
+      value: followUpInProgressAssets,
       items: [
-        { label: '처리 대기', value: Math.max(followUps - closed, 0) },
-        { label: '처리 완료', value: closed },
-        { label: '전체 후속', value: followUps },
+        { label: '처리 완료', value: followUpCompletedAssets },
       ],
     },
   ]
-})
-
-const isRegisterReady = computed(() => Boolean(
-  registerForm.description.trim()
-  && registerForm.targetType
-  && registerForm.inspector
-  && registerForm.startDate
-  && registerForm.endDate
-))
-
-watch(() => [filters.status, filters.inspector], () => {
-  currentPage.value = 0
 })
 
 function statusBadgeClass(status: TangibleInspectionStatus) {
@@ -609,7 +397,9 @@ function formatDate(value: string) {
 }
 
 function applySearch() {
-  appliedKeyword.value = filters.keyword
+  appliedFilters.status = filters.status
+  appliedFilters.inspector = filters.inspector
+  appliedFilters.keyword = filters.keyword
   currentPage.value = 0
 }
 
@@ -630,49 +420,144 @@ function openDetailDrawer(row: TangibleInspectionRow) {
 }
 
 function openRegisterDrawer() {
-  registerError.value = ''
   isRegisterDrawerOpen.value = true
 }
 
 function closeRegisterDrawer() {
   isRegisterDrawerOpen.value = false
-  registerError.value = ''
 }
 
-function handleRegisterInspection() {
-  if (!isRegisterReady.value) {
-    registerError.value = '전수조사 계획 정보를 모두 입력해주세요.'
-    return
-  }
-
-  if (new Date(registerForm.startDate).getTime() > new Date(registerForm.endDate).getTime()) {
-    registerError.value = '종료일은 시작일 이후여야 합니다.'
-    return
-  }
-
-  inspections.value = [
-    {
-      inspectionId: `TIN-${Date.now()}`,
-      targetName: TARGET_TYPE_LABEL[registerForm.targetType],
-      executor: registerForm.inspector === 'ASSET_TEAM' ? '구매자산팀' : '사원',
-      status: 'READY',
-      inspectorDepartment: '구매자산팀',
-      inspectorName: registerForm.inspector === 'ASSET_TEAM' ? '구매자산팀 - 신규' : '사원',
-      startDate: registerForm.startDate,
-      endDate: registerForm.endDate,
-      targetAssetCount: 0,
-      completedAssetCount: 0,
-      followUpCount: 0,
-      description: registerForm.description.trim(),
-    },
-    ...inspections.value,
-  ]
-
-  registerForm.description = ''
-  registerForm.targetType = 'DEPARTMENT'
-  registerForm.inspector = 'ASSET_TEAM'
-  registerForm.startDate = ''
-  registerForm.endDate = ''
-  closeRegisterDrawer()
+async function handleInspectionRegistered() {
+  await loadInspectionData()
 }
+
+function numberValue(...values: Array<number | null | undefined>) {
+  return values.find((value): value is number => typeof value === 'number')
+}
+
+function textValue(...values: unknown[]) {
+  return values
+    .find((value): value is string | number => (
+      (typeof value === 'string' && value.trim().length > 0)
+      || typeof value === 'number'
+    ))
+    ?.toString() ?? ''
+}
+
+function getInspectorTypeLabel(inspectorType: InspectorType | undefined) {
+  return inspectorType === 'ASSET_TEAM' ? '자산팀 처리' : '소유자 응답'
+}
+
+function getTargetNameLabel(item: InspectionSearchResponse) {
+  const targetName = textValue(item.targetName)
+  const targetType = item.targetType
+
+  if (targetType === 'ALL' || targetName === 'All') return '전체 유형자산'
+  if (targetName) return targetName
+  return '조사 대상'
+}
+
+function startOfDay(date: Date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function dateTimeValue(value: string) {
+  if (!value) return null
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function resolveInspectionStatusByPeriod(
+  startDate: string,
+  endDate: string,
+  fallbackStatus: TangibleInspectionStatus,
+): TangibleInspectionStatus {
+  const today = startOfDay(new Date())
+  const start = dateTimeValue(startDate)
+  const end = dateTimeValue(endDate)
+
+  if (!start || !end) return fallbackStatus
+
+  const startDay = startOfDay(start)
+  const endDay = startOfDay(end)
+
+  if (today < startDay) return 'READY'
+  if (today <= endDay) return 'IN_PROGRESS'
+  return 'COMPLETED'
+}
+
+function toInspectionRow(item: InspectionSearchResponse, index: number): TangibleInspectionRow {
+  const rawStatus = item.inspectionStatus ?? item.status ?? 'READY'
+  const inspectorType = item.inspectorType
+  const inspectorName = textValue(item.inspectorName)
+  const startDate = textValue(item.startDate)
+  const endDate = textValue(item.endDate)
+
+  return {
+    inspectionId: textValue(item.inspectionId) || `inspection-${index}`,
+    targetName: getTargetNameLabel(item),
+    executor: getInspectorTypeLabel(inspectorType),
+    status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),
+    inspectorDepartment: '-',
+    inspectorName: inspectorName || '-',
+    startDate,
+    endDate,
+    targetAssetCount: numberValue(item.targetAssetCount) ?? 0,
+    completedAssetCount: numberValue(
+      item.inspectedAssetCount,
+      item.completedAssetCount,
+    ) ?? 0,
+    followUpCount: numberValue(item.followUpRequiredCount) ?? 0,
+    description: item.description ?? '',
+  }
+}
+
+async function hydrateDetailCounts(row: TangibleInspectionRow): Promise<TangibleInspectionRow> {
+  if (!row.inspectionId) return row
+
+  try {
+    const response = await tangibleInspectionApi.getDetail(row.inspectionId)
+    const inspectionResults = Array.isArray(response.data.inspectionResults)
+      ? response.data.inspectionResults
+      : []
+    const uninspectedAssets = Array.isArray(response.data.uninspectedAssets)
+      ? response.data.uninspectedAssets
+      : []
+    const completedAssetCount = inspectionResults.length
+    const targetAssetCount = completedAssetCount + uninspectedAssets.length
+    const followUpCount = inspectionResults.filter((item) => item.followUpRequired).length
+
+    return {
+      ...row,
+      targetAssetCount,
+      completedAssetCount,
+      followUpCount,
+    }
+  } catch {
+    return row
+  }
+}
+
+async function loadInspectionData() {
+  isLoading.value = true
+  loadError.value = ''
+
+  try {
+    const response = await tangibleInspectionApi.getList({ page: 0, size: 1000 })
+    const content = response.data.content
+    const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
+    inspections.value = await Promise.all(rows.map(hydrateDetailCounts))
+    currentPage.value = 0
+  } catch {
+    inspections.value = []
+    loadError.value = '전수조사 목록을 불러오지 못했습니다.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadInspectionData)
 </script>
