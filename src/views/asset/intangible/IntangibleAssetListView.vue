@@ -95,6 +95,8 @@
               root-option="전체 품목 보기"
               menu-align="right"
               submenu-direction="left"
+              searchable
+              search-placeholder="품목 검색"
               class="w-44 text-text-sub"
             >
               <template #icon>
