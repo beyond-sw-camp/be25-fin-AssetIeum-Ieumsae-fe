@@ -3,6 +3,8 @@ import type {
   InspectionCreateRequest,
   InspectionDetailResponse,
   EmployeeInspectionTargetResponse,
+  InspectionFollowUpResponse,
+  InspectionFollowUpStatusUpdateRequest,
   InspectionResponseCreateRequest,
   InspectionResponseCreateResponse,
   InspectionResponse,
@@ -30,12 +32,16 @@ const toInspectionCreateBody = (body: InspectionCreateRequest) => ({
 })
 
 const toInspectionResponseBody = (body: InspectionResponseCreateRequest) => ({
-  inspection_target_id: body.inspectionTargetId,
-  response_content: body.responseContent.trim(),
-  follow_up_requests: body.followUpRequests ? 1 : 0,
+  responseContent: body.responseContent.trim(),
+  followUpRequests: body.followUpRequests,
 })
 
-const createInspectionApi = (basePath: string, responsePath: string) => ({
+const toFollowUpStatusBody = (body: InspectionFollowUpStatusUpdateRequest) => ({
+  status: body.status,
+  actionDetail: body.actionDetail?.trim() || null,
+})
+
+const createInspectionApi = (basePath: string) => ({
   getList: (params?: {
     status?: string
     inspectorId?: string
@@ -53,10 +59,25 @@ const createInspectionApi = (basePath: string, responsePath: string) => ({
   create: (body: InspectionCreateRequest) =>
     api.post<InspectionResponse>(basePath, toInspectionCreateBody(body)),
 
-  createResponse: (inspectionId: string | number, body: InspectionResponseCreateRequest) =>
+  createResponse: (targetId: string | number, body: InspectionResponseCreateRequest) =>
     api.post<InspectionResponseCreateResponse>(
-      `${responsePath}/${inspectionId}/responses`,
+      `/inspections/targets/${targetId}/result`,
       toInspectionResponseBody(body),
+    ),
+
+  getResponse: (targetId: string | number) =>
+    api.get<InspectionResponseCreateResponse>(`/inspections/targets/${targetId}/result`),
+
+  getFollowUp: (followUpId: string | number) =>
+    api.get<InspectionFollowUpResponse>(`/inspections/follow-ups/${followUpId}`),
+
+  updateFollowUpStatus: (
+    followUpId: string | number,
+    body: InspectionFollowUpStatusUpdateRequest,
+  ) =>
+    api.patch<InspectionFollowUpResponse>(
+      `/inspections/follow-ups/${followUpId}/status`,
+      toFollowUpStatusBody(body),
     ),
 
   getMyTargets: (params?: { page?: number; size?: number; inspectionId?: string; isResponded?: boolean }) =>
@@ -72,12 +93,6 @@ const createInspectionApi = (basePath: string, responsePath: string) => ({
     ),
 })
 
-export const tangibleInspectionApi = createInspectionApi(
-  '/tangible-asset/inspections',
-  '/tangible-asset-inspections',
-)
+export const tangibleInspectionApi = createInspectionApi('/tangible-asset/inspections')
 
-export const intangibleInspectionApi = createInspectionApi(
-  '/intangible-asset/inspections',
-  '/intangible-asset-inspections',
-)
+export const intangibleInspectionApi = createInspectionApi('/intangible-asset/inspections')
