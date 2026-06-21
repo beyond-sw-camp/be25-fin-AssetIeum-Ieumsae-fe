@@ -51,6 +51,7 @@ const {
   canViewHrWorkflow,
   canViewMyTickets,
   canViewInspection,
+  canViewLogs,
   canManagePlatform,
 } = permission
 
@@ -116,10 +117,10 @@ const navItems = computed(() => {
       name: 'logs',
       label: '로그',
       icon: FileText,
-      show: canManageCompany.value,
+      show: canViewLogs.value,
       children: [
-        { name: 'audit-logs', to: '/logs/audit', label: '감사로그', show: canManageCompany.value },
-        { name: 'activity-logs', to: '/logs/activity', label: '활동로그', show: canManageCompany.value },
+        { name: 'audit-logs', to: '/audit', label: '감사로그', show: canViewLogs.value },
+        { name: 'activity-logs', to: '/activity', label: '활동로그', show: canViewLogs.value },
       ],
     },
     { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
