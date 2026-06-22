@@ -286,14 +286,25 @@ function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListIte
   const requester = asRecord(rawItem.requester)
     ?? asRecord(rawItem.requestMember)
     ?? asRecord(rawItem.member)
+    ?? asRecord(rawItem.requesterInfo)
+    ?? asRecord(rawItem.requestMemberInfo)
+    ?? asRecord(rawItem.employee)
+    ?? asRecord(rawItem.applicant)
   const department = asRecord(rawItem.department)
     ?? asRecord(rawItem.requesterDepartment)
+    ?? asRecord(rawItem.requestDepartment)
+    ?? asRecord(rawItem.requesterDepartmentInfo)
+    ?? asRecord(rawItem.departmentInfo)
     ?? asRecord(requester?.department)
+    ?? asRecord(requester?.departmentInfo)
   const rawStatus = pickString(rawItem, ['ticketStatus', 'currentStatus', 'status']) ?? 'REQUESTED'
-  const requesterId = rawItem.requesterId ?? pickId(requester, ['memberId', 'employeeId', 'id'])
+  const requesterId = rawItem.requesterId
+    ?? pickId(rawItem, ['requestMemberId', 'memberId', 'employeeId', 'applicantId'])
+    ?? pickId(requester, ['memberId', 'employeeId', 'id'])
   const departmentId = rawItem.departmentId
+    ?? pickId(rawItem, ['requesterDepartmentId', 'requestDepartmentId'])
     ?? pickId(department, ['departmentId', 'id'])
-    ?? pickId(requester, ['departmentId'])
+    ?? pickId(requester, ['departmentId', 'department.id'])
 
   return {
     ...rawItem,
@@ -306,14 +317,14 @@ function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListIte
       ?? null,
     requesterId,
     requesterName: rawItem.requesterName
-      ?? pickString(rawItem, ['requestMemberName', 'employeeName'])
+      ?? pickString(rawItem, ['requestMemberName', 'memberName', 'employeeName', 'applicantName', 'requester', 'requestMember'])
       ?? pickString(requester, ['memberName', 'name', 'employeeName'])
       ?? '',
     departmentId,
     departmentName: rawItem.departmentName
-      ?? pickString(rawItem, ['requesterDepartmentName'])
-      ?? pickString(department, ['departmentName', 'name'])
-      ?? pickString(requester, ['departmentName'])
+      ?? pickString(rawItem, ['requesterDepartmentName', 'requestDepartmentName', 'departmentNamePath', 'requesterDepartment', 'requestDepartment'])
+      ?? pickString(department, ['departmentName', 'name', 'departmentNamePath'])
+      ?? pickString(requester, ['departmentName', 'departmentNamePath', 'teamName'])
       ?? '',
     requestedAt: rawItem.requestedAt ?? pickString(rawItem, ['createdAt']) ?? '',
     ticketStatus: normalizeTicketStatus(rawStatus),
