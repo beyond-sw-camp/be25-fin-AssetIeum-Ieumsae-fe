@@ -205,6 +205,15 @@ const router = createRouter({
               redirect: { name: 'IntangibleInspection' },
               meta: { roles: ['EMPLOYEE'] },
             },
+            {
+              path: 'follow-ups/my',
+              name: 'MyInspectionFollowUp',
+              component: () => import('@/views/inspection/followup/MyInspectionFollowUpView.vue'),
+              meta: {
+                title: '내 후속처리',
+                roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'],
+              },
+            },
           ],
         },
 

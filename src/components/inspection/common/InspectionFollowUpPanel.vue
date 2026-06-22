@@ -33,6 +33,9 @@
           <p v-if="row.memberName !== '-'" class="mt-1 text-xs text-text-sub">
             대상 사용자 {{ row.memberName }}
           </p>
+          <p v-if="row.processorName && row.processorName !== '-'" class="mt-1 text-xs text-text-sub">
+            후속처리 담당자 {{ row.processorName }}
+          </p>
           <p v-if="row.responseContent" class="mt-2 text-xs leading-relaxed text-text-sub">
             {{ row.responseContent }}
           </p>
@@ -92,6 +95,7 @@ export interface InspectionFollowUpPanelRow {
   productName: string
   assetCode: string
   memberName: string
+  processorName: string // 추가
   responseContent: string
   actionDetail: string
   status: InspectionFollowUpStatus

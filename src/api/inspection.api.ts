@@ -96,3 +96,20 @@ const createInspectionApi = (basePath: string) => ({
 export const tangibleInspectionApi = createInspectionApi('/tangible-asset/inspections')
 
 export const intangibleInspectionApi = createInspectionApi('/intangible-asset/inspections')
+
+export const inspectionFollowUpApi = {
+  getMyFollowUps: (params?: { page?: number; size?: number; status?: string }) =>
+    api.get<PageResponse<InspectionFollowUpResponse>>('/inspections/follow-ups/my', params),
+
+  getFollowUp: (followUpId: string | number) =>
+    api.get<InspectionFollowUpResponse>(`/inspections/follow-ups/${followUpId}`),
+
+  updateFollowUpStatus: (
+    followUpId: string | number,
+    body: InspectionFollowUpStatusUpdateRequest,
+  ) =>
+    api.patch<InspectionFollowUpResponse>(
+      `/inspections/follow-ups/${followUpId}/status`,
+      toFollowUpStatusBody(body),
+    ),
+}

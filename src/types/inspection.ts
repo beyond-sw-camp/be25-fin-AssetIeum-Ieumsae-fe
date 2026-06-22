@@ -143,6 +143,7 @@ export interface InspectionFollowUpResponse {
   responseContent?: string | null
   memberId?: string | null
   memberName?: string | null
+  processorId?: string | number | null 
   processedBy?: string | number
   processorName?: string | null
   status?: InspectionFollowUpStatus

@@ -280,7 +280,7 @@ const columns: Column<IntangibleInspectionRow>[] = [
   { key: 'targetName', label: '조사 대상', width: '18%' },
   { key: 'executor', label: '조사 방식', width: '16%' },
   { key: 'status', label: '조사 상태', width: '16%' },
-  { key: 'inspectorName', label: '조사 수행자', width: '22%' },
+  { key: 'inspectorName', label: '조사 담당자', width: '22%' },
   { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
   { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
 ]
@@ -296,7 +296,7 @@ const statusFilterOptions: DropdownOption[] = [
 ]
 
 const inspectorFilterOptions = computed<DropdownOption[]>(() => [
-  { label: '- 조사 수행자 -', value: '' },
+  { label: '- 조사 담당자 -', value: '' },
   ...Array.from(new Set(inspections.value.map((item) => item.inspectorName))).map((name) => ({
     label: name,
     value: name,
