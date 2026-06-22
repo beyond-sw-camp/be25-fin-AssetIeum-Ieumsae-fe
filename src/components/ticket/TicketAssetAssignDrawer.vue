@@ -197,6 +197,7 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import { useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  AssetRequestAssignableItem,
   DropdownOption,
   IntangibleItem,
   RentalAssignableAsset,
@@ -221,6 +222,7 @@ interface ItemOption {
   name: string
   category: string
   availableCount: number
+  requestedItem?: boolean
 }
 
 interface TangibleItemAliases extends TangibleAssetItem {
@@ -249,6 +251,7 @@ const selectedCategory = ref('')
 const keyword = ref('')
 const returnDueDate = ref('')
 const selectedItemId = ref('')
+const assetRequestItemOptions = ref<ItemOption[]>([])
 const tangibleItems = ref<TangibleAssetItem[]>([])
 const intangibleItems = ref<IntangibleItem[]>([])
 const tangibleCategoryOptions = ref<DropdownOption[]>([])
@@ -267,6 +270,9 @@ const requestedQuantity = computed(() => {
 })
 
 const itemOptions = computed<ItemOption[]>(() => (
+  props.ticket?.ticketType === 'ASSET_REQUEST'
+    ? assetRequestItemOptions.value
+    :
   assetType.value === 'TANGIBLE'
     ? tangibleItems.value.map(toTangibleItemOption).filter((item) => item.itemId)
     : intangibleItems.value.map(toIntangibleItemOption).filter((item) => item.itemId)
@@ -291,7 +297,8 @@ const visibleItemOptions = computed(() => (
 ))
 
 const canSearchItems = computed(() => (
-  props.ticket?.ticketType === 'RENTAL'
+  props.ticket?.ticketType === 'ASSET_REQUEST'
+  || props.ticket?.ticketType === 'RENTAL'
   || Boolean(selectedCategory.value || keyword.value.trim())
 ))
 
@@ -427,6 +434,20 @@ async function loadItems(options: { selectSuggested?: boolean } = {}) {
       return
     }
 
+    if (props.ticket?.ticketType === 'ASSET_REQUEST') {
+      const response = await ticketApi.getAssetRequestAssignableItems(props.ticket.ticketId, {
+        assetType: assetType.value,
+        keyword: keyword.value.trim() || undefined,
+        page: 0,
+        size: 100,
+      })
+      assetRequestItemOptions.value = uniqueItemOptions([
+        ...(response.data.requestedItem ? [toAssetRequestItemOption(response.data.requestedItem)] : []),
+        ...response.data.items.content.map(toAssetRequestItemOption),
+      ]).filter((item) => item.itemId)
+      return
+    }
+
     if (assetType.value === 'TANGIBLE') {
       const response = await tangibleItemApi.getList({
         page: 0,
@@ -477,8 +498,11 @@ async function handleSubmit() {
   itemErrorMessage.value = ''
 
   try {
-    const assetIds = await loadAssignableAssetIds(item.itemId, requestedQuantity.value)
-    if (assetIds.length < requestedQuantity.value) {
+    const assetIds = props.ticket.ticketType === 'ASSET_REQUEST'
+      ? []
+      : await loadAssignableAssetIds(item.itemId, requestedQuantity.value)
+
+    if (props.ticket.ticketType !== 'ASSET_REQUEST' && assetIds.length < requestedQuantity.value) {
       showInsufficientQuantityToast(assetIds.length)
       return
     }
@@ -544,7 +568,7 @@ async function loadAssignableAssetIds(itemId: string, quantity: number) {
 
   return response.data.content
     .filter((asset) => isAvailableAsset(asset.status ?? asset.intangibleAssetStatus))
-    .filter((asset) => asset.assetItemId === itemId)
+    .filter((asset) => getIntangibleAssetItemId(asset as unknown as Record<string, unknown>) === itemId)
     .map((asset) => asset.assetId)
     .filter(Boolean)
     .slice(0, quantity)
@@ -555,6 +579,7 @@ function showInsufficientQuantityToast(availableCount: number) {
 }
 
 function clearItems() {
+  assetRequestItemOptions.value = []
   tangibleItems.value = []
   intangibleItems.value = []
   hasSearchedItems.value = false
@@ -610,6 +635,8 @@ function itemRowClass(item: ItemOption) {
 }
 
 function isRequestedItem(item: ItemOption) {
+  if (item.requestedItem) return true
+
   const requestedName = normalizeItemName(
     props.ticket?.requestedItemName
       ?? props.ticket?.requestedItemDetail
@@ -632,7 +659,7 @@ function normalizeItemName(value: string | null | undefined) {
 function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
   const aliases = item as TangibleItemAliases
   const itemId = String(item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? '')
-  const availableCount = numberValue(item.availableCount)
+  const availableCount = availableItemCount(item)
 
   return {
     itemId,
@@ -645,7 +672,7 @@ function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
 
 function toIntangibleItemOption(item: IntangibleItem): ItemOption {
   const itemId = String(item.assetItemId ?? item.itemId ?? item.id ?? '')
-  const availableCount = numberValue(item.availableCount)
+  const availableCount = availableItemCount(item)
 
   return {
     itemId,
@@ -656,19 +683,96 @@ function toIntangibleItemOption(item: IntangibleItem): ItemOption {
   }
 }
 
+function toAssetRequestItemOption(item: AssetRequestAssignableItem): ItemOption {
+  const itemId = String(
+    item.itemId
+      ?? item.assetItemId
+      ?? item.tangibleAssetItemId
+      ?? item.intangibleAssetItemId
+      ?? item.itemIdentifier
+      ?? '',
+  )
+
+  return {
+    itemId,
+    itemNo: String((item.itemIdentifier ?? item.itemNo ?? item.itemCode ?? itemId) || '-'),
+    name: String((item.productName ?? item.name ?? item.itemIdentifier ?? itemId) || '-'),
+    category: item.categoryName ?? '',
+    availableCount: availableItemCount(item),
+    requestedItem: item.requestedItem,
+  }
+}
+
+function uniqueItemOptions(items: ItemOption[]) {
+  const itemMap = new Map<string, ItemOption>()
+  items.forEach((item) => {
+    if (!item.itemId || itemMap.has(item.itemId)) return
+    itemMap.set(item.itemId, item)
+  })
+  return [...itemMap.values()]
+}
+
 function getTangibleAssetId(asset: TangibleAsset) {
   return String(asset.assetId ?? asset.id ?? asset.tangibleAssetId ?? '')
 }
 
 function getAssetItemId(asset: TangibleAsset) {
-  return String(asset.assetItemId ?? asset.tangibleItemId ?? asset.tangibleAssetItemId ?? '')
+  const assetRecord = asset as unknown as Record<string, unknown>
+  const assetItem = asRecord(assetRecord.assetItem)
+  const item = asRecord(assetRecord.item)
+  return String(
+    asset.assetItemId
+      ?? asset.tangibleItemId
+      ?? asset.tangibleAssetItemId
+      ?? assetRecord.itemId
+      ?? assetItem?.itemId
+      ?? assetItem?.assetItemId
+      ?? item?.itemId
+      ?? '',
+  )
+}
+
+function getIntangibleAssetItemId(asset: Record<string, unknown>) {
+  const assetItem = asRecord(asset.assetItem)
+  const item = asRecord(asset.item)
+  return String(
+    asset.assetItemId
+      ?? asset.itemId
+      ?? asset.intangibleItemId
+      ?? asset.intangibleAssetItemId
+      ?? assetItem?.itemId
+      ?? assetItem?.assetItemId
+      ?? item?.itemId
+      ?? '',
+  )
 }
 
 function isAvailableAsset(status: string | null | undefined) {
   return status === 'AVAILABLE'
 }
 
+function availableItemCount(item: object) {
+  const source = item as Record<string, unknown>
+  return numberValue(
+    source.availableCount
+      ?? source.availableAssetCount
+      ?? source.assetCount
+      ?? source.stockCount,
+  )
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
 function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
 }
 </script>

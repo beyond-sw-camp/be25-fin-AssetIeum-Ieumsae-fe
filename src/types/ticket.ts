@@ -111,6 +111,7 @@ export interface TicketDetail {
   orderedAt?: string | null
   receivedAt?: string | null
   registeredAt?: string | null
+  assignedAt?: string | null
   completedAt: string | null
   canceledAt: string | null
   requestedAt: string
@@ -334,6 +335,40 @@ export interface AssetAssignRequest {
   assetId: string
   memberId: string
   returnDueDate?: string
+}
+
+export interface AssetRequestAssignRequest {
+  assetType: AssetType
+  itemId: string
+}
+
+export interface AssetRequestAssignableItem {
+  assetType?: AssetType
+  itemId?: string | number
+  assetItemId?: string | number
+  tangibleAssetItemId?: string | number
+  intangibleAssetItemId?: string | number
+  categoryId?: string | number
+  categoryName?: string | null
+  productName?: string | null
+  name?: string | null
+  itemIdentifier?: string | number | null
+  itemNo?: string | null
+  itemCode?: string | null
+  manufacturerOrProvider?: string | null
+  modelName?: string | null
+  licenseType?: string | null
+  isStandard?: boolean | number | null
+  requestedItem?: boolean
+  availableCount?: number | string | null
+  availableAssetCount?: number | string | null
+  assetCount?: number | string | null
+  stockCount?: number | string | null
+}
+
+export interface AssetRequestAssignableItemsResponse {
+  requestedItem?: AssetRequestAssignableItem | null
+  items: PageResponse<AssetRequestAssignableItem>
 }
 
 export interface RentalAssignableAsset {

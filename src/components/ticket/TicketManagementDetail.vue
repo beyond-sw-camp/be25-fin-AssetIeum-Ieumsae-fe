@@ -1948,6 +1948,11 @@ async function handleAssetAssign(payload: AssetItemAssignPayload) {
         throw new Error('할당할 대여 자산을 확인할 수 없습니다.')
       }
       await ticketApi.assignRentalAsset(ticket.value.ticketId, { assetId })
+    } else if (ticket.value.ticketType === 'ASSET_REQUEST') {
+      await ticketApi.assignAssetRequestItem(ticket.value.ticketId, {
+        assetType: payload.assetType,
+        itemId: payload.assetItemId,
+      })
     } else {
       for (const assetId of payload.assetIds) {
         await ticketApi.assignAsset(ticket.value.ticketId, {

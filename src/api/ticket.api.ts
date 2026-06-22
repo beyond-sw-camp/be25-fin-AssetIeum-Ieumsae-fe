@@ -20,6 +20,8 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  AssetRequestAssignRequest,
+  AssetRequestAssignableItemsResponse,
   RentalAssignableAssetsResponse,
   RentalAssignRequest,
   RentalAssignResponse,
@@ -216,6 +218,14 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? null,
     purchaseRejectedAt: rawDetail.purchaseRejectedAt ?? null,
     purchaseRejectionReason: rawDetail.purchaseRejectionReason ?? null,
+    assignedAt: rawDetail.assignedAt
+      ?? pickString(rawDetail, ['assetAssignedAt', 'assignmentAt', 'allocatedAt'])
+      ?? pickString(requestDetail, ['assignedAt', 'assetAssignedAt', 'assignmentAt', 'allocatedAt'])
+      ?? null,
+    registeredAt: rawDetail.registeredAt
+      ?? pickString(rawDetail, ['assetRegisteredAt', 'registrationAt'])
+      ?? pickString(requestDetail, ['registeredAt', 'assetRegisteredAt', 'registrationAt'])
+      ?? null,
     completedAt: rawDetail.completedAt ?? null,
     canceledAt: rawDetail.canceledAt ?? (rawDetail.cancelledAt as string | null | undefined) ?? null,
     requestedAt: rawDetail.requestedAt ?? pickString(rawDetail, ['createdAt']) ?? '',
@@ -322,6 +332,18 @@ export const ticketApi = {
   /** 자산 할당 */
   assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
+
+  getAssetRequestAssignableItems: (
+    ticketId: string,
+    params?: { assetType?: string; categoryId?: string; keyword?: string; page?: number; size?: number },
+  ) =>
+    api.get<AssetRequestAssignableItemsResponse>(
+      `/tickets/asset-requests/${ticketId}/assignable-items`,
+      compactParams(params),
+    ),
+
+  assignAssetRequestItem: (ticketId: string, body: AssetRequestAssignRequest) =>
+    api.post(`/tickets/asset-requests/${ticketId}/assign`, body),
 
   getRentalAssignableAssets: (ticketId: string, params?: { page?: number; size?: number; keyword?: string }) =>
     api.get<RentalAssignableAssetsResponse>(

@@ -458,7 +458,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         ...commonItems,
         { label: '발주 일시', value: formatDate(ticket.value.orderedAt, 'YYYY-MM-DD HH:mm') },
         { label: '납품 확인일', value: formatDate(ticket.value.receivedAt, 'YYYY-MM-DD HH:mm') },
-        processingCompletedItem(ticket.value, '등록 일시', ticket.value.registeredAt),
+        assetAssignmentOrRegistrationItem(ticket.value),
       ]
     case 'RENTAL':
       return [
@@ -509,7 +509,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
             'YYYY-MM-DD HH:mm',
           ),
         },
-        { label: '자산 등록 일시', value: formatDate(ticket.value.registeredAt, 'YYYY-MM-DD HH:mm') },
+        assetAssignmentOrRegistrationItem(ticket.value),
         processingCompletedItem(ticket.value),
       ]
   }
@@ -667,6 +667,19 @@ function processingCompletedItem(
     : {
         label: pendingLabel,
         value: formatDate(pendingValue, 'YYYY-MM-DD HH:mm'),
+      }
+}
+
+function assetAssignmentOrRegistrationItem(detail: TicketDetail): DetailItem {
+  const assignedAt = detail.assignedAt
+  return assignedAt
+    ? {
+        label: '자산 할당 일시',
+        value: formatDate(assignedAt, 'YYYY-MM-DD HH:mm'),
+      }
+    : {
+        label: '자산 등록 일시',
+        value: formatDate(detail.registeredAt, 'YYYY-MM-DD HH:mm'),
       }
 }
 
