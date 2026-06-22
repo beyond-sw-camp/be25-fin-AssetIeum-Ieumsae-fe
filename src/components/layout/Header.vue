@@ -22,10 +22,7 @@
           <Moon v-else :size="18" />
         </button>
 
-        <button class="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border hover:bg-surface-secondary text-text-sub transition-colors duration-300">
-          <Bell :size="18" />
-          <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">5</span>
-        </button>
+        <NotificationPopover />
       </div>
     </div>
   </header>
@@ -33,7 +30,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Moon, Bell, Sun } from 'lucide-vue-next'
+import { Moon, Sun } from 'lucide-vue-next'
+
+import NotificationPopover from '@/components/notification/NotificationPopover.vue'
 
 const isDark = ref(false)
 

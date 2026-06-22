@@ -33,6 +33,54 @@
       </div>
     </section>
 
+    <section class="card mx-0 mt-4 max-w-3xl p-6">
+      <div class="mb-5 flex min-w-0 items-start gap-3">
+        <div
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+          aria-hidden="true"
+        >
+          <BellRing :size="20" />
+        </div>
+        <div>
+          <h2 class="text-base font-semibold text-text-main">알림 설정</h2>
+          <p class="mt-1 text-sm text-text-sub">
+            받고 싶은 알림 유형과 보조 수신 방식을 선택합니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <label
+          v-for="option in notificationPreferenceOptions"
+          :key="option.key"
+          class="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-secondary"
+        >
+          <span>
+            <span class="block text-sm font-semibold text-text-main">{{ option.label }}</span>
+            <span class="mt-1 block text-xs leading-5 text-text-sub">{{ option.description }}</span>
+          </span>
+          <input
+            v-model="notificationPreferences[option.key]"
+            type="checkbox"
+            class="mt-1 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
+          />
+        </label>
+      </div>
+
+      <div
+        v-if="notificationPreferenceMessage"
+        class="mt-4 rounded-xl border border-success/30 bg-success/5 px-4 py-3 text-sm font-semibold text-success"
+      >
+        {{ notificationPreferenceMessage }}
+      </div>
+
+      <div class="mt-5 flex justify-end">
+        <Button variant="outline" @click="saveNotificationPreferences">
+          저장
+        </Button>
+      </div>
+    </section>
+
     <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 max-w-3xl p-6">
       <div class="mb-5 flex min-w-0 items-start gap-3">
         <div
@@ -143,13 +191,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { KeyRound, Settings2 } from 'lucide-vue-next'
+import { BellRing, KeyRound, Settings2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { ApiError, purchaseApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import { usePermission } from '@/composables/usePermission'
 import type {
+  NotificationPreferences,
   PurchasePolicy,
   PurchasePolicyMode,
 } from '@/types'
@@ -161,8 +210,69 @@ interface PurchasePolicyForm {
   overPercentageLimit: number
 }
 
+type NotificationPreferenceKey = keyof NotificationPreferences
+
 const router = useRouter()
 const { canManagePurchasePolicy } = usePermission()
+
+const NOTIFICATION_PREFERENCES_KEY = 'assetIeumNotificationPreferences'
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  system: true,
+  ticketStatus: true,
+  assetReturnDue: true,
+  intangibleExpiration: true,
+  inspection: true,
+  budgetThreshold: true,
+  email: false,
+}
+
+const notificationPreferenceOptions: Array<{
+  key: NotificationPreferenceKey
+  label: string
+  description: string
+}> = [
+  {
+    key: 'system',
+    label: '서비스 공지',
+    description: '점검, 정책 변경 등 시스템에서 보내는 안내를 받습니다.',
+  },
+  {
+    key: 'ticketStatus',
+    label: '티켓 상태 변경',
+    description: '승인, 반려, 처리 완료 등 내 요청의 상태 변화를 받습니다.',
+  },
+  {
+    key: 'assetReturnDue',
+    label: '자산 반납 예정',
+    description: '대여 자산의 반납 예정일이 가까워지면 알림을 받습니다.',
+  },
+  {
+    key: 'intangibleExpiration',
+    label: '무형자산 만료 예정',
+    description: '라이선스와 구독 만료 예정 알림을 받습니다.',
+  },
+  {
+    key: 'inspection',
+    label: '전수조사',
+    description: '전수조사 시작과 응답 요청 알림을 받습니다.',
+  },
+  {
+    key: 'budgetThreshold',
+    label: '예산 기준',
+    description: '예산 사용률과 한도 관련 알림을 받습니다.',
+  },
+  {
+    key: 'email',
+    label: '이메일 보조 수신',
+    description: '중요 알림을 이메일로도 함께 받습니다.',
+  },
+]
+
+const notificationPreferences = reactive<NotificationPreferences>({
+  ...defaultNotificationPreferences,
+})
+const notificationPreferenceMessage = ref('')
 
 const purchaseModeOptions: Array<{
   label: string
@@ -207,10 +317,38 @@ const currentPolicySummary = computed(() => {
 })
 
 onMounted(() => {
+  loadNotificationPreferences()
+
   if (canManagePurchasePolicy.value) {
     void loadPolicy()
   }
 })
+
+function loadNotificationPreferences() {
+  const saved = localStorage.getItem(NOTIFICATION_PREFERENCES_KEY)
+  if (!saved) return
+
+  try {
+    Object.assign(notificationPreferences, {
+      ...defaultNotificationPreferences,
+      ...JSON.parse(saved),
+    })
+  } catch {
+    Object.assign(notificationPreferences, defaultNotificationPreferences)
+  }
+}
+
+function saveNotificationPreferences() {
+  localStorage.setItem(
+    NOTIFICATION_PREFERENCES_KEY,
+    JSON.stringify(notificationPreferences),
+  )
+  notificationPreferenceMessage.value = '알림 설정이 저장되었습니다.'
+
+  window.setTimeout(() => {
+    notificationPreferenceMessage.value = ''
+  }, 3000)
+}
 
 function setPurchaseMode(value: PurchasePolicyMode) {
   policyForm.purchaseMode = value
