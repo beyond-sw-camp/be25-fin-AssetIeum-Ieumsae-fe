@@ -245,6 +245,14 @@ const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
 })
 
 async function fetchTickets() {
+  const currentMemberId = authStore.user?.memberId
+  if (!currentMemberId) {
+    tickets.value = []
+    isLoading.value = false
+    errorMessage.value = '현재 사용자 정보를 확인할 수 없어 나의 요청 목록을 불러올 수 없습니다.'
+    return
+  }
+
   isLoading.value = true
   errorMessage.value = ''
 
@@ -257,9 +265,9 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
+      requesterId: currentMemberId,
     })
 
-    const currentMemberId = authStore.user?.memberId
     const hasRequesterScope = response.data.content.some((ticket) => ticket.requesterId !== undefined)
     tickets.value = currentMemberId && hasRequesterScope
       ? response.data.content.filter((ticket) => String(ticket.requesterId) === currentMemberId)
