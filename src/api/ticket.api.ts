@@ -127,6 +127,8 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
     ticketNo: String(rawDetail.ticketNo ?? ''),
     ticketType: rawDetail.ticketType ?? 'ASSET_REQUEST',
     status: normalizeTicketStatus(rawStatus),
+    linkedPurchasePlanId: pickString(rawDetail, ['linkedPurchasePlanId', 'purchasePlanId']) ?? null,
+    linkedPurchasePlanNo: pickString(rawDetail, ['linkedPurchasePlanNo', 'purchasePlanNo', 'planNo']) ?? null,
     requesterId: rawDetail.requesterId ?? pickId(requester, ['memberId', 'employeeId', 'id']) ?? '',
     requesterName: rawDetail.requesterName
       ?? pickString(rawDetail, ['requestMemberName', 'employeeName'])

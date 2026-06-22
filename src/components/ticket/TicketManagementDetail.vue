@@ -846,7 +846,7 @@ const isAssetCollectTicket = computed(() => (
 const canAssignAsset = computed(() => {
   if (!ticket.value || !ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)) return false
 
-  return ticketActionAllowed('canAssignAsset', Boolean(
+  const fallback = Boolean(
     isAssetTeamRole.value
     && (
       ticket.value.ticketType === 'RENTAL'
@@ -865,7 +865,11 @@ const canAssignAsset = computed(() => {
         )
       )
     )
-  ))
+  )
+
+  return ticket.value.ticketType === 'ASSET_REQUEST'
+    ? fallback
+    : ticketActionAllowed('canAssignAsset', fallback)
 })
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
@@ -1164,8 +1168,15 @@ const linkedPurchasePlanId = computed(() => {
 
   return detail.linkedPurchasePlanId
     ?? detail.purchasePlanId
-    ?? detail.purchaseId
     ?? ''
+})
+const linkedPurchasePlanDisplayName = computed(() => {
+  const detail = ticket.value
+  if (!detail) return ''
+
+  return detail.linkedPurchasePlanNo
+    ?? detail.purchasePlanNo
+    ?? linkedPurchasePlanId.value
 })
 const ticketInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
@@ -1187,8 +1198,8 @@ const processingInfoItems = computed<DetailItem[]>(() => {
 
   const purchasePlanItem: DetailItem = linkedPurchasePlanId.value
     ? {
-        label: '연결된 구매 id',
-        value: linkedPurchasePlanId.value,
+        label: '연결된 구매 계획',
+        value: linkedPurchasePlanDisplayName.value,
         linkLabel: '구매 계획으로 가기',
         linkTo: {
           name: 'Purchase',
@@ -1196,8 +1207,8 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         },
       }
     : {
-        label: '연결된 구매 id',
-        value: '',
+        label: '연결된 구매 계획',
+        value: '-',
       }
 
   return [
