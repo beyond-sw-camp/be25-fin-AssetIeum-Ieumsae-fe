@@ -177,9 +177,9 @@
     />
 
     <IntangibleInspectionDetail
-      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
+      :assigned-targets="selectedAssignedTargets"
       @close="selectedInspection = null"
     />
   </div>
@@ -200,6 +200,7 @@ import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import type { DropdownOption } from '@/types'
 import type {
+  EmployeeInspectionTargetResponse,
   InspectionSearchResponse,
   InspectionStatisticsResponse,
   InspectionStatus,
@@ -243,6 +244,7 @@ const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
 const { canManageInspection } = usePermission()
 
 const inspections = ref<IntangibleInspectionRow[]>([])
+const employeeTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const statistics = ref<InspectionStatisticsResponse>({})
 const selectedInspection = ref<IntangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
@@ -265,6 +267,13 @@ const appliedFilters = reactive({
 
 const canRegisterInspection = computed(() => (
   canManageInspection.value
+))
+const selectedAssignedTargets = computed(() => (
+  selectedInspection.value
+    ? employeeTargets.value.filter((target) => (
+      String(target.inspectionId) === selectedInspection.value?.inspectionId
+    ))
+    : []
 ))
 
 const columns: Column<IntangibleInspectionRow>[] = [
@@ -434,7 +443,6 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: IntangibleInspectionRow) {
-  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -570,12 +578,14 @@ async function loadInspectionData() {
     if (!canManageInspection.value) {
       const response = await intangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
       const content = Array.isArray(response.data.content) ? response.data.content : []
+      employeeTargets.value = content
       inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
       statistics.value = {}
       currentPage.value = 0
       return
     }
 
+    employeeTargets.value = []
     const [listResult, statisticsResult] = await Promise.allSettled([
       intangibleInspectionApi.getList({ page: 0, size: 1000 }),
       intangibleInspectionApi.getStatistics(),

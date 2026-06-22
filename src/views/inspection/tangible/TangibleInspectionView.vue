@@ -177,9 +177,9 @@
     />
 
     <TangibleInspectionDetail
-      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
+      :assigned-targets="selectedAssignedTargets"
       @close="selectedInspection = null"
     />
   </div>
@@ -201,6 +201,7 @@ import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
+  EmployeeInspectionTargetResponse,
   InspectionSearchResponse,
   InspectionStatus,
   InspectorType,
@@ -244,6 +245,7 @@ const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
 const { canManageInspection } = usePermission()
 
 const inspections = ref<TangibleInspectionRow[]>([])
+const employeeTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const selectedInspection = ref<TangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
 const isLoading = ref(false)
@@ -265,6 +267,13 @@ const appliedFilters = reactive({
 
 const canRegisterInspection = computed(() => (
   canManageInspection.value
+))
+const selectedAssignedTargets = computed(() => (
+  selectedInspection.value
+    ? employeeTargets.value.filter((target) => (
+      String(target.inspectionId) === selectedInspection.value?.inspectionId
+    ))
+    : []
 ))
 
 const columns: Column<TangibleInspectionRow>[] = [
@@ -430,7 +439,6 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: TangibleInspectionRow) {
-  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -557,11 +565,13 @@ async function loadInspectionData() {
     if (!canManageInspection.value) {
       const response = await tangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
       const content = Array.isArray(response.data.content) ? response.data.content : []
+      employeeTargets.value = content
       inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
       currentPage.value = 0
       return
     }
 
+    employeeTargets.value = []
     const response = await tangibleInspectionApi.getList({ page: 0, size: 1000 })
     const content = response.data.content
     const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
