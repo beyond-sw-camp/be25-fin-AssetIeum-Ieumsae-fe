@@ -1,8 +1,11 @@
 <template>
   <button
     type="button"
-    class="rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
-    @click="emit('click')"
+    :class="[
+      'rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition',
+      interactive ? 'hover:border-primary/40 hover:shadow-md' : 'cursor-default',
+    ]"
+    @click="interactive && emit('click')"
   >
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-sm font-bold text-text-main">{{ title }}</h2>
@@ -45,8 +48,10 @@ export interface DashboardSegment {
 withDefaults(defineProps<{
   title?: string
   segments: DashboardSegment[]
+  interactive?: boolean
 }>(), {
   title: '보유 자산 현황',
+  interactive: true,
 })
 
 const emit = defineEmits<{

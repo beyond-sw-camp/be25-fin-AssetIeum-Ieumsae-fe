@@ -1,5 +1,11 @@
 <template>
-  <div class="rounded-xl border border-border bg-surface p-5 shadow-sm">
+  <div
+    :class="[
+      'rounded-xl border border-border bg-surface p-5 shadow-sm',
+      interactive && 'cursor-pointer transition hover:border-primary/40 hover:shadow-md',
+    ]"
+    @click="interactive && emit('click')"
+  >
     <h2 class="mb-5 text-base font-bold text-text-main">부서 예산 현황</h2>
 
     <div class="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
@@ -78,6 +84,11 @@ import type { DepartmentBudgetDetail } from '@/types'
 
 const props = defineProps<{
   summary: DepartmentBudgetDetail
+  interactive?: boolean
+}>()
+
+const emit = defineEmits<{
+  click: []
 }>()
 
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`

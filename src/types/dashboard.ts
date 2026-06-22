@@ -19,6 +19,38 @@ export interface ExpiringAssetSummary {
   intangibleAssetCount: number
 }
 
+export type OwnedAssetDetailStatus = 'UNASSIGNED' | 'RENTAL_SCHEDULED' | 'RENTED' | 'OVERDUE'
+
+export interface OwnedAssetDetail {
+  assetId: string
+  assetName: string
+  categoryName?: string | null
+  assetCode?: string | null
+  warrantyExpiredAt?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
+  renterId?: string | null
+  renterName?: string | null
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
+  overdueDays?: number | null
+}
+
+export interface ExpiringAssetDetail {
+  assetType: 'TANGIBLE' | 'INTANGIBLE'
+  assetId: string
+  assetName: string
+  departmentId?: string | null
+  departmentName?: string | null
+  userId?: string | null
+  userName?: string | null
+  expiredAt: string
+  remainingDays: number
+  assetCode: string
+  manufacturer?: string | null
+  issuer?: string | null
+}
+
 export interface AssetDemand {
   assetType: 'TANGIBLE' | 'INTANGIBLE'
   itemId: string
@@ -74,6 +106,24 @@ export interface DepartmentBudgetDetail {
   remainingAmount: number
   usageRate: number
   categoryUsages: BudgetCategoryUsage[]
+}
+
+export type BudgetHistoryType = 'HOLD_INCREASE' | 'HOLD_DECREASE' | 'USE_INCREASE' | 'RECOVERY' | 'TRANSFER'
+
+export interface BudgetLedgerItem {
+  historyId: string
+  date: string
+  departmentId?: string | null
+  departmentName: string
+  type: string
+  historyType: BudgetHistoryType
+  usage: string
+  amount: number
+  balance: number
+  ticketId?: string | null
+  ticketNo?: string | null
+  purchasePlanId?: string | null
+  purchasePlanNo?: string | null
 }
 
 export interface HrLifecycleEvent {
