@@ -41,10 +41,14 @@ export interface AuditLog extends Record<string, unknown> {
   memberName?: string | null
   memberNo?: string | null
   action: AuditLogAction
+  targetPath?: string | null
   subjectType: LogSubjectType
   subjectId: string | null
   beforeValue: string | null
   afterValue: string | null
+  detail?: string | null
+  description?: string | null
+  actionDetail?: string | null
   createdAt: string
 }
 
@@ -57,7 +61,9 @@ export interface ActivityLog extends Record<string, unknown> {
   memberName?: string | null
   memberNo?: string | null
   action: ActivityLogAction
+  targetPath?: string | null
   subjectType: LogSubjectType
   subjectId: string | null
+  detail?: string | null
   createdAt: string
 }
