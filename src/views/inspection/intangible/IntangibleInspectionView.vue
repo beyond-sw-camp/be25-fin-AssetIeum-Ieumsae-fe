@@ -238,7 +238,7 @@ const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
   COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  CLOSED: '조사 종료',
 }
 
 const { canManageInspection } = usePermission()
@@ -504,6 +504,8 @@ function resolveInspectionStatusByPeriod(
   endDate: string,
   fallbackStatus: IntangibleInspectionStatus,
 ): IntangibleInspectionStatus {
+  if (fallbackStatus === 'CLOSED') return 'CLOSED'
+
   const today = startOfDay(new Date())
   const start = dateTimeValue(startDate)
   const end = dateTimeValue(endDate)

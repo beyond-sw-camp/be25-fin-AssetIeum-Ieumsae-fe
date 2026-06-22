@@ -51,6 +51,7 @@ const {
   canViewHrWorkflow,
   canViewMyTickets,
   canViewInspection,
+  canManageInspection,
   canViewLogs,
   canManagePlatform,
 } = permission
@@ -107,7 +108,7 @@ const navItems = computed(() => {
       children: [
         { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canViewInspection.value },
         { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canViewInspection.value },
-        { name: 'follow-ups', to: '/inspections/follow-ups/my', label: '내 후속처리', show: canViewInspection.value },
+        { name: 'follow-ups', to: '/inspections/follow-ups/my', label: '내 후속처리', show: canManageInspection.value },
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },

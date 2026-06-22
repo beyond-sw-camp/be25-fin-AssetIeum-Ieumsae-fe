@@ -139,15 +139,6 @@
           />
         </section>
 
-        <InspectionFollowUpPanel
-          v-else
-          :rows="followUpRows"
-          :is-loading="isFollowUpLoading"
-          :submitting-id="submittingFollowUpId"
-          @refresh="loadFollowUpData"
-          @update-status="submitFollowUpStatus"
-        />
-
         <p
           v-if="errorMessage"
           class="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
@@ -165,9 +156,6 @@ import { computed, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import InspectionFollowUpPanel, {
-  type InspectionFollowUpPanelRow,
-} from '@/components/inspection/common/InspectionFollowUpPanel.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
@@ -244,14 +232,9 @@ const allTabs = [
   { label: '개요', value: 'overview' },
   { label: '결과', value: 'results' },
   { label: '미점검 자산', value: 'uninspected' },
-  { label: '후속 처리', value: 'followUp' },
 ] as const
 type InspectionDetailTab = (typeof allTabs)[number]['value']
-const tabs = computed(() => (
-  canManageInspection.value
-    ? allTabs
-    : allTabs.filter((tab) => tab.value !== 'followUp')
-))
+const tabs = allTabs
 
 const resultColumns: Column<ResultRow>[] = [
   { key: 'productName', label: '제품명', width: '20%' },
@@ -282,9 +265,7 @@ const members = ref<Member[]>([])
 const assetMemberNames = ref<Map<string, string[]>>(new Map())
 const followUps = ref<InspectionFollowUpResponse[]>([])
 const isLoading = ref(false)
-const isFollowUpLoading = ref(false)
 const errorMessage = ref('')
-const submittingFollowUpId = ref('')
 const inspectionApi = computed(() => (
   props.assetType === 'intangible'
     ? intangibleInspectionApi
@@ -337,7 +318,7 @@ const respondedCount = computed(() => (
 
 const followUpRequiredCount = computed(() => followUpRows.value.length)
 
-const followUpRows = computed<InspectionFollowUpPanelRow[]>(() => {
+const followUpRows = computed(() => {
   const apiRows = followUps.value.map(toFollowUpRow)
   if (apiRows.length > 0) return apiRows
 
@@ -420,7 +401,7 @@ function followUpStatusValue(value: unknown): InspectionFollowUpStatus {
   return 'PENDING'
 }
 
-function toFollowUpRow(item: InspectionFollowUpResponse, index: number): InspectionFollowUpPanelRow {
+function toFollowUpRow(item: InspectionFollowUpResponse, index: number) {
   const followUpId = textValue(item.inspectionFollowUpId, item.followUpId)
   const inspectionResultId = textValue(item.inspectionResultId)
 
@@ -648,8 +629,6 @@ function addAssetMemberName(
 }
 
 async function loadFollowUpData() {
-  isFollowUpLoading.value = true
-
   try {
     const followUpIds = [
       ...new Set(
@@ -670,31 +649,6 @@ async function loadFollowUpData() {
     followUps.value = responses.map((response) => response.data)
   } catch {
     followUps.value = []
-  } finally {
-    isFollowUpLoading.value = false
-  }
-}
-
-async function submitFollowUpStatus(
-  row: InspectionFollowUpPanelRow,
-  draft: { status: InspectionFollowUpStatus; actionDetail: string },
-) {
-  if (!row.followUpId) return
-
-  submittingFollowUpId.value = row.followUpId
-  errorMessage.value = ''
-
-  try {
-    await inspectionApi.value.updateFollowUpStatus(row.followUpId, {
-      status: draft.status,
-      actionDetail: draft.actionDetail,
-    })
-    await loadFollowUpData()
-    emit('refresh')
-  } catch {
-    errorMessage.value = '후속 처리 상태를 변경하지 못했습니다.'
-  } finally {
-    submittingFollowUpId.value = ''
   }
 }
 </script>

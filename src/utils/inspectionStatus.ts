@@ -28,10 +28,10 @@ export function resolveInspectionStatus({
   endDate,
   fallbackStatus,
   unrespondedCount,
-  followUpCount,
-  completedFollowUpCount,
   today = new Date(),
 }: ResolveInspectionStatusOptions): InspectionStatus {
+  if (fallbackStatus === 'CLOSED') return 'CLOSED'
+
   const start = parseDate(startDate)
   const end = parseDate(endDate)
 
@@ -51,11 +51,5 @@ export function resolveInspectionStatus({
   }
 
   if (unrespondedCount > 0) return 'IN_PROGRESS'
-  if (fallbackStatus === 'CLOSED') return 'CLOSED'
-
-  const requiredCount = followUpCount ?? 0
-  if (requiredCount === 0) return 'CLOSED'
-
-  if (completedFollowUpCount === undefined) return 'COMPLETED'
-  return completedFollowUpCount >= requiredCount ? 'CLOSED' : 'COMPLETED'
+  return 'COMPLETED'
 }

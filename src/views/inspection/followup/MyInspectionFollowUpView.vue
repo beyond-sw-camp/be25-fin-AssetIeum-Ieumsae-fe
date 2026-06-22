@@ -66,15 +66,14 @@ import Input from '@/components/common/Input.vue'
 import InspectionFollowUpPanel, {
   type InspectionFollowUpPanelRow,
 } from '@/components/inspection/common/InspectionFollowUpPanel.vue'
-import { inspectionFollowUpApi, } from '@/api'
-import { tangibleInspectionApi, intangibleInspectionApi } from '@/api/inspection.api'
+import { inspectionFollowUpApi } from '@/api'
 import { ApiError } from '@/api/client'
+import { useAuthStore } from '@/stores'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionFollowUpResponse,
   InspectionFollowUpStatus,
 } from '@/types/inspection'
-import { useAuthStore } from '@/stores'
 
 const followUps = ref<InspectionFollowUpResponse[]>([])
 const statusFilter = ref('')
@@ -133,64 +132,13 @@ async function loadFollowUps() {
   loadError.value = ''
 
   try {
-    const inspectionApis = [tangibleInspectionApi, intangibleInspectionApi]
-
-    const listResults = await Promise.allSettled(
-      inspectionApis.map((inspectionApi) =>
-        inspectionApi.getList({ page: 0, size: 1000 }),
-      ),
-    )
-
-    const detailRequests = listResults.flatMap((result, index) => {
-      if (result.status !== 'fulfilled') return []
-
-      const inspectionApi = inspectionApis[index]
-
-      return result.value.data.content
-        .map((inspection) => textValue(inspection.inspectionId))
-        .filter(Boolean)
-        .map((inspectionId) => inspectionApi.getDetail(inspectionId))
-    })
-
-    const detailResults = await Promise.allSettled(detailRequests)
-
-    const followUpIds = [
-      ...new Set(
-        detailResults.flatMap((result) => {
-          if (result.status !== 'fulfilled') return []
-
-          return result.value.data.inspectionResults
-            .map((item) => textValue(item.followUpId, item.inspectionFollowUpId))
-            .filter(Boolean)
-        }),
-      ),
-    ]
-
-    const followUpResults = await Promise.allSettled(
-      followUpIds.map((followUpId) => inspectionFollowUpApi.getFollowUp(followUpId)),
-    )
-
+    const response = await inspectionFollowUpApi.getMyFollowUps({ page: 0, size: 1000 })
     const currentMemberId = textValue(authStore.user?.memberId)
-    const currentUserName = textValue(authStore.user?.name)
-
-    followUps.value = followUpResults.flatMap((result) => {
-      if (result.status !== 'fulfilled') return []
-
-      const item = result.value.data
-
-      const processorId = textValue(item.processorId, item.processedBy)
-      const processorName = textValue(item.processorName)
-
-      const matchesProcessor =
-        (currentMemberId && processorId === currentMemberId)
-        || (!processorId && currentUserName && processorName === currentUserName)
-
-      if (!matchesProcessor) {
-        return []
-      }
-
-      return [item]
-    })
+    followUps.value = currentMemberId
+      ? response.data.content.filter((item) => (
+        textValue(item.processorId) === currentMemberId
+      ))
+      : []
   } catch (error) {
     followUps.value = []
     loadError.value = error instanceof ApiError
@@ -200,7 +148,6 @@ async function loadFollowUps() {
     isLoading.value = false
   }
 }
-
 
 async function submitFollowUpStatus(
   row: InspectionFollowUpPanelRow,
