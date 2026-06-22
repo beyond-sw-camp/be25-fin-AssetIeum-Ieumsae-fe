@@ -1,6 +1,14 @@
 <template>
   <article class="rounded-lg border border-border bg-surface p-5 shadow-sm">
-    <h2 class="mb-5 text-lg font-bold text-text-main">라이프 사이클 진행 현황</h2>
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-lg font-bold text-text-main">라이프 사이클 진행 현황</h2>
+      <div class="flex flex-wrap gap-2 text-xs font-semibold text-text-sub">
+        <span class="rounded-full bg-surface-secondary px-2.5 py-1">전체 {{ statistics.totalCount }}건</span>
+        <span class="rounded-full bg-warning/10 px-2.5 py-1 text-warning">대기 {{ statistics.pendingCount }}건</span>
+        <span class="rounded-full bg-primary/10 px-2.5 py-1 text-primary">진행 {{ statistics.inProgressCount }}건</span>
+        <span class="rounded-full bg-success/10 px-2.5 py-1 text-success">완료 {{ statistics.completedCount }}건</span>
+      </div>
+    </div>
 
     <div class="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)]">
       <section class="rounded-lg border border-border p-4">
@@ -114,13 +122,14 @@ import { computed, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, LogIn, LogOut, MoveRight, Pause, RotateCcw } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
-import type { HrLifecycleEvent } from '@/types'
+import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
 
 const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
 const PAGE_SIZE = 5
 
 const props = defineProps<{
   events: HrLifecycleEvent[]
+  statistics: HrEventStatistics
 }>()
 
 const selectedTypes = ref<string[]>([...EVENT_TYPES])
