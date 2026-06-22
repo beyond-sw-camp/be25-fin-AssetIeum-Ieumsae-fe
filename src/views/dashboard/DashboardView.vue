@@ -332,6 +332,8 @@ async function loadDashboardData() {
         dashboardApi.getDepartmentHrStatistics(departmentId),
       ])
       departmentBudget.value = budgetResponse.data
+
+      const eventsResponse = await dashboardApi.getDepartmentHrEvents({ departmentId, page: 0, size: 1000 })
       departmentHrEvents.value = eventsResponse.data.content
       return
     }
