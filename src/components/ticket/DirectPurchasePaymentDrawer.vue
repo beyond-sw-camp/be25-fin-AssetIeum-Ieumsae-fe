@@ -7,7 +7,7 @@
     <template #header>
       <div class="flex items-center gap-2">
         <ReceiptText :size="20" class="text-orange-500" />
-        <h2 class="text-lg font-bold text-text-main">결제 금액 입력 및 영수증 업로드</h2>
+        <h2 class="text-lg font-bold text-text-main">결제 금액 입력</h2>
       </div>
     </template>
 
@@ -62,10 +62,116 @@
             </div>
           </div>
 
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                구매 일시
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model="purchaseDate"
+                type="datetime-local"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                구매처
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model.trim="purchaseVendor"
+                type="text"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+          </div>
+
+          <div v-if="isTangibleAsset" class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                시리얼 번호
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model.trim="serialNumber"
+                type="text"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                사용 위치
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model.trim="location"
+                type="text"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="text-sm font-semibold text-text-main">
+                보증 만료 일시
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model="warrantyExpiredAt"
+                type="datetime-local"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+          </div>
+
+          <div v-else class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">라이선스 코드</span>
+              <input
+                v-model.trim="licenseCode"
+                type="text"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">사용 좌석 수</span>
+              <input
+                v-model="seatCount"
+                type="number"
+                min="1"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">사용 시작 일시</span>
+              <input
+                v-model="startedAt"
+                type="datetime-local"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">만료 일시</span>
+              <input
+                v-model="expiredAt"
+                type="datetime-local"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+          </div>
+
           <div>
             <p class="text-sm font-semibold text-text-main">
               증빙 서류 업로드
-              <span class="text-orange-500">*</span>
+              <span class="text-xs font-semibold text-text-muted">(선택)</span>
             </p>
             <input
               ref="fileInput"
@@ -88,7 +194,7 @@
                 파일을 마우스로 끌어오거나 클릭하세요
               </span>
               <span class="mt-1 text-xs text-text-muted">
-                영수증, 카드 승인 내역 등 (PDF, JPG, PNG)
+                영수증, 카드 승인 내역 등 선택 업로드 (PDF, JPG, PNG)
               </span>
             </button>
 
@@ -153,8 +259,12 @@ import { ReceiptText, UploadCloud, X } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
-import type { TicketDetail } from '@/types'
+import type { DirectPurchasePaymentRequest, TicketDetail } from '@/types'
 import { formatDate } from '@/utils/labels'
+
+type DirectPurchasePaymentPayload = DirectPurchasePaymentRequest & {
+  file: File | null
+}
 
 interface Props {
   isOpen: boolean
@@ -170,10 +280,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: []
-  submit: [payload: {
-    actualPrice: number
-    file: File
-  }]
+  submit: [payload: DirectPurchasePaymentPayload]
 }>()
 
 const ACCEPTED_FILE_TYPES = new Set([
@@ -185,6 +292,15 @@ const ACCEPTED_FILE_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png']
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const actualPrice = ref('')
+const purchaseDate = ref('')
+const purchaseVendor = ref('')
+const serialNumber = ref('')
+const location = ref('')
+const warrantyExpiredAt = ref('')
+const licenseCode = ref('')
+const seatCount = ref('')
+const startedAt = ref('')
+const expiredAt = ref('')
 const selectedFile = ref<File | null>(null)
 const validationErrorMessage = ref('')
 
@@ -199,6 +315,8 @@ const formattedActualPrice = computed(() => (
   actualPrice.value.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 ))
 
+const isTangibleAsset = computed(() => props.ticket.assetType !== 'INTANGIBLE')
+
 const formattedFileSize = computed(() => {
   if (!selectedFile.value) return ''
   const kilobytes = selectedFile.value.size / 1024
@@ -209,7 +327,6 @@ const formattedFileSize = computed(() => {
 
 const canSubmit = computed(() => (
   Number(actualPrice.value) > 0
-  && selectedFile.value !== null
   && !props.submitting
 ))
 
@@ -221,6 +338,15 @@ function resetForm() {
   actualPrice.value = props.ticket.actualAmount
     ? String(props.ticket.actualAmount)
     : ''
+  purchaseDate.value = toDateTimeLocalInputValue(props.ticket.purchaseDate) || toDateTimeLocalInputValue(new Date().toISOString())
+  purchaseVendor.value = props.ticket.purchaseVendor ?? ''
+  serialNumber.value = props.ticket.serialNumber ?? ''
+  location.value = props.ticket.location ?? ''
+  warrantyExpiredAt.value = toDateTimeLocalInputValue(props.ticket.warrantyExpiredAt ?? props.ticket.warrantyEndDate)
+  licenseCode.value = props.ticket.licenseCode ?? ''
+  seatCount.value = props.ticket.seatCount ? String(props.ticket.seatCount) : ''
+  startedAt.value = toDateTimeLocalInputValue(props.ticket.startedAt)
+  expiredAt.value = toDateTimeLocalInputValue(props.ticket.expirationDate)
   selectedFile.value = null
   validationErrorMessage.value = ''
 
@@ -280,16 +406,75 @@ function handleSubmit() {
     validationErrorMessage.value = '실제 결제 금액을 입력해주세요.'
     return
   }
-  if (!selectedFile.value) {
-    validationErrorMessage.value = '영수증 또는 결제 증빙 파일을 업로드해주세요.'
+  if (!purchaseDate.value) {
+    validationErrorMessage.value = '구매 일시를 입력해주세요.'
     return
   }
-
+  if (!purchaseVendor.value.trim()) {
+    validationErrorMessage.value = '구매처를 입력해주세요.'
+    return
+  }
+  if (isTangibleAsset.value && !serialNumber.value.trim()) {
+    validationErrorMessage.value = '시리얼 번호를 입력해주세요.'
+    return
+  }
+  if (isTangibleAsset.value && !location.value.trim()) {
+    validationErrorMessage.value = '사용 위치를 입력해주세요.'
+    return
+  }
+  if (isTangibleAsset.value && !warrantyExpiredAt.value) {
+    validationErrorMessage.value = '보증 만료 일시를 입력해주세요.'
+    return
+  }
   validationErrorMessage.value = ''
   emit('submit', {
     actualPrice: price,
+    purchaseDate: toApiDateTime(purchaseDate.value),
+    purchaseVendor: purchaseVendor.value.trim(),
+    serialNumber: isTangibleAsset.value ? serialNumber.value.trim() : null,
+    location: isTangibleAsset.value ? location.value.trim() : null,
+    warrantyExpiredAt: isTangibleAsset.value ? toApiDateTime(warrantyExpiredAt.value) : null,
+    licenseCode: isTangibleAsset.value ? null : emptyToNull(licenseCode.value),
+    seatCount: isTangibleAsset.value ? null : positiveIntegerOrNull(seatCount.value),
+    isAutoRenewal: null,
+    startedAt: isTangibleAsset.value ? null : toApiDateTimeOrNull(startedAt.value),
+    expiredAt: isTangibleAsset.value ? null : toApiDateTimeOrNull(expiredAt.value),
+    billingCycle: null,
     file: selectedFile.value,
   })
+}
+
+function toDateTimeLocalInputValue(value: string | null | undefined) {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return value.slice(0, 16)
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function toApiDateTime(value: string) {
+  return value.length === 16 ? `${value}:00` : value
+}
+
+function toApiDateTimeOrNull(value: string) {
+  return value ? toApiDateTime(value) : null
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function positiveIntegerOrNull(value: string) {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? number : null
 }
 
 watch(

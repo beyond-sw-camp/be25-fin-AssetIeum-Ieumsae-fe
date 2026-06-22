@@ -347,18 +347,19 @@
         @click="handleConfirmDirectPurchasePayment"
       >
         <CheckCircle2 :size="15" />
-        구매 증빙 승인 (구매 진행 처리)
+        결제 정보 확인 처리
       </Button>
 
       <Button
         v-if="canGoToAssetRegistration"
         variant="outline"
         class="shrink-0"
+        :loading="isAssigningAsset"
         :disabled="isActionSubmitting"
         @click="handleGoToAssetRegistration"
       >
         <Save :size="15" />
-        신규 품목/자산 등록하러 가기
+        자산 등록 및 할당
       </Button>
       <Button
         v-if="canChangeRentalExtensionDueDate"
@@ -598,7 +599,6 @@ import {
   XCircle,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -615,6 +615,7 @@ import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTab
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  DirectPurchaseAssetAssignRequest,
   DropdownOption,
   IntangibleItem,
   TangibleAssetItem,
@@ -694,7 +695,6 @@ const props = defineProps<{
   ticketType?: TicketType
 }>()
 
-const router = useRouter()
 const emit = defineEmits<{
   back: []
   updated: []
@@ -831,7 +831,7 @@ const hasDirectPurchaseEvidence = computed(() => (
   Boolean(directPurchaseEvidenceFileName.value || ticket.value?.directPurchaseEvidenceUploadedAt)
 ))
 const isDirectPurchasePaymentReady = computed(() => (
-  hasDirectPurchasePaymentInfo.value && hasDirectPurchaseEvidence.value
+  hasDirectPurchasePaymentInfo.value
 ))
 const isAssetCollectTicket = computed(() => (
   Boolean(
@@ -845,6 +845,7 @@ const isAssetCollectTicket = computed(() => (
 ))
 const canAssignAsset = computed(() => {
   if (!ticket.value || !ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)) return false
+  if (ticket.value.ticketType === 'PURCHASE_REQUEST' && ticket.value.requestMethod === 'DIRECT_PURCHASE') return false
 
   const fallback = Boolean(
     isAssetTeamRole.value
@@ -888,7 +889,7 @@ const canGoToAssetRegistration = computed(() => (
     && ticket.value.ticketType === 'PURCHASE_REQUEST'
     && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && ticket.value.status === 'IN_PROGRESS'
-    && !purchaseRequestAssignable.value,
+    && isDirectPurchasePaymentReady.value,
   )
 ))
 const canChangeRentalExtensionDueDate = computed(() => (
@@ -1018,7 +1019,7 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     },
     {
       label: '확인 상태',
-      value: isDirectPurchasePaymentReady.value ? '결제 증빙 등록 완료' : '결제 증빙 대기',
+      value: isDirectPurchasePaymentReady.value ? '결제 정보 등록 완료' : '결제 정보 대기',
     },
     { label: '구매처', value: ticket.value.purchaseVendor || '-' },
     { label: '구매 일시', value: formatDate(ticket.value.purchaseDate) || '-' },
@@ -1035,15 +1036,15 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
 })
 const directPurchasePaymentGuideMessage = computed(() => {
   if (!hasDirectPurchasePaymentInfo.value) {
-    return '사원이 실제 결제 금액과 영수증 증빙을 등록하면 구매자산팀에서 확인할 수 있습니다.'
+    return '사원이 실제 결제 금액을 등록하면 구매자산팀에서 확인할 수 있습니다. 영수증 증빙은 선택 사항입니다.'
   }
   if (!hasDirectPurchaseEvidence.value) {
-    return '실제 결제 금액은 등록되었지만 영수증 증빙 파일이 아직 없습니다.'
+    return '실제 결제 금액이 등록되었습니다. 영수증 증빙 없이도 구매자산팀 확인을 진행할 수 있습니다.'
   }
   if (!purchaseRequestAssignable.value) {
-    return '결제 증빙이 등록되었습니다. 금액과 증빙을 확인한 뒤 자산을 등록하면 자산 검색 및 할당으로 티켓을 처리 완료할 수 있습니다.'
+    return '결제 정보가 확인되었습니다. 자산 등록 및 할당을 진행하면 티켓을 처리 완료할 수 있습니다.'
   }
-  return '결제 증빙이 등록되었습니다. 자산 검색 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
+  return '결제 정보가 확인되었습니다. 자산 등록 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
 })
 const assetCollectPanel = computed(() => {
   if (!ticket.value || !isAssetCollectTicket.value) return null
@@ -1109,7 +1110,7 @@ const unsupportedActionMessage = computed(() => {
     && !purchaseRequestAssignable.value
   ) {
     if (isCheckingPurchaseAssignable.value) {
-      return '직접 구매 증빙 확인 후 할당할 자산을 확인하고 있습니다.'
+      return '직접 구매 결제 정보 확인 후 자산 등록 및 할당을 진행할 수 있습니다.'
     }
     return directPurchasePaymentGuideMessage.value
   }
@@ -1370,6 +1371,20 @@ function requestItemName(detail: TicketDetail | null | undefined): string {
     ?? detail?.requestedItemDetail
     ?? detail?.productName
     ?? '-'
+}
+
+function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseAssetAssignRequest | null {
+  const productName = requestItemName(detail).trim()
+  const manufacturer = (detail.manufacturer ?? '').trim()
+  const modelName = (detail.modelName ?? detail.requestedItemDetail ?? productName).trim()
+
+  if (!productName || productName === '-' || !manufacturer || !modelName) return null
+
+  return {
+    productName,
+    manufacturer,
+    modelName,
+  }
 }
 
 function assetTypeLabel(assetType: AssetType | null | undefined): string {
@@ -1840,12 +1855,12 @@ async function handleConfirmDirectPurchasePayment() {
 
   isConfirmingDirectPurchasePayment.value = true
   try {
-    await ticketApi.changeStatus(ticket.value.ticketId, 'IN_PROGRESS')
-    notificationStore.success('구매 증빙을 승인하고 처리 중으로 변경했습니다.')
-    await loadTicketDetail()
+    await ticketApi.confirmDirectPurchaseResult(ticket.value.ticketId)
+    notificationStore.success('결제 정보를 확인하고 처리 중으로 변경했습니다.')
+    await reloadAfterAction()
   } catch (error) {
     notificationStore.error(
-      '상태 변경 실패',
+      '결제 정보 확인 실패',
       error instanceof Error ? error.message : '문제가 발생했습니다.',
     )
   } finally {
@@ -1853,12 +1868,30 @@ async function handleConfirmDirectPurchasePayment() {
   }
 }
 
-function handleGoToAssetRegistration() {
-  if (!ticket.value) return
-  if (ticket.value.assetType === 'INTANGIBLE') {
-    router.push({ name: 'IntangibleItemList' })
-  } else {
-    router.push({ name: 'TangibleAssetItemList' })
+async function handleGoToAssetRegistration() {
+  if (!ticket.value || !canGoToAssetRegistration.value || isAssigningAsset.value) return
+
+  const payload = directPurchaseAssetAssignPayload(ticket.value)
+  if (!payload) {
+    notificationStore.warning(
+      '자산 등록 정보 부족',
+      '품목명, 제조사, 모델명을 확인할 수 없어 자산 등록 및 할당을 진행할 수 없습니다.',
+    )
+    return
+  }
+
+  isAssigningAsset.value = true
+  try {
+    await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, payload)
+    await reloadAfterAction()
+    notificationStore.success('직접 구매 자산을 등록하고 요청자에게 할당했습니다.')
+  } catch (error) {
+    notificationStore.error(
+      '자산 등록 및 할당 실패',
+      error instanceof Error ? error.message : '문제가 발생했습니다.',
+    )
+  } finally {
+    isAssigningAsset.value = false
   }
 }
 

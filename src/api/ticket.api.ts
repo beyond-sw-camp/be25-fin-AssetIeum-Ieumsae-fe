@@ -35,6 +35,8 @@ import type {
   RentalExtensionProcessResponse,
   TicketActualAmountResponse,
   DirectPurchasePaymentRequest,
+  DirectPurchaseAssetAssignRequest,
+  DirectPurchaseAssetAssignResponse,
   TicketComment,
   TicketEvidenceUploadResponse,
   TicketStatus,
@@ -170,6 +172,14 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? pickString(assetItem, ['productName', 'name', 'itemName'])
       ?? pickString(requestDetail, ['productName', 'itemName', 'name'])
       ?? null,
+    manufacturer: rawDetail.manufacturer
+      ?? pickString(assetItem, ['manufacturer', 'manufacturerOrProvider', 'provider'])
+      ?? pickString(requestDetail, ['manufacturer', 'manufacturerOrProvider', 'provider'])
+      ?? null,
+    modelName: rawDetail.modelName
+      ?? pickString(assetItem, ['modelName', 'model'])
+      ?? pickString(requestDetail, ['modelName', 'model'])
+      ?? null,
     quantity: rawDetail.quantity ?? null,
     actualAmount: pickNumber(rawDetail, ['actualAmount', 'actualPrice']) ?? null,
     directPurchaseEvidenceUrl: pickString(rawDetail, ['directPurchaseEvidenceUrl', 'proofFileUrl']) ?? null,
@@ -179,6 +189,9 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
     ) ?? null,
     directPurchaseEvidenceFileName: rawDetail.directPurchaseEvidenceFileName
       ?? pickString(rawDetail, ['proofFileName'])
+      ?? null,
+    directPurchaseConfirmationStatus: pickString(rawDetail, ['confirmationStatus', 'directPurchaseConfirmationStatus'])
+      ?? pickString(requestDetail, ['confirmationStatus', 'directPurchaseConfirmationStatus'])
       ?? null,
     requestedDueDate: rawDetail.requestedDueDate
       ?? requestedReturnDueDate
@@ -218,6 +231,32 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? null,
     purchaseRejectedAt: rawDetail.purchaseRejectedAt ?? null,
     purchaseRejectionReason: rawDetail.purchaseRejectionReason ?? null,
+    purchaseDate: rawDetail.purchaseDate ?? pickString(requestDetail, ['purchaseDate']) ?? null,
+    purchaseVendor: rawDetail.purchaseVendor ?? pickString(requestDetail, ['purchaseVendor', 'vendor']) ?? null,
+    serialNumber: rawDetail.serialNumber ?? pickString(requestDetail, ['serialNumber', 'serialNo']) ?? null,
+    location: rawDetail.location ?? pickString(requestDetail, ['location']) ?? null,
+    warrantyEndDate: rawDetail.warrantyEndDate
+      ?? rawDetail.warrantyExpiredAt
+      ?? pickString(requestDetail, ['warrantyEndDate', 'warrantyExpiredAt'])
+      ?? null,
+    warrantyExpiredAt: rawDetail.warrantyExpiredAt
+      ?? rawDetail.warrantyEndDate
+      ?? pickString(requestDetail, ['warrantyExpiredAt', 'warrantyEndDate'])
+      ?? null,
+    licenseCode: pickString(rawDetail, ['licenseCode', 'licenseKey'])
+      ?? pickString(requestDetail, ['licenseCode', 'licenseKey'])
+      ?? null,
+    seatCount: pickNumber(rawDetail, ['seatCount']) ?? pickNumber(requestDetail, ['seatCount']) ?? null,
+    isAutoRenewal: typeof rawDetail.isAutoRenewal === 'boolean' ? rawDetail.isAutoRenewal : null,
+    billingCycle: pickString(rawDetail, ['billingCycle', 'paymentCycle'])
+      ?? pickString(requestDetail, ['billingCycle'])
+      ?? null,
+    paymentCycle: pickString(rawDetail, ['paymentCycle', 'billingCycle'])
+      ?? pickString(requestDetail, ['paymentCycle', 'billingCycle'])
+      ?? null,
+    expirationDate: pickString(rawDetail, ['expirationDate', 'expiredAt'])
+      ?? pickString(requestDetail, ['expirationDate', 'expiredAt'])
+      ?? null,
     assignedAt: rawDetail.assignedAt
       ?? pickString(rawDetail, ['assetAssignedAt', 'assignmentAt', 'allocatedAt'])
       ?? pickString(requestDetail, ['assignedAt', 'assetAssignedAt', 'assignmentAt', 'allocatedAt'])
@@ -400,7 +439,25 @@ export const ticketApi = {
   setActualPrice: (ticketId: string, body: DirectPurchasePaymentRequest) =>
     api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, body),
 
+  setDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
+    api.post<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+      body,
+    ),
+
   /** 댓글 목록 조회 */
+  confirmDirectPurchaseResult: (ticketId: string) =>
+    api.put<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result/confirm`,
+      {},
+    ),
+
+  assignDirectPurchaseAsset: (ticketId: string, body: DirectPurchaseAssetAssignRequest) =>
+    api.post<DirectPurchaseAssetAssignResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-assets/assign`,
+      body,
+    ),
+
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
     api.get<PageResponse<TicketComment>>(`/tickets/${ticketId}/comments`, params),
 

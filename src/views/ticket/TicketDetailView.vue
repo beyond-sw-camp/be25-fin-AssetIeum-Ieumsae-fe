@@ -250,6 +250,7 @@ import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTab
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  DirectPurchasePaymentRequest,
   TicketComment,
   TicketDetail,
   TicketStatus,
@@ -386,7 +387,7 @@ const showsDirectPurchasePaymentAction = computed(() => (
 
 const directPurchasePaymentActionMessage = computed(() => (
   isRequester.value
-    ? '실제 결제 금액과 영수증 증빙을 등록합니다.'
+    ? '실제 결제 금액을 등록합니다. 영수증 증빙은 선택 사항입니다.'
     : '요청자 본인만 결제 정보를 등록할 수 있습니다.'
 ))
 
@@ -908,9 +909,8 @@ function closePurchasePaymentDrawer() {
   purchasePaymentErrorMessage.value = ''
 }
 
-async function handlePurchasePaymentSubmit(payload: {
-  actualPrice: number
-  file: File
+async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest & {
+  file: File | null
 }) {
   if (
     !ticketId.value
@@ -922,9 +922,11 @@ async function handlePurchasePaymentSubmit(payload: {
   purchasePaymentErrorMessage.value = ''
 
   try {
-    const { file, actualPrice } = payload
-    await ticketApi.setActualPrice(ticketId.value, { actualPrice })
-    await ticketApi.uploadEvidence(ticketId.value, file)
+    const { file, ...paymentResult } = payload
+    await ticketApi.setDirectPurchaseResult(ticketId.value, paymentResult)
+    if (file) {
+      await ticketApi.uploadEvidence(ticketId.value, file)
+    }
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
     notificationStore.success('결제 정보가 저장되었습니다.')

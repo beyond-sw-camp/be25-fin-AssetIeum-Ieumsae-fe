@@ -24,6 +24,8 @@ export interface TicketListItem extends Record<string, unknown> {
   categoryName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
+  manufacturer?: string | null
+  modelName?: string | null
   quantity?: number | null
   expectedPrice?: number | null
   purchasePrice?: number | null
@@ -67,6 +69,8 @@ export interface TicketDetail {
   requestedItemName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
+  manufacturer?: string | null
+  modelName?: string | null
   quantity?: number | null
   expectedPrice?: number | null
   actualAmount?: number | null
@@ -88,13 +92,19 @@ export interface TicketDetail {
   purchaseVendor?: string | null
   purchaseDate?: string | null
   serialNumber?: string | null
+  location?: string | null
   warrantyEndDate?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCode?: string | null
+  seatCount?: number | null
   isAutoRenewal?: boolean | null
   paymentCycle?: string | null
+  billingCycle?: string | null
   expirationDate?: string | null
   directPurchaseEvidenceFileName?: string | null
   directPurchaseEvidenceUploadedAt?: string | null
   directPurchaseEvidenceUrl?: string | null
+  directPurchaseConfirmationStatus?: string | null
   returnReason?: string | null
   returnResult?: string | null
   refundAmount?: number | null
@@ -489,15 +499,46 @@ export interface RentalExtensionProcessResponse {
 
 export interface TicketActualAmountResponse {
   ticketId: string
+  ticketNo?: string
+  ticketType?: TicketType
+  ticketStatus?: TicketStatus
+  assetType?: AssetType
   expectedPrice: number
   actualPrice: number
+  actualAmount?: number
   priceDifference: number
   requiresReapproval: boolean
+  purchaseDate?: string | null
+  purchaseVendor?: string | null
+  serialNumber?: string | null
+  location?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCode?: string | null
+  seatCount?: number | null
+  isAutoRenewal?: boolean | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  billingCycle?: string | null
+  expectedTotalPrice?: number | null
+  proofFileUrl?: string | null
+  proofFileUploadedAt?: string | null
+  confirmationStatus?: string | null
   updatedAt: string
 }
 
 export interface DirectPurchasePaymentRequest {
   actualPrice: number
+  purchaseDate?: string | null
+  purchaseVendor?: string | null
+  serialNumber?: string | null
+  location?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCode?: string | null
+  seatCount?: number | null
+  isAutoRenewal?: boolean | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  billingCycle?: string | null
 }
 
 export interface TicketEvidenceUploadResponse {
@@ -505,6 +546,29 @@ export interface TicketEvidenceUploadResponse {
   directPurchaseEvidenceFileName?: string | null
   purchaseDate: string
   updatedAt: string
+}
+
+export interface DirectPurchaseAssetAssignRequest {
+  productName: string
+  manufacturer: string
+  modelName: string
+}
+
+export interface DirectPurchaseAssetAssignResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  purchaseRequestStatus?: string
+  requesterId?: string
+  requesterName?: string
+  assetType?: AssetType
+  itemId?: string
+  itemName?: string
+  assetId?: string
+  assetCode?: string
+  assignmentId?: string
+  actualPrice?: number
+  confirmationStatus?: string
 }
 
 // =====================================================
