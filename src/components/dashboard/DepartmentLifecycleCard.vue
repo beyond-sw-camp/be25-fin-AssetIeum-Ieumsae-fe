@@ -122,14 +122,16 @@ import { computed, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, LogIn, LogOut, MoveRight, Pause, RotateCcw } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
-import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
+import type { HrLifecycleEvent } from '@/types'
+
+const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
+const PAGE_SIZE = 5
 
 const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
 const PAGE_SIZE = 5
 
 const props = defineProps<{
   events: HrLifecycleEvent[]
-  statistics: HrEventStatistics
 }>()
 
 const selectedTypes = ref<string[]>([...EVENT_TYPES])
