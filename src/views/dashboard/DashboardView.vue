@@ -36,12 +36,12 @@
       </section>
 
       <section class="mb-4">
-        <AssetDemandTableCard :columns="demandColumns" :rows="demandRows" />
+        <AssetDemandTableCard v-if="isDepartmentManager || isAssetOperator" :columns="demandColumns" :rows="demandRows" />
       </section>
 
       <section class="mb-4">
         <DepartmentBudgetSummaryCard
-          v-if="isDepartmentManager"
+          v-if="isDepartmentManager || isEmployee"
           :summary="departmentBudget"
         />
         <DepartmentBudgetCard
@@ -177,6 +177,7 @@ const loadError = ref('')
 
 const role = computed(() => auth.user?.role ?? 'EMPLOYEE')
 const isDepartmentManager = computed(() => role.value === 'DEPARTMENT_MANAGER')
+const isEmployee = computed(() => role.value === 'EMPLOYEE')
 const isAssetOperator = computed(() => (
   ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(role.value)
 ))
@@ -259,14 +260,34 @@ const budgetRows = computed<BudgetRow[]>(() => (
   })) ?? []
 ))
 
-const totalBudgetLimit = computed(() => budgetOverview.value?.commonBudget?.totalAmount ?? 0)
-const totalBudgetUsed = computed(() => {
-  const commonBudget = budgetOverview.value?.commonBudget
-  return commonBudget ? commonBudget.totalAmount - commonBudget.remainingAmount : 0
+const totalBudgetLimit = computed(() => {
+  const overview = budgetOverview.value
+  if (!overview) return 0
+
+  return overview.departmentBudgets.content.reduce(
+    (sum, budget) => sum + budget.totalAmount,
+    0,
+  )
 })
+
+const totalBudgetUsed = computed(() => {
+  const overview = budgetOverview.value
+  if (!overview) return 0
+
+  const commonBudgetUsed = overview.commonBudget
+    ? overview.commonBudget.totalAmount - overview.commonBudget.remainingAmount
+    : 0
+  const departmentBudgetUsed = overview.departmentBudgets.content.reduce(
+    (sum, budget) => sum + budget.usedAmount,
+    0,
+  )
+
+  return commonBudgetUsed + departmentBudgetUsed
+})
+
 const budgetUsagePercent = computed(() => {
-  const commonBudget = budgetOverview.value?.commonBudget
-  return commonBudget ? Math.max(0, 100 - commonBudget.remainingRate) : 0
+  if (totalBudgetLimit.value <= 0) return 0
+  return Math.round((totalBudgetUsed.value / totalBudgetLimit.value) * 1000) / 10
 })
 
 function openAssetDrawer(mode: AssetDrawerMode) {
@@ -350,16 +371,19 @@ async function loadDashboardData() {
     await loadAssetDetails()
 
     if (isDepartmentManager.value && departmentId) {
-      const [budgetResponse, eventsResponse] = await Promise.all([
-        dashboardApi.getDepartmentBudgetDetails(departmentId),
-        dashboardApi.getDepartmentHrEvents({ departmentId, page: 0, size: 1000 }),
-      ])
+      const budgetResponse = await dashboardApi.getDepartmentBudgetDetails(departmentId)
       departmentBudget.value = budgetResponse.data
+
+      const eventsResponse = await dashboardApi.getDepartmentHrEvents({ departmentId, page: 0, size: 1000 })
       departmentHrEvents.value = eventsResponse.data.content
       return
     }
 
-    const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 100 })
+    if (isEmployee.value) {
+      departmentBudget.value = { ...EMPTY_DEPARTMENT_BUDGET }
+      return
+    }
+    const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })
     budgetOverview.value = budgetResponse.data
 
     if (isAssetOperator.value) {
