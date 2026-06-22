@@ -246,7 +246,7 @@
           :loading="submitting"
           @click="handleSubmit"
         >
-          결제 정보 저장
+          {{ submitLabel }}
         </Button>
       </div>
     </template>
@@ -259,7 +259,7 @@ import { ReceiptText, UploadCloud, X } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
-import type { DirectPurchasePaymentRequest, TicketDetail } from '@/types'
+import type { DirectPurchasePaymentRequest, TicketActualAmountResponse, TicketDetail } from '@/types'
 import { formatDate } from '@/utils/labels'
 
 type DirectPurchasePaymentPayload = DirectPurchasePaymentRequest & {
@@ -269,11 +269,15 @@ type DirectPurchasePaymentPayload = DirectPurchasePaymentRequest & {
 interface Props {
   isOpen: boolean
   ticket: TicketDetail
+  paymentResult?: TicketActualAmountResponse | null
+  submitLabel?: string
   submitting?: boolean
   errorMessage?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  paymentResult: null,
+  submitLabel: '결제 정보 저장',
   submitting: false,
   errorMessage: '',
 })
@@ -335,18 +339,28 @@ const displayErrorMessage = computed(() => (
 ))
 
 function resetForm() {
-  actualPrice.value = props.ticket.actualAmount
-    ? String(props.ticket.actualAmount)
+  const payment = props.paymentResult
+  const paymentActualPrice = payment?.actualPrice ?? payment?.actualAmount
+  const initialActualPrice = paymentActualPrice ?? props.ticket.actualAmount
+  const initialSeatCount = payment?.seatCount ?? props.ticket.seatCount
+
+  actualPrice.value = initialActualPrice
+    ? String(initialActualPrice)
     : ''
-  purchaseDate.value = toDateTimeLocalInputValue(props.ticket.purchaseDate) || toDateTimeLocalInputValue(new Date().toISOString())
-  purchaseVendor.value = props.ticket.purchaseVendor ?? ''
-  serialNumber.value = props.ticket.serialNumber ?? ''
-  location.value = props.ticket.location ?? ''
-  warrantyExpiredAt.value = toDateTimeLocalInputValue(props.ticket.warrantyExpiredAt ?? props.ticket.warrantyEndDate)
-  licenseCode.value = props.ticket.licenseCode ?? ''
-  seatCount.value = props.ticket.seatCount ? String(props.ticket.seatCount) : ''
-  startedAt.value = toDateTimeLocalInputValue(props.ticket.startedAt)
-  expiredAt.value = toDateTimeLocalInputValue(props.ticket.expirationDate)
+  purchaseDate.value = toDateTimeLocalInputValue(payment?.purchaseDate ?? props.ticket.purchaseDate)
+    || toDateTimeLocalInputValue(new Date().toISOString())
+  purchaseVendor.value = payment?.purchaseVendor ?? props.ticket.purchaseVendor ?? ''
+  serialNumber.value = payment?.serialNumber ?? props.ticket.serialNumber ?? ''
+  location.value = payment?.location ?? props.ticket.location ?? ''
+  warrantyExpiredAt.value = toDateTimeLocalInputValue(
+    payment?.warrantyExpiredAt ?? props.ticket.warrantyExpiredAt ?? props.ticket.warrantyEndDate,
+  )
+  licenseCode.value = payment?.licenseCode ?? props.ticket.licenseCode ?? ''
+  seatCount.value = initialSeatCount
+    ? String(initialSeatCount)
+    : ''
+  startedAt.value = toDateTimeLocalInputValue(payment?.startedAt ?? props.ticket.startedAt)
+  expiredAt.value = toDateTimeLocalInputValue(payment?.expiredAt ?? props.ticket.expirationDate)
   selectedFile.value = null
   validationErrorMessage.value = ''
 
@@ -478,7 +492,7 @@ function positiveIntegerOrNull(value: string) {
 }
 
 watch(
-  () => [props.isOpen, props.ticket.ticketId] as const,
+  () => [props.isOpen, props.ticket.ticketId, props.paymentResult?.updatedAt] as const,
   ([isOpen]) => {
     if (isOpen) resetForm()
   },

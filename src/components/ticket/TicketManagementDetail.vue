@@ -618,6 +618,7 @@ import type {
   DropdownOption,
   IntangibleItem,
   TangibleAssetItem,
+  TicketActualAmountResponse,
   TicketComment,
   TicketDetail,
   TicketStatus,
@@ -718,6 +719,7 @@ const isCollectingAsset = ref(false)
 const isCompletingMaintenance = ref(false)
 const isCompletingReturn = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
+const isLoadingDirectPurchasePaymentResult = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
 const deletingCommentId = ref<number | null>(null)
@@ -733,12 +735,14 @@ const commentSubmitErrorMessage = ref('')
 const commentActionErrorMessage = ref('')
 const rejectErrorMessage = ref('')
 const assetAssignErrorMessage = ref('')
+const directPurchasePaymentResultErrorMessage = ref('')
+const directPurchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
 const rentalExtensionDueDate = ref('')
 const rentalExtensionDueDateError = ref('')
 const rentalExtensionSubmitErrorMessage = ref('')
 const maintenanceResult = ref('')
 const maintenanceCompletedAt = ref('')
-const maintenanceCost = ref<string | number>('')
+const maintenanceCost = ref('')
 const maintenanceResultError = ref('')
 const maintenanceCompletedAtError = ref('')
 const maintenanceCostError = ref('')
@@ -816,18 +820,29 @@ const shouldShowDirectPurchasePaymentCard = computed(() => (
   )
 ))
 const hasDirectPurchasePaymentInfo = computed(() => (
-  Boolean(
-    ticket.value
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
-    && typeof ticket.value.actualAmount === 'number'
-    && ticket.value.actualAmount > 0,
-  )
+  directPurchasePaymentActualAmount.value !== null
+))
+const directPurchasePaymentActualAmount = computed(() => {
+  const amount = directPurchasePaymentResult.value?.actualPrice
+    ?? directPurchasePaymentResult.value?.actualAmount
+  const number = Number(amount)
+  return Number.isFinite(number) && number > 0 ? number : null
+})
+const directPurchasePaymentConfirmationStatus = computed(() => (
+  directPurchasePaymentResult.value?.confirmationStatus
+    ?? ticket.value?.directPurchaseConfirmationStatus
+    ?? null
 ))
 const directPurchaseEvidenceFileName = computed(() => (
   ticket.value?.directPurchaseEvidenceFileName ?? ''
 ))
 const hasDirectPurchaseEvidence = computed(() => (
-  Boolean(directPurchaseEvidenceFileName.value || ticket.value?.directPurchaseEvidenceUploadedAt)
+  Boolean(
+    directPurchasePaymentResult.value?.proofFileUrl
+    || directPurchasePaymentResult.value?.proofFileUploadedAt
+    || directPurchaseEvidenceFileName.value
+    || ticket.value?.directPurchaseEvidenceUploadedAt,
+  )
 ))
 const isDirectPurchasePaymentReady = computed(() => (
   hasDirectPurchasePaymentInfo.value
@@ -874,21 +889,22 @@ const canAssignAsset = computed(() => {
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
     ticket.value
+    && isDirectPurchaseTicket.value
     && isAssetTeamRole.value
-    && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && isDirectPurchasePaymentReady.value
-    && ticket.value.status === 'ASSET_APPROVED',
+    && !isLoadingDirectPurchasePaymentResult.value
+    && ticket.value.status === 'IN_PROGRESS'
+    && directPurchasePaymentConfirmationStatus.value !== 'CONFIRMED',
   )
 ))
 const canGoToAssetRegistration = computed(() => (
   Boolean(
     ticket.value
+    && isDirectPurchaseTicket.value
     && isAssetTeamRole.value
-    && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && ticket.value.status === 'IN_PROGRESS'
-    && isDirectPurchasePaymentReady.value,
+    && isDirectPurchasePaymentReady.value
+    && directPurchasePaymentConfirmationStatus.value === 'CONFIRMED',
   )
 ))
 const canChangeRentalExtensionDueDate = computed(() => (
@@ -992,6 +1008,7 @@ const rejectDrawerTitle = computed(() => '반려')
 const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
 
+  const payment = directPurchasePaymentResult.value
   const quantity = ticket.value.quantity
   const expectedAmount = ticket.value.expectedPrice === null
     || ticket.value.expectedPrice === undefined
@@ -999,7 +1016,7 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     || quantity === undefined
     ? null
     : ticket.value.expectedPrice * quantity
-  const actualAmount = ticket.value.actualAmount
+  const actualAmount = directPurchasePaymentActualAmount.value
   const difference = actualAmount === null
     || actualAmount === undefined
     || expectedAmount === null
@@ -1011,34 +1028,46 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     { label: '예상 합계 금액', value: formatCurrency(expectedAmount) },
     { label: '실제 결제 금액', value: formatCurrency(actualAmount) },
     { label: '차액', value: formatCurrency(difference) },
-    { label: '증빙 파일', value: directPurchaseEvidenceFileName.value || '-' },
+    { label: '구매처', value: payment?.purchaseVendor ?? '-' },
+    { label: '구매 일시', value: formatDate(payment?.purchaseDate) || '-' },
+    { label: '증빙 파일', value: payment?.proofFileUrl ? '업로드 완료' : directPurchaseEvidenceFileName.value || '-' },
     {
       label: '증빙 업로드 일시',
-      value: formatDate(ticket.value.directPurchaseEvidenceUploadedAt, 'YYYY-MM-DD HH:mm'),
+      value: formatDate(payment?.proofFileUploadedAt ?? ticket.value.directPurchaseEvidenceUploadedAt, 'YYYY-MM-DD HH:mm'),
     },
     {
       label: '확인 상태',
-      value: isDirectPurchasePaymentReady.value ? '결제 정보 등록 완료' : '결제 정보 대기',
+      value: directPurchasePaymentConfirmationStatus.value ?? '-',
     },
-    { label: '구매처', value: ticket.value.purchaseVendor || '-' },
-    { label: '구매 일시', value: formatDate(ticket.value.purchaseDate) || '-' },
     ...(ticket.value.assetType === 'TANGIBLE' ? [
-      { label: '시리얼 번호', value: ticket.value.serialNumber || '-' },
-      { label: '보증 만료 일시', value: formatDate(ticket.value.warrantyEndDate) || '-' },
+      { label: '시리얼 번호', value: payment?.serialNumber ?? '-' },
+      { label: '사용 위치', value: payment?.location ?? '-' },
+      { label: '보증 만료 일시', value: formatDate(payment?.warrantyExpiredAt) || '-' },
     ] : []),
     ...(ticket.value.assetType === 'INTANGIBLE' ? [
-      { label: '자동 연장 여부', value: ticket.value.isAutoRenewal === true ? '자동 갱신' : (ticket.value.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
-      { label: '결제 주기', value: ticket.value.paymentCycle || '-' },
-      { label: '만료 일시', value: formatDate(ticket.value.expirationDate) || '-' },
+      { label: '라이선스 코드', value: payment?.licenseCode ?? '-' },
+      { label: '좌석 수', value: payment?.seatCount ? `${payment.seatCount}개` : '-' },
+      { label: '자동 연장 여부', value: payment?.isAutoRenewal === true ? '자동 갱신' : (payment?.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
+      { label: '결제 주기', value: payment?.billingCycle ?? '-' },
+      { label: '만료 일시', value: formatDate(payment?.expiredAt) || '-' },
     ] : []),
   ]
 })
 const directPurchasePaymentGuideMessage = computed(() => {
+  if (isLoadingDirectPurchasePaymentResult.value) {
+    return '구매자산팀 실제 결제 정보를 조회하고 있습니다.'
+  }
+  if (directPurchasePaymentResultErrorMessage.value) {
+    return directPurchasePaymentResultErrorMessage.value
+  }
   if (!hasDirectPurchasePaymentInfo.value) {
     return '사원이 실제 결제 금액을 등록하면 구매자산팀에서 확인할 수 있습니다. 영수증 증빙은 선택 사항입니다.'
   }
   if (!hasDirectPurchaseEvidence.value) {
     return '실제 결제 금액이 등록되었습니다. 영수증 증빙 없이도 구매자산팀 확인을 진행할 수 있습니다.'
+  }
+  if (directPurchasePaymentConfirmationStatus.value !== 'CONFIRMED') {
+    return '사원이 등록한 실제 결제 정보를 확인한 뒤 결제 정보 확인 처리를 진행해 주세요.'
   }
   if (!purchaseRequestAssignable.value) {
     return '결제 정보가 확인되었습니다. 자산 등록 및 할당을 진행하면 티켓을 처리 완료할 수 있습니다.'
@@ -1211,7 +1240,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         value: '-',
       }
 
-  const summaryItems: SummaryItem[] = [
+  const summaryItems: DetailItem[] = [
     { label: '현재 상태', value: getTicketStatusLabel(ticket.value.status) },
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
@@ -1240,7 +1269,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
   if (ticket.value.ticketType === 'PURCHASE_RETURN') {
     processedAtLabel = '반품 처리 일시'
     bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
-  } else if (ticket.value.ticketType === 'RETURN') {
+  } else if (ticket.value.ticketType === 'ASSET_RETURN') {
     processedAtLabel = '반납/해지 처리 일시'
     bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
   }
@@ -1474,13 +1503,48 @@ async function loadTicketDetail() {
     }
     ticket.value = detail
     selectedTicketStatus.value = detail.status
-    await resolvePurchaseRequestAssignability(detail)
+    await Promise.all([
+      resolvePurchaseRequestAssignability(detail),
+      resolveDirectPurchasePaymentResult(detail),
+    ])
   } catch (error) {
     ticket.value = null
     purchaseRequestAssignable.value = false
+    directPurchasePaymentResult.value = null
+    directPurchasePaymentResultErrorMessage.value = ''
     errorMessage.value = detailErrorMessage(error)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function resolveDirectPurchasePaymentResult(detail: TicketDetail) {
+  directPurchasePaymentResult.value = null
+  directPurchasePaymentResultErrorMessage.value = ''
+  isLoadingDirectPurchasePaymentResult.value = false
+
+  if (
+    detail.ticketType !== 'PURCHASE_REQUEST'
+    || detail.requestMethod !== 'DIRECT_PURCHASE'
+    || !['ASSET_APPROVED', 'IN_PROGRESS', 'COMPLETED'].includes(detail.status)
+  ) return
+
+  isLoadingDirectPurchasePaymentResult.value = true
+
+  try {
+    const response = await ticketApi.getDirectPurchaseResult(detail.ticketId)
+    directPurchasePaymentResult.value = response.data
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      directPurchasePaymentResult.value = null
+      return
+    }
+
+    directPurchasePaymentResultErrorMessage.value = error instanceof Error
+      ? error.message
+      : '구매자산팀 실제 결제 정보를 조회하지 못했습니다.'
+  } finally {
+    isLoadingDirectPurchasePaymentResult.value = false
   }
 }
 
@@ -1784,7 +1848,9 @@ function openMaintenanceCompleteDrawer() {
   maintenanceResult.value = ticket.value.maintenanceResult ?? ''
   maintenanceCompletedAt.value = toDateTimeLocalInputValue(ticket.value.maintenanceCompletedAt)
     || toDateTimeLocalInputValue(new Date().toISOString())
-  maintenanceCost.value = ticket.value.maintenanceCost ?? ''
+  maintenanceCost.value = ticket.value.maintenanceCost === null || ticket.value.maintenanceCost === undefined
+    ? ''
+    : String(ticket.value.maintenanceCost)
   maintenanceResultError.value = ''
   maintenanceCompletedAtError.value = ''
   maintenanceCostError.value = ''
@@ -2139,6 +2205,8 @@ function resetTicketActionState() {
   rejectErrorMessage.value = ''
   assetAssignDrawerOpen.value = false
   assetAssignErrorMessage.value = ''
+  directPurchasePaymentResult.value = null
+  directPurchasePaymentResultErrorMessage.value = ''
   rentalExtensionDrawerOpen.value = false
   rentalExtensionDueDate.value = ''
   rentalExtensionDueDateError.value = ''
@@ -2156,6 +2224,8 @@ function resetTicketActionState() {
   isChangingStatus.value = false
   isAssigningAsset.value = false
   isAssigningMe.value = false
+  isConfirmingDirectPurchasePayment.value = false
+  isLoadingDirectPurchasePaymentResult.value = false
   isCollectingAsset.value = false
   isCompletingMaintenance.value = false
   isCompletingReturn.value = false
@@ -2172,7 +2242,5 @@ watch(() => [props.ticketId, props.ticketType], () => {
   void loadPage()
 })
 
-onMounted(loadPage)
-</script>
 onMounted(loadPage)
 </script>

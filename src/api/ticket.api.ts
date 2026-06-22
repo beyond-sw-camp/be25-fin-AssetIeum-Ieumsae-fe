@@ -418,8 +418,8 @@ export const ticketApi = {
       : ticketApi.rejectDepartment(ticketId, body.rejectionReason),
 
   /** 티켓 상태 변경 */
-  changeStatus: (ticketId: string, status: TicketStatus) =>
-    api.patch(`/tickets/${ticketId}/status`, { status }),
+  changeStatus: (ticketId: string, ticketStatus: TicketStatus) =>
+    api.patch(`/tickets/${ticketId}/processing-status`, { ticketStatus }),
 
   cancel: (ticketId: string) =>
     api.patch<TicketCreateResponse>(`/tickets/${ticketId}/cancel`, {}),
@@ -501,8 +501,19 @@ export const ticketApi = {
     ),
 
   /** 댓글 목록 조회 */
-  confirmDirectPurchaseResult: (ticketId: string) =>
+  getDirectPurchaseResult: (ticketId: string) =>
+    api.get<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+    ),
+
+  updateDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
     api.put<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+      body,
+    ),
+
+  confirmDirectPurchaseResult: (ticketId: string) =>
+    api.patch<TicketActualAmountResponse>(
       `/tickets/purchase-requests/${ticketId}/direct-purchase-result/confirm`,
       {},
     ),

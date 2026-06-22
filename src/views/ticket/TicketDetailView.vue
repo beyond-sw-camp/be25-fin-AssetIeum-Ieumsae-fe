@@ -153,19 +153,20 @@
       <Button
         v-if="showsDirectPurchasePaymentAction"
         class="mr-2 shrink-0 bg-orange-500! text-white! hover:bg-orange-600! focus:ring-orange-500/50!"
-        :disabled="!canRegisterDirectPurchasePayment || isPurchasePaymentSubmitting"
+        :disabled="!canRegisterDirectPurchasePayment || isDirectPurchasePaymentActionSubmitting"
+        :loading="isPurchasePaymentLoading || isPurchasePaymentSubmitting"
         :title="directPurchasePaymentActionMessage"
         @click="openPurchasePaymentDrawer"
       >
         <ReceiptText :size="15" />
-        결제 정보 등록
+        {{ directPurchasePaymentActionLabel }}
       </Button>
       <Button
         v-if="canCollectMaintenanceAsset"
         variant="outline"
         class="mr-2 shrink-0"
         :loading="isCollectingMaintenanceAsset"
-        :disabled="isCancelling || isPurchasePaymentSubmitting"
+        :disabled="isCancelling || isDirectPurchasePaymentActionSubmitting"
         @click="isMaintenanceCollectModalOpen = true"
       >
         <PackageCheck :size="15" />
@@ -207,6 +208,8 @@
       v-if="ticket"
       :is-open="isPurchasePaymentDrawerOpen"
       :ticket="ticket"
+      :payment-result="purchasePaymentResult"
+      :submit-label="directPurchasePaymentActionLabel"
       :submitting="isPurchasePaymentSubmitting"
       :error-message="purchasePaymentErrorMessage"
       @close="closePurchasePaymentDrawer"
@@ -229,7 +232,6 @@
 import {
   ArrowLeft,
   CircleAlert,
-  ClipboardCheck,
   ClipboardList,
   PackageCheck,
   ReceiptText,
@@ -251,6 +253,7 @@ import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
   DirectPurchasePaymentRequest,
+  TicketActualAmountResponse,
   TicketComment,
   TicketDetail,
   TicketStatus,
@@ -289,10 +292,7 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
 const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
 ])
-
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -310,7 +310,10 @@ const isCancelModalOpen = ref(false)
 const isCollectingMaintenanceAsset = ref(false)
 const isMaintenanceCollectModalOpen = ref(false)
 const isPurchasePaymentDrawerOpen = ref(false)
+const isPurchasePaymentLoading = ref(false)
 const isPurchasePaymentSubmitting = ref(false)
+const purchasePaymentMode = ref<'create' | 'update'>('create')
+const purchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
 const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
@@ -359,6 +362,11 @@ const canRegisterDirectPurchasePayment = computed(() => (
   )
 ))
 
+const isDirectPurchasePaymentActionSubmitting = computed(() => (
+  isPurchasePaymentLoading.value
+  || isPurchasePaymentSubmitting.value
+))
+
 const isAssetTeamRole = computed(() => (
   authStore.currentRole === 'ADMIN'
   || authStore.currentRole === 'SUPER_ADMIN'
@@ -385,10 +393,16 @@ const showsDirectPurchasePaymentAction = computed(() => (
   )
 ))
 
+const directPurchasePaymentActionLabel = computed(() => (
+  purchasePaymentMode.value === 'update' || purchasePaymentResult.value || ticket.value?.actualAmount
+    ? '직접구매 결과 수정'
+    : '직접구매 결과 등록'
+))
+
 const directPurchasePaymentActionMessage = computed(() => (
   isRequester.value
-    ? '실제 결제 금액을 등록합니다. 영수증 증빙은 선택 사항입니다.'
-    : '요청자 본인만 결제 정보를 등록할 수 있습니다.'
+    ? '직접구매 후 실제 결제 정보를 등록하거나 수정합니다.'
+    : '요청자 본인만 직접구매 결과를 등록할 수 있습니다.'
 ))
 
 const cancelActionMessage = computed(() => {
@@ -897,14 +911,37 @@ async function handleCollectMaintenanceAsset() {
   }
 }
 
-function openPurchasePaymentDrawer() {
-  if (!canRegisterDirectPurchasePayment.value) return
+async function openPurchasePaymentDrawer() {
+  if (!ticketId.value || !canRegisterDirectPurchasePayment.value || isPurchasePaymentLoading.value) return
+
   purchasePaymentErrorMessage.value = ''
+  isPurchasePaymentLoading.value = true
+
+  try {
+    const response = await ticketApi.getDirectPurchaseResult(ticketId.value)
+    purchasePaymentResult.value = response.data
+    purchasePaymentMode.value = 'update'
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      purchasePaymentResult.value = null
+      purchasePaymentMode.value = 'create'
+    } else {
+      const message = error instanceof Error
+        ? error.message
+        : '직접구매 결과 정보를 불러오지 못했습니다.'
+      purchasePaymentErrorMessage.value = message
+      notificationStore.error('직접구매 결과 조회 실패', message)
+      return
+    }
+  } finally {
+    isPurchasePaymentLoading.value = false
+  }
+
   isPurchasePaymentDrawerOpen.value = true
 }
 
 function closePurchasePaymentDrawer() {
-  if (isPurchasePaymentSubmitting.value) return
+  if (isPurchasePaymentLoading.value || isPurchasePaymentSubmitting.value) return
   isPurchasePaymentDrawerOpen.value = false
   purchasePaymentErrorMessage.value = ''
 }
@@ -915,7 +952,7 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
   if (
     !ticketId.value
     || !canRegisterDirectPurchasePayment.value
-    || isPurchasePaymentSubmitting.value
+    || isDirectPurchasePaymentActionSubmitting.value
   ) return
 
   isPurchasePaymentSubmitting.value = true
@@ -923,19 +960,27 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
 
   try {
     const { file, ...paymentResult } = payload
-    await ticketApi.setDirectPurchaseResult(ticketId.value, paymentResult)
+    const isUpdate = purchasePaymentMode.value === 'update'
+    const response = isUpdate
+      ? await ticketApi.updateDirectPurchaseResult(ticketId.value, paymentResult)
+      : await ticketApi.setDirectPurchaseResult(ticketId.value, paymentResult)
+
+    purchasePaymentResult.value = response.data
+    purchasePaymentMode.value = 'update'
+
     if (file) {
       await ticketApi.uploadEvidence(ticketId.value, file)
     }
+
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
-    notificationStore.success('결제 정보가 저장되었습니다.')
+    notificationStore.success(isUpdate ? '직접구매 결과가 수정되었습니다.' : '직접구매 결과가 등록되었습니다.')
   } catch (error) {
     const message = error instanceof Error
       ? error.message
-      : '결제 정보를 저장하지 못했습니다.'
+      : '직접구매 결과를 저장하지 못했습니다.'
     purchasePaymentErrorMessage.value = message
-    notificationStore.error('결제 정보 저장 실패', message)
+    notificationStore.error('직접구매 결과 저장 실패', message)
   } finally {
     isPurchasePaymentSubmitting.value = false
   }
@@ -956,14 +1001,14 @@ function resetCommentActionState() {
 
 function resetTicketActionState() {
   isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentLoading.value = false
   isPurchasePaymentSubmitting.value = false
+  purchasePaymentMode.value = 'create'
+  purchasePaymentResult.value = null
   purchasePaymentErrorMessage.value = ''
 }
 
 watch(() => [ticketId.value, ticketType.value], () => {
-  isPurchasePaymentDrawerOpen.value = false
-  isPurchasePaymentSubmitting.value = false
-  purchasePaymentErrorMessage.value = ''
   isMaintenanceCollectModalOpen.value = false
   isCollectingMaintenanceAsset.value = false
   resetTicketActionState()
