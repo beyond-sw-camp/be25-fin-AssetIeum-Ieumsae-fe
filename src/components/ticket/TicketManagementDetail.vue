@@ -411,6 +411,15 @@
       @submit="handleAssetAssign"
     />
 
+    <DirectPurchaseItemRegistrationDrawer
+      v-if="ticket"
+      :is-open="directPurchaseItemRegistrationDrawerOpen"
+      :ticket="ticket"
+      :submitting="isRegisteringDirectPurchaseItem"
+      @close="closeDirectPurchaseItemRegistrationDrawer"
+      @submit="handleDirectPurchaseItemRegistrationSubmit"
+    />
+
     <BaseDrawer
       :is-open="rentalExtensionDrawerOpen"
       title="반납 예정일 변경"
@@ -605,6 +614,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import DirectPurchaseItemRegistrationDrawer from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
 import TicketAssetAssignDrawer from '@/components/ticket/TicketAssetAssignDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -720,12 +730,14 @@ const isCompletingMaintenance = ref(false)
 const isCompletingReturn = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
 const isLoadingDirectPurchasePaymentResult = ref(false)
+const isRegisteringDirectPurchaseItem = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
 const deletingCommentId = ref<number | null>(null)
 const rejectDrawerOpen = ref(false)
 const rejectTarget = ref<ApproverType | null>(null)
 const assetAssignDrawerOpen = ref(false)
+const directPurchaseItemRegistrationDrawerOpen = ref(false)
 const rentalExtensionDrawerOpen = ref(false)
 const maintenanceCompleteDrawerOpen = ref(false)
 const commentToDelete = ref<TicketComment | null>(null)
@@ -846,6 +858,13 @@ const hasDirectPurchaseEvidence = computed(() => (
 ))
 const isDirectPurchasePaymentReady = computed(() => (
   hasDirectPurchasePaymentInfo.value
+))
+const isDirectPurchaseNonStandardTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && isDirectPurchaseTicket.value
+    && isNonStandardItem(ticket.value.isStandard ?? undefined),
+  )
 ))
 const isAssetCollectTicket = computed(() => (
   Boolean(
@@ -1968,6 +1987,11 @@ async function handleConfirmDirectPurchasePayment() {
 async function handleGoToAssetRegistration() {
   if (!ticket.value || !canGoToAssetRegistration.value || isAssigningAsset.value) return
 
+  if (isDirectPurchaseNonStandardTicket.value) {
+    directPurchaseItemRegistrationDrawerOpen.value = true
+    return
+  }
+
   const payload = directPurchaseAssetAssignPayload(ticket.value)
   if (!payload) {
     notificationStore.warning(
@@ -1990,6 +2014,18 @@ async function handleGoToAssetRegistration() {
   } finally {
     isAssigningAsset.value = false
   }
+}
+
+function closeDirectPurchaseItemRegistrationDrawer() {
+  if (isRegisteringDirectPurchaseItem.value) return
+  directPurchaseItemRegistrationDrawerOpen.value = false
+}
+
+function handleDirectPurchaseItemRegistrationSubmit() {
+  notificationStore.warning(
+    '비표준 품목 등록 API 연결 필요',
+    '비표준 품목 선택/신규 등록 화면만 먼저 구성했습니다. API가 준비되면 이 단계에서 품목 등록 후 자산 등록 및 할당을 이어가면 됩니다.',
+  )
 }
 
 function validateMaintenanceCompleteForm() {
@@ -2205,6 +2241,7 @@ function resetTicketActionState() {
   rejectErrorMessage.value = ''
   assetAssignDrawerOpen.value = false
   assetAssignErrorMessage.value = ''
+  directPurchaseItemRegistrationDrawerOpen.value = false
   directPurchasePaymentResult.value = null
   directPurchasePaymentResultErrorMessage.value = ''
   rentalExtensionDrawerOpen.value = false
@@ -2226,6 +2263,7 @@ function resetTicketActionState() {
   isAssigningMe.value = false
   isConfirmingDirectPurchasePayment.value = false
   isLoadingDirectPurchasePaymentResult.value = false
+  isRegisteringDirectPurchaseItem.value = false
   isCollectingAsset.value = false
   isCompletingMaintenance.value = false
   isCompletingReturn.value = false
