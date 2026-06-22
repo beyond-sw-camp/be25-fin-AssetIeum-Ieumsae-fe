@@ -107,6 +107,7 @@ export interface TicketDetail {
   directPurchaseConfirmationStatus?: string | null
   returnReason?: string | null
   returnResult?: string | null
+  returnProcessedAt?: string | null
   refundAmount?: number | null
   collectedAt?: string | null
   processedAt?: string | null

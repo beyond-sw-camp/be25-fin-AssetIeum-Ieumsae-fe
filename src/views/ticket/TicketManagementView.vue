@@ -421,7 +421,7 @@ async function fetchTickets() {
       filterForm.value.ticketType === 'DIRECT_PURCHASE'
         ? ticket.requestMethod === 'DIRECT_PURCHASE'
         : true
-    ))
+    )).map(withRequesterDepartmentFallback)
   } catch (error) {
     const isEmpty = error instanceof ApiError
       && error.status === 404
@@ -551,6 +551,21 @@ async function handleTicketUpdated() {
 function getTicketTypeLabel(ticket: TicketListItem) {
   if (ticket.requestMethod === 'DIRECT_PURCHASE') return '직접 구매 요청'
   return TICKET_TYPE_LABEL[ticket.ticketType]
+}
+
+function withRequesterDepartmentFallback(ticket: TicketListItem): TicketListItem {
+  const requester = members.value.find((member) => (
+    String(member.memberId) === String(ticket.requesterId)
+  ))
+
+  return requester
+    ? {
+        ...ticket,
+        requesterName: ticket.requesterName || requester.name,
+        departmentId: ticket.departmentId ?? requester.departmentId,
+        departmentName: ticket.departmentName || requester.departmentName,
+      }
+    : ticket
 }
 
 function getManagementButtonLabel(ticket: TicketListItem) {

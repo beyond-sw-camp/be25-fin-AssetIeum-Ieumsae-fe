@@ -56,6 +56,7 @@ function compactParams<T extends object>(params?: T) {
 }
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
+type TicketListItemResponse = Partial<TicketListItem> & Record<string, unknown>
 
 const TICKET_DETAIL_ENDPOINT_BY_TYPE: Record<TicketType, (ticketId: string) => string> = {
   ASSET_REQUEST: (ticketId) => `/tickets/asset-requests/${ticketId}`,
@@ -281,6 +282,57 @@ function normalizeTicketDetailResponse(
   }
 }
 
+function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListItem {
+  const requester = asRecord(rawItem.requester)
+    ?? asRecord(rawItem.requestMember)
+    ?? asRecord(rawItem.member)
+  const department = asRecord(rawItem.department)
+    ?? asRecord(rawItem.requesterDepartment)
+    ?? asRecord(requester?.department)
+  const rawStatus = pickString(rawItem, ['ticketStatus', 'currentStatus', 'status']) ?? 'REQUESTED'
+  const requesterId = rawItem.requesterId ?? pickId(requester, ['memberId', 'employeeId', 'id'])
+  const departmentId = rawItem.departmentId
+    ?? pickId(department, ['departmentId', 'id'])
+    ?? pickId(requester, ['departmentId'])
+
+  return {
+    ...rawItem,
+    ticketId: String(rawItem.ticketId ?? ''),
+    ticketNo: String(rawItem.ticketNo ?? ''),
+    ticketType: rawItem.ticketType ?? 'ASSET_REQUEST',
+    requestMethod: rawItem.requestMethod ?? null,
+    requestedItemName: rawItem.requestedItemName
+      ?? pickString(rawItem, ['itemName', 'productName', 'requestedItemDetail'])
+      ?? null,
+    requesterId,
+    requesterName: rawItem.requesterName
+      ?? pickString(rawItem, ['requestMemberName', 'employeeName'])
+      ?? pickString(requester, ['memberName', 'name', 'employeeName'])
+      ?? '',
+    departmentId,
+    departmentName: rawItem.departmentName
+      ?? pickString(rawItem, ['requesterDepartmentName'])
+      ?? pickString(department, ['departmentName', 'name'])
+      ?? pickString(requester, ['departmentName'])
+      ?? '',
+    requestedAt: rawItem.requestedAt ?? pickString(rawItem, ['createdAt']) ?? '',
+    ticketStatus: normalizeTicketStatus(rawStatus),
+    status: normalizeTicketStatus(rawStatus),
+  }
+}
+
+function normalizeTicketListResponse(
+  response: ApiResponse<PageResponse<TicketListItemResponse>>,
+): ApiResponse<PageResponse<TicketListItem>> {
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      content: response.data.content.map(normalizeTicketListItem),
+    },
+  }
+}
+
 async function getDetailFromEndpoint(endpoint: string): Promise<ApiResponse<TicketDetail>> {
   const response = await api.get<TicketDetailResponse>(endpoint)
   return normalizeTicketDetailResponse(response)
@@ -318,8 +370,13 @@ async function getDetailFromFirstAvailableEndpoint(
 
 export const ticketApi = {
   /** 티켓 목록 조회 */
-  getList: (params?: TicketListFilter) =>
-    api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
+  getList: async (params?: TicketListFilter) => {
+    const response = await api.get<PageResponse<TicketListItemResponse>>(
+      '/tickets',
+      params as Record<string, unknown>,
+    )
+    return normalizeTicketListResponse(response)
+  },
 
   getStatistics: () =>
     api.get<TicketStatistics>('/tickets/statistics'),
@@ -339,7 +396,6 @@ export const ticketApi = {
 
   rejectDepartment: (ticketId: string, rejectionReason: string) =>
     api.patch(`/tickets/${ticketId}/department-approval/reject`, {
-      approver: 'DEPARTMENT_MANAGER',
       rejectionReason,
     }),
 

@@ -1211,7 +1211,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         value: '-',
       }
 
-  return [
+  const summaryItems: SummaryItem[] = [
     { label: '현재 상태', value: getTicketStatusLabel(ticket.value.status) },
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
@@ -1224,16 +1224,48 @@ const processingInfoItems = computed<DetailItem[]>(() => {
       actionLoading: isAssigningMe.value,
       actionDisabled: isActionSubmitting.value,
     },
-    {
-      label: '구매자산팀 처리 일시',
-      value: formatDate(
-        ticket.value.purchaseApprovedAt ?? ticket.value.purchaseRejectedAt,
-        'YYYY-MM-DD HH:mm',
-      ),
-    },
-    { label: '처리 일시', value: formatDate(ticket.value.processedAt, 'YYYY-MM-DD HH:mm') },
-    { label: '완료 일시', value: formatDate(ticket.value.completedAt, 'YYYY-MM-DD HH:mm') },
   ]
+
+  const purchaseTeamProcessedAt = ticket.value.purchaseApprovedAt ?? ticket.value.purchaseRejectedAt
+  if (purchaseTeamProcessedAt) {
+    summaryItems.push({
+      label: '구매자산팀 처리 일시',
+      value: formatDate(purchaseTeamProcessedAt, 'YYYY-MM-DD HH:mm'),
+    })
+  }
+
+  let processedAtLabel = '처리 일시'
+  let bestProcessedAt = ticket.value.processedAt
+
+  if (ticket.value.ticketType === 'PURCHASE_RETURN') {
+    processedAtLabel = '반품 처리 일시'
+    bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
+  } else if (ticket.value.ticketType === 'RETURN') {
+    processedAtLabel = '반납/해지 처리 일시'
+    bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
+  }
+
+  if (bestProcessedAt && ticket.value.completedAt && bestProcessedAt === ticket.value.completedAt) {
+    summaryItems.push({
+      label: `${processedAtLabel.replace(' 일시', '')} 및 완료 일시`,
+      value: formatDate(bestProcessedAt, 'YYYY-MM-DD HH:mm'),
+    })
+  } else {
+    if (bestProcessedAt) {
+      summaryItems.push({
+        label: processedAtLabel,
+        value: formatDate(bestProcessedAt, 'YYYY-MM-DD HH:mm'),
+      })
+    }
+    if (ticket.value.completedAt) {
+      summaryItems.push({
+        label: '완료 일시',
+        value: formatDate(ticket.value.completedAt, 'YYYY-MM-DD HH:mm'),
+      })
+    }
+  }
+
+  return summaryItems
 })
 const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
   if (!ticket.value) return []
@@ -2140,5 +2172,7 @@ watch(() => [props.ticketId, props.ticketType], () => {
   void loadPage()
 })
 
+onMounted(loadPage)
+</script>
 onMounted(loadPage)
 </script>
