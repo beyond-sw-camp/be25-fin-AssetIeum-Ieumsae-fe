@@ -2,10 +2,10 @@
   <span
     :class="[
       'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold',
-      statusClass[status],
+      statusClass[status] ?? 'bg-orange-100 text-orange-700',
     ]"
   >
-    {{ TICKET_STATUS_LABEL[status] }}
+    {{ TICKET_STATUS_LABEL[status] ?? status }}
   </span>
 </template>
 
@@ -17,7 +17,7 @@ defineProps<{
   status: TicketStatus
 }>()
 
-const statusClass: Record<TicketStatus, string> = {
+const statusClass: Partial<Record<TicketStatus | string, string>> = {
   REQUESTED: 'bg-slate-100 text-slate-600',
   DEPARTMENT_APPROVED: 'bg-orange-100 text-orange-700',
   DEPARTMENT_REJECTED: 'bg-red-100 text-red-700',

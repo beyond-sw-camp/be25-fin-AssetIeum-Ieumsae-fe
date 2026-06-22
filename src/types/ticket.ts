@@ -390,6 +390,17 @@ export interface AssetCollectResponse {
   collectedAt: string
 }
 
+export interface ReturnCompleteResponse {
+  ticketId: string | number
+  ticketNo?: string
+  ticketStatus: TicketStatus | string
+  detailStatus?: string
+  assetReturnStatus?: string
+  refundAmount?: number
+  returnProcessedAt?: string
+  completedAt: string
+}
+
 export interface MaintenanceCompleteRequest {
   maintenanceResult: string
   maintenanceCompletedAt: string

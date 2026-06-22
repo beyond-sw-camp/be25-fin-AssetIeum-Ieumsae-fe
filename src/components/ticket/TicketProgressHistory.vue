@@ -130,11 +130,12 @@ const PROCESS_BY_TICKET_TYPE: Record<TicketType, ProcessDefinition[]> = {
   ],
 }
 
-const STATUS_PROGRESS_INDEX: Partial<Record<TicketStatus, number>> = {
+const STATUS_PROGRESS_INDEX: Partial<Record<TicketStatus | string, number>> = {
   REQUESTED: 1,
   DEPARTMENT_APPROVED: 2,
   ASSET_APPROVED: 3,
   IN_PROGRESS: 3,
+  COLLECTED: 4,
 }
 
 const stepStateClass: Record<ProcessStepState, string> = {
@@ -195,21 +196,24 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
   if (key === 'result' && ticket.ticketType === 'MAINTENANCE_REQUEST') {
     return ticket.maintenanceCompletedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
   }
+  if (key === 'action' && (ticket.ticketType === 'ASSET_RETURN' || ticket.ticketType === 'PURCHASE_RETURN')) {
+    return ticket.collectedAt ?? (state === 'current' ? ticket.updatedAt : undefined)
+  }
   return state === 'current' ? ticket.updatedAt : undefined
 }
 
 function historyStepDate(ticket: TicketDetail, key: ProcessStepKey) {
   const histories = ticket.histories ?? []
-  const statusesByStep: Partial<Record<ProcessStepKey, TicketStatus[]>> = {
+  const statusesByStep: Partial<Record<ProcessStepKey, string[]>> = {
     created: ['REQUESTED'],
     department: ['DEPARTMENT_APPROVED', 'DEPARTMENT_REJECTED'],
     review: ['ASSET_APPROVED', 'ASSET_REJECTED'],
-    action: ['IN_PROGRESS'],
+    action: ['IN_PROGRESS', 'COLLECTED'],
     completed: ['COMPLETED', 'CANCELLED'],
   }
   const statuses = statusesByStep[key] ?? []
 
-  return histories.find((history) => statuses.includes(history.status))?.processedAt
+  return histories.find((history) => statuses.includes(String(history.status)))?.processedAt
 }
 
 function failureStepIndex(status: TicketStatus) {
@@ -223,6 +227,13 @@ function progressIndex(ticket: TicketDetail) {
   if (ticket.ticketType === 'MAINTENANCE_REQUEST') {
     if (ticket.status === 'IN_PROGRESS' && ticket.maintenanceCompletedAt) return 5
     if (ticket.status === 'IN_PROGRESS' && ticket.assetStatus === 'REPAIRING') return 4
+  }
+  if (
+    (ticket.ticketType === 'ASSET_RETURN' || ticket.ticketType === 'PURCHASE_RETURN')
+    && ticket.collectedAt
+    && !ticket.completedAt
+  ) {
+    return 4
   }
 
   return STATUS_PROGRESS_INDEX[ticket.status] ?? 0

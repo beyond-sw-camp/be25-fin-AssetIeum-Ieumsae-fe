@@ -38,13 +38,14 @@ export function getIntangibleStatusLabel(status: string | null | undefined, fall
   return INTANGIBLE_STATUS_LABEL[status.trim().toUpperCase()] ?? fallback
 }
 
-export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
+export const TICKET_STATUS_LABEL: Record<TicketStatus | string, string> = {
   REQUESTED: '요청됨',
   DEPARTMENT_APPROVED: '자산팀 검토 대기',
   DEPARTMENT_REJECTED: '부서 반려',
   ASSET_APPROVED: '자산팀 승인',
   ASSET_REJECTED: '자산팀 반려',
   IN_PROGRESS: '처리 중',
+  COLLECTED: '회수 완료',
   COMPLETED: '처리 완료',
   CANCELLED: '요청 취소',
 }

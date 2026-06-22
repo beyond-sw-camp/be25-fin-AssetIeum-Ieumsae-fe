@@ -25,6 +25,7 @@ import type {
   RentalAssignResponse,
   MaintenanceCollectResponse,
   AssetCollectResponse,
+  ReturnCompleteResponse,
   MaintenanceCompleteRequest,
   MaintenanceCompleteResponse,
   TicketAssignMeResponse,
@@ -340,6 +341,12 @@ export const ticketApi = {
   /** 반품 대상 자산 회수 처리 */
   collectPurchaseReturnAsset: (ticketId: string) =>
     api.patch<AssetCollectResponse>(`/tickets/purchase-returns/${ticketId}/collect`, {}),
+
+  completeReturnAsset: (ticketId: string) =>
+    api.patch<ReturnCompleteResponse>(`/tickets/asset-returns/${ticketId}/complete`, {}),
+
+  completePurchaseReturnAsset: (ticketId: string) =>
+    api.patch<ReturnCompleteResponse>(`/tickets/purchase-returns/${ticketId}/complete`, {}),
 
   /** 구매자산팀 티켓 담당자 나에게 배정 */
   completeMaintenance: (maintenanceTicketId: string, body: MaintenanceCompleteRequest) =>

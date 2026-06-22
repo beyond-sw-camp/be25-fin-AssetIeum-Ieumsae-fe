@@ -235,6 +235,16 @@
                     <PackageCheck :size="15" />
                     수리 완료 및 재할당
                   </Button>
+                  <Button
+                    v-else-if="canCompleteReturn"
+                    class="shrink-0"
+                    :loading="isCompletingReturn"
+                    :disabled="isActionSubmitting"
+                    @click="handleCompleteReturn"
+                  >
+                    <PackageCheck :size="15" />
+                    {{ ticket?.ticketType === 'PURCHASE_RETURN' ? '반품 처리 완료' : '반납·해지 처리 완료' }}
+                  </Button>
                 </div>
               </div>
             </TicketDetailCard>
@@ -707,6 +717,7 @@ const isAssigningMe = ref(false)
 const isConfirmingDirectPurchasePayment = ref(false)
 const isCollectingAsset = ref(false)
 const isCompletingMaintenance = ref(false)
+const isCompletingReturn = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
@@ -832,11 +843,11 @@ const isAssetCollectTicket = computed(() => (
     ),
   )
 ))
-const canAssignAsset = computed(() => (
-  ticketActionAllowed('canAssignAsset', Boolean(
-    ticket.value
-    && isAssetTeamRole.value
-    && ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)
+const canAssignAsset = computed(() => {
+  if (!ticket.value || !ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)) return false
+
+  return ticketActionAllowed('canAssignAsset', Boolean(
+    isAssetTeamRole.value
     && (
       ticket.value.ticketType === 'RENTAL'
         ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
@@ -855,7 +866,7 @@ const canAssignAsset = computed(() => (
       )
     )
   ))
-))
+})
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
     ticket.value
@@ -914,6 +925,16 @@ const canCompleteMaintenance = computed(() => (
     && !ticket.value.completedAt,
   )
 ))
+const canCompleteReturn = computed(() => (
+  ticketActionAllowed('canCompleteReturn', Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && (ticket.value.ticketType === 'ASSET_RETURN' || ticket.value.ticketType === 'PURCHASE_RETURN')
+    && Boolean(ticket.value.collectedAt)
+    && !ticket.value.completedAt
+    && !TERMINAL_STATUSES.has(ticket.value.status),
+  ))
+))
 const canShowStatusChange = computed(() => (
   ticketActionAllowed('canChangeProcessingStatus', Boolean(
     ticket.value
@@ -959,6 +980,7 @@ const isActionSubmitting = computed(() => (
   || isAssigningMe.value
   || isCollectingAsset.value
   || isCompletingMaintenance.value
+  || isCompletingReturn.value
   || isChangingRentalExtensionDueDate.value
   || isConfirmingDirectPurchasePayment.value
 ))
@@ -1556,6 +1578,30 @@ async function handleCollectAsset() {
   }
 }
 
+async function handleCompleteReturn() {
+  if (!ticket.value || !canCompleteReturn.value || isCompletingReturn.value) return
+
+  isCompletingReturn.value = true
+
+  try {
+    if (ticket.value.ticketType === 'ASSET_RETURN') {
+      await ticketApi.completeReturnAsset(ticket.value.ticketId)
+    } else if (ticket.value.ticketType === 'PURCHASE_RETURN') {
+      await ticketApi.completePurchaseReturnAsset(ticket.value.ticketId)
+    }
+
+    await reloadAfterAction()
+    notificationStore.success('반납/반품 처리가 완료되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '반납/반품 완료 처리에 실패했습니다.'
+    notificationStore.error('처리 완료 실패', message)
+  } finally {
+    isCompletingReturn.value = false
+  }
+}
+
 async function handleApprove(approver: ApproverType) {
   if (!ticket.value || isActionSubmitting.value) return
 
@@ -1642,6 +1688,7 @@ async function handleChangeStatus() {
 }
 
 function openAssetAssignDrawer() {
+  if (!canAssignAsset.value) return
   assetAssignErrorMessage.value = ''
   assetAssignDrawerOpen.value = true
 }
@@ -2037,6 +2084,7 @@ function resetTicketActionState() {
   isAssigningMe.value = false
   isCollectingAsset.value = false
   isCompletingMaintenance.value = false
+  isCompletingReturn.value = false
   isChangingRentalExtensionDueDate.value = false
 }
 
