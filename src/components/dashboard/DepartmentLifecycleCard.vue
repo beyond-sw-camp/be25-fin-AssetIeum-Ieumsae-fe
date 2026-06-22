@@ -132,6 +132,7 @@ const PAGE_SIZE = 5
 
 const props = defineProps<{
   events: HrLifecycleEvent[]
+  statistics: HrEventStatistics
 }>()
 
 const selectedTypes = ref<string[]>([...EVENT_TYPES])
