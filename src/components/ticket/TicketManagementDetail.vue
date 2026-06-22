@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
       <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
@@ -527,13 +527,11 @@
           :error-message="maintenanceCompletedAtError"
         />
 
-        <Input
+        <CurrencyInput
           id="maintenance-cost"
           v-model="maintenanceCost"
-          type="number"
           label="수리 비용"
           required
-          :min="0"
           :disabled="isCompletingMaintenance"
           :error="Boolean(maintenanceCostError)"
           :error-message="maintenanceCostError"
@@ -604,6 +602,7 @@ import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import TicketAssetAssignDrawer from '@/components/ticket/TicketAssetAssignDrawer.vue'
@@ -1948,15 +1947,9 @@ async function handleMaintenanceComplete() {
       maintenanceCompletedAt: maintenanceCompletedAt.value,
       maintenanceCost: Number(maintenanceCost.value),
     })
-    await ticketApi.assignAsset(currentTicket.ticketId, {
-      assetType: 'TANGIBLE',
-      assetId,
-      memberId: String(currentTicket.requesterId),
-    })
-    await ticketApi.changeStatus(currentTicket.ticketId, 'COMPLETED')
     maintenanceCompleteDrawerOpen.value = false
     await reloadAfterAction()
-    notificationStore.success('수리 결과와 비용을 등록하고 자산을 다시 할당했습니다.')
+    notificationStore.success('수리 결과와 비용이 등록되었습니다.')
   } catch (error) {
     const message = error instanceof Error
       ? error.message

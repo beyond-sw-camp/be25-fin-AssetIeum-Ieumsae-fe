@@ -415,7 +415,6 @@ export const ticketApi = {
   completeMaintenance: (maintenanceTicketId: string, body: MaintenanceCompleteRequest) =>
     api.patch<MaintenanceCompleteResponse>(`/tickets/maintenance/${maintenanceTicketId}/complete`, {
       maintenanceResult: body.maintenanceResult,
-      maintenanceCompletedAt: body.maintenanceCompletedAt,
       maintenanceCost: body.maintenanceCost,
     }),
 
