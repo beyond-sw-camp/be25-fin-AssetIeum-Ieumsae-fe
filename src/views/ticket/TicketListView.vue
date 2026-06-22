@@ -331,8 +331,12 @@ async function handleTicketCreated(ticket: TicketCreateResponse) {
   await fetchTickets()
 }
 
-function openTicketDetail(ticketId: TicketListItem['ticketId']) {
-  router.push({ name: 'TicketDetail', params: { ticketId } })
+function openTicketDetail(ticket: TicketListItem) {
+  router.push({
+    name: 'TicketDetail',
+    params: { ticketId: ticket.ticketId },
+    query: { ticketType: ticket.ticketType },
+  })
 }
 
 watch(totalPages, (nextTotalPages) => {

@@ -8,6 +8,7 @@
     <TicketManagementDetail
       v-if="selectedTicketId"
       :ticket-id="selectedTicketId"
+      :ticket-type="selectedTicketType ?? undefined"
       @back="closeTicketDetail"
       @updated="handleTicketUpdated"
     />
@@ -303,6 +304,7 @@ const pageSize = ref(20)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const selectedTicketId = ref<string | null>(null)
+const selectedTicketType = ref<TicketType | null>(null)
 
 const isAssetTeamRole = computed(() => (
   authStore.currentRole === 'ADMIN'
@@ -527,6 +529,7 @@ function openTicketDetail(ticket: TicketListItem) {
     query: {
       ...route.query,
       ticketId: ticket.ticketId,
+      ticketType: ticket.ticketType,
     },
   })
 }
@@ -534,6 +537,7 @@ function openTicketDetail(ticket: TicketListItem) {
 function closeTicketDetail() {
   const query = { ...route.query }
   delete query.ticketId
+  delete query.ticketType
   void router.replace({ name: 'TicketManagement', query })
 }
 
@@ -586,9 +590,10 @@ watch(totalPages, (nextTotalPages) => {
 })
 
 watch(
-  () => route.query.ticketId,
-  (value) => {
-    selectedTicketId.value = getQueryString(value)
+  () => [route.query.ticketId, route.query.ticketType],
+  ([ticketId, ticketType]) => {
+    selectedTicketId.value = getQueryString(ticketId)
+    selectedTicketType.value = getQueryTicketType(ticketType)
   },
   { immediate: true },
 )
@@ -610,5 +615,12 @@ onMounted(async () => {
 function getQueryString(value: unknown) {
   if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+function getQueryTicketType(value: unknown): TicketType | null {
+  const ticketType = getQueryString(value)
+  return ticketType && Object.prototype.hasOwnProperty.call(TICKET_TYPE_LABEL, ticketType)
+    ? ticketType as TicketType
+    : null
 }
 </script>

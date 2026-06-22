@@ -253,6 +253,7 @@ import type {
   TicketComment,
   TicketDetail,
   TicketStatus,
+  TicketType,
 } from '@/types'
 import {
   formatCurrency,
@@ -262,6 +263,7 @@ import {
   INTANGIBLE_STATUS_LABEL,
   TANGIBLE_STATUS_LABEL,
   TICKET_STATUS_LABEL,
+  TICKET_TYPE_LABEL,
 } from '@/utils/labels'
 
 interface DetailItem {
@@ -321,6 +323,13 @@ let commentActionRequestVersion = 0
 const ticketId = computed(() => {
   const value = route.params.ticketId
   return typeof value === 'string' ? value.trim() : ''
+})
+const ticketType = computed<TicketType | undefined>(() => {
+  const value = route.query.ticketType
+  const rawTicketType = Array.isArray(value) ? value[0] : value
+  return typeof rawTicketType === 'string' && Object.prototype.hasOwnProperty.call(TICKET_TYPE_LABEL, rawTicketType)
+    ? rawTicketType as TicketType
+    : undefined
 })
 
 const isRequester = computed(() => (
@@ -707,7 +716,7 @@ async function loadTicketDetail() {
   errorMessage.value = ''
 
   try {
-    const response = await ticketApi.getDetail(ticketId.value)
+    const response = await ticketApi.getDetail(ticketId.value, ticketType.value)
     ticket.value = response.data
   } catch (error) {
     ticket.value = null
@@ -936,7 +945,7 @@ function resetTicketActionState() {
   purchasePaymentErrorMessage.value = ''
 }
 
-watch(ticketId, () => {
+watch(() => [ticketId.value, ticketType.value], () => {
   isPurchasePaymentDrawerOpen.value = false
   isPurchasePaymentSubmitting.value = false
   purchasePaymentErrorMessage.value = ''

@@ -35,6 +35,7 @@ import type {
   TicketComment,
   TicketEvidenceUploadResponse,
   TicketStatus,
+  TicketType,
   TicketCommentDeleteResponse,
   ApiResponse,
   PageResponse,
@@ -50,6 +51,16 @@ function compactParams<T extends object>(params?: T) {
 }
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
+
+const TICKET_DETAIL_ENDPOINT_BY_TYPE: Record<TicketType, (ticketId: string) => string> = {
+  ASSET_REQUEST: (ticketId) => `/tickets/asset-requests/${ticketId}`,
+  PURCHASE_REQUEST: (ticketId) => `/tickets/purchase-requests/${ticketId}`,
+  RENTAL: (ticketId) => `/tickets/rentals/${ticketId}`,
+  RENTAL_EXTENSION: (ticketId) => `/tickets/rentals/extensions/${ticketId}`,
+  MAINTENANCE_REQUEST: (ticketId) => `/tickets/maintenance/${ticketId}`,
+  ASSET_RETURN: (ticketId) => `/tickets/asset-returns/${ticketId}`,
+  PURCHASE_RETURN: (ticketId) => `/tickets/purchase-returns/${ticketId}`,
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -75,6 +86,17 @@ function pickId(source: Record<string, unknown> | null, keys: string[]): string 
     const value = source[key]
     if (typeof value === 'string' && value.trim()) return value
     if (typeof value === 'number') return value
+  }
+
+  return undefined
+}
+
+function pickNumber(source: Record<string, unknown> | null, keys: string[]): number | undefined {
+  if (!source) return undefined
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'number' && Number.isFinite(value)) return value
   }
 
   return undefined
@@ -144,13 +166,12 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? pickString(requestDetail, ['productName', 'itemName', 'name'])
       ?? null,
     quantity: rawDetail.quantity ?? null,
-    actualAmount: rawDetail.actualAmount ?? rawDetail.actualPrice ?? null,
-    directPurchaseEvidenceUrl: rawDetail.directPurchaseEvidenceUrl
-      ?? rawDetail.proofFileUrl
-      ?? null,
-    directPurchaseEvidenceUploadedAt: rawDetail.directPurchaseEvidenceUploadedAt
-      ?? rawDetail.proofFileUploadedAt
-      ?? null,
+    actualAmount: pickNumber(rawDetail, ['actualAmount', 'actualPrice']) ?? null,
+    directPurchaseEvidenceUrl: pickString(rawDetail, ['directPurchaseEvidenceUrl', 'proofFileUrl']) ?? null,
+    directPurchaseEvidenceUploadedAt: pickString(
+      rawDetail,
+      ['directPurchaseEvidenceUploadedAt', 'proofFileUploadedAt'],
+    ) ?? null,
     directPurchaseEvidenceFileName: rawDetail.directPurchaseEvidenceFileName
       ?? pickString(rawDetail, ['proofFileName'])
       ?? null,
@@ -159,14 +180,12 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? returnDueDate
       ?? null,
     assetId: rawDetail.assetId
-      ?? pickId(requestDetail, ['assetId'])
-      ?? null,
+      ? String(rawDetail.assetId)
+      : pickString(requestDetail, ['assetId']) ?? null,
     assetStatus: rawDetail.assetStatus
       ?? pickString(requestDetail, ['assetStatus'])
       ?? null,
-    startedAt: rawDetail.startedAt
-      ?? rawDetail.usedStartedAt
-      ?? null,
+    startedAt: pickString(rawDetail, ['startedAt', 'usedStartedAt']) ?? null,
     maintenanceReason: rawDetail.maintenanceReason
       ?? pickString(rawDetail, ['requestDetail'])
       ?? rawDetail.requestReason
@@ -210,23 +229,26 @@ function normalizeTicketDetailResponse(
   }
 }
 
-async function getDetailFromFirstAvailableEndpoint(ticketId: string): Promise<ApiResponse<TicketDetail>> {
-  const detailEndpoints = [
-    `/tickets/asset-requests/${ticketId}`,
-    `/tickets/purchase-requests/${ticketId}`,
-    `/tickets/rentals/${ticketId}`,
-    `/tickets/rentals/extensions/${ticketId}`,
-    `/tickets/maintenance/${ticketId}`,
-    `/tickets/asset-returns/${ticketId}`,
-    `/tickets/purchase-returns/${ticketId}`,
-  ]
+async function getDetailFromEndpoint(endpoint: string): Promise<ApiResponse<TicketDetail>> {
+  const response = await api.get<TicketDetailResponse>(endpoint)
+  return normalizeTicketDetailResponse(response)
+}
+
+async function getDetailFromFirstAvailableEndpoint(
+  ticketId: string,
+  ticketType?: TicketType,
+): Promise<ApiResponse<TicketDetail>> {
+  if (ticketType) {
+    return getDetailFromEndpoint(TICKET_DETAIL_ENDPOINT_BY_TYPE[ticketType](ticketId))
+  }
+
+  const detailEndpoints = Object.values(TICKET_DETAIL_ENDPOINT_BY_TYPE).map((createEndpoint) => createEndpoint(ticketId))
 
   let notFoundError: unknown = null
 
   for (const endpoint of detailEndpoints) {
     try {
-      const response = await api.get<TicketDetailResponse>(endpoint)
-      return normalizeTicketDetailResponse(response)
+      return await getDetailFromEndpoint(endpoint)
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         notFoundError = error
@@ -257,8 +279,8 @@ export const ticketApi = {
     ),
 
   /** 티켓 상세 조회 */
-  getDetail: (ticketId: string) =>
-    getDetailFromFirstAvailableEndpoint(ticketId),
+  getDetail: (ticketId: string, ticketType?: TicketType) =>
+    getDetailFromFirstAvailableEndpoint(ticketId, ticketType),
 
   approveDepartment: (ticketId: string) =>
     api.patch(`/tickets/${ticketId}/department-approval/approve`, {}),

@@ -611,6 +611,7 @@ import type {
   TicketComment,
   TicketDetail,
   TicketStatus,
+  TicketType,
 } from '@/types'
 import {
   formatCurrency,
@@ -680,6 +681,7 @@ const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
 
 const props = defineProps<{
   ticketId?: string
+  ticketType?: TicketType
 }>()
 
 const router = useRouter()
@@ -1386,7 +1388,7 @@ async function loadTicketDetail() {
   errorMessage.value = ''
 
   try {
-    const response = await ticketApi.getDetail(props.ticketId)
+    const response = await ticketApi.getDetail(props.ticketId, props.ticketType)
     const detail = {
       ...response.data,
       status: normalizeTicketStatus(response.data.status),
@@ -2042,7 +2044,7 @@ async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(() => props.ticketId, () => {
+watch(() => [props.ticketId, props.ticketType], () => {
   resetTicketActionState()
   resetCommentActionState()
   void loadPage()
