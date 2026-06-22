@@ -562,7 +562,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'maintenanceReason', label: '요청 내용' },
         { key: 'processedAt', label: '처리 날짜' },
         { key: 'maintenanceResult', label: '처리 상태' },
@@ -580,7 +579,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'returnReason', label: '반품 사유' },
         { key: 'collected', label: '회수 여부' },
         { key: 'refundAmount', label: '환불 금액' },
@@ -616,9 +614,6 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
-    assetId: ticket.value.assetId === null || ticket.value.assetId === undefined
-      ? '-'
-      : String(ticket.value.assetId),
     startedAt: formatDate(ticket.value.startedAt),
     assetStatus: assetStatusLabel(ticket.value.assetStatus),
     rentalStartDate: formatDate(ticket.value.rentalStartDate),
@@ -642,7 +637,6 @@ function hasRequestDetailData(detail: TicketDetail): boolean {
     detail.quantity,
     detail.expectedPrice,
     detail.actualAmount,
-    detail.assetId,
     detail.assetStatus,
     detail.startedAt,
     detail.rentalStartDate,
