@@ -8,7 +8,10 @@
           class="relative h-56 w-56 rounded-full border border-text-main/40"
           :style="donutStyle"
         >
-          <div class="absolute inset-14 rounded-full border border-text-main/40 bg-surface"></div>
+          <div class="absolute inset-14 flex flex-col items-center justify-center rounded-full border border-border bg-surface text-center">
+            <span class="text-xs font-semibold text-text-sub">소진율</span>
+            <span class="mt-1 text-lg font-bold text-primary">{{ summary.usageRate }}%</span>
+          </div>
         </div>
       </div>
 
@@ -80,13 +83,10 @@ const props = defineProps<{
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`
 
 const donutStyle = computed(() => {
-  const usages = props.summary.categoryUsages
-  const first = usages[0]?.percentage ?? 0
-  const second = first + (usages[1]?.percentage ?? 0)
-  const third = second + (usages[2]?.percentage ?? 0)
+  const usageRate = Math.min(Math.max(props.summary.usageRate ?? 0, 0), 100)
 
   return {
-    background: `conic-gradient(#ff8f34 0 ${first}%, #ffad68 ${first}% ${second}%, #ffd0a8 ${second}% ${third}%, #e5e7eb ${third}% 100%)`,
+    background: `conic-gradient(var(--color-primary) 0 ${usageRate}%, var(--color-surface-secondary) ${usageRate}% 100%)`,
   }
 })
 </script>
