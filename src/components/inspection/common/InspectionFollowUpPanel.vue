@@ -30,6 +30,9 @@
           <p class="mt-1 text-xs text-text-sub">
             {{ row.productName || '-' }}
           </p>
+          <p v-if="row.memberName !== '-'" class="mt-1 text-xs text-text-sub">
+            대상 사용자 {{ row.memberName }}
+          </p>
           <p v-if="row.responseContent" class="mt-2 text-xs leading-relaxed text-text-sub">
             {{ row.responseContent }}
           </p>
@@ -88,6 +91,7 @@ export interface InspectionFollowUpPanelRow {
   inspectionResultId: string
   productName: string
   assetCode: string
+  memberName: string
   responseContent: string
   actionDetail: string
   status: InspectionFollowUpStatus

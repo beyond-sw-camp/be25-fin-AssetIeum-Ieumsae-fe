@@ -27,7 +27,7 @@
             자산 검수
           </h1>
           <p class="mt-2 text-sm leading-relaxed text-text-sub">
-            QR을 스캔하거나 목록에서 자산을 선택해 검수 결과를 등록해주세요.
+            {{ inspectionGuideText }}
           </p>
         </div>
 
@@ -64,11 +64,11 @@
         v-if="user"
         class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-surface-secondary px-3 py-3"
       >
-        <div class="min-w-0">
+        <div class="min-w-0 flex gap-1.5">
           <p class="truncate text-sm font-bold text-text-main">
             {{ user.name }}
           </p>
-          <p class="mt-1 truncate text-xs text-text-sub">
+          <p class="mt-0.5 text-xs text-text-sub">
             {{ user.departmentName || '-' }}
           </p>
         </div>
@@ -95,17 +95,17 @@
       </div>
 
       <div class="mt-4 grid grid-cols-3 gap-2">
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
-          <p class="text-xs font-semibold text-text-muted">전체</p>
-          <p class="mt-1 text-lg font-bold text-text-main">{{ totalElements }}</p>
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
+          <p class="mt-1 text-xs font-semibold text-text-muted">전체</p>
+          <p class="text-lg font-bold text-text-main">{{ totalElements }}</p>
         </div>
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
           <p class="text-xs font-semibold text-text-muted">대기</p>
-          <p class="mt-1 text-lg font-bold text-primary">{{ pendingCount }}</p>
+          <p class="text-lg font-bold text-primary">{{ pendingCount }}</p>
         </div>
-        <div class="rounded-lg bg-surface-secondary px-3 py-3">
+        <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
           <p class="text-xs font-semibold text-text-muted">완료</p>
-          <p class="mt-1 text-lg font-bold text-success">{{ respondedCount }}</p>
+          <p class="text-lg font-bold text-success">{{ respondedCount }}</p>
         </div>
       </div>
     </header>
@@ -126,26 +126,16 @@
         </Button>
       </div>
 
-      <div v-else class="-mx-4 min-w-0 overflow-x-hidden bg-background px-4 pb-3">
-        <Button class="w-full" size="lg" @click="isScannerOpen = true">
+      <div v-else class="min-w-0 overflow-x-hidden bg-background px-4 pb-3">
+        <Button
+          v-if="assetType === 'tangible'"
+          class="h-13! w-full"
+          size="lg"
+          @click="isScannerOpen = true"
+        >
           <ScanLine :size="18" />
           자산 검수하기
         </Button>
-
-        <div class="mt-3 grid min-w-0 grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)] gap-2">
-          <Dropdown
-            v-model="respondedFilter"
-            :options="respondedFilterOptions"
-            class="w-full min-w-0"
-            menu-strategy="fixed"
-          />
-          <Input
-            id="mobile-inspection-keyword"
-            v-model="keyword"
-            class="min-w-0 flex-1"
-            placeholder="제품명, 자산 번호 검색"
-          />
-        </div>
       </div>
 
       <div v-if="!authIssue && isLoading" class="space-y-3">
@@ -180,7 +170,7 @@
     </main>
 
     <section
-      v-if="!authIssue"
+      v-if="!authIssue && selectedTarget"
       class="min-w-0 shrink-0 border-t border-border bg-surface px-4 py-4"
     >
       <InspectionResponseForm
@@ -210,7 +200,7 @@
     </section>
 
     <InspectionQrScanner
-      v-if="isScannerOpen"
+      v-if="assetType === 'tangible' && isScannerOpen"
       @detected="handleDetectedCode"
       @close="isScannerOpen = false"
     />
@@ -223,8 +213,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ScanLine } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
-import Dropdown from '@/components/common/Dropdown.vue'
-import Input from '@/components/common/Input.vue'
 import InspectionQrScanner from '@/components/inspection/mobile/InspectionQrScanner.vue'
 import InspectionResponseForm from '@/components/inspection/mobile/InspectionResponseForm.vue'
 import InspectionTargetCard, {
@@ -235,9 +223,9 @@ import {
   tangibleInspectionApi,
 } from '@/api/inspection.api'
 import { ApiError } from '@/api/client'
-import type { DropdownOption } from '@/types'
 import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 import { useAuthStore } from '@/stores'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import { ROLE_LABEL } from '@/utils/labels'
 
 type MobileAssetType = 'tangible' | 'intangible'
@@ -305,19 +293,20 @@ const inspectionApi = computed(() => (
     : intangibleInspectionApi
 ))
 
-const respondedFilterOptions: DropdownOption[] = [
-  { label: '전체', value: '' },
-  { label: '대기', value: 'false' },
-  { label: '완료', value: 'true' },
-]
-
 const pendingCount = computed(() => targets.value.filter((target) => !target.isResponded).length)
 const respondedCount = computed(() => targets.value.filter((target) => target.isResponded).length)
 const emptyText = computed(() => loadError.value || '배정된 검수 대상 자산이 없습니다.')
+const inspectionGuideText = computed(() => (
+  assetType.value === 'tangible'
+    ? 'QR을 스캔하거나 목록에서 자산을 선택해 검수 결과를 등록해주세요.'
+    : '목록에서 무형자산을 선택해 검수 결과를 등록해주세요.'
+))
 const isResponseDisabled = computed(() => (
   !selectedTarget.value
   || selectedTarget.value.isResponded
-  || selectedTarget.value.inspectionStatus !== 'IN_PROGRESS'
+  || selectedTarget.value.inspectionStatus === 'READY'
+  || selectedTarget.value.inspectionStatus === 'COMPLETED'
+  || selectedTarget.value.inspectionStatus === 'CLOSED'
 ))
 const responseAvailabilityText = computed(() => {
   if (!selectedTarget.value) return ''
@@ -342,7 +331,7 @@ const filteredRows = computed(() => {
     const matchesResponded = !respondedFilter.value
       || String(target.isResponded) === respondedFilter.value
     const matchesKeyword = !query
-      || [target.productName, target.assetCode, target.category]
+      || [target.productName, target.assetCode, target.category, target.memberName]
         .some((value) => value.toLowerCase().includes(query))
 
     return matchesResponded && matchesKeyword
@@ -369,6 +358,7 @@ function assetTypeButtonClass(type: MobileAssetType) {
 
 function changeAssetType(type: MobileAssetType) {
   if (assetType.value === type) return
+  isScannerOpen.value = false
   router.replace({ query: { ...route.query, assetType: type } })
 }
 
@@ -398,7 +388,13 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   return {
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
-    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
+    inspectionStatus: resolveInspectionStatus({
+      startDate: textValue(item.startDate),
+      endDate: textValue(item.endDate),
+      fallbackStatus: inspectionStatusValue(item.inspectionStatus),
+    }),
+    memberId: textValue(item.memberId),
+    memberName: textValue(item.memberName) || '-',
     productName: textValue(item.productName, item.itemName) || '-',
     assetCode: textValue(item.assetCode, item.licenseCode) || '-',
     category: textValue(item.category, item.categoryName) || '-',
@@ -408,14 +404,14 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   }
 }
 
-function selectTarget(target: MobileInspectionTarget) {
+function selectTarget(target: MobileInspectionTarget, options: { preserveMessage?: boolean } = {}) {
   selectedTarget.value = target
   form.responseContent = target.isResponded ? '이미 응답이 등록된 자산입니다.' : ''
   form.followUpRequests = false
-  message.value = ''
+  if (!options.preserveMessage) message.value = ''
 }
 
-async function loadTargets() {
+async function loadTargets(options: { selectedTargetId?: string; preserveMessage?: boolean } = {}) {
   if (!canUseMobileInspection.value) {
     loadError.value = authIssue.value
     return
@@ -423,7 +419,7 @@ async function loadTargets() {
 
   isLoading.value = true
   loadError.value = ''
-  message.value = ''
+  if (!options.preserveMessage) message.value = ''
 
   try {
     const responses = isAssetTeamRole(authStore.currentRole)
@@ -444,18 +440,19 @@ async function loadTargets() {
 
     targets.value = Array.from(uniqueTargets.values())
     totalElements.value = targets.value.length
-    const initialTarget = targets.value.find((target) => (
-      !target.isResponded && target.inspectionStatus === 'IN_PROGRESS'
-    )) ?? targets.value[0] ?? null
+    const initialTarget = options.selectedTargetId
+      ? targets.value.find((target) => target.inspectionTargetId === options.selectedTargetId) ?? null
+      : null
     if (initialTarget) {
-      selectTarget(initialTarget)
+      selectTarget(initialTarget, { preserveMessage: options.preserveMessage })
     } else {
       selectedTarget.value = null
     }
   } catch {
-    targets.value = []
-    totalElements.value = 0
-    selectedTarget.value = null
+    if (targets.value.length === 0) {
+      totalElements.value = 0
+      selectedTarget.value = null
+    }
     loadError.value = '검수 대상 자산을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
@@ -473,16 +470,25 @@ async function handleSubmit() {
   message.value = ''
 
   try {
-    await inspectionApi.value.createResponse(selectedTarget.value.inspectionTargetId, {
+    const targetId = selectedTarget.value.inspectionTargetId
+    await inspectionApi.value.createResponse(targetId, {
       responseContent: form.responseContent,
       followUpRequests: form.followUpRequests,
     })
 
+    targets.value = targets.value.map((target) => (
+      target.inspectionTargetId === targetId
+        ? { ...target, isResponded: true }
+        : target
+    ))
     isSuccess.value = true
     message.value = '검수 응답이 등록되었습니다.'
     form.responseContent = ''
     form.followUpRequests = false
-    await loadTargets()
+    await Promise.allSettled([
+      inspectionApi.value.getResponse(targetId),
+      loadTargets({ selectedTargetId: targetId, preserveMessage: true }),
+    ])
   } catch (error) {
     isSuccess.value = false
     message.value = error instanceof ApiError

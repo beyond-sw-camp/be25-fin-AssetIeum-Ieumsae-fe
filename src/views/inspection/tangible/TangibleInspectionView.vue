@@ -104,7 +104,7 @@
         <Table
           :columns="columns"
           :rows="pagedRows"
-          row-key="inspectionId"
+          row-key="rowKey"
           :loading="isLoading"
           :empty-text="emptyText"
           @row-click="openDetailDrawer"
@@ -198,6 +198,7 @@ import TangibleInspectionRegister from '@/components/inspection/tangible/Tangibl
 import { tangibleInspectionApi } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
+import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
   InspectionSearchResponse,
@@ -208,6 +209,7 @@ import type {
 type TangibleInspectionStatus = InspectionStatus
 
 interface TangibleInspectionRow extends Record<string, unknown> {
+  rowKey: string
   inspectionId: string
   targetName: string
   executor: string
@@ -219,6 +221,7 @@ interface TangibleInspectionRow extends Record<string, unknown> {
   targetAssetCount: number
   completedAssetCount: number
   followUpCount: number
+  followUpCompletedCount: number
   description: string
 }
 
@@ -234,8 +237,8 @@ interface SummaryCard {
 const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
-  COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  COMPLETED: '조사 완료',
+  CLOSED: '조사 종료',
 }
 
 const { canManageInspection } = usePermission()
@@ -348,7 +351,7 @@ const summaryCards = computed<SummaryCard[]>(() => {
     0,
   )
   const followUpInProgressAssets = rows.reduce((sum, item) => sum + item.followUpCount, 0)
-  const followUpCompletedAssets = 0
+  const followUpCompletedAssets = rows.reduce((sum, item) => sum + item.followUpCompletedCount, 0)
 
   return [
     {
@@ -469,38 +472,6 @@ function getTargetNameLabel(item: InspectionSearchResponse) {
   return '조사 대상'
 }
 
-function startOfDay(date: Date) {
-  const nextDate = new Date(date)
-  nextDate.setHours(0, 0, 0, 0)
-  return nextDate
-}
-
-function dateTimeValue(value: string) {
-  if (!value) return null
-
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function resolveInspectionStatusByPeriod(
-  startDate: string,
-  endDate: string,
-  fallbackStatus: TangibleInspectionStatus,
-): TangibleInspectionStatus {
-  const today = startOfDay(new Date())
-  const start = dateTimeValue(startDate)
-  const end = dateTimeValue(endDate)
-
-  if (!start || !end) return fallbackStatus
-
-  const startDay = startOfDay(start)
-  const endDay = startOfDay(end)
-
-  if (today < startDay) return 'READY'
-  if (today <= endDay) return 'IN_PROGRESS'
-  return 'COMPLETED'
-}
-
 function toInspectionRow(item: InspectionSearchResponse, index: number): TangibleInspectionRow {
   const rawStatus = item.inspectionStatus ?? item.status ?? 'READY'
   const inspectorType = item.inspectorType
@@ -508,11 +479,22 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Tangibl
   const startDate = textValue(item.startDate)
   const endDate = textValue(item.endDate)
 
+  const inspectionId = textValue(item.inspectionId) || `inspection-${index}`
+
   return {
-    inspectionId: textValue(item.inspectionId) || `inspection-${index}`,
+    rowKey: textValue(item.groupKey) || inspectionId,
+    inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
-    status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),
+    status: resolveInspectionStatus({
+      startDate,
+      endDate,
+      fallbackStatus: rawStatus,
+      unrespondedCount: item.targetAssetCount === undefined
+        ? undefined
+        : Math.max(item.targetAssetCount - (item.inspectedAssetCount ?? item.completedAssetCount ?? 0), 0),
+      followUpCount: item.followUpRequiredCount,
+    }),
     inspectorDepartment: '-',
     inspectorName: inspectorName || '-',
     startDate,
@@ -523,6 +505,7 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Tangibl
       item.completedAssetCount,
     ) ?? 0,
     followUpCount: numberValue(item.followUpRequiredCount) ?? 0,
+    followUpCompletedCount: 0,
     description: item.description ?? '',
   }
 }
@@ -541,12 +524,25 @@ async function hydrateDetailCounts(row: TangibleInspectionRow): Promise<Tangible
     const completedAssetCount = inspectionResults.length
     const targetAssetCount = completedAssetCount + uninspectedAssets.length
     const followUpCount = inspectionResults.filter((item) => item.followUpRequired).length
+    const followUpCompletedCount = inspectionResults.filter((item) => (
+      item.followUpRequired && (item.followUpStatus === 'COMPLETED' || item.status === 'COMPLETED')
+    )).length
+    const status = resolveInspectionStatus({
+      startDate: row.startDate,
+      endDate: row.endDate,
+      fallbackStatus: row.status,
+      unrespondedCount: uninspectedAssets.length,
+      followUpCount,
+      completedFollowUpCount: followUpCompletedCount,
+    })
 
     return {
       ...row,
+      status,
       targetAssetCount,
       completedAssetCount,
       followUpCount,
+      followUpCompletedCount,
     }
   } catch {
     return row

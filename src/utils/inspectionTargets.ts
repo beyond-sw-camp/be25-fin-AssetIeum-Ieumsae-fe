@@ -35,19 +35,22 @@ export function groupMyInspectionTargets(
   targets.forEach((target) => {
     const inspectionId = textValue(target.inspectionId)
     if (!inspectionId) return
-    groups.set(inspectionId, [...(groups.get(inspectionId) ?? []), target])
+    const key = `${inspectionId}-${target.memberId ?? 'unknown'}`
+    groups.set(key, [...(groups.get(key) ?? []), target])
   })
 
-  return Array.from(groups.entries()).map(([inspectionId, group]) => {
+  return Array.from(groups.entries()).map(([groupKey, group]) => {
     const first = group[0]
+    const inspectionId = textValue(first?.inspectionId)
     const inspectedAssetCount = group.filter((target) => (
       target.isResponded === true || target.responded === true
     )).length
 
     return {
       inspectionId,
+      groupKey,
       targetName: targetName(group),
-      inspectorName: '본인',
+      inspectorName: first?.memberName ?? '본인',
       inspectorType: 'EMPLOYEE',
       inspectionStatus: statusValue(first?.inspectionStatus),
       startDate: textValue(first?.startDate),
