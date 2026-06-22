@@ -615,6 +615,7 @@ import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import DirectPurchaseItemRegistrationDrawer from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
+import type { DirectPurchaseItemPayload } from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
 import TicketAssetAssignDrawer from '@/components/ticket/TicketAssetAssignDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -923,7 +924,9 @@ const canGoToAssetRegistration = computed(() => (
     && isAssetTeamRole.value
     && ticket.value.status === 'IN_PROGRESS'
     && isDirectPurchasePaymentReady.value
-    && directPurchasePaymentConfirmationStatus.value === 'CONFIRMED',
+    && directPurchasePaymentConfirmationStatus.value === 'CONFIRMED'
+    && !ticket.value.assetId
+    && !ticket.value.assignmentId
   )
 ))
 const canChangeRentalExtensionDueDate = computed(() => (
@@ -1042,6 +1045,12 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     || expectedAmount === undefined
     ? null
     : actualAmount - expectedAmount
+  const serialNumberText = payment?.serialNumbers?.length
+    ? payment.serialNumbers.join(', ')
+    : payment?.serialNumber ?? '-'
+  const licenseCodeText = payment?.licenseCodes?.length
+    ? payment.licenseCodes.join(', ')
+    : payment?.licenseCode ?? '-'
 
   return [
     { label: '예상 합계 금액', value: formatCurrency(expectedAmount) },
@@ -1059,12 +1068,12 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
       value: directPurchasePaymentConfirmationStatus.value ?? '-',
     },
     ...(ticket.value.assetType === 'TANGIBLE' ? [
-      { label: '시리얼 번호', value: payment?.serialNumber ?? '-' },
+      { label: '시리얼 번호', value: serialNumberText },
       { label: '사용 위치', value: payment?.location ?? '-' },
       { label: '보증 만료 일시', value: formatDate(payment?.warrantyExpiredAt) || '-' },
     ] : []),
     ...(ticket.value.assetType === 'INTANGIBLE' ? [
-      { label: '라이선스 코드', value: payment?.licenseCode ?? '-' },
+      { label: '라이선스 코드', value: licenseCodeText },
       { label: '좌석 수', value: payment?.seatCount ? `${payment.seatCount}개` : '-' },
       { label: '자동 연장 여부', value: payment?.isAutoRenewal === true ? '자동 갱신' : (payment?.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
       { label: '결제 주기', value: payment?.billingCycle ?? '-' },
@@ -1460,6 +1469,8 @@ function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseA
   if (!productName || productName === '-' || !manufacturer || !modelName) return null
 
   return {
+    itemId: detail.assetItemId ?? undefined,
+    assetItemId: detail.assetItemId ?? undefined,
     productName,
     manufacturer,
     modelName,
@@ -2021,11 +2032,30 @@ function closeDirectPurchaseItemRegistrationDrawer() {
   directPurchaseItemRegistrationDrawerOpen.value = false
 }
 
-function handleDirectPurchaseItemRegistrationSubmit() {
-  notificationStore.warning(
-    '비표준 품목 등록 API 연결 필요',
-    '비표준 품목 선택/신규 등록 화면만 먼저 구성했습니다. API가 준비되면 이 단계에서 품목 등록 후 자산 등록 및 할당을 이어가면 됩니다.',
-  )
+async function handleDirectPurchaseItemRegistrationSubmit(payload: DirectPurchaseItemPayload) {
+  if (!ticket.value || !canGoToAssetRegistration.value || isRegisteringDirectPurchaseItem.value) return
+
+  isRegisteringDirectPurchaseItem.value = true
+
+  try {
+    await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, {
+      itemId: payload.itemId,
+      assetItemId: payload.itemId,
+      productName: payload.productName,
+      manufacturer: payload.manufacturer,
+      modelName: payload.modelName,
+    })
+    directPurchaseItemRegistrationDrawerOpen.value = false
+    await reloadAfterAction()
+    notificationStore.success('비표준 품목 정보로 자산을 등록하고 요청자에게 할당했습니다.')
+  } catch (error) {
+    notificationStore.error(
+      '자산 등록 및 할당 실패',
+      error instanceof Error ? error.message : '문제가 발생했습니다.',
+    )
+  } finally {
+    isRegisteringDirectPurchaseItem.value = false
+  }
 }
 
 function validateMaintenanceCompleteForm() {

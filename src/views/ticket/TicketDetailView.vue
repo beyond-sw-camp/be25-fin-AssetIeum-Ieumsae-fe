@@ -948,6 +948,7 @@ function closePurchasePaymentDrawer() {
 
 async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest & {
   file: File | null
+  assets?: unknown[]
 }) {
   if (
     !ticketId.value
@@ -959,7 +960,16 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
   purchasePaymentErrorMessage.value = ''
 
   try {
-    const { file, ...paymentResult } = payload
+    const {
+      file,
+      assets,
+      serialNumber,
+      licenseCode,
+      ...paymentResult
+    } = payload
+    void assets
+    void serialNumber
+    void licenseCode
     const isUpdate = purchasePaymentMode.value === 'update'
     const response = isUpdate
       ? await ticketApi.updateDirectPurchaseResult(ticketId.value, paymentResult)

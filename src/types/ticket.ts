@@ -511,9 +511,11 @@ export interface TicketActualAmountResponse {
   requiresReapproval: boolean
   purchaseDate?: string | null
   purchaseVendor?: string | null
+  serialNumbers?: string[] | null
   serialNumber?: string | null
   location?: string | null
   warrantyExpiredAt?: string | null
+  licenseCodes?: string[] | null
   licenseCode?: string | null
   seatCount?: number | null
   isAutoRenewal?: boolean | null
@@ -531,9 +533,11 @@ export interface DirectPurchasePaymentRequest {
   actualPrice: number
   purchaseDate?: string | null
   purchaseVendor?: string | null
+  serialNumbers?: string[] | null
   serialNumber?: string | null
   location?: string | null
   warrantyExpiredAt?: string | null
+  licenseCodes?: string[] | null
   licenseCode?: string | null
   seatCount?: number | null
   isAutoRenewal?: boolean | null
@@ -550,6 +554,8 @@ export interface TicketEvidenceUploadResponse {
 }
 
 export interface DirectPurchaseAssetAssignRequest {
+  itemId?: string
+  assetItemId?: string
   productName: string
   manufacturer: string
   modelName: string
@@ -565,6 +571,9 @@ export interface DirectPurchaseAssetAssignResponse {
   assetType?: AssetType
   itemId?: string
   itemName?: string
+  assetIds?: string[]
+  assetCodes?: string[]
+  assignmentIds?: string[]
   assetId?: string
   assetCode?: string
   assignmentId?: string

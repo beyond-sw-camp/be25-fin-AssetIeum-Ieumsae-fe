@@ -1,7 +1,7 @@
 <template>
   <BaseDrawer
     :is-open="isOpen"
-    title="비표준 품목 등록"
+    title="비표준 품목 선택"
     panel-class="w-full max-w-2xl"
     @close="handleClose"
   >
@@ -16,20 +16,6 @@
             비표준 품목
           </span>
         </div>
-        <dl class="mt-4 grid gap-3 text-xs md:grid-cols-3">
-          <div>
-            <dt class="text-text-muted">제조사</dt>
-            <dd class="mt-1 font-semibold text-text-main">{{ ticket.manufacturer || '-' }}</dd>
-          </div>
-          <div>
-            <dt class="text-text-muted">모델명</dt>
-            <dd class="mt-1 font-semibold text-text-main">{{ ticket.modelName || ticket.requestedItemDetail || '-' }}</dd>
-          </div>
-          <div>
-            <dt class="text-text-muted">수량</dt>
-            <dd class="mt-1 font-semibold text-text-main">{{ ticket.quantity ?? 1 }}개</dd>
-          </div>
-        </dl>
       </section>
 
       <div class="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -37,10 +23,15 @@
           v-model="keyword"
           class="h-10 rounded-lg border border-border bg-surface px-3 text-sm outline-none transition-colors placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
           placeholder="품목명, 제조사, 모델명 검색"
-          :disabled="submitting"
-          @keyup.enter="handleSearch"
+          :disabled="isLoadingItems || submitting"
+          @keyup.enter="loadItems"
         />
-        <Button variant="outline" :disabled="submitting" @click="handleSearch">
+        <Button
+          variant="outline"
+          :loading="isLoadingItems"
+          :disabled="submitting"
+          @click="loadItems"
+        >
           <Search :size="15" />
           검색
         </Button>
@@ -49,41 +40,51 @@
       <section class="space-y-2">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-text-main">검색된 비표준 품목</h3>
-          <span class="text-xs text-text-muted">{{ filteredItems.length }}개</span>
+          <span class="text-xs text-text-muted">{{ itemOptions.length }}개</span>
+        </div>
+
+        <div v-if="itemErrorMessage" class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+          {{ itemErrorMessage }}
         </div>
 
         <div class="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border p-2">
-          <label
-            v-for="item in filteredItems"
-            :key="item.itemId"
-            :class="[
-              'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
-              selectedMode === 'existing' && selectedItemId === item.itemId
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:bg-surface-secondary',
-            ]"
-          >
-            <input
-              v-model="selectedItemId"
-              type="radio"
-              class="mt-1"
-              name="direct-purchase-item"
-              :value="item.itemId"
-              :disabled="submitting"
-              @change="selectedMode = 'existing'"
-            />
-            <span class="min-w-0 flex-1">
-              <span class="block font-semibold text-text-main">{{ item.productName }}</span>
-              <span class="mt-1 block text-xs text-text-muted">
-                {{ item.manufacturer }} · {{ item.modelName }} · {{ item.categoryName || '-' }}
-              </span>
-            </span>
-            <span class="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-text-sub">
-              비표준
-            </span>
-          </label>
+          <div v-if="isLoadingItems" class="flex h-32 items-center justify-center text-sm text-text-sub">
+            비표준 품목을 조회하고 있습니다.
+          </div>
 
-          <div v-if="filteredItems.length === 0" class="p-6 text-center text-sm text-text-sub">
+          <template v-else-if="itemOptions.length > 0">
+            <label
+              v-for="item in itemOptions"
+              :key="item.itemId"
+              :class="[
+                'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                selectedMode === 'existing' && selectedItemId === item.itemId
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:bg-surface-secondary',
+              ]"
+            >
+              <input
+                v-model="selectedItemId"
+                type="radio"
+                class="mt-1"
+                name="direct-purchase-item"
+                :value="item.itemId"
+                :disabled="submitting"
+                @change="selectedMode = 'existing'"
+              />
+              <span class="min-w-0 flex-1">
+                <span class="block font-semibold text-text-main">{{ item.productName }}</span>
+                <span class="mt-1 block text-xs text-text-muted">
+                  {{ item.manufacturer }} · {{ item.modelName }} · {{ item.categoryName || '-' }}
+                </span>
+              </span>
+              <span class="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-text-sub">
+                비표준
+              </span>
+            </label>
+          </template>
+
+          <div v-else class="p-6 text-center text-sm text-text-sub">
             검색어와 일치하는 비표준 품목이 없습니다.
           </div>
         </div>
@@ -97,7 +98,7 @@
             value="new"
             :disabled="submitting"
           />
-          새 비표준 품목으로 등록
+          새 비표준 품목 정보 입력
         </label>
 
         <div class="grid gap-3 md:grid-cols-2">
@@ -120,9 +121,7 @@
         </div>
       </section>
 
-      <p v-if="message" class="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
-        {{ message }}
-      </p>
+      <p v-if="validationMessage" class="text-sm text-danger">{{ validationMessage }}</p>
     </div>
 
     <template #footer>
@@ -131,7 +130,7 @@
           취소
         </Button>
         <Button class="flex-1" :loading="submitting" @click="handleSubmit">
-          품목 등록 후 자산 등록
+          자산 등록 및 할당
         </Button>
       </div>
     </template>
@@ -142,11 +141,21 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { Search } from 'lucide-vue-next'
 
+import { intangibleItemApi, tangibleItemApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
-import type { TicketDetail } from '@/types'
+import type { AssetType, IntangibleItem, TangibleAssetItem, TicketDetail } from '@/types'
 
-interface NonStandardItemOption {
+export interface DirectPurchaseItemPayload {
+  mode: 'existing' | 'new'
+  productName: string
+  manufacturer: string
+  modelName: string
+  itemId?: string
+  categoryName?: string | null
+}
+
+interface ItemOption {
   itemId: string
   productName: string
   manufacturer: string
@@ -162,15 +171,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  submit: [{ mode: 'existing' | 'new'; item?: NonStandardItemOption; newItem?: NonStandardItemOption }]
+  submit: [payload: DirectPurchaseItemPayload]
 }>()
 
 const keyword = ref('')
 const selectedMode = ref<'existing' | 'new'>('existing')
 const selectedItemId = ref('')
-const message = ref('')
+const itemOptions = ref<ItemOption[]>([])
+const isLoadingItems = ref(false)
+const itemErrorMessage = ref('')
+const validationMessage = ref('')
 const newItem = reactive({
-  itemId: 'new',
   productName: '',
   manufacturer: '',
   modelName: '',
@@ -181,53 +192,99 @@ const requestItemName = computed(() => (
   props.ticket.requestedItemName
   ?? props.ticket.requestedItemDetail
   ?? props.ticket.productName
-  ?? '-'
+  ?? ''
+))
+
+const assetType = computed<AssetType>(() => (
+  props.ticket.assetType === 'INTANGIBLE' ? 'INTANGIBLE' : 'TANGIBLE'
 ))
 
 const assetTypeLabel = computed(() => (
-  props.ticket.assetType === 'INTANGIBLE' ? '무형자산' : '유형자산'
+  assetType.value === 'INTANGIBLE' ? '무형자산' : '유형자산'
 ))
 
-const suggestedItems = computed<NonStandardItemOption[]>(() => {
-  const productName = requestItemName.value
-  const manufacturer = props.ticket.manufacturer ?? ''
-  const modelName = props.ticket.modelName ?? props.ticket.requestedItemDetail ?? productName
+function isNonStandardItem(value: number | boolean | undefined) {
+  if (typeof value === 'boolean') return !value
+  return Number(value) === 0
+}
 
-  return [
-    {
-      itemId: 'suggested-request',
-      productName,
-      manufacturer: manufacturer || '제조사 미입력',
-      modelName,
-      categoryName: props.ticket.categoryName ?? null,
-    },
-  ].filter((item) => item.productName && item.productName !== '-')
-})
+function tangibleItemName(item: TangibleAssetItem) {
+  const aliases = item as TangibleAssetItem & { assetName?: string }
+  return item.name ?? item.productName ?? aliases.assetName ?? item.itemCode ?? ''
+}
 
-const filteredItems = computed(() => {
-  const query = keyword.value.trim().toLowerCase()
-  if (!query) return suggestedItems.value
+function mapTangibleItem(item: TangibleAssetItem): ItemOption {
+  return {
+    itemId: String(item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? item.itemNo),
+    productName: tangibleItemName(item),
+    manufacturer: item.manufacturer ?? '',
+    modelName: item.modelName ?? '',
+    categoryName: item.categoryName ?? item.category ?? null,
+  }
+}
 
-  return suggestedItems.value.filter((item) => (
-    item.productName.toLowerCase().includes(query)
-    || item.manufacturer.toLowerCase().includes(query)
-    || item.modelName.toLowerCase().includes(query)
-  ))
-})
+function mapIntangibleItem(item: IntangibleItem): ItemOption {
+  return {
+    itemId: String(item.assetItemId ?? item.itemId ?? item.id ?? item.productName),
+    productName: item.productName,
+    manufacturer: item.provider ?? item.vendor ?? '',
+    modelName: item.licenseType ?? item.productName,
+    categoryName: item.category ?? null,
+  }
+}
+
+async function loadItems() {
+  isLoadingItems.value = true
+  itemErrorMessage.value = ''
+  validationMessage.value = ''
+
+  try {
+    if (assetType.value === 'INTANGIBLE') {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        keyword: keyword.value.trim() || undefined,
+        isStandard: false,
+      })
+      itemOptions.value = response.data.content
+        .filter((item) => isNonStandardItem(item.isStandard))
+        .map(mapIntangibleItem)
+    } else {
+      const response = await tangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        keyword: keyword.value.trim() || undefined,
+        isStandard: false,
+      })
+      itemOptions.value = response.data.content
+        .filter((item) => isNonStandardItem(item.isStandard))
+        .map(mapTangibleItem)
+    }
+
+    selectedItemId.value = itemOptions.value[0]?.itemId ?? ''
+    if (itemOptions.value.length > 0) selectedMode.value = 'existing'
+  } catch (error) {
+    itemOptions.value = []
+    itemErrorMessage.value = error instanceof Error
+      ? error.message
+      : '비표준 품목 목록을 불러오지 못했습니다.'
+  } finally {
+    isLoadingItems.value = false
+  }
+}
 
 function resetForm() {
-  keyword.value = requestItemName.value === '-' ? '' : requestItemName.value
+  keyword.value = requestItemName.value
   selectedMode.value = 'existing'
-  selectedItemId.value = suggestedItems.value[0]?.itemId ?? ''
-  message.value = ''
-  newItem.productName = requestItemName.value === '-' ? '' : requestItemName.value
+  selectedItemId.value = ''
+  itemOptions.value = []
+  itemErrorMessage.value = ''
+  validationMessage.value = ''
+  newItem.productName = requestItemName.value
   newItem.manufacturer = props.ticket.manufacturer ?? ''
   newItem.modelName = props.ticket.modelName ?? props.ticket.requestedItemDetail ?? ''
   newItem.categoryName = props.ticket.categoryName ?? ''
-}
-
-function handleSearch() {
-  message.value = ''
+  void loadItems()
 }
 
 function handleClose() {
@@ -236,13 +293,41 @@ function handleClose() {
 }
 
 function handleSubmit() {
-  message.value = '비표준 품목 등록/선택 API가 아직 연결되지 않았습니다. API 구현 후 이 화면에서 품목 등록과 자산 등록을 이어서 처리하면 됩니다.'
+  validationMessage.value = ''
 
-  const item = filteredItems.value.find((option) => option.itemId === selectedItemId.value)
+  if (selectedMode.value === 'existing') {
+    const item = itemOptions.value.find((option) => option.itemId === selectedItemId.value)
+    if (!item) {
+      validationMessage.value = '자산 등록 및 할당에 사용할 비표준 품목을 선택해 주세요.'
+      return
+    }
+
+    emit('submit', {
+      mode: 'existing',
+      itemId: item.itemId,
+      productName: item.productName,
+      manufacturer: item.manufacturer,
+      modelName: item.modelName,
+      categoryName: item.categoryName,
+    })
+    return
+  }
+
+  const productName = newItem.productName.trim()
+  const manufacturer = newItem.manufacturer.trim()
+  const modelName = newItem.modelName.trim()
+
+  if (!productName || !manufacturer || !modelName) {
+    validationMessage.value = '품목명, 제조사, 모델명을 모두 입력해 주세요.'
+    return
+  }
+
   emit('submit', {
-    mode: selectedMode.value,
-    item,
-    newItem: selectedMode.value === 'new' ? { ...newItem } : undefined,
+    mode: 'new',
+    productName,
+    manufacturer,
+    modelName,
+    categoryName: newItem.categoryName.trim() || null,
   })
 }
 
@@ -251,7 +336,6 @@ watch(
   ([isOpen]) => {
     if (isOpen) resetForm()
   },
-  { immediate: true },
 )
 </script>
 
