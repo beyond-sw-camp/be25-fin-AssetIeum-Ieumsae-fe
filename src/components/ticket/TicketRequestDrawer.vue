@@ -426,15 +426,21 @@
           placeholder="예: Apple"
           :disabled="isSubmitting"
         />
-        <Input
-          v-if="form.assetType === 'INTANGIBLE'"
-          id="ticket-license-type"
-          v-model="form.licenseType"
-          label="라이선스 유형"
-          required
-          placeholder="예: SUBSCRIPTION"
-          :disabled="isSubmitting"
-        />
+        <div v-if="form.assetType === 'INTANGIBLE'" class="space-y-2">
+          <label
+            for="ticket-license-type"
+            class="text-sm font-semibold text-text-main"
+          >
+            라이선스 유형 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="ticket-license-type"
+            v-model="form.licenseType"
+            :options="licenseTypeOptions"
+            root-option="라이선스 유형 선택"
+            :disabled="isSubmitting"
+          />
+        </div>
         <Input
           v-if="selectedKind === 'NON_STANDARD_ASSET_REQUEST'"
           id="ticket-external-url"
@@ -724,6 +730,16 @@ const directPurchaseItemTypeOptions = [
   { label: '표준 품목', value: 'STANDARD' as const },
   { label: '비표준 품목', value: 'NON_STANDARD' as const },
 ]
+const licenseTypeOptions: DropdownOption[] = [
+  { label: '구독형 (SaaS)', value: 'SUBSCRIPTION' },
+  { label: '영구 라이선스', value: 'PERPETUAL' },
+  { label: '기간제 라이선스', value: 'TERM' },
+]
+
+function licenseTypeLabel(value: string | null | undefined) {
+  if (!value) return ''
+  return licenseTypeOptions.find((option) => option.value === value)?.label ?? value
+}
 
 const selectedKind = ref<TicketRequestKind | ''>('')
 const isAssetSelectionStep = ref(false)
@@ -1202,6 +1218,7 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
     description: [
       item.category ?? responseItem.softwareType,
       item.vendor ?? responseItem.provider,
+      licenseTypeLabel(item.licenseType),
     ].filter(Boolean).join(' · '),
     availableCount,
     assetType: 'INTANGIBLE',
@@ -1965,7 +1982,6 @@ async function handleSubmit() {
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
-        console.log(response)
         break
       case 'DIRECT_PURCHASE':
         if (isStandardDirectPurchase.value) {

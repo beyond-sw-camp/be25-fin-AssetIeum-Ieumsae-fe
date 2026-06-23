@@ -347,6 +347,11 @@ const ASSET_TYPE_OPTIONS: DropdownOption[] = [
   { label: '유형 자산', value: 'TANGIBLE' },
   { label: '무형 자산', value: 'INTANGIBLE' },
 ]
+const LICENSE_TYPE_LABEL: Record<string, string> = {
+  SUBSCRIPTION: '구독형 (SaaS)',
+  PERPETUAL: '영구 라이선스',
+  TERM: '기간제 라이선스',
+}
 
 const props = defineProps<{
   isOpen: boolean
@@ -814,7 +819,7 @@ function toIntangibleItemOption(item: IntangibleItem): ItemOption {
     itemId,
     itemNo: itemId ? `SW-${itemId.padStart(4, '0')}` : '-',
     name: item.productName ?? itemId,
-    category: item.category ?? '',
+    category: [item.category, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
     availableCount,
     isStandard: isStandardValue(item.isStandard),
   }
@@ -834,11 +839,16 @@ function toAssetRequestItemOption(item: AssetRequestAssignableItem): ItemOption 
     itemId,
     itemNo: String((item.itemIdentifier ?? item.itemNo ?? item.itemCode ?? itemId) || '-'),
     name: String((item.productName ?? item.name ?? item.itemIdentifier ?? itemId) || '-'),
-    category: item.categoryName ?? '',
+    category: [item.categoryName, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
     availableCount: availableItemCount(item),
     isStandard: isStandardValue(item.isStandard),
     requestedItem: item.requestedItem,
   }
+}
+
+function licenseTypeLabel(value: string | null | undefined) {
+  if (!value) return ''
+  return LICENSE_TYPE_LABEL[value] ?? value
 }
 
 function isStandardValue(value: boolean | number | string | null | undefined) {
