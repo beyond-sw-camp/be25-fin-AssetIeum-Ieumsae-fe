@@ -213,6 +213,8 @@ export interface StandardAssetRequestCreate {
   requestedUsageType?: RequestedUsageType
   assetType: AssetType
   assetItemId: string
+  assetAssigneeId: string
+  assetAssigneeIds: string[]
   quantity: number
   requestReason: string
 }
@@ -221,6 +223,8 @@ export interface NonStandardAssetRequestCreate {
   requestedUsageType?: RequestedUsageType
   assetType: AssetType
   categoryId: string
+  assetAssigneeId: string
+  assetAssigneeIds: string[]
   requestedItemDetail: string
   manufacturer: string
   licenseType: string | null
@@ -235,6 +239,8 @@ export interface DirectPurchaseRequestCreate {
   assetType: AssetType
   isStandard: boolean
   assetItemId: string | null
+  assetAssigneeId: string
+  assetAssigneeIds: string[]
   categoryId: string | null
   requestedItemDetail: string | null
   manufacturer: string | null

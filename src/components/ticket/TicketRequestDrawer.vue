@@ -483,6 +483,38 @@
         />
       </div>
 
+      <section v-if="requiresAssetAssignee" class="space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-sm font-semibold text-text-main">
+            자산 할당자 <span class="text-primary">*</span>
+          </label>
+          <span class="text-xs text-text-muted">{{ requestedAssetQuantity }}명 선택</span>
+        </div>
+        <div class="space-y-2">
+          <div
+            v-for="(_, index) in form.assetAssigneeIds"
+            :key="`ticket-asset-assignee-${index}`"
+            class="grid grid-cols-[4rem_1fr] items-center gap-2"
+          >
+            <span class="text-xs font-semibold text-text-muted">{{ index + 1 }}번째</span>
+            <Dropdown
+              :id="`ticket-asset-assignee-${index}`"
+              :model-value="form.assetAssigneeIds[index] ?? ''"
+              :options="assetAssigneeOptions"
+              :root-option="isAssigneeLoading ? '같은 부서 구성원 조회 중' : '자산 할당자 선택'"
+              :disabled="isSubmitting || isAssigneeLoading || assetAssigneeOptions.length === 0"
+              @update:model-value="(value) => handleAssetAssigneeChange(index, value)"
+            />
+          </div>
+        </div>
+        <p v-if="assigneeErrorMessage" class="text-xs text-danger">
+          {{ assigneeErrorMessage }}
+        </p>
+        <p v-else class="text-xs text-text-muted">
+          요청자와 같은 부서 구성원만 선택할 수 있습니다.
+        </p>
+      </section>
+
       <div v-if="selectedKind === 'RENTAL'" class="grid grid-cols-2 gap-3">
         <Input
           id="ticket-rental-start-date"
@@ -583,6 +615,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import {
   intangibleAssetApi,
   intangibleItemApi,
+  memberApi,
   tangibleAssetApi,
   tangibleItemApi,
   ticketCreateApi,
@@ -603,6 +636,7 @@ import type {
   IntangibleAsset,
   IntangibleItem,
   MaintenanceAvailableAsset,
+  Member,
   RentalAvailableItem,
   RequestedUsageType,
   TangibleAsset,
@@ -630,6 +664,15 @@ type AvailableCountSource = {
   availableAssetCount?: number | string | null
   stockCount?: number | string | null
   assetCount?: number | string | null
+}
+
+type MemberRecord = Member & {
+  id?: string | number
+  employeeId?: string | number
+  department?: {
+    departmentId?: string | number
+    id?: string | number
+  } | null
 }
 
 const props = defineProps<{
@@ -674,8 +717,10 @@ const selectionAssetType = ref<AssetType>('TANGIBLE')
 const confirmedSelectedAsset = ref<SelectableAsset | null>(null)
 const isSubmitting = ref(false)
 const isAssetsLoading = ref(false)
+const isAssigneeLoading = ref(false)
 const errorMessage = ref('')
 const assetErrorMessage = ref('')
+const assigneeErrorMessage = ref('')
 const assetSearchKeyword = ref('')
 const hasSearchedAssets = ref(false)
 const tangibleCategoryOptions = ref<DropdownOption[]>([])
@@ -688,6 +733,7 @@ const activeRentalAssetOptions = ref<SelectableAsset[]>([])
 const maintenanceAssetOptions = ref<SelectableAsset[]>([])
 const returnAssetOptions = ref<SelectableAsset[]>([])
 const purchaseReturnAssetOptions = ref<SelectableAsset[]>([])
+const departmentMembers = ref<Member[]>([])
 
 const form = reactive({
   assetType: 'TANGIBLE' as AssetType,
@@ -696,6 +742,8 @@ const form = reactive({
   assetUsageType: 'DEPARTMENT' as RequestedUsageType,
   category: '',
   selectedAssetId: '',
+  assetAssigneeId: '',
+  assetAssigneeIds: [] as string[],
   requestedItemName: '',
   vendor: '',
   licenseType: '',
@@ -757,6 +805,12 @@ const isNonStandardDirectPurchase = computed(() => (
 const showsPurchaseCategorySelect = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || isNonStandardDirectPurchase.value
+))
+
+const requiresAssetAssignee = computed(() => (
+  selectedKind.value === 'STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
+  || selectedKind.value === 'DIRECT_PURCHASE'
 ))
 
 const showsPurchaseDetailInputs = computed(() => (
@@ -885,6 +939,19 @@ const purchaseRequestCategoryOptions = computed(() => (
     : tangiblePurchaseCategoryOptions.value
 ))
 
+const assetAssigneeOptions = computed<DropdownOption[]>(() => (
+  departmentMembers.value
+    .map((member) => ({
+      label: `${member.name}${member.memberNo ? ` (${member.memberNo})` : ''}`,
+      value: memberId(member),
+    }))
+    .filter((option) => option.value)
+))
+
+const requestedAssetQuantity = computed(() => (
+  positiveNumber(form.quantity) ? Math.max(1, Number(form.quantity)) : 1
+))
+
 const canSearchAssets = computed(() => Boolean(
   (!requiresAssetSearchUsageType.value || assetSearchForm.assetUsageType)
   && (selectedKind.value === 'RENTAL' || assetSearchForm.category),
@@ -1008,6 +1075,13 @@ function requestedUsagePayload(
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
   if (usesSelectableAsset.value && !form.selectedAssetId) return false
+  if (
+    requiresAssetAssignee.value
+    && (
+      form.assetAssigneeIds.length !== requestedAssetQuantity.value
+      || form.assetAssigneeIds.some((assigneeId) => !assigneeId)
+    )
+  ) return false
   if (requiresPurchaseUsageType.value && !form.assetUsageType) return false
   if (showsPurchaseCategorySelect.value && !form.category) return false
 
@@ -1404,6 +1478,86 @@ async function loadOwnedAssets() {
 
 }
 
+async function loadDepartmentMembers() {
+  const departmentId = authStore.user?.departmentId
+  const requesterId = authStore.user?.memberId
+
+  departmentMembers.value = []
+  form.assetAssigneeId = ''
+  form.assetAssigneeIds = []
+  assigneeErrorMessage.value = ''
+
+  isAssigneeLoading.value = true
+
+  try {
+    const response = await memberApi.getList({
+      page: 0,
+      size: 999,
+      departmentId: departmentId || undefined,
+    })
+    let members = response.data.content
+    if (members.length === 0 && departmentId) {
+      const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
+      members = fallbackResponse.data.content
+    }
+    let targetDepartmentId = departmentId
+
+    if (!targetDepartmentId && requesterId) {
+      const requester = members.find((member) => String(memberId(member)) === String(requesterId))
+      targetDepartmentId = memberDepartmentId(requester)
+    }
+
+    if (!targetDepartmentId) {
+      const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
+      members = fallbackResponse.data.content
+      const requester = members.find((member) => String(memberId(member)) === String(requesterId))
+      targetDepartmentId = memberDepartmentId(requester)
+    }
+
+    departmentMembers.value = members.filter((member) => (
+      Boolean(targetDepartmentId)
+      && String(memberDepartmentId(member)) === String(targetDepartmentId)
+      && member.status !== 'RESIGNED'
+    ))
+    syncAssetAssigneeIds()
+
+    if (departmentMembers.value.length === 0) {
+      assigneeErrorMessage.value = '같은 부서에서 선택 가능한 구성원이 없습니다.'
+    }
+  } catch (error) {
+    departmentMembers.value = []
+    assigneeErrorMessage.value = error instanceof Error
+      ? error.message
+      : '같은 부서 구성원 목록을 불러오지 못했습니다.'
+  } finally {
+    isAssigneeLoading.value = false
+  }
+}
+
+function memberId(member: Member | null | undefined) {
+  if (!member) return ''
+  const record = member as MemberRecord
+  return String(member.memberId ?? record.employeeId ?? record.id ?? '')
+}
+
+function memberDepartmentId(member: Member | null | undefined) {
+  if (!member) return ''
+  const record = member as MemberRecord
+  return String(member.departmentId ?? record.department?.departmentId ?? record.department?.id ?? '')
+}
+
+function syncAssetAssigneeIds() {
+  const quantity = requestedAssetQuantity.value
+  const currentIds = form.assetAssigneeIds.filter(Boolean)
+  const requesterId = authStore.user?.memberId ?? ''
+  const defaultId = departmentMembers.value.some((member) => memberId(member) === requesterId)
+    ? requesterId
+    : memberId(departmentMembers.value[0])
+
+  form.assetAssigneeIds = Array.from({ length: quantity }, (_, index) => currentIds[index] ?? defaultId)
+  form.assetAssigneeId = form.assetAssigneeIds[0] ?? ''
+}
+
 async function loadRequestAvailableAssets() {
   if (
     selectedKind.value !== 'RETURN'
@@ -1511,6 +1665,8 @@ function resetForm() {
     assetUsageType: 'DEPARTMENT',
     category: '',
     selectedAssetId: '',
+    assetAssigneeId: authStore.user?.memberId ?? '',
+    assetAssigneeIds: Array.from({ length: requestedAssetQuantity.value }, () => authStore.user?.memberId ?? ''),
     requestedItemName: '',
     vendor: '',
     licenseType: '',
@@ -1537,6 +1693,8 @@ function handleKindSelect(kind: TicketRequestKind) {
   assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
   form.selectedAssetId = ''
+  form.assetAssigneeId = authStore.user?.memberId ?? ''
+  form.assetAssigneeIds = Array.from({ length: requestedAssetQuantity.value }, () => authStore.user?.memberId ?? '')
   assetSearchKeyword.value = ''
   errorMessage.value = ''
   returnAssetOptions.value = []
@@ -1544,6 +1702,10 @@ function handleKindSelect(kind: TicketRequestKind) {
 
   if (kind === 'RETURN' || kind === 'PURCHASE_RETURN') {
     void loadRequestAvailableAssets()
+  }
+
+  if (requiresAssetAssignee.value && departmentMembers.value.length === 0) {
+    void loadDepartmentMembers()
   }
 }
 
@@ -1595,6 +1757,11 @@ function handleAssetCategoryChange(value: string | number) {
 function handlePurchaseRequestCategoryChange(value: string | number) {
   if (typeof value !== 'string') return
   form.category = value
+}
+
+function handleAssetAssigneeChange(index: number, value: string | number) {
+  form.assetAssigneeIds[index] = String(value)
+  form.assetAssigneeId = form.assetAssigneeIds[0] ?? ''
 }
 
 function handleDirectPurchaseItemTypeChange(value: 'STANDARD' | 'NON_STANDARD') {
@@ -1677,6 +1844,8 @@ async function handleSubmit() {
           ...requestedUsagePayload(form.assetType, assetSearchForm.assetUsageType),
           assetType: form.assetType,
           assetItemId: form.selectedAssetId,
+          assetAssigneeId: form.assetAssigneeId,
+          assetAssigneeIds: form.assetAssigneeIds,
           quantity: Number(form.quantity),
           requestReason,
         })
@@ -1686,6 +1855,8 @@ async function handleSubmit() {
           ...requestedUsagePayload(form.assetType, form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
+          assetAssigneeId: form.assetAssigneeId,
+          assetAssigneeIds: form.assetAssigneeIds,
           requestedItemDetail: form.requestedItemName.trim(),
           manufacturer: form.vendor.trim(),
           licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
@@ -1704,6 +1875,8 @@ async function handleSubmit() {
             assetType: form.assetType,
             isStandard: true,
             assetItemId: form.selectedAssetId,
+            assetAssigneeId: form.assetAssigneeId,
+            assetAssigneeIds: form.assetAssigneeIds,
             categoryId: standardPayload.categoryId,
             requestedItemDetail: standardPayload.requestedItemDetail,
             manufacturer: standardPayload.manufacturer,
@@ -1718,6 +1891,8 @@ async function handleSubmit() {
             assetType: form.assetType,
             isStandard: false,
             assetItemId: null,
+            assetAssigneeId: form.assetAssigneeId,
+            assetAssigneeIds: form.assetAssigneeIds,
             categoryId: form.category,
             requestedItemDetail: form.requestedItemName.trim(),
             manufacturer: form.vendor.trim(),
@@ -1786,5 +1961,10 @@ watch(() => props.isOpen, async (isOpen) => {
   if (!isOpen) return
   resetForm()
   await loadSelectableAssets()
+})
+
+watch(requestedAssetQuantity, () => {
+  if (!requiresAssetAssignee.value) return
+  syncAssetAssigneeIds()
 })
 </script>
