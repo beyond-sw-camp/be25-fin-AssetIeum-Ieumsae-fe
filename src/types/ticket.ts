@@ -144,6 +144,10 @@ export interface TicketActions {
 export interface TicketHistory {
   status: TicketStatus
   processedAt: string
+  rejectionReason?: string | null
+  reason?: string | null
+  comment?: string | null
+  memo?: string | null
 }
 
 export interface TicketListFilter {

@@ -48,6 +48,13 @@
         >
           {{ step.description }}
         </p>
+        <div
+          v-if="step.reason"
+          class="relative mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger shadow-sm before:absolute before:-top-1 before:left-4 before:h-2 before:w-2 before:rotate-45 before:border-l before:border-t before:border-danger/20 before:bg-danger/5"
+        >
+          <p class="mb-1 font-semibold">{{ stepReasonTitle(step.key) }}</p>
+          <p class="whitespace-pre-line leading-relaxed">{{ step.reason }}</p>
+        </div>
       </li>
     </ol>
   </TicketDetailCard>
@@ -73,6 +80,7 @@ interface ProcessStep extends ProcessDefinition {
   state: ProcessStepState
   date?: string
   description?: string
+  reason?: string
 }
 
 const PROCESS_BY_TICKET_TYPE: Record<TicketType, ProcessDefinition[]> = {
@@ -203,6 +211,10 @@ function stepDate(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepS
 }
 
 function historyStepDate(ticket: TicketDetail, key: ProcessStepKey) {
+  return historyForStep(ticket, key)?.processedAt
+}
+
+function historyForStep(ticket: TicketDetail, key: ProcessStepKey) {
   const histories = ticket.histories ?? []
   const statusesByStep: Partial<Record<ProcessStepKey, string[]>> = {
     created: ['REQUESTED'],
@@ -213,7 +225,7 @@ function historyStepDate(ticket: TicketDetail, key: ProcessStepKey) {
   }
   const statuses = statusesByStep[key] ?? []
 
-  return histories.find((history) => statuses.includes(String(history.status)))?.processedAt
+  return histories.find((history) => statuses.includes(String(history.status)))
 }
 
 function failureStepIndex(status: TicketStatus) {
@@ -241,13 +253,37 @@ function progressIndex(ticket: TicketDetail) {
 
 function stepDescription(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
   if (key === 'created') return ticket.requestReason ?? undefined
-  if (state === 'rejected') {
-    return key === 'department'
-      ? ticket.departmentRejectionReason ?? undefined
-      : ticket.purchaseRejectionReason ?? undefined
-  }
   if (state === 'canceled') return '요청이 취소되었습니다.'
   return undefined
+}
+
+function textOrUndefined(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function historyReason(ticket: TicketDetail, key: ProcessStepKey) {
+  const history = historyForStep(ticket, key)
+
+  return textOrUndefined(history?.rejectionReason)
+    ?? textOrUndefined(history?.reason)
+    ?? textOrUndefined(history?.comment)
+    ?? textOrUndefined(history?.memo)
+}
+
+function stepReason(ticket: TicketDetail, key: ProcessStepKey, state: ProcessStepState) {
+  if (state !== 'rejected') return undefined
+
+  return historyReason(ticket, key)
+    ?? (key === 'department'
+      ? textOrUndefined(ticket.departmentRejectionReason)
+      : textOrUndefined(ticket.purchaseRejectionReason))
+}
+
+function stepReasonTitle(key: ProcessStepKey) {
+  if (key === 'department') return '부서 반려 사유'
+  if (key === 'review') return '구매자산팀 반려 사유'
+  return '반려 사유'
 }
 
 const processSteps = computed<ProcessStep[]>(() => {
@@ -290,6 +326,7 @@ const processSteps = computed<ProcessStep[]>(() => {
       state,
       date: stepDate(ticket, definition.key, state),
       description: stepDescription(ticket, definition.key, state),
+      reason: stepReason(ticket, definition.key, state),
     }
   })
 })
