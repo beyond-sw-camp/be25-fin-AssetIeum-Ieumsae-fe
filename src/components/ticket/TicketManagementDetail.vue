@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
       <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
@@ -235,6 +235,16 @@
                     <PackageCheck :size="15" />
                     수리 완료 및 재할당
                   </Button>
+                  <Button
+                    v-else-if="canCompleteReturn"
+                    class="shrink-0"
+                    :loading="isCompletingReturn"
+                    :disabled="isActionSubmitting"
+                    @click="handleCompleteReturn"
+                  >
+                    <PackageCheck :size="15" />
+                    {{ ticket?.ticketType === 'PURCHASE_RETURN' ? '반품 처리 완료' : '반납·해지 처리 완료' }}
+                  </Button>
                 </div>
               </div>
             </TicketDetailCard>
@@ -299,7 +309,7 @@
       class="absolute -inset-x-4 -bottom-4 z-20 flex min-h-14 flex-wrap items-center justify-end gap-3 border-t border-border bg-surface px-6 py-2"
     >
       <Button
-        v-if="canDepartmentReview"
+        v-if="canDepartmentReject"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="isActionSubmitting"
@@ -337,18 +347,19 @@
         @click="handleConfirmDirectPurchasePayment"
       >
         <CheckCircle2 :size="15" />
-        구매 증빙 승인 (구매 진행 처리)
+        결제 정보 확인 처리
       </Button>
 
       <Button
         v-if="canGoToAssetRegistration"
         variant="outline"
         class="shrink-0"
+        :loading="isAssigningAsset"
         :disabled="isActionSubmitting"
         @click="handleGoToAssetRegistration"
       >
         <Save :size="15" />
-        신규 품목/자산 등록하러 가기
+        자산 등록 및 할당
       </Button>
       <Button
         v-if="canChangeRentalExtensionDueDate"
@@ -361,7 +372,7 @@
         반납 예정일 변경
       </Button>
       <Button
-        v-if="canAssetReview"
+        v-if="canAssetReject"
         variant="outline"
         class="shrink-0 border-danger! text-danger! hover:bg-danger/5!"
         :disabled="isActionSubmitting"
@@ -398,6 +409,15 @@
       :error-message="assetAssignErrorMessage"
       @close="closeAssetAssignDrawer"
       @submit="handleAssetAssign"
+    />
+
+    <DirectPurchaseItemRegistrationDrawer
+      v-if="ticket"
+      :is-open="directPurchaseItemRegistrationDrawerOpen"
+      :ticket="ticket"
+      :submitting="isRegisteringDirectPurchaseItem"
+      @close="closeDirectPurchaseItemRegistrationDrawer"
+      @submit="handleDirectPurchaseItemRegistrationSubmit"
     />
 
     <BaseDrawer
@@ -475,10 +495,6 @@
           <p class="font-semibold text-text-main">{{ requestItemName(ticket) }}</p>
           <dl class="mt-4 grid gap-3 text-xs">
             <div class="flex items-center justify-between gap-3">
-              <dt class="text-text-muted">대상 자산</dt>
-              <dd class="font-semibold text-text-main">{{ ticket?.assetId ?? '-' }}</dd>
-            </div>
-            <div class="flex items-center justify-between gap-3">
               <dt class="text-text-muted">재할당 대상</dt>
               <dd class="font-semibold text-text-main">{{ ticket?.requesterName ?? '-' }}</dd>
             </div>
@@ -516,13 +532,11 @@
           :error-message="maintenanceCompletedAtError"
         />
 
-        <Input
+        <CurrencyInput
           id="maintenance-cost"
           v-model="maintenanceCost"
-          type="number"
           label="수리 비용"
           required
-          :min="0"
           :disabled="isCompletingMaintenance"
           :error="Boolean(maintenanceCostError)"
           :error-message="maintenanceCostError"
@@ -588,14 +602,16 @@ import {
   XCircle,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import DirectPurchaseItemRegistrationDrawer from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
+import type { DirectPurchaseItemPayload } from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
 import TicketAssetAssignDrawer from '@/components/ticket/TicketAssetAssignDrawer.vue'
 import TicketCommunication from '@/components/ticket/TicketCommunication.vue'
 import TicketDetailCard from '@/components/ticket/TicketDetailCard.vue'
@@ -605,16 +621,20 @@ import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTab
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  DirectPurchaseAssetAssignRequest,
   DropdownOption,
   IntangibleItem,
   TangibleAssetItem,
+  TicketActualAmountResponse,
   TicketComment,
   TicketDetail,
   TicketStatus,
+  TicketType,
 } from '@/types'
 import {
   formatCurrency,
   formatDate,
+  getTicketDetailStatusLabel,
   getTicketStatusLabel,
   getTicketTypeLabel,
   INTANGIBLE_STATUS_LABEL,
@@ -679,9 +699,9 @@ const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
 
 const props = defineProps<{
   ticketId?: string
+  ticketType?: TicketType
 }>()
 
-const router = useRouter()
 const emit = defineEmits<{
   back: []
   updated: []
@@ -704,13 +724,17 @@ const isAssigningMe = ref(false)
 const isConfirmingDirectPurchasePayment = ref(false)
 const isCollectingAsset = ref(false)
 const isCompletingMaintenance = ref(false)
+const isCompletingReturn = ref(false)
 const isChangingRentalExtensionDueDate = ref(false)
+const isLoadingDirectPurchasePaymentResult = ref(false)
+const isRegisteringDirectPurchaseItem = ref(false)
 const isCheckingPurchaseAssignable = ref(false)
 const updatingCommentId = ref<number | null>(null)
 const deletingCommentId = ref<number | null>(null)
 const rejectDrawerOpen = ref(false)
 const rejectTarget = ref<ApproverType | null>(null)
 const assetAssignDrawerOpen = ref(false)
+const directPurchaseItemRegistrationDrawerOpen = ref(false)
 const rentalExtensionDrawerOpen = ref(false)
 const maintenanceCompleteDrawerOpen = ref(false)
 const commentToDelete = ref<TicketComment | null>(null)
@@ -720,12 +744,14 @@ const commentSubmitErrorMessage = ref('')
 const commentActionErrorMessage = ref('')
 const rejectErrorMessage = ref('')
 const assetAssignErrorMessage = ref('')
+const directPurchasePaymentResultErrorMessage = ref('')
+const directPurchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
 const rentalExtensionDueDate = ref('')
 const rentalExtensionDueDateError = ref('')
 const rentalExtensionSubmitErrorMessage = ref('')
 const maintenanceResult = ref('')
 const maintenanceCompletedAt = ref('')
-const maintenanceCost = ref<string | number>('')
+const maintenanceCost = ref('')
 const maintenanceResultError = ref('')
 const maintenanceCompletedAtError = ref('')
 const maintenanceCostError = ref('')
@@ -762,18 +788,31 @@ const isRequester = computed(() => (
     && String(ticket.value.requesterId) === authStore.user.memberId,
   )
 ))
+function ticketActionAllowed(key: keyof NonNullable<TicketDetail['actions']>, fallback: boolean) {
+  const value = ticket.value?.actions?.[key]
+  return typeof value === 'boolean' ? value : fallback
+}
 const canDepartmentReview = computed(() => (
-  Boolean(
+  ticketActionAllowed('canApproveDepartment', Boolean(
     ticket.value
     && (
       isAssetTeamRole.value
       || (isDepartmentManagerRole.value && !isRequester.value)
     )
     && ticket.value.status === 'REQUESTED',
-  )
+  ))
+))
+const canDepartmentReject = computed(() => (
+  ticketActionAllowed('canRejectDepartment', canDepartmentReview.value)
 ))
 const canAssetReview = computed(() => (
-  Boolean(ticket.value && isAssetTeamRole.value && ticket.value.status === 'DEPARTMENT_APPROVED')
+  ticketActionAllowed(
+    'canApproveAsset',
+    Boolean(ticket.value && isAssetTeamRole.value && ticket.value.status === 'DEPARTMENT_APPROVED'),
+  )
+))
+const canAssetReject = computed(() => (
+  ticketActionAllowed('canRejectAsset', canAssetReview.value)
 ))
 const isDirectPurchaseTicket = computed(() => (
   Boolean(
@@ -790,21 +829,39 @@ const shouldShowDirectPurchasePaymentCard = computed(() => (
   )
 ))
 const hasDirectPurchasePaymentInfo = computed(() => (
-  Boolean(
-    ticket.value
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
-    && typeof ticket.value.actualAmount === 'number'
-    && ticket.value.actualAmount > 0,
-  )
+  directPurchasePaymentActualAmount.value !== null
+))
+const directPurchasePaymentActualAmount = computed(() => {
+  const amount = directPurchasePaymentResult.value?.actualPrice
+    ?? directPurchasePaymentResult.value?.actualAmount
+  const number = Number(amount)
+  return Number.isFinite(number) && number > 0 ? number : null
+})
+const directPurchasePaymentConfirmationStatus = computed(() => (
+  directPurchasePaymentResult.value?.confirmationStatus
+    ?? ticket.value?.directPurchaseConfirmationStatus
+    ?? null
 ))
 const directPurchaseEvidenceFileName = computed(() => (
   ticket.value?.directPurchaseEvidenceFileName ?? ''
 ))
 const hasDirectPurchaseEvidence = computed(() => (
-  Boolean(directPurchaseEvidenceFileName.value || ticket.value?.directPurchaseEvidenceUploadedAt)
+  Boolean(
+    directPurchasePaymentResult.value?.proofFileUrl
+    || directPurchasePaymentResult.value?.proofFileUploadedAt
+    || directPurchaseEvidenceFileName.value
+    || ticket.value?.directPurchaseEvidenceUploadedAt,
+  )
 ))
 const isDirectPurchasePaymentReady = computed(() => (
-  hasDirectPurchasePaymentInfo.value && hasDirectPurchaseEvidence.value
+  hasDirectPurchasePaymentInfo.value
+))
+const isDirectPurchaseNonStandardTicket = computed(() => (
+  Boolean(
+    ticket.value
+    && isDirectPurchaseTicket.value
+    && isNonStandardItem(ticket.value.isStandard ?? undefined),
+  )
 ))
 const isAssetCollectTicket = computed(() => (
   Boolean(
@@ -816,13 +873,16 @@ const isAssetCollectTicket = computed(() => (
     ),
   )
 ))
-const canAssignAsset = computed(() => (
-  Boolean(
-    ticket.value
-    && isAssetTeamRole.value
-    && ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)
+const canAssignAsset = computed(() => {
+  if (!ticket.value || !ASSET_ASSIGNABLE_TYPES.has(ticket.value.ticketType)) return false
+  if (ticket.value.ticketType === 'PURCHASE_REQUEST' && ticket.value.requestMethod === 'DIRECT_PURCHASE') return false
+
+  const fallback = Boolean(
+    isAssetTeamRole.value
     && (
-      ticket.value.ticketType === 'PURCHASE_REQUEST'
+      ticket.value.ticketType === 'RENTAL'
+        ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
+        : ticket.value.ticketType === 'PURCHASE_REQUEST'
         ? ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status)
         : ticket.value.status === 'ASSET_APPROVED'
     )
@@ -837,34 +897,41 @@ const canAssignAsset = computed(() => (
       )
     )
   )
-))
+
+  return ticket.value.ticketType === 'ASSET_REQUEST'
+    ? fallback
+    : ticketActionAllowed('canAssignAsset', fallback)
+})
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
     ticket.value
+    && isDirectPurchaseTicket.value
     && isAssetTeamRole.value
-    && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && isDirectPurchasePaymentReady.value
-    && ticket.value.status === 'ASSET_APPROVED',
+    && !isLoadingDirectPurchasePaymentResult.value
+    && ticket.value.status === 'IN_PROGRESS'
+    && directPurchasePaymentConfirmationStatus.value !== 'CONFIRMED',
   )
 ))
 const canGoToAssetRegistration = computed(() => (
   Boolean(
     ticket.value
+    && isDirectPurchaseTicket.value
     && isAssetTeamRole.value
-    && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && ticket.value.status === 'IN_PROGRESS'
-    && !purchaseRequestAssignable.value,
+    && isDirectPurchasePaymentReady.value
+    && directPurchasePaymentConfirmationStatus.value === 'CONFIRMED'
+    && !ticket.value.assetId
+    && !ticket.value.assignmentId
   )
 ))
 const canChangeRentalExtensionDueDate = computed(() => (
-  Boolean(
+  ticketActionAllowed('canUpdateReturnDueDate', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ticket.value.ticketType === 'RENTAL_EXTENSION'
-    && ticket.value.status === 'ASSET_APPROVED',
-  )
+    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
+  ))
 ))
 const canAssignMe = computed(() => (
   Boolean(
@@ -876,13 +943,13 @@ const canAssignMe = computed(() => (
   )
 ))
 const canCollectAsset = computed(() => (
-  Boolean(
+  ticketActionAllowed('canCollectAsset', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && isAssetCollectTicket.value
     && ticket.value.status === 'ASSET_APPROVED'
     && !ticket.value.collectedAt,
-  )
+  ))
 ))
 const canCompleteMaintenance = computed(() => (
   Boolean(
@@ -896,12 +963,22 @@ const canCompleteMaintenance = computed(() => (
     && !ticket.value.completedAt,
   )
 ))
+const canCompleteReturn = computed(() => (
+  ticketActionAllowed('canCompleteReturn', Boolean(
+    ticket.value
+    && isAssetTeamRole.value
+    && (ticket.value.ticketType === 'ASSET_RETURN' || ticket.value.ticketType === 'PURCHASE_RETURN')
+    && Boolean(ticket.value.collectedAt)
+    && !ticket.value.completedAt
+    && !TERMINAL_STATUSES.has(ticket.value.status),
+  ))
+))
 const canShowStatusChange = computed(() => (
-  Boolean(
+  ticketActionAllowed('canChangeProcessingStatus', Boolean(
     ticket.value
     && isAssetTeamRole.value
     && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
-  )
+  ))
 ))
 const canChangeStatus = computed(() => (
   Boolean(
@@ -923,7 +1000,9 @@ const shouldShowActionBottomBar = computed(() => (
     && !errorMessage.value
     && (
       canDepartmentReview.value
+      || canDepartmentReject.value
       || canAssetReview.value
+      || canAssetReject.value
       || canAssignAsset.value
       || canChangeRentalExtensionDueDate.value
       || canConfirmDirectPurchasePayment.value
@@ -939,6 +1018,7 @@ const isActionSubmitting = computed(() => (
   || isAssigningMe.value
   || isCollectingAsset.value
   || isCompletingMaintenance.value
+  || isCompletingReturn.value
   || isChangingRentalExtensionDueDate.value
   || isConfirmingDirectPurchasePayment.value
 ))
@@ -946,6 +1026,7 @@ const rejectDrawerTitle = computed(() => '반려')
 const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
 
+  const payment = directPurchasePaymentResult.value
   const quantity = ticket.value.quantity
   const expectedAmount = ticket.value.expectedPrice === null
     || ticket.value.expectedPrice === undefined
@@ -953,51 +1034,69 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     || quantity === undefined
     ? null
     : ticket.value.expectedPrice * quantity
-  const actualAmount = ticket.value.actualAmount
+  const actualAmount = directPurchasePaymentActualAmount.value
   const difference = actualAmount === null
     || actualAmount === undefined
     || expectedAmount === null
     || expectedAmount === undefined
     ? null
     : actualAmount - expectedAmount
+  const serialNumberText = payment?.serialNumbers?.length
+    ? payment.serialNumbers.join(', ')
+    : payment?.serialNumber ?? '-'
+  const licenseCodeText = payment?.licenseCodes?.length
+    ? payment.licenseCodes.join(', ')
+    : payment?.licenseCode ?? '-'
 
   return [
     { label: '예상 합계 금액', value: formatCurrency(expectedAmount) },
     { label: '실제 결제 금액', value: formatCurrency(actualAmount) },
     { label: '차액', value: formatCurrency(difference) },
-    { label: '증빙 파일', value: directPurchaseEvidenceFileName.value || '-' },
+    { label: '구매처', value: payment?.purchaseVendor ?? '-' },
+    { label: '구매 일시', value: formatDate(payment?.purchaseDate) || '-' },
+    { label: '증빙 파일', value: payment?.proofFileUrl ? '업로드 완료' : directPurchaseEvidenceFileName.value || '-' },
     {
       label: '증빙 업로드 일시',
-      value: formatDate(ticket.value.directPurchaseEvidenceUploadedAt, 'YYYY-MM-DD HH:mm'),
+      value: formatDate(payment?.proofFileUploadedAt ?? ticket.value.directPurchaseEvidenceUploadedAt, 'YYYY-MM-DD HH:mm'),
     },
     {
       label: '확인 상태',
-      value: isDirectPurchasePaymentReady.value ? '결제 증빙 등록 완료' : '결제 증빙 대기',
+      value: directPurchasePaymentConfirmationStatus.value ?? '-',
     },
-    { label: '구매처', value: ticket.value.purchaseVendor || '-' },
-    { label: '구매 일시', value: formatDate(ticket.value.purchaseDate) || '-' },
     ...(ticket.value.assetType === 'TANGIBLE' ? [
-      { label: '시리얼 번호', value: ticket.value.serialNumber || '-' },
-      { label: '보증 만료 일시', value: formatDate(ticket.value.warrantyEndDate) || '-' },
+      { label: '시리얼 번호', value: serialNumberText },
+      { label: '사용 위치', value: payment?.location ?? '-' },
+      { label: '보증 만료 일시', value: formatDate(payment?.warrantyExpiredAt) || '-' },
     ] : []),
     ...(ticket.value.assetType === 'INTANGIBLE' ? [
-      { label: '자동 연장 여부', value: ticket.value.isAutoRenewal === true ? '자동 갱신' : (ticket.value.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
-      { label: '결제 주기', value: ticket.value.paymentCycle || '-' },
-      { label: '만료 일시', value: formatDate(ticket.value.expirationDate) || '-' },
+      { label: '라이선스 코드', value: licenseCodeText },
+      { label: '좌석 수', value: payment?.seatCount ? `${payment.seatCount}개` : '-' },
+      { label: '자동 연장 여부', value: payment?.isAutoRenewal === true ? '자동 갱신' : (payment?.isAutoRenewal === false ? '자동 갱신 안 함' : '-') },
+      { label: '결제 주기', value: payment?.billingCycle ?? '-' },
+      { label: '만료 일시', value: formatDate(payment?.expiredAt) || '-' },
     ] : []),
   ]
 })
 const directPurchasePaymentGuideMessage = computed(() => {
+  if (isLoadingDirectPurchasePaymentResult.value) {
+    return '구매자산팀 실제 결제 정보를 조회하고 있습니다.'
+  }
+  if (directPurchasePaymentResultErrorMessage.value) {
+    return directPurchasePaymentResultErrorMessage.value
+  }
   if (!hasDirectPurchasePaymentInfo.value) {
-    return '사원이 실제 결제 금액과 영수증 증빙을 등록하면 구매자산팀에서 확인할 수 있습니다.'
+    return '사원이 실제 결제 금액을 등록하면 구매자산팀에서 확인할 수 있습니다. 영수증 증빙은 선택 사항입니다.'
   }
   if (!hasDirectPurchaseEvidence.value) {
-    return '실제 결제 금액은 등록되었지만 영수증 증빙 파일이 아직 없습니다.'
+    return '실제 결제 금액이 등록되었습니다. 영수증 증빙 없이도 구매자산팀 확인을 진행할 수 있습니다.'
+  }
+  if (directPurchasePaymentConfirmationStatus.value !== 'CONFIRMED') {
+    return '사원이 등록한 실제 결제 정보를 확인한 뒤 결제 정보 확인 처리를 진행해 주세요.'
   }
   if (!purchaseRequestAssignable.value) {
-    return '결제 증빙이 등록되었습니다. 금액과 증빙을 확인한 뒤 자산을 등록하면 자산 검색 및 할당으로 티켓을 처리 완료할 수 있습니다.'
+    return '결제 정보가 확인되었습니다. 자산 등록 및 할당을 진행하면 티켓을 처리 완료할 수 있습니다.'
   }
-  return '결제 증빙이 등록되었습니다. 자산 검색 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
+  return '결제 정보가 확인되었습니다. 자산 등록 및 할당을 완료하면 티켓이 처리 완료 상태로 변경됩니다.'
 })
 const assetCollectPanel = computed(() => {
   if (!ticket.value || !isAssetCollectTicket.value) return null
@@ -1039,7 +1138,6 @@ const assetCollectInfoItems = computed<DetailItem[]>(() => {
   return [
     { label: '대상 자산', value: requestItemName(ticket.value) },
     { label: '자산 구분', value: assetTypeLabel(ticket.value.assetType) },
-    { label: '자산 ID', value: ticket.value.assetId ?? '-' },
     { label: '자산 상태', value: assetStatusLabel(ticket.value.assetStatus) },
     { label: '회수 여부', value: ticket.value.collectedAt ? '회수 완료' : '회수 대기' },
     { label: '회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
@@ -1063,7 +1161,7 @@ const unsupportedActionMessage = computed(() => {
     && !purchaseRequestAssignable.value
   ) {
     if (isCheckingPurchaseAssignable.value) {
-      return '직접 구매 증빙 확인 후 할당할 자산을 확인하고 있습니다.'
+      return '직접 구매 결제 정보 확인 후 자산 등록 및 할당을 진행할 수 있습니다.'
     }
     return directPurchasePaymentGuideMessage.value
   }
@@ -1122,8 +1220,15 @@ const linkedPurchasePlanId = computed(() => {
 
   return detail.linkedPurchasePlanId
     ?? detail.purchasePlanId
-    ?? detail.purchaseId
     ?? ''
+})
+const linkedPurchasePlanDisplayName = computed(() => {
+  const detail = ticket.value
+  if (!detail) return ''
+
+  return detail.linkedPurchasePlanNo
+    ?? detail.purchasePlanNo
+    ?? linkedPurchasePlanId.value
 })
 const ticketInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value) return []
@@ -1145,8 +1250,8 @@ const processingInfoItems = computed<DetailItem[]>(() => {
 
   const purchasePlanItem: DetailItem = linkedPurchasePlanId.value
     ? {
-        label: '연결된 구매 id',
-        value: linkedPurchasePlanId.value,
+        label: '연결된 구매 계획',
+        value: linkedPurchasePlanDisplayName.value,
         linkLabel: '구매 계획으로 가기',
         linkTo: {
           name: 'Purchase',
@@ -1154,11 +1259,11 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         },
       }
     : {
-        label: '연결된 구매 id',
-        value: '',
+        label: '연결된 구매 계획',
+        value: '-',
       }
 
-  return [
+  const summaryItems: DetailItem[] = [
     { label: '현재 상태', value: getTicketStatusLabel(ticket.value.status) },
     isPurchasePlanLinkableTicket.value
       ? purchasePlanItem
@@ -1171,16 +1276,48 @@ const processingInfoItems = computed<DetailItem[]>(() => {
       actionLoading: isAssigningMe.value,
       actionDisabled: isActionSubmitting.value,
     },
-    {
-      label: '구매자산팀 처리 일시',
-      value: formatDate(
-        ticket.value.purchaseApprovedAt ?? ticket.value.purchaseRejectedAt,
-        'YYYY-MM-DD HH:mm',
-      ),
-    },
-    { label: '처리 일시', value: formatDate(ticket.value.processedAt, 'YYYY-MM-DD HH:mm') },
-    { label: '완료 일시', value: formatDate(ticket.value.completedAt, 'YYYY-MM-DD HH:mm') },
   ]
+
+  const purchaseTeamProcessedAt = ticket.value.purchaseApprovedAt ?? ticket.value.purchaseRejectedAt
+  if (purchaseTeamProcessedAt) {
+    summaryItems.push({
+      label: '구매자산팀 처리 일시',
+      value: formatDate(purchaseTeamProcessedAt, 'YYYY-MM-DD HH:mm'),
+    })
+  }
+
+  let processedAtLabel = '처리 일시'
+  let bestProcessedAt = ticket.value.processedAt
+
+  if (ticket.value.ticketType === 'PURCHASE_RETURN') {
+    processedAtLabel = '반품 처리 일시'
+    bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
+  } else if (ticket.value.ticketType === 'ASSET_RETURN') {
+    processedAtLabel = '반납/해지 처리 일시'
+    bestProcessedAt = ticket.value.returnProcessedAt ?? ticket.value.processedAt
+  }
+
+  if (bestProcessedAt && ticket.value.completedAt && bestProcessedAt === ticket.value.completedAt) {
+    summaryItems.push({
+      label: `${processedAtLabel.replace(' 일시', '')} 및 완료 일시`,
+      value: formatDate(bestProcessedAt, 'YYYY-MM-DD HH:mm'),
+    })
+  } else {
+    if (bestProcessedAt) {
+      summaryItems.push({
+        label: processedAtLabel,
+        value: formatDate(bestProcessedAt, 'YYYY-MM-DD HH:mm'),
+      })
+    }
+    if (ticket.value.completedAt) {
+      summaryItems.push({
+        label: '완료 일시',
+        value: formatDate(ticket.value.completedAt, 'YYYY-MM-DD HH:mm'),
+      })
+    }
+  }
+
+  return summaryItems
 })
 const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
   if (!ticket.value) return []
@@ -1207,7 +1344,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'maintenanceReason', label: '요청 내용' },
         { key: 'processedAt', label: '처리 일시' },
         { key: 'maintenanceResult', label: '처리 결과' },
@@ -1218,7 +1354,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
         { key: 'assetType', label: '자산 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'assetStatus', label: '자산 상태' },
         { key: 'refundAmount', label: '환불 금액' },
       ]
@@ -1259,14 +1394,13 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
-    assetId: ticket.value.assetId ?? '-',
     assetStatus: assetStatusLabel(ticket.value.assetStatus),
     rentalStartDate: formatDate(ticket.value.rentalStartDate),
     requestedDueDate: formatDate(ticket.value.requestedDueDate),
     previousDueDate: formatDate(ticket.value.previousDueDate),
     changedDueDate: formatDate(ticket.value.changedDueDate),
     maintenanceReason: ticket.value.maintenanceReason ?? ticket.value.requestReason ?? '-',
-    maintenanceResult: ticket.value.maintenanceResult ?? ticket.value.detailStatus ?? '-',
+    maintenanceResult: ticket.value.maintenanceResult ?? getTicketDetailStatusLabel(ticket.value.detailStatus),
     processedAt: formatDate(ticket.value.processedAt),
     refundAmount: formatCurrency(ticket.value.refundAmount),
   }]
@@ -1298,7 +1432,6 @@ function hasRequestDetailData(detail: TicketDetail): boolean {
     detail.quantity,
     detail.expectedPrice,
     detail.actualAmount,
-    detail.assetId,
     detail.assetStatus,
     detail.rentalStartDate,
     detail.requestedDueDate,
@@ -1319,6 +1452,22 @@ function requestItemName(detail: TicketDetail | null | undefined): string {
     ?? '-'
 }
 
+function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseAssetAssignRequest | null {
+  const productName = requestItemName(detail).trim()
+  const manufacturer = (detail.manufacturer ?? '').trim()
+  const modelName = (detail.modelName ?? detail.requestedItemDetail ?? productName).trim()
+
+  if (!productName || productName === '-' || !manufacturer || !modelName) return null
+
+  return {
+    itemId: detail.assetItemId ?? undefined,
+    assetItemId: detail.assetItemId ?? undefined,
+    productName,
+    manufacturer,
+    modelName,
+  }
+}
+
 function assetTypeLabel(assetType: AssetType | null | undefined): string {
   if (assetType === 'TANGIBLE') return '유형자산'
   if (assetType === 'INTANGIBLE') return '무형자산'
@@ -1332,7 +1481,7 @@ function internalStatusLabel(detail: TicketDetail): string {
       : '유지보수 결과 등록 완료 - 재할당 대기'
   }
 
-  return detail.detailStatus ?? '-'
+  return getTicketDetailStatusLabel(detail.detailStatus)
 }
 
 function assetStatusLabel(status: string | null | undefined): string {
@@ -1368,20 +1517,55 @@ async function loadTicketDetail() {
   errorMessage.value = ''
 
   try {
-    const response = await ticketApi.getDetail(props.ticketId)
+    const response = await ticketApi.getDetail(props.ticketId, props.ticketType)
     const detail = {
       ...response.data,
       status: normalizeTicketStatus(response.data.status),
     }
     ticket.value = detail
     selectedTicketStatus.value = detail.status
-    await resolvePurchaseRequestAssignability(detail)
+    await Promise.all([
+      resolvePurchaseRequestAssignability(detail),
+      resolveDirectPurchasePaymentResult(detail),
+    ])
   } catch (error) {
     ticket.value = null
     purchaseRequestAssignable.value = false
+    directPurchasePaymentResult.value = null
+    directPurchasePaymentResultErrorMessage.value = ''
     errorMessage.value = detailErrorMessage(error)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function resolveDirectPurchasePaymentResult(detail: TicketDetail) {
+  directPurchasePaymentResult.value = null
+  directPurchasePaymentResultErrorMessage.value = ''
+  isLoadingDirectPurchasePaymentResult.value = false
+
+  if (
+    detail.ticketType !== 'PURCHASE_REQUEST'
+    || detail.requestMethod !== 'DIRECT_PURCHASE'
+    || !['ASSET_APPROVED', 'IN_PROGRESS', 'COMPLETED'].includes(detail.status)
+  ) return
+
+  isLoadingDirectPurchasePaymentResult.value = true
+
+  try {
+    const response = await ticketApi.getDirectPurchaseResult(detail.ticketId)
+    directPurchasePaymentResult.value = response.data
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      directPurchasePaymentResult.value = null
+      return
+    }
+
+    directPurchasePaymentResultErrorMessage.value = error instanceof Error
+      ? error.message
+      : '구매자산팀 실제 결제 정보를 조회하지 못했습니다.'
+  } finally {
+    isLoadingDirectPurchasePaymentResult.value = false
   }
 }
 
@@ -1536,6 +1720,30 @@ async function handleCollectAsset() {
   }
 }
 
+async function handleCompleteReturn() {
+  if (!ticket.value || !canCompleteReturn.value || isCompletingReturn.value) return
+
+  isCompletingReturn.value = true
+
+  try {
+    if (ticket.value.ticketType === 'ASSET_RETURN') {
+      await ticketApi.completeReturnAsset(ticket.value.ticketId)
+    } else if (ticket.value.ticketType === 'PURCHASE_RETURN') {
+      await ticketApi.completePurchaseReturnAsset(ticket.value.ticketId)
+    }
+
+    await reloadAfterAction()
+    notificationStore.success('반납/반품 처리가 완료되었습니다.')
+  } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : '반납/반품 완료 처리에 실패했습니다.'
+    notificationStore.error('처리 완료 실패', message)
+  } finally {
+    isCompletingReturn.value = false
+  }
+}
+
 async function handleApprove(approver: ApproverType) {
   if (!ticket.value || isActionSubmitting.value) return
 
@@ -1622,6 +1830,7 @@ async function handleChangeStatus() {
 }
 
 function openAssetAssignDrawer() {
+  if (!canAssignAsset.value) return
   assetAssignErrorMessage.value = ''
   assetAssignDrawerOpen.value = true
 }
@@ -1660,7 +1869,9 @@ function openMaintenanceCompleteDrawer() {
   maintenanceResult.value = ticket.value.maintenanceResult ?? ''
   maintenanceCompletedAt.value = toDateTimeLocalInputValue(ticket.value.maintenanceCompletedAt)
     || toDateTimeLocalInputValue(new Date().toISOString())
-  maintenanceCost.value = ticket.value.maintenanceCost ?? ''
+  maintenanceCost.value = ticket.value.maintenanceCost === null || ticket.value.maintenanceCost === undefined
+    ? ''
+    : String(ticket.value.maintenanceCost)
   maintenanceResultError.value = ''
   maintenanceCompletedAtError.value = ''
   maintenanceCostError.value = ''
@@ -1737,7 +1948,7 @@ async function handleRentalExtensionDueDateChange() {
 
   try {
     await ticketApi.changeRentalExtensionDueDate(ticket.value.ticketId, {
-      changedDueDate: rentalExtensionDueDate.value,
+      returnDueDate: toRentalReturnDueDateTime(rentalExtensionDueDate.value),
     })
     rentalExtensionDrawerOpen.value = false
     await reloadAfterAction()
@@ -1753,17 +1964,21 @@ async function handleRentalExtensionDueDateChange() {
   }
 }
 
+function toRentalReturnDueDateTime(value: string) {
+  return value.includes('T') ? value : `${value}T18:00:00`
+}
+
 async function handleConfirmDirectPurchasePayment() {
   if (!ticket.value || !canConfirmDirectPurchasePayment.value) return
 
   isConfirmingDirectPurchasePayment.value = true
   try {
-    await ticketApi.changeStatus(ticket.value.ticketId, 'IN_PROGRESS')
-    notificationStore.success('구매 증빙을 승인하고 처리 중으로 변경했습니다.')
-    await loadTicketDetail()
+    await ticketApi.confirmDirectPurchaseResult(ticket.value.ticketId)
+    notificationStore.success('결제 정보를 확인하고 처리 중으로 변경했습니다.')
+    await reloadAfterAction()
   } catch (error) {
     notificationStore.error(
-      '상태 변경 실패',
+      '결제 정보 확인 실패',
       error instanceof Error ? error.message : '문제가 발생했습니다.',
     )
   } finally {
@@ -1771,12 +1986,66 @@ async function handleConfirmDirectPurchasePayment() {
   }
 }
 
-function handleGoToAssetRegistration() {
-  if (!ticket.value) return
-  if (ticket.value.assetType === 'INTANGIBLE') {
-    router.push({ name: 'IntangibleItemList' })
-  } else {
-    router.push({ name: 'TangibleAssetItemList' })
+async function handleGoToAssetRegistration() {
+  if (!ticket.value || !canGoToAssetRegistration.value || isAssigningAsset.value) return
+
+  if (isDirectPurchaseNonStandardTicket.value) {
+    directPurchaseItemRegistrationDrawerOpen.value = true
+    return
+  }
+
+  const payload = directPurchaseAssetAssignPayload(ticket.value)
+  if (!payload) {
+    notificationStore.warning(
+      '자산 등록 정보 부족',
+      '품목명, 제조사, 모델명을 확인할 수 없어 자산 등록 및 할당을 진행할 수 없습니다.',
+    )
+    return
+  }
+
+  isAssigningAsset.value = true
+  try {
+    await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, payload)
+    await reloadAfterAction()
+    notificationStore.success('직접 구매 자산을 등록하고 요청자에게 할당했습니다.')
+  } catch (error) {
+    notificationStore.error(
+      '자산 등록 및 할당 실패',
+      error instanceof Error ? error.message : '문제가 발생했습니다.',
+    )
+  } finally {
+    isAssigningAsset.value = false
+  }
+}
+
+function closeDirectPurchaseItemRegistrationDrawer() {
+  if (isRegisteringDirectPurchaseItem.value) return
+  directPurchaseItemRegistrationDrawerOpen.value = false
+}
+
+async function handleDirectPurchaseItemRegistrationSubmit(payload: DirectPurchaseItemPayload) {
+  if (!ticket.value || !canGoToAssetRegistration.value || isRegisteringDirectPurchaseItem.value) return
+
+  isRegisteringDirectPurchaseItem.value = true
+
+  try {
+    await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, {
+      itemId: payload.itemId,
+      assetItemId: payload.itemId,
+      productName: payload.productName,
+      manufacturer: payload.manufacturer,
+      modelName: payload.modelName,
+    })
+    directPurchaseItemRegistrationDrawerOpen.value = false
+    await reloadAfterAction()
+    notificationStore.success('비표준 품목 정보로 자산을 등록하고 요청자에게 할당했습니다.')
+  } catch (error) {
+    notificationStore.error(
+      '자산 등록 및 할당 실패',
+      error instanceof Error ? error.message : '문제가 발생했습니다.',
+    )
+  } finally {
+    isRegisteringDirectPurchaseItem.value = false
   }
 }
 
@@ -1833,15 +2102,9 @@ async function handleMaintenanceComplete() {
       maintenanceCompletedAt: maintenanceCompletedAt.value,
       maintenanceCost: Number(maintenanceCost.value),
     })
-    await ticketApi.assignAsset(currentTicket.ticketId, {
-      assetType: 'TANGIBLE',
-      assetId,
-      memberId: String(currentTicket.requesterId),
-    })
-    await ticketApi.changeStatus(currentTicket.ticketId, 'COMPLETED')
     maintenanceCompleteDrawerOpen.value = false
     await reloadAfterAction()
-    notificationStore.success('수리 결과와 비용을 등록하고 자산을 다시 할당했습니다.')
+    notificationStore.success('수리 결과와 비용이 등록되었습니다.')
   } catch (error) {
     const message = error instanceof Error
       ? error.message
@@ -1860,15 +2123,28 @@ async function handleAssetAssign(payload: AssetItemAssignPayload) {
   assetAssignErrorMessage.value = ''
 
   try {
-    for (const assetId of payload.assetIds) {
-      await ticketApi.assignAsset(ticket.value.ticketId, {
+    if (ticket.value.ticketType === 'RENTAL') {
+      const assetId = payload.assetIds[0]
+      if (!assetId) {
+        throw new Error('할당할 대여 자산을 확인할 수 없습니다.')
+      }
+      await ticketApi.assignRentalAsset(ticket.value.ticketId, { assetId })
+    } else if (ticket.value.ticketType === 'ASSET_REQUEST') {
+      await ticketApi.assignAssetRequestItem(ticket.value.ticketId, {
         assetType: payload.assetType,
-        assetId,
-        memberId: payload.memberId,
-        returnDueDate: payload.returnDueDate,
+        itemId: payload.assetItemId,
       })
+    } else {
+      for (const assetId of payload.assetIds) {
+        await ticketApi.assignAsset(ticket.value.ticketId, {
+          assetType: payload.assetType,
+          assetId,
+          memberId: payload.memberId,
+          returnDueDate: payload.returnDueDate,
+        })
+      }
+      await ticketApi.changeStatus(ticket.value.ticketId, 'COMPLETED')
     }
-    await ticketApi.changeStatus(ticket.value.ticketId, 'COMPLETED')
     assetAssignDrawerOpen.value = false
     await reloadAfterAction()
     notificationStore.success(`${payload.itemName} ${payload.quantity}개가 할당되어 티켓이 처리 완료되었습니다.`)
@@ -1986,6 +2262,9 @@ function resetTicketActionState() {
   rejectErrorMessage.value = ''
   assetAssignDrawerOpen.value = false
   assetAssignErrorMessage.value = ''
+  directPurchaseItemRegistrationDrawerOpen.value = false
+  directPurchasePaymentResult.value = null
+  directPurchasePaymentResultErrorMessage.value = ''
   rentalExtensionDrawerOpen.value = false
   rentalExtensionDueDate.value = ''
   rentalExtensionDueDateError.value = ''
@@ -2003,8 +2282,12 @@ function resetTicketActionState() {
   isChangingStatus.value = false
   isAssigningAsset.value = false
   isAssigningMe.value = false
+  isConfirmingDirectPurchasePayment.value = false
+  isLoadingDirectPurchasePaymentResult.value = false
+  isRegisteringDirectPurchaseItem.value = false
   isCollectingAsset.value = false
   isCompletingMaintenance.value = false
+  isCompletingReturn.value = false
   isChangingRentalExtensionDueDate.value = false
 }
 
@@ -2012,7 +2295,7 @@ async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
 
-watch(() => props.ticketId, () => {
+watch(() => [props.ticketId, props.ticketType], () => {
   resetTicketActionState()
   resetCommentActionState()
   void loadPage()

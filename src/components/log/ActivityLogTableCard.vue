@@ -11,6 +11,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { ACTIVITY_LOG_ACTION_LABEL, LOG_SUBJECT_TYPE_LABEL } from '@/utils/logLabels'
 import type { ActivityLog } from '@/types'
 
 interface ActivityLogDisplayRow extends Record<string, unknown> {
@@ -18,9 +19,9 @@ interface ActivityLogDisplayRow extends Record<string, unknown> {
   createdAt: string
   actor: string
   targetSummary: string
-  description: string
   action: string
-  note: string
+  detail: string
+  targetPath?: string | null
 }
 
 const props = defineProps<{
@@ -29,11 +30,10 @@ const props = defineProps<{
 }>()
 
 const activityColumns: Column<ActivityLogDisplayRow>[] = [
-  { key: 'createdAt', label: '생성일', align: 'center', width: '16%' },
-  { key: 'actor', label: '활동 사용자', align: 'center', width: '20%' },
-  { key: 'action', label: '로그 액션', align: 'center', width: '10%' },
-  { key: 'targetSummary', label: '로그유형(로그주체)', align: 'center', width: '24%' },
-  { key: 'description', label: '상세 내용', align: 'center', width: '30%' },
+  { key: 'createdAt', label: '생성일', align: 'center', width: '20%' },
+  { key: 'actor', label: '활동 사용자', align: 'center', width: '18%' },
+  { key: 'action', label: '로그 액션', align: 'center', width: '12%' },
+  { key: 'targetSummary', label: '로그 유형', align: 'center', width: '16%' },
 ]
 
 const formatDateTime = (value: string) => {
@@ -51,21 +51,26 @@ const formatDateTime = (value: string) => {
   }).format(date).replace(/\. /g, '-').replace('.', '')
 }
 
+function subjectSummary(row: ActivityLog) {
+  return LOG_SUBJECT_TYPE_LABEL[row.subjectType] ?? '-'
+}
+
+function textValue(row: ActivityLog, key: string) {
+  const value = (row as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.trim().length > 0 ? value : ''
+}
+
 const displayRows = computed<ActivityLogDisplayRow[]>(() => props.rows.map((row) => {
-  const activityRow = row as ActivityLog & {
-    memberInfo?: string
-  }
+  const memberName = row.actorName ?? row.memberName ?? '-'
+  const memberNumber = row.actorMemberNo ?? row.memberNo ?? row.actorId ?? row.memberId ?? '-'
 
   return {
-    activityLogId: activityRow.activityLogId,
-    createdAt: formatDateTime(activityRow.createdAt),
-    actor: activityRow.memberInfo ?? `${activityRow.memberName}(${activityRow.memberId})`,
-    targetSummary: activityRow.targetId === null
-      ? `${activityRow.targetType}(-)`
-      : `${activityRow.targetType}(${activityRow.targetId})`,
-    description: activityRow.description,
-    action: activityRow.activityType,
-    note: '-',
+    activityLogId: row.activityLogId,
+    createdAt: formatDateTime(row.createdAt),
+    actor: `${memberName}(${memberNumber})`,
+    targetSummary: subjectSummary(row),
+    action: ACTIVITY_LOG_ACTION_LABEL[row.action],
+    detail: textValue(row, 'detail') || textValue(row, 'description') || '-',
   }
 }))
 </script>

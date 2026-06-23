@@ -5,12 +5,15 @@
     :loading="loading"
     row-key="auditLogId"
     empty-text="감사 로그가 없습니다."
+    @row-click="handleRowClick"
   />
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { AUDIT_LOG_ACTION_LABEL, LOG_SUBJECT_TYPE_LABEL } from '@/utils/logLabels'
 import type { AuditLog } from '@/types'
 
 const props = defineProps<{
@@ -19,20 +22,23 @@ const props = defineProps<{
 }>()
 
 interface AuditLogDisplayRow extends Record<string, unknown> {
-  auditLogId: string
+  auditLogId: string | number
   createdAt: string
   memberInfo: string
   targetSummary: string
   description: string
   action: string
+  targetPath: string | null
+  detail?: string
 }
 
+const router = useRouter()
+
 const auditColumns: Column<AuditLogDisplayRow>[] = [
-  { key: 'createdAt', label: '생성일', align: 'center', width: '19%' },
+  { key: 'createdAt', label: '생성일', align: 'center', width: '25%' },
   { key: 'memberInfo', label: '활동 사용자', align: 'center', width: '20%' },
   { key: 'action', label: '로그 액션', align: 'center', width: '15%' },
-  { key: 'targetSummary', label: '로그유형(로그주체)', align: 'center', width: '24%' },
-  { key: 'description', label: '상세 내용', align: 'center', width: '27%' },
+  { key: 'targetSummary', label: '로그 유형', align: 'center', width: '20%' },
 ]
 
 const formatDateTime = (value: string) => {
@@ -50,20 +56,29 @@ const formatDateTime = (value: string) => {
   }).format(date).replace(/\. /g, '-').replace('.', '')
 }
 
+function subjectSummary(row: AuditLog) {
+  return LOG_SUBJECT_TYPE_LABEL[row.subjectType] ?? '-'
+}
+
 const displayRows = computed<AuditLogDisplayRow[]>(() => props.rows.map((row) => {
-  const auditRow = row as AuditLog & {
-    memberInfo?: string
-    logType?: string
-    actionType?: string
-  }
+  const memberName = row.actorName ?? row.memberName ?? '-'
+  const memberNumber = row.actorMemberNo ?? row.memberNo ?? row.actorId ?? row.memberId ?? '-'
 
   return {
-    auditLogId: String(auditRow.auditLogId),
-    createdAt: formatDateTime(auditRow.createdAt),
-    memberInfo: auditRow.memberInfo ?? `${auditRow.memberName}(${auditRow.memberId})`,
-    targetSummary: `${auditRow.targetType}(${auditRow.targetId})`,
-    description: auditRow.description,
-    action: auditRow.logType ?? auditRow.actionType ?? '-',
+    auditLogId: row.auditLogId,
+    createdAt: formatDateTime(row.createdAt),
+    memberInfo: `${memberName}(${memberNumber})`,
+    targetSummary: subjectSummary(row),
+    description: row.detail ?? row.afterValue ?? '-',
+    action: AUDIT_LOG_ACTION_LABEL[row.action],
+    targetPath: row.targetPath ?? null,
   }
 }))
+
+
+function handleRowClick(row: AuditLogDisplayRow) {
+  if (!row.targetPath) return
+
+  void router.push(row.targetPath)
+}
 </script>

@@ -1610,6 +1610,10 @@ function selectedAssetId() {
 
 async function handleSubmit() {
   if (isSubmitting.value || !isFormValid.value || !selectedKind.value) return
+  if (authStore.currentRole === 'ADMIN' || authStore.currentRole === 'SUPER_ADMIN') {
+    errorMessage.value = '최고 관리자는 티켓을 생성할 수 없습니다.'
+    return
+  }
 
   isSubmitting.value = true
   errorMessage.value = ''

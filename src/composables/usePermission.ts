@@ -52,7 +52,10 @@ export function usePermission() {
   // 나의 요청은 역할과 관계없이 모든 로그인 사용자가 조회할 수 있다.
   const canViewMyTickets = computed(() => auth.isAuthenticated)
 
-  const canCreateTicket = computed(() => auth.isAuthenticated)
+  const canCreateTicket = computed(() => (
+    auth.isAuthenticated
+    && !hasRole('ADMIN', 'SUPER_ADMIN')
+  ))
 
   const canViewDepartmentTickets = computed(() =>
     canAccessAllPages.value || hasRole('DEPARTMENT_MANAGER')
@@ -98,6 +101,10 @@ export function usePermission() {
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
+  const canViewLogs = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
   const canRespondInspection = computed(() =>
     hasRole('EMPLOYEE')
   )
@@ -131,6 +138,7 @@ export function usePermission() {
     canRegisterHrTemplate,
     canViewInspection,
     canManageInspection,
+    canViewLogs,
     canRespondInspection,
   }
 }

@@ -42,6 +42,9 @@ export interface MobileInspectionTarget {
   inspectionTargetId: string
   inspectionId: string
   inspectionStatus: InspectionStatus
+  assetId: string
+  tangibleAssetId: string
+  intangibleAssetId: string
   memberId: string
   memberName: string
   productName: string

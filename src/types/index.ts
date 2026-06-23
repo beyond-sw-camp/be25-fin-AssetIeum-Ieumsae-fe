@@ -15,4 +15,6 @@ export * from './purchase'
 export * from './report'
 export * from './hr'
 export * from './inspection'
+export * from './dashboard'
+
 export * from './notification'
