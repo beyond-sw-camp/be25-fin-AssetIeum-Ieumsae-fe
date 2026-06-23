@@ -649,7 +649,7 @@ import { formatDate } from '@/utils/labels'
 
 interface SelectableAsset extends AssetRadioItem {
   assetType: AssetType
-  isStandard?: number | boolean
+  isStandard?: number | boolean | string | null
   categoryId?: string
   categoryName?: string
   manufacturer?: string
@@ -669,9 +669,20 @@ type AvailableCountSource = {
 type MemberRecord = Member & {
   id?: string | number
   employeeId?: string | number
+  employee_id?: string | number
+  member_id?: string | number
+  department_id?: string | number
+  deptId?: string | number
+  dept_id?: string | number
+  deptName?: string | null
+  teamName?: string | null
   department?: {
     departmentId?: string | number
+    department_id?: string | number
     id?: string | number
+    name?: string | null
+    departmentName?: string | null
+    departmentNamePath?: string | null
   } | null
 }
 
@@ -886,7 +897,7 @@ const nestedAssetLabel = computed(() => (
 
 const visibleAssetOptions = computed(() => {
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
-    return itemOptions.value.filter((item) => item.assetType === form.assetType)
+    return itemOptions.value.filter((item) => item.assetType === selectionAssetType.value)
   }
   if (isStandardDirectPurchase.value) {
     return itemOptions.value.filter((item) => (
@@ -954,7 +965,6 @@ const requestedAssetQuantity = computed(() => (
 
 const canSearchAssets = computed(() => Boolean(
   (!requiresAssetSearchUsageType.value || assetSearchForm.assetUsageType)
-  && (selectedKind.value === 'RENTAL' || assetSearchForm.category),
 ))
 
 const selectedAssetOption = computed(() => (
@@ -992,7 +1002,7 @@ const selectionItemOptions = computed(() => {
     ))
   }
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
-    return itemOptions.value.filter((item) => item.assetType === form.assetType)
+    return itemOptions.value.filter((item) => item.assetType === selectionAssetType.value)
   }
   if (selectedKind.value === 'RENTAL') {
     return itemOptions.value.filter((item) => item.assetType === 'TANGIBLE')
@@ -1125,6 +1135,10 @@ const isFormValid = computed(() => {
 })
 
 function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
+  const responseItem = item as TangibleAssetItem & {
+    is_standard?: number | boolean | string | null
+    standard?: number | boolean | string | null
+  }
   const availableCount = itemAvailableCount(item)
 
   return {
@@ -1135,7 +1149,7 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
       .join(' · '),
     availableCount,
     assetType: 'TANGIBLE',
-    isStandard: item.isStandard,
+    isStandard: standardItemValue(item.isStandard ?? responseItem.is_standard ?? responseItem.standard),
     categoryId: item.categoryId,
     categoryName: item.categoryName ?? item.category,
     manufacturer: item.manufacturer,
@@ -1143,6 +1157,10 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
 }
 
 function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset {
+  const responseItem = item as RentalAvailableItem & {
+    is_standard?: number | boolean | string | null
+    standard?: number | boolean | string | null
+  }
   const availableCount = itemAvailableCount(item)
 
   return {
@@ -1155,7 +1173,7 @@ function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset
     ].filter(Boolean).join(' · '),
     availableCount,
     assetType: 'TANGIBLE',
-    isStandard: item.isStandard,
+    isStandard: standardItemValue(item.isStandard ?? responseItem.is_standard ?? responseItem.standard),
     categoryId: item.categoryId,
     categoryName: item.categoryName,
     manufacturer: item.manufacturer,
@@ -1164,24 +1182,26 @@ function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset
 
 function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
   const responseItem = item as IntangibleItem & {
+    intangibleAssetItemId?: string
     name?: string
     provider?: string
     softwareType?: string
+    is_standard?: number | boolean | string | null
+    standard?: number | boolean | string | null
   }
 
   const availableCount = itemAvailableCount(item)
 
   return {
-    id: String(item.assetItemId ?? ''),
+    id: String(item.assetItemId ?? item.itemId ?? responseItem.intangibleAssetItemId ?? item.id ?? ''),
     name: item.productName ?? responseItem.name ?? '',
     description: [
       item.category ?? responseItem.softwareType,
       item.vendor ?? responseItem.provider,
-      item.licenseType,
     ].filter(Boolean).join(' · '),
     availableCount,
     assetType: 'INTANGIBLE',
-    isStandard: item.isStandard,
+    isStandard: standardItemValue(item.isStandard ?? responseItem.is_standard ?? responseItem.standard),
     categoryId: item.categoryId,
     categoryName: item.category ?? responseItem.softwareType,
     manufacturer: item.vendor ?? responseItem.provider,
@@ -1207,10 +1227,19 @@ function numberValue(value: number | string | null | undefined) {
   return undefined
 }
 
-function isStandardItem(value: number | boolean | undefined) {
+function standardItemValue(value: number | boolean | string | null | undefined) {
   if (typeof value === 'boolean') return value
-  if (value === undefined) return true
-  return Number(value) !== 0
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim().toLowerCase()
+    if (normalizedValue === 'false' || normalizedValue === '0' || normalizedValue === 'n') return false
+    if (normalizedValue === 'true' || normalizedValue === '1' || normalizedValue === 'y') return true
+  }
+  return true
+}
+
+function isStandardItem(value: number | boolean | string | null | undefined) {
+  return standardItemValue(value)
 }
 
 function categoryIdByLabel(label: string) {
@@ -1496,29 +1525,35 @@ async function loadDepartmentMembers() {
       departmentId: departmentId || undefined,
     })
     let members = response.data.content
+    const hasDepartmentScopedResponse = Boolean(departmentId && members.length > 0)
+
     if (members.length === 0 && departmentId) {
       const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
       members = fallbackResponse.data.content
     }
     let targetDepartmentId = departmentId
+    let targetDepartmentName = authStore.user?.departmentName ?? ''
 
-    if (!targetDepartmentId && requesterId) {
+    if ((!targetDepartmentId || !targetDepartmentName) && requesterId) {
       const requester = members.find((member) => String(memberId(member)) === String(requesterId))
-      targetDepartmentId = memberDepartmentId(requester)
+      targetDepartmentId ||= memberDepartmentId(requester)
+      targetDepartmentName ||= memberDepartmentName(requester)
     }
 
-    if (!targetDepartmentId) {
+    if (!targetDepartmentId && !targetDepartmentName) {
       const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
       members = fallbackResponse.data.content
       const requester = members.find((member) => String(memberId(member)) === String(requesterId))
       targetDepartmentId = memberDepartmentId(requester)
+      targetDepartmentName = memberDepartmentName(requester)
     }
 
-    departmentMembers.value = members.filter((member) => (
-      Boolean(targetDepartmentId)
-      && String(memberDepartmentId(member)) === String(targetDepartmentId)
-      && member.status !== 'RESIGNED'
-    ))
+    departmentMembers.value = hasDepartmentScopedResponse
+      ? members.filter(isAssignableMember)
+      : members.filter((member) => (
+        isAssignableMember(member)
+        && isSameDepartmentMember(member, targetDepartmentId, targetDepartmentName)
+      ))
     syncAssetAssigneeIds()
 
     if (departmentMembers.value.length === 0) {
@@ -1537,13 +1572,62 @@ async function loadDepartmentMembers() {
 function memberId(member: Member | null | undefined) {
   if (!member) return ''
   const record = member as MemberRecord
-  return String(member.memberId ?? record.employeeId ?? record.id ?? '')
+  return String(member.memberId ?? record.member_id ?? record.employeeId ?? record.employee_id ?? record.id ?? '')
 }
 
 function memberDepartmentId(member: Member | null | undefined) {
   if (!member) return ''
   const record = member as MemberRecord
-  return String(member.departmentId ?? record.department?.departmentId ?? record.department?.id ?? '')
+  return String(
+    member.departmentId
+      ?? record.department_id
+      ?? record.deptId
+      ?? record.dept_id
+      ?? record.department?.departmentId
+      ?? record.department?.department_id
+      ?? record.department?.id
+      ?? '',
+  )
+}
+
+function memberDepartmentName(member: Member | null | undefined) {
+  if (!member) return ''
+  const record = member as MemberRecord
+  return String(
+    member.departmentName
+      ?? record.departmentNamePath
+      ?? record.deptName
+      ?? record.teamName
+      ?? record.department?.departmentName
+      ?? record.department?.departmentNamePath
+      ?? record.department?.name
+      ?? '',
+  )
+}
+
+function isAssignableMember(member: Member) {
+  return member.status !== 'RESIGNED'
+}
+
+function isSameDepartmentMember(member: Member, departmentId: string | undefined, departmentName: string) {
+  const currentDepartmentId = memberDepartmentId(member)
+  if (departmentId && currentDepartmentId) {
+    return String(currentDepartmentId) === String(departmentId)
+  }
+
+  const currentDepartmentName = normalizeDepartmentName(memberDepartmentName(member))
+  const targetDepartmentName = normalizeDepartmentName(departmentName)
+  return Boolean(targetDepartmentName && currentDepartmentName && currentDepartmentName === targetDepartmentName)
+}
+
+function normalizeDepartmentName(value: string | null | undefined) {
+  return String(value ?? '')
+    .split('>')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .at(-1)
+    ?.toLowerCase()
+    ?? ''
 }
 
 function syncAssetAssigneeIds() {
@@ -1720,6 +1804,11 @@ function openAssetSelection() {
   isAssetSelectionStep.value = true
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
     void loadRequestAvailableAssets()
+    return
+  }
+
+  if (showsAssetSearch.value && !hasSearchedAssets.value) {
+    void handleAssetSearch()
   }
 }
 
@@ -1746,6 +1835,9 @@ function handleSelectionAssetTypeChange(assetType: AssetType) {
   pendingSelectedAssetId.value = ''
   assetSearchForm.category = ''
   invalidateAssetSearch()
+  if (isAssetSelectionStep.value && showsAssetSearch.value) {
+    void handleAssetSearch()
+  }
 }
 
 function handleAssetCategoryChange(value: string | number) {

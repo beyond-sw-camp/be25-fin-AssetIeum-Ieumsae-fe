@@ -459,7 +459,7 @@ watch(() => props.isOpen, async (isOpen) => {
   selectedItemId.value = ''
   clearItems()
   await loadCategories()
-  if (keyword.value.trim()) {
+  if (props.ticket?.ticketType === 'ASSET_REQUEST' || props.ticket?.ticketType === 'RENTAL' || keyword.value.trim()) {
     await loadItems({ selectSuggested: true })
   }
 })
@@ -814,7 +814,7 @@ function toIntangibleItemOption(item: IntangibleItem): ItemOption {
     itemId,
     itemNo: itemId ? `SW-${itemId.padStart(4, '0')}` : '-',
     name: item.productName ?? itemId,
-    category: item.category ?? item.licenseType ?? '',
+    category: item.category ?? '',
     availableCount,
     isStandard: isStandardValue(item.isStandard),
   }
