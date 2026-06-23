@@ -4,6 +4,7 @@ import type {
   PurchasePlanCreateResponse,
   PurchasePlanDetail,
   PurchasePlanIntangibleAssetRegisterRequest,
+  PurchasePlanItemRegisterRequest,
   PurchasePlanItem,
   PurchasePlanListFilter,
   PurchasePlanListItem,
@@ -32,13 +33,41 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   name?: string | null
   categoryName?: string | null
   assetCategoryName?: string | null
+  assetItemCategory?: string | null
+  assetItemCategoryName?: string | null
+  itemCategory?: string | null
+  itemCategoryName?: string | null
+  tangibleCategoryName?: string | null
+  intangibleCategoryName?: string | null
   purchasePlanItemId?: number | string
+  purchasePlanItemDetailId?: number | string
+  purchasePlanItemDetailID?: number | string
+  purchase_plan_item_detail_id?: number | string
+  purchasePlanItemDetail_id?: number | string
+  purchasePlanItemID?: number | string
+  purchase_plan_item_id?: number | string
+  purchasePlanItem_id?: number | string
   purchaseItemId?: number | string
+  purchase_item_id?: number | string
   planItemId?: number | string
+  plan_item_id?: number | string
   purchaseRequestItemId?: number | string
+  purchase_request_item_id?: number | string
+  purchasePlanId?: number | string
+  purchaseId?: number | string
+  purchase_id?: number | string
+  planPurchaseItemId?: number | string
+  plan_purchase_item_id?: number | string
+  purchasePlanItemNo?: number | string
+  itemNo?: number | string
   id?: number | string
   unitPrice?: number
   estimatedAmount?: number
+  registeredCount?: number | null
+  registeredAssetCount?: number | null
+  assetRegisteredCount?: number | null
+  registeredQuantity?: number | null
+  registeredAssetQuantity?: number | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
   requesterId?: number | string | null
@@ -88,26 +117,69 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
   const quantity = Number(item.quantity ?? 0)
   const estimatedUnitPrice = Number(item.estimatedUnitPrice ?? item.unitPrice ?? 0)
   const totalAmount = Number(item.totalAmount ?? item.estimatedAmount ?? estimatedUnitPrice * quantity)
+  const itemId = pickPurchasePlanItemId(item)
 
   return {
     ...item,
-    itemId:
-      item.itemId
-      ?? item.purchasePlanItemId
-      ?? item.purchaseItemId
-      ?? item.planItemId
-      ?? item.purchaseRequestItemId
-      ?? item.id,
-    category: item.category ?? item.categoryName ?? item.assetCategoryName ?? '-',
+    itemId,
+    category:
+      item.category
+      ?? item.categoryName
+      ?? item.assetCategoryName
+      ?? item.assetItemCategory
+      ?? item.assetItemCategoryName
+      ?? item.itemCategory
+      ?? item.itemCategoryName
+      ?? item.tangibleCategoryName
+      ?? item.intangibleCategoryName
+      ?? '-',
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
     quantity,
     estimatedUnitPrice,
     totalAmount,
+    registeredCount: normalizeRegisteredAssetCount(item),
     ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {
+  const count =
+    item.registeredCount
+    ?? item.registeredAssetCount
+    ?? item.assetRegisteredCount
+    ?? item.registeredQuantity
+    ?? item.registeredAssetQuantity
+    ?? 0
+  return Number(count || 0)
+}
+
+function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
+  return item.itemId
+    ?? item.purchasePlanItemId
+    ?? item.purchasePlanItemDetailId
+    ?? item.purchasePlanItemDetailID
+    ?? item.purchase_plan_item_detail_id
+    ?? item.purchasePlanItemDetail_id
+    ?? item.purchasePlanItemID
+    ?? item.purchase_plan_item_id
+    ?? item.purchasePlanItem_id
+    ?? item.purchaseItemId
+    ?? item.purchase_item_id
+    ?? item.planItemId
+    ?? item.plan_item_id
+    ?? item.purchaseRequestItemId
+    ?? item.purchase_request_item_id
+    ?? item.purchasePlanId
+    ?? item.purchaseId
+    ?? item.purchase_id
+    ?? item.planPurchaseItemId
+    ?? item.plan_purchase_item_id
+    ?? item.purchasePlanItemNo
+    ?? item.itemNo
+    ?? item.id
 }
 
 function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
@@ -211,6 +283,13 @@ export const purchaseApi = {
 
   confirmDelivery: (planId: number | string, itemId: number | string) =>
     api.patch<PurchasePlanItem>(`/purchase-plans/${planId}/items/${itemId}/confirm`),
+
+  registerPlanItem: (
+    planId: number | string,
+    itemId: number | string,
+    data: PurchasePlanItemRegisterRequest,
+  ) =>
+    api.post<null>(`/purchase-plans/${planId}/items/${itemId}`, data),
 
   registerAssets: (
     planId: number | string,

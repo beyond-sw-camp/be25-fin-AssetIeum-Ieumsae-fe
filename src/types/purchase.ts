@@ -61,6 +61,8 @@ export interface PurchasePlanListItem {
   itemSummary?: string | null
 }
 
+export type PurchasePlanSearchResponse = PurchasePlanListItem
+
 export interface PurchasePlanStatistics {
   totalCount: number
   approvalWaitingCount: number
@@ -79,9 +81,26 @@ export interface PurchasePlanListFilter {
 export interface PurchasePlanItem {
   itemId?: number | string
   purchasePlanItemId?: number | string
+  purchasePlanItemDetailId?: number | string
+  purchasePlanItemDetailID?: number | string
+  purchase_plan_item_detail_id?: number | string
+  purchasePlanItemDetail_id?: number | string
+  purchasePlanItemID?: number | string
+  purchase_plan_item_id?: number | string
+  purchasePlanItem_id?: number | string
   purchaseItemId?: number | string
+  purchase_item_id?: number | string
   planItemId?: number | string
+  plan_item_id?: number | string
   purchaseRequestItemId?: number | string
+  purchase_request_item_id?: number | string
+  purchasePlanId?: number | string
+  purchaseId?: number | string
+  purchase_id?: number | string
+  planPurchaseItemId?: number | string
+  plan_purchase_item_id?: number | string
+  purchasePlanItemNo?: number | string
+  itemNo?: number | string
   id?: number | string
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
@@ -93,6 +112,11 @@ export interface PurchasePlanItem {
   quantity: number
   estimatedUnitPrice: number
   totalAmount: number
+  registeredCount?: number | null
+  registeredAssetCount?: number | null
+  assetRegisteredCount?: number | null
+  registeredQuantity?: number | null
+  registeredAssetQuantity?: number | null
   assetType?: AssetType
   isStandard?: boolean
   ticketId?: number | string | null
@@ -106,6 +130,8 @@ export interface PurchasePlanItem {
   departmentName?: string | null
   receivedAt?: string | null
 }
+
+export type PurchasePlanItemDetailResponse = PurchasePlanItem
 
 export interface PurchasePlanDetail {
   planId: number | string
@@ -124,6 +150,15 @@ export interface PurchasePlanDetail {
 
 export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
+}
+
+export interface PurchasePlanItemRegisterRequest {
+  categoryId: string
+  manufacturer?: string
+  modelName?: string
+  provider?: string
+  licenseType?: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
+  isStandard: boolean
 }
 
 /** 구매 계획 자산 등록 요청 - 유형자산 */

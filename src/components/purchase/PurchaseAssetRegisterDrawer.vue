@@ -326,7 +326,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
-  registered: []
+  registered: [payload: { itemId: string | null, registeredCount: number }]
 }>()
 
 // ── 옵션 상수 ─────────────────────────────────────────────
@@ -619,7 +619,10 @@ async function handleSubmit() {
       row.status = 'success'
       row.errorMessage = ''
     })
-    emit('registered')
+    emit('registered', {
+      itemId,
+      registeredCount: rowsToSubmit.value.length,
+    })
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '자산 등록에 실패했습니다.')
   } finally {

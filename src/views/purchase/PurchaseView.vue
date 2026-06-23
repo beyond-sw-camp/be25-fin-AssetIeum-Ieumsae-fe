@@ -541,7 +541,7 @@
             :rows="eligibleTickets"
             row-key="ticketId"
             empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
-            class="h-full max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
+            class="max-h-[400px] overflow-y-auto max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
             @row-click="handleEligibleTicketRowClick"
           >
             <template #cell-select="{ row }">
@@ -723,7 +723,7 @@
               승인 완료 티켓을 선택하거나 직접 품목을 추가해주세요.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-border">
+            <div v-else class="max-h-[300px] overflow-y-auto overflow-x-auto rounded-xl border border-border">
               <div class="min-w-[820px]">
                 <div
                   class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
