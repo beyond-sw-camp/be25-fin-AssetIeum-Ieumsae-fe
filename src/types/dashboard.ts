@@ -14,6 +14,12 @@ export interface OwnedAssetSummary {
   overdue: number
 }
 
+export interface RentalAssetSummary {
+  rentalScheduled: number
+  rented: number
+  overdue: number
+}
+
 export interface ExpiringAssetSummary {
   tangibleAssetCount: number
   intangibleAssetCount: number
@@ -22,9 +28,11 @@ export interface ExpiringAssetSummary {
 export type OwnedAssetDetailStatus = 'UNASSIGNED' | 'RENTAL_SCHEDULED' | 'RENTED' | 'OVERDUE'
 
 export interface OwnedAssetDetail {
+  assetType: 'TANGIBLE' | 'INTANGIBLE'
   assetId: string
   assetName: string
   categoryName?: string | null
+  categoryOrProvider: string
   assetCode?: string | null
   warrantyExpiredAt?: string | null
   departmentId?: string | null
@@ -33,6 +41,8 @@ export interface OwnedAssetDetail {
   renterName?: string | null
   usedStartedAt?: string | null
   returnDueDate?: string | null
+  dayCount: number
+  dayStatusLabel: string
   overdueDays?: number | null
 }
 
@@ -40,13 +50,20 @@ export interface ExpiringAssetDetail {
   assetType: 'TANGIBLE' | 'INTANGIBLE'
   assetId: string
   assetName: string
+  remainingDays: number
+  dayCount: number
+  dayStatusLabel: string
   departmentId?: string | null
   departmentName?: string | null
   userId?: string | null
   userName?: string | null
   expiredAt: string
-  remainingDays: number
+  expriationDate: string
+  remainingPeriodDays: number
+  remainingPeriodStatus: string
+  dueDate: string
   assetCode: string
+  categoryOrProvider: string 
   manufacturer?: string | null
   issuer?: string | null
 }
@@ -88,7 +105,6 @@ export interface DashboardLifecycleEvent {
   assetCode: string
   assetName: string
   dueAt: string | null
-  dday?: number | null
   dDay?: number | null
   status: string
 }
@@ -106,6 +122,16 @@ export interface DepartmentBudgetDetail {
   remainingAmount: number
   usageRate: number
   categoryUsages: BudgetCategoryUsage[]
+}
+
+export interface EmployeeDepartmentBudget {
+  departmentId: string
+  departmentName: string
+  totalAmount: number
+  usedAmount: number
+  remainingAmount: number
+  usageRate: number
+  remainingRate: number
 }
 
 export type BudgetHistoryType = 'HOLD_INCREASE' | 'HOLD_DECREASE' | 'USE_INCREASE' | 'RECOVERY' | 'TRANSFER'
@@ -132,7 +158,6 @@ export interface HrLifecycleEvent {
   memberName: string
   departmentName: string
   eventDate: string
-  dday?: number
   dDay?: number
   status: string
 }
