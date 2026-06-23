@@ -545,21 +545,21 @@
             @row-click="handleEligibleTicketRowClick"
           >
             <template #cell-select="{ row }">
-              <input
-                type="checkbox"
-                class="pointer-events-none h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                :checked="selectedTicketIds.includes(row.ticketId)"
-                :disabled="!row.canCreate"
-                :title="
-                  row.canCreate ? '구매 계획 대상 선택' : row.disabledReason
-                "
-                :aria-label="
-                  row.canCreate
-                    ? `${row.ticket.ticketNo} 선택`
-                    : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`
-                "
-                tabindex="-1"
-              />
+              <div
+                role="checkbox"
+                :aria-checked="selectedTicketIds.includes(row.ticketId)"
+                :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
+                :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
+                class="flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-200"
+                :class="[
+                  selectedTicketIds.includes(row.ticketId)
+                    ? 'border-primary bg-primary text-white shadow-sm'
+                    : 'border-border bg-surface text-transparent',
+                  !row.canCreate && 'opacity-40 cursor-not-allowed border-border bg-surface-secondary text-transparent'
+                ]"
+              >
+                <Check :size="14" :stroke-width="3" />
+              </div>
             </template>
 
             <template #cell-ticketNo="{ row }">
@@ -773,7 +773,7 @@
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-30"
                     :disabled="!item.canRemove || isCreatingPlan"
                     :aria-label="`${item.itemName} 삭제`"
-                    @click="removeDirectPlanItem(item.id)"
+                    @click="removePlanRequestItem(item.id)"
                   >
                     <Trash2 :size="15" />
                   </button>
@@ -828,6 +828,7 @@
 import {
   ArrowLeft,
   Box as BoxIcon,
+  Check,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -1171,7 +1172,7 @@ const planRequestItems = computed<PlanRequestItem[]>(() => [
       quantity: item.quantity,
       estimatedUnitPrice: item.estimatedUnitPrice,
       estimatedAmount: item.estimatedUnitPrice * item.quantity,
-      canRemove: false,
+      canRemove: true,
     })),
   ...directPlanItems.value.map((item) => ({
     id: item.localId,
@@ -1715,10 +1716,17 @@ function addDirectPlanItem() {
   resetDirectItemForm();
 }
 
-function removeDirectPlanItem(localId: string) {
-  directPlanItems.value = directPlanItems.value.filter(
-    (item) => item.localId !== localId,
-  );
+function removePlanRequestItem(id: string) {
+  if (id.startsWith("ticket-")) {
+    const ticketId = id.replace("ticket-", "");
+    selectedTicketIds.value = selectedTicketIds.value.filter(
+      (tid) => tid !== ticketId,
+    );
+  } else {
+    directPlanItems.value = directPlanItems.value.filter(
+      (item) => item.localId !== id,
+    );
+  }
 }
 
 async function createPlan() {
