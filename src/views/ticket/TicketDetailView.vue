@@ -121,7 +121,7 @@
               </dl>
             </TicketDetailCard>
 
-            <div class="grid items-start gap-4 lg:grid-cols-2">
+            <div class="grid items-stretch gap-4 lg:grid-cols-2">
               <TicketProgressHistory :ticket="ticket" />
               <TicketCommunication
                 :comments="comments"

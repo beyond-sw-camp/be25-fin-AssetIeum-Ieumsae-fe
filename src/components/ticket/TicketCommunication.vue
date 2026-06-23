@@ -1,11 +1,11 @@
 <template>
-  <TicketDetailCard title="커뮤니케이션">
+  <TicketDetailCard title="커뮤니케이션" class="h-full">
     <template #icon>
       <MessageSquareText :size="18" class="text-primary" />
     </template>
 
-    <div class="flex min-h-0 flex-col">
-      <div ref="commentListRef" class="max-h-[50vh] min-h-40 space-y-4 overflow-y-auto pr-1">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div ref="commentListRef" class="min-h-40 flex-1 space-y-4 overflow-y-auto pr-1">
         <div v-if="loading" class="flex min-h-40 items-center justify-center text-sm text-text-sub">
           <LoaderCircle :size="18" class="mr-2 animate-spin" />
           댓글을 불러오는 중입니다.
