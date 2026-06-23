@@ -21,39 +21,6 @@
         요청 작성으로 돌아가기
       </button>
 
-      <section v-if="showsAssetSearchUsageType" class="space-y-2">
-        <p class="text-sm font-semibold text-text-main">
-          공용자산 여부 <span class="text-primary">*</span>
-        </p>
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <label
-            v-for="option in assetSearchScopeOptions"
-            :key="option.value"
-            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
-          >
-            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
-              <input
-                v-model="assetSearchForm.assetUsageType"
-                type="radio"
-                name="ticket-asset-usage-type"
-                :value="option.value"
-                class="peer sr-only"
-                @change="invalidateAssetSearch"
-              />
-              <span
-                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
-              >
-              </span>
-              <span
-                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
-              >
-              </span>
-            </span>
-            <span>{{ option.label }}</span>
-          </label>
-        </div>
-      </section>
-
       <section v-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="space-y-2">
         <p class="text-sm font-semibold text-text-main">
           유형/무형자산 <span class="text-primary">*</span>
@@ -72,6 +39,39 @@
                 :value="option.value"
                 class="peer sr-only"
                 @change="handleSelectionAssetTypeChange(option.value)"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+              >
+              </span>
+              <span
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+              >
+              </span>
+            </span>
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section v-if="requiresAssetSearchUsageType" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          공용자산 여부 <span class="text-primary">*</span>
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <label
+            v-for="option in assetSearchScopeOptions"
+            :key="option.value"
+            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
+          >
+            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                v-model="assetSearchForm.assetUsageType"
+                type="radio"
+                name="ticket-asset-usage-type"
+                :value="option.value"
+                class="peer sr-only"
+                @change="invalidateAssetSearch"
               />
               <span
                 class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
@@ -270,7 +270,7 @@
       </section>
 
       <template v-if="showsPurchaseRequestAssetType">
-        <section class="space-y-2">
+        <section v-if="requiresPurchaseUsageType" class="space-y-2">
           <p class="text-sm font-semibold text-text-main">
             공용자산 여부 <span class="text-primary">*</span>
           </p>
@@ -783,7 +783,18 @@ const showsAssetSearch = computed(() => (
   || selectedKind.value === 'RENTAL'
 ))
 
-const showsAssetSearchUsageType = computed(() => !isStandardDirectPurchase.value)
+const requiresAssetSearchUsageType = computed(() => (
+  selectedKind.value === 'RENTAL'
+  || (
+    selectedKind.value === 'STANDARD_ASSET_REQUEST'
+    && selectionAssetType.value === 'TANGIBLE'
+  )
+))
+
+const requiresPurchaseUsageType = computed(() => (
+  showsPurchaseRequestAssetType.value
+  && form.assetType === 'TANGIBLE'
+))
 
 const showsPurchaseQuantityAndPrice = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
@@ -868,7 +879,7 @@ const purchaseRequestCategoryOptions = computed(() => (
 ))
 
 const canSearchAssets = computed(() => Boolean(
-  (!showsAssetSearchUsageType.value || assetSearchForm.assetUsageType)
+  (!requiresAssetSearchUsageType.value || assetSearchForm.assetUsageType)
   && (selectedKind.value === 'RENTAL' || assetSearchForm.category),
 ))
 
@@ -978,10 +989,19 @@ function toRequestedUsageType(
   return value
 }
 
+function requestedUsagePayload(
+  assetType: AssetType,
+  value: '' | 'DEPARTMENT' | RequestedUsageType,
+) {
+  return assetType === 'TANGIBLE'
+    ? { requestedUsageType: toRequestedUsageType(value) }
+    : {}
+}
+
 const isFormValid = computed(() => {
   if (!selectedKind.value || !form.reason.trim() || dateErrorMessage.value) return false
   if (usesSelectableAsset.value && !form.selectedAssetId) return false
-  if (showsPurchaseRequestAssetType.value && !form.assetUsageType) return false
+  if (requiresPurchaseUsageType.value && !form.assetUsageType) return false
   if (showsPurchaseCategorySelect.value && !form.category) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
@@ -1625,7 +1645,7 @@ async function handleSubmit() {
     switch (selectedKind.value) {
       case 'STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createStandardRequest({
-          requestedUsageType: toRequestedUsageType(assetSearchForm.assetUsageType),
+          ...requestedUsagePayload(form.assetType, assetSearchForm.assetUsageType),
           assetType: form.assetType,
           assetItemId: form.selectedAssetId,
           quantity: Number(form.quantity),
@@ -1634,7 +1654,7 @@ async function handleSubmit() {
         break
       case 'NON_STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createNonStandardRequest({
-          requestedUsageType: toRequestedUsageType(form.assetUsageType),
+          ...requestedUsagePayload(form.assetType, form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
           requestedItemDetail: form.requestedItemName.trim(),
@@ -1651,7 +1671,7 @@ async function handleSubmit() {
         if (isStandardDirectPurchase.value) {
           const standardPayload = standardDirectPurchasePayload()
           response = await ticketCreateApi.createDirectPurchaseRequest({
-            requestedUsageType: toRequestedUsageType(form.assetUsageType),
+            ...requestedUsagePayload(form.assetType, form.assetUsageType),
             assetType: form.assetType,
             isStandard: true,
             assetItemId: form.selectedAssetId,
@@ -1665,7 +1685,7 @@ async function handleSubmit() {
           })
         } else {
           response = await ticketCreateApi.createDirectPurchaseRequest({
-            requestedUsageType: toRequestedUsageType(form.assetUsageType),
+            ...requestedUsagePayload(form.assetType, form.assetUsageType),
             assetType: form.assetType,
             isStandard: false,
             assetItemId: null,

@@ -210,7 +210,7 @@ export interface TicketCreateResponse {
 }
 
 export interface StandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   assetItemId: string
   quantity: number
@@ -218,7 +218,7 @@ export interface StandardAssetRequestCreate {
 }
 
 export interface NonStandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   categoryId: string
   requestedItemDetail: string
@@ -231,7 +231,7 @@ export interface NonStandardAssetRequestCreate {
 }
 
 export interface DirectPurchaseRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   isStandard: boolean
   assetItemId: string | null
