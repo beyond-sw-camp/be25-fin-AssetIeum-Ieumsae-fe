@@ -265,22 +265,24 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
-      requesterId: currentMemberId,
     })
 
+    const hasRequesterScope = response.data.content.some((ticket) => (
+      ticket.requesterId !== undefined && ticket.requesterId !== null
+    ))
     const scopedTickets = response.data.content.filter((ticket) => (
       ticket.requesterId !== undefined
       && ticket.requesterId !== null
       && String(ticket.requesterId) === currentMemberId
     ))
 
-    if (response.data.content.length > 0 && scopedTickets.length === 0) {
+    if (response.data.content.length > 0 && !hasRequesterScope) {
       tickets.value = []
       errorMessage.value = '요청자 정보가 없어 나의 요청 목록을 안전하게 표시할 수 없습니다.'
       return
     }
 
-    tickets.value = scopedTickets
+    tickets.value = hasRequesterScope ? scopedTickets : []
   } catch (error) {
     const isEmpty = error instanceof ApiError
       && error.status === 404
