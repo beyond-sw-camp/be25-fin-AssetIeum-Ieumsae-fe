@@ -93,6 +93,37 @@
             </label>
           </div>
 
+          <div
+            v-if="isTangibleAsset"
+            class="grid gap-4 sm:grid-cols-2"
+          >
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                사용 위치
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model.trim="assetLocation"
+                type="text"
+                placeholder="본사 3층 개발본부"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-semibold text-text-main">
+                보증 만료 일시
+                <span class="text-orange-500">*</span>
+              </span>
+              <input
+                v-model="warrantyExpiredAt"
+                type="datetime-local"
+                :disabled="submitting"
+                class="mt-2 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
+              />
+            </label>
+          </div>
+
           <div>
             <p class="text-sm font-semibold text-text-main">
               영수증 증빙
@@ -159,12 +190,10 @@
         <div class="mt-4 overflow-hidden rounded-lg border border-border bg-surface">
           <div
             v-if="isTangibleAsset"
-            class="hidden grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_12rem] gap-2 border-b border-border bg-surface-secondary px-3 py-2 text-xs font-bold text-text-sub md:grid"
+            class="hidden grid-cols-[2.25rem_minmax(0,1fr)] gap-2 border-b border-border bg-surface-secondary px-3 py-2 text-xs font-bold text-text-sub md:grid"
           >
-            <span>No.</span>
+            <span class="text-center">No</span>
             <span>시리얼 번호</span>
-            <span>사용 위치</span>
-            <span>보증 만료</span>
           </div>
           <div
             v-else
@@ -184,13 +213,13 @@
               'grid gap-2 px-3 py-3',
               index > 0 ? 'border-t border-border' : '',
               isTangibleAsset
-                ? 'md:grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_12rem] md:items-center'
+                ? 'md:grid-cols-[2.25rem_minmax(0,1fr)] md:items-center'
                 : 'md:grid-cols-[3rem_minmax(0,1fr)_6rem_12rem_12rem] md:items-center',
             ]"
           >
             <div class="flex items-center gap-2 md:block">
-              <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-100 px-2 text-xs font-bold text-orange-600">
-                {{ index + 1 }}
+              <span class="block text-center text-xs font-semibold tabular-nums text-text-sub">
+                {{ formatRowNumber(index) }}
               </span>
               <span class="text-xs font-semibold text-text-muted md:hidden">
                 {{ isTangibleAsset ? '유형자산' : '무형자산' }}
@@ -206,25 +235,6 @@
                   placeholder="시리얼 번호"
                   :disabled="submitting"
                   class="h-9 w-full rounded-md border border-border bg-surface px-2.5 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
-                />
-              </label>
-              <label>
-                <span class="sr-only">사용 위치</span>
-                <input
-                  v-model.trim="asset.location"
-                  type="text"
-                  placeholder="사용 위치"
-                  :disabled="submitting"
-                  class="h-9 w-full rounded-md border border-border bg-surface px-2.5 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
-                />
-              </label>
-              <label>
-                <span class="sr-only">보증 만료 일시</span>
-                <input
-                  v-model="asset.warrantyExpiredAt"
-                  type="datetime-local"
-                  :disabled="submitting"
-                  class="h-9 w-full rounded-md border border-border bg-surface px-2.5 text-sm text-text-main outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 />
               </label>
             </template>
@@ -375,6 +385,8 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const actualPrice = ref('')
 const purchaseDate = ref('')
 const purchaseVendor = ref('')
+const assetLocation = ref('')
+const warrantyExpiredAt = ref('')
 const assetDrafts = ref<EditableAssetDraft[]>([])
 const selectedFile = ref<File | null>(null)
 const validationErrorMessage = ref('')
@@ -420,10 +432,8 @@ function createEmptyAssetDraft(index: number, payment?: TicketActualAmountRespon
     key: `${props.ticket.ticketId}-${index}`,
     serialNumber: payment?.serialNumbers?.[index]
       ?? (shouldPrefillFromSingleResult ? payment?.serialNumber ?? props.ticket.serialNumber ?? '' : ''),
-    location: shouldPrefillFromSingleResult ? payment?.location ?? props.ticket.location ?? '' : '',
-    warrantyExpiredAt: shouldPrefillFromSingleResult
-      ? toDateTimeLocalInputValue(payment?.warrantyExpiredAt ?? props.ticket.warrantyExpiredAt ?? props.ticket.warrantyEndDate)
-      : '',
+    location: '',
+    warrantyExpiredAt: '',
     licenseCode: payment?.licenseCodes?.[index]
       ?? (shouldPrefillFromSingleResult ? payment?.licenseCode ?? props.ticket.licenseCode ?? '' : ''),
     seatCount: shouldPrefillFromSingleResult
@@ -447,6 +457,10 @@ function resetForm() {
   purchaseDate.value = toDateTimeLocalInputValue(payment?.purchaseDate ?? props.ticket.purchaseDate)
     || toDateTimeLocalInputValue(new Date().toISOString())
   purchaseVendor.value = payment?.purchaseVendor ?? props.ticket.purchaseVendor ?? ''
+  assetLocation.value = payment?.location ?? props.ticket.location ?? ''
+  warrantyExpiredAt.value = toDateTimeLocalInputValue(
+    payment?.warrantyExpiredAt ?? props.ticket.warrantyExpiredAt ?? props.ticket.warrantyEndDate,
+  )
   assetDrafts.value = Array.from(
     { length: requestedQuantity.value },
     (_, index) => createEmptyAssetDraft(index, payment),
@@ -538,8 +552,8 @@ function handleSubmit() {
     purchaseVendor: purchaseVendor.value.trim(),
     serialNumber: isTangibleAsset.value ? firstAsset?.serialNumber ?? null : null,
     serialNumbers: isTangibleAsset.value ? serialNumbers : null,
-    location: isTangibleAsset.value ? firstAsset?.location ?? null : null,
-    warrantyExpiredAt: isTangibleAsset.value ? firstAsset?.warrantyExpiredAt ?? null : null,
+    location: isTangibleAsset.value ? emptyToNull(assetLocation.value) : null,
+    warrantyExpiredAt: isTangibleAsset.value ? toApiDateTimeOrNull(warrantyExpiredAt.value) : null,
     licenseCode: isTangibleAsset.value ? null : firstAsset?.licenseCode ?? null,
     licenseCodes: isTangibleAsset.value ? null : licenseCodes,
     seatCount: isTangibleAsset.value ? null : firstAsset?.seatCount ?? null,
@@ -578,12 +592,18 @@ function findInvalidAssetIndex() {
 
   const invalidIndex = assetDrafts.value.findIndex((asset) => (
     !asset.serialNumber.trim()
-    || !asset.location.trim()
-    || !asset.warrantyExpiredAt
   ))
   if (invalidIndex !== -1) {
-    validationErrorMessage.value = `자산 ${invalidIndex + 1}의 시리얼 번호, 사용 위치, 보증 만료 일시를 입력해주세요.`
+    validationErrorMessage.value = `자산 ${invalidIndex + 1}의 시리얼 번호를 입력해주세요.`
     return invalidIndex
+  }
+  if (!assetLocation.value.trim()) {
+    validationErrorMessage.value = '사용 위치를 입력해주세요.'
+    return 0
+  }
+  if (!warrantyExpiredAt.value) {
+    validationErrorMessage.value = '보증 만료 일시를 입력해주세요.'
+    return 0
   }
 
   const duplicateSerialIndex = findDuplicateValueIndex(assetDrafts.value.map((asset) => asset.serialNumber))
@@ -609,8 +629,8 @@ function toApiAssetDraft(asset: EditableAssetDraft, index: number): DirectPurcha
   return {
     index: index + 1,
     serialNumber: isTangibleAsset.value ? emptyToNull(asset.serialNumber) : null,
-    location: isTangibleAsset.value ? emptyToNull(asset.location) : null,
-    warrantyExpiredAt: isTangibleAsset.value ? toApiDateTimeOrNull(asset.warrantyExpiredAt) : null,
+    location: isTangibleAsset.value ? emptyToNull(assetLocation.value) : null,
+    warrantyExpiredAt: isTangibleAsset.value ? toApiDateTimeOrNull(warrantyExpiredAt.value) : null,
     licenseCode: isTangibleAsset.value ? null : emptyToNull(asset.licenseCode),
     seatCount: isTangibleAsset.value ? null : positiveIntegerOrNull(asset.seatCount),
     startedAt: isTangibleAsset.value ? null : toApiDateTimeOrNull(asset.startedAt),
@@ -653,6 +673,10 @@ function positiveIntegerOrNull(value: string) {
 
 function toOptionalNumberString(value: number | null | undefined) {
   return value ? String(value) : ''
+}
+
+function formatRowNumber(index: number) {
+  return String(index + 1).padStart(2, '0')
 }
 
 watch(
