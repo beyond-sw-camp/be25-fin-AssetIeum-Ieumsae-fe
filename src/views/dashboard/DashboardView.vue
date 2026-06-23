@@ -45,8 +45,7 @@
         <DepartmentBudgetSummaryCard
           v-if="isDepartmentManager || isEmployee"
           :summary="departmentBudget"
-          :interactive="isDepartmentManager"
-          @click="openDepartmentBudgetDrawer(auth.user?.departmentId, departmentBudget.departmentName)"
+          :interactive="false"
         />
         <DepartmentBudgetCard
           v-else
@@ -54,8 +53,11 @@
           :total-budget-used="totalBudgetUsed"
           :total-budget-limit="totalBudgetLimit"
           :budget-usage-percent="budgetUsagePercent"
-          @select-department="openDepartmentBudgetDrawer($event.departmentId, $event.department)"
         />
+      </section>
+
+      <section v-if="isAssetOperator" class="mb-4">
+        <BudgetHistoryTableCard :departments="budgetHistoryDepartments" />
       </section>
 
       <section v-if="isDepartmentManager || isAssetOperator" class="mb-4">
@@ -74,13 +76,6 @@
       :department-id="assetDetailDepartmentId"
       @close="assetDrawerMode = null"
     />
-
-    <DashboardBudgetDetailDrawer
-      :is-open="budgetDrawerDepartmentId !== null"
-      :department-id="budgetDrawerDepartmentId ?? undefined"
-      :department-name="budgetDrawerDepartmentName"
-      @close="budgetDrawerDepartmentId = null"
-    />
   </div>
 </template>
 
@@ -90,8 +85,8 @@ import { RefreshCw } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import AssetDemandTableCard, { type DemandRow } from '@/components/dashboard/AssetDemandTableCard.vue'
+import BudgetHistoryTableCard from '@/components/dashboard/BudgetHistoryTableCard.vue'
 import DashboardAssetDetailDrawer from '@/components/dashboard/DashboardAssetDetailDrawer.vue'
-import DashboardBudgetDetailDrawer from '@/components/dashboard/DashboardBudgetDetailDrawer.vue'
 import DepartmentBudgetCard, { type BudgetRow } from '@/components/dashboard/DepartmentBudgetCard.vue'
 import DepartmentBudgetSummaryCard from '@/components/dashboard/DepartmentBudgetSummaryCard.vue'
 import DepartmentLifecycleCard from '@/components/dashboard/DepartmentLifecycleCard.vue'
@@ -165,8 +160,6 @@ const departmentHrEvents = ref<HrLifecycleEvent[]>([])
 const departmentHrStatistics = ref<HrEventStatistics>({ ...EMPTY_HR_STATISTICS })
 const assetDrawerMode = ref<AssetDrawerMode | null>(null)
 const assetDrawerType = ref<AssetDrawerType>('ALL')
-const budgetDrawerDepartmentId = ref<string | null>(null)
-const budgetDrawerDepartmentName = ref('-')
 const isLoading = ref(false)
 const loadError = ref('')
 
@@ -217,16 +210,18 @@ const demandColumns = [
   { key: 'status', label: '상태', align: 'center' as const, width: '13%' },
 ]
 
-const demandRows = computed<DemandRow[]>(() => assetDemands.value.map((item) => ({
-  id: item.itemId,
-  kind: item.assetType === 'TANGIBLE' ? '유형' : '무형',
-  name: item.assetName,
-  expectedDemand: item.expectedDemand,
-  currentStock: item.currentInventory,
-  returnExpected: item.scheduledReturn,
-  availability: item.availabilityRate,
-  status: item.status,
-})))
+const demandRows = computed<DemandRow[]>(() => assetDemands.value
+  .filter((item) => item.expectedDemand > 0)
+  .map((item) => ({
+    id: item.itemId,
+    kind: item.assetType === 'TANGIBLE' ? '유형' : '무형',
+    name: item.assetName,
+    expectedDemand: item.expectedDemand,
+    currentStock: item.currentInventory,
+    returnExpected: item.scheduledReturn,
+    availability: item.availabilityRate,
+    status: item.status,
+  })))
 
 const budgetRows = computed<BudgetRow[]>(() => (
   budgetOverview.value?.departmentBudgets.content.map((item) => ({
@@ -235,6 +230,12 @@ const budgetRows = computed<BudgetRow[]>(() => (
     limit: item.totalAmount,
     used: item.usedAmount,
     percent: item.usageRate,
+  })) ?? []
+))
+const budgetHistoryDepartments = computed(() => (
+  budgetOverview.value?.departmentBudgets.content.map((item) => ({
+    departmentId: item.departmentId,
+    departmentName: item.departmentName,
   })) ?? []
 ))
 
@@ -279,12 +280,6 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
-function openDepartmentBudgetDrawer(departmentId: string | undefined, departmentName: string) {
-  if (!departmentId || isEmployee.value) return
-  budgetDrawerDepartmentId.value = departmentId
-  budgetDrawerDepartmentName.value = departmentName
-}
-
 async function loadDashboardData() {
   isLoading.value = true
   loadError.value = ''
@@ -316,7 +311,21 @@ async function loadDashboardData() {
     }
 
     if (isEmployee.value) {
-      departmentBudget.value = { ...EMPTY_DEPARTMENT_BUDGET }
+      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1 })
+      const employeeBudget = budgetResponse.data.departmentBudgets.content[0]
+      departmentBudget.value = employeeBudget
+        ? {
+            departmentName: employeeBudget.departmentName,
+            totalAmount: employeeBudget.totalAmount,
+            usedAmount: employeeBudget.usedAmount,
+            remainingAmount: Math.max(employeeBudget.totalAmount - employeeBudget.usedAmount, 0),
+            usageRate: employeeBudget.usageRate,
+            categoryUsages: [],
+          }
+        : {
+            ...EMPTY_DEPARTMENT_BUDGET,
+            departmentName: auth.user?.departmentName || '-',
+          }
       return
     }
     const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })

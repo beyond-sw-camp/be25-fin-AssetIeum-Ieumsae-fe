@@ -97,7 +97,11 @@ const donutStyle = computed(() => {
   const usageRate = Math.min(Math.max(props.summary.usageRate ?? 0, 0), 100)
 
   return {
-    background: `conic-gradient(var(--color-primary) 0 ${usageRate}%, var(--color-surface-secondary) ${usageRate}% 100%)`,
+    background: `conic-gradient(
+      from 0deg,
+      var(--color-surface-secondary) 0 ${100 - usageRate}%,
+      var(--color-primary) ${100 - usageRate}% 100%
+    )`,
   }
 })
 </script>

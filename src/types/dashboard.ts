@@ -123,8 +123,6 @@ export interface EmployeeDepartmentBudget {
   remainingRate: number
 }
 
-export type BudgetHistoryType = 'HOLD_INCREASE' | 'HOLD_DECREASE' | 'USE_INCREASE' | 'RECOVERY' | 'TRANSFER'
-
 export interface BudgetLedgerItem {
   historyId: string
   date: string
