@@ -29,6 +29,7 @@ interface AuditLogDisplayRow extends Record<string, unknown> {
   description: string
   action: string
   targetPath: string | null
+  detail?: string
 }
 
 const router = useRouter()
@@ -68,7 +69,7 @@ const displayRows = computed<AuditLogDisplayRow[]>(() => props.rows.map((row) =>
     createdAt: formatDateTime(row.createdAt),
     memberInfo: `${memberName}(${memberNumber})`,
     targetSummary: subjectSummary(row),
-    description: row.afterValue ?? '-',
+    description: row.detail ?? row.afterValue ?? '-',
     action: AUDIT_LOG_ACTION_LABEL[row.action],
     targetPath: row.targetPath ?? null,
   }

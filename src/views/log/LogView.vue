@@ -9,11 +9,6 @@
           {{ currentTabLabel }}
         </h1>
       </div>
-
-      <Button variant="outline" size="md" disabled title="TODO: 로그 엑셀 다운로드 API 확정 후 연결">
-        <Download :size="18" />
-        엑셀 다운로드
-      </Button>
     </div>
 
     <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
@@ -123,7 +118,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { logApi } from '@/api/log.api'

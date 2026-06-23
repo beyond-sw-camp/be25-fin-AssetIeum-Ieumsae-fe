@@ -5,13 +5,11 @@
     :loading="loading"
     row-key="activityLogId"
     empty-text="활동 로그가 없습니다."
-    @row-click="handleRowClick"
   />
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { ACTIVITY_LOG_ACTION_LABEL, LOG_SUBJECT_TYPE_LABEL } from '@/utils/logLabels'
 import type { ActivityLog } from '@/types'
@@ -22,20 +20,20 @@ interface ActivityLogDisplayRow extends Record<string, unknown> {
   actor: string
   targetSummary: string
   action: string
-  targetPath: string | null
+  detail: string
+  targetPath?: string | null
 }
 
 const props = defineProps<{
   rows: ActivityLog[]
   loading: boolean
 }>()
-const router = useRouter()
 
 const activityColumns: Column<ActivityLogDisplayRow>[] = [
-  { key: 'createdAt', label: '생성일', align: 'center', width: '25%' },
-  { key: 'actor', label: '활동 사용자', align: 'center', width: '20%' },
-  { key: 'action', label: '로그 액션', align: 'center', width: '15%' },
-  { key: 'targetSummary', label: '로그 유형', align: 'center', width: '20%' },
+  { key: 'createdAt', label: '생성일', align: 'center', width: '20%' },
+  { key: 'actor', label: '활동 사용자', align: 'center', width: '18%' },
+  { key: 'action', label: '로그 액션', align: 'center', width: '12%' },
+  { key: 'targetSummary', label: '로그 유형', align: 'center', width: '16%' },
 ]
 
 const formatDateTime = (value: string) => {
@@ -57,6 +55,11 @@ function subjectSummary(row: ActivityLog) {
   return LOG_SUBJECT_TYPE_LABEL[row.subjectType] ?? '-'
 }
 
+function textValue(row: ActivityLog, key: string) {
+  const value = (row as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.trim().length > 0 ? value : ''
+}
+
 const displayRows = computed<ActivityLogDisplayRow[]>(() => props.rows.map((row) => {
   const memberName = row.actorName ?? row.memberName ?? '-'
   const memberNumber = row.actorMemberNo ?? row.memberNo ?? row.actorId ?? row.memberId ?? '-'
@@ -67,12 +70,7 @@ const displayRows = computed<ActivityLogDisplayRow[]>(() => props.rows.map((row)
     actor: `${memberName}(${memberNumber})`,
     targetSummary: subjectSummary(row),
     action: ACTIVITY_LOG_ACTION_LABEL[row.action],
-    targetPath: row.targetPath ?? null,
+    detail: textValue(row, 'detail') || textValue(row, 'description') || '-',
   }
 }))
-
-function handleRowClick(row: ActivityLogDisplayRow) {
-  if (!row.targetPath) return
-  void router.push(row.targetPath)
-}
 </script>
