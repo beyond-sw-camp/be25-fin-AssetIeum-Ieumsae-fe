@@ -901,8 +901,12 @@ function availableItemCount(item: object) {
   return numberValue(
     source.availableCount
       ?? source.availableAssetCount
+      ?? source.intangibleAssetCount
+      ?? source.totalAssetCount
+      ?? source.assetTotalCount
       ?? source.assetCount
-      ?? source.stockCount,
+      ?? source.stockCount
+      ?? source.count,
   )
 }
 

@@ -664,6 +664,10 @@ type AvailableCountSource = {
   availableAssetCount?: number | string | null
   stockCount?: number | string | null
   assetCount?: number | string | null
+  intangibleAssetCount?: number | string | null
+  totalAssetCount?: number | string | null
+  assetTotalCount?: number | string | null
+  count?: number | string | null
 }
 
 type MemberRecord = Member & {
@@ -1213,8 +1217,12 @@ function itemAvailableCount(item: AvailableCountSource) {
   return numberValue(
     item.availableCount
       ?? item.availableAssetCount
+      ?? item.intangibleAssetCount
+      ?? item.totalAssetCount
+      ?? item.assetTotalCount
       ?? item.stockCount
-      ?? item.assetCount,
+      ?? item.assetCount
+      ?? item.count,
   )
 }
 

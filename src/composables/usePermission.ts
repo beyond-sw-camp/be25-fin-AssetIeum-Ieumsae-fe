@@ -73,7 +73,7 @@ export function usePermission() {
 
   // 구매 관련 기능 (구매자산팀)
   const canPurchase = computed(() =>
-    hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
   // 예산 관리 (최고관리자)
