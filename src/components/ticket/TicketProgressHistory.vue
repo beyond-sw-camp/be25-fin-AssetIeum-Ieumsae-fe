@@ -50,7 +50,7 @@
         </p>
         <div
           v-if="step.reason"
-          class="relative mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger shadow-sm before:absolute before:-top-1 before:left-4 before:h-2 before:w-2 before:rotate-45 before:border-l before:border-t before:border-danger/20 before:bg-danger/5"
+          class="mb-4 mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger shadow-sm"
         >
           <p class="mb-1 font-semibold">{{ stepReasonTitle(step.key) }}</p>
           <p class="whitespace-pre-line leading-relaxed">{{ step.reason }}</p>
