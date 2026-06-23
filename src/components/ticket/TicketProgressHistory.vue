@@ -1,17 +1,16 @@
 ﻿<template>
-  <TicketDetailCard title="진행 히스토리" class="h-full">
+  <TicketDetailCard title="진행 히스토리">
     <template #icon>
       <History :size="18" class="text-primary" />
     </template>
 
     <ol
-      class="relative ml-2 grid min-h-[28rem] border-l border-dashed border-border"
-      :style="{ gridTemplateRows: `repeat(${processSteps.length}, minmax(0, 1fr))` }"
+      class="relative ml-2 space-y-6 border-l border-dashed border-border pb-1"
     >
       <li
         v-for="step in processSteps"
         :key="step.key"
-        class="relative pl-7"
+        class="relative pl-7 last:pb-0"
       >
         <span
           :class="[
@@ -50,7 +49,7 @@
         </p>
         <div
           v-if="step.reason"
-          class="mb-4 mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger shadow-sm"
+          class="relative mb-4 mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger shadow-sm before:absolute before:-top-1 before:left-4 before:h-2 before:w-2 before:rotate-45 before:border-l before:border-t before:border-danger/20 before:bg-danger/5"
         >
           <p class="mb-1 font-semibold">{{ stepReasonTitle(step.key) }}</p>
           <p class="whitespace-pre-line leading-relaxed">{{ step.reason }}</p>

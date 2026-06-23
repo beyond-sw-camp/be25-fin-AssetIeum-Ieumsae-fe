@@ -226,12 +226,13 @@ export interface NonStandardAssetRequestCreate {
   requestedUsageType?: RequestedUsageType
   assetType: AssetType
   categoryId: string
-  assignmentTargetMemberIds: string[]
+  assignmentTargetMemberIds: (string | null)[]
   requestedItemDetail: string
   manufacturer: string
   licenseType: string | null
   purchaseUrl: string
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }
@@ -241,12 +242,13 @@ export interface DirectPurchaseRequestCreate {
   assetType: AssetType
   isStandard: boolean
   assetItemId: string | null
-  assignmentTargetMemberIds: string[]
+  assignmentTargetMemberIds: (string | null)[]
   categoryId: string | null
   requestedItemDetail: string | null
   manufacturer: string | null
   licenseType: string | null
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }

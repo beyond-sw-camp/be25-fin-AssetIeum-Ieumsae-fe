@@ -454,7 +454,10 @@
 
       <div
         v-if="showsPurchaseQuantityAndPrice"
-        class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        :class="[
+          'grid grid-cols-1 gap-3',
+          showsPurchaseSeatCount ? 'sm:grid-cols-3' : 'sm:grid-cols-2',
+        ]"
       >
         <Input
           id="ticket-quantity"
@@ -462,6 +465,17 @@
           type="number"
           :min="1"
           label="수량"
+          required
+          placeholder="1"
+          :disabled="isSubmitting"
+        />
+        <Input
+          v-if="showsPurchaseSeatCount"
+          id="ticket-seat-count"
+          v-model="form.seatCount"
+          type="number"
+          :min="1"
+          label="사용 가능 인원 수"
           required
           placeholder="1"
           :disabled="isSubmitting"
@@ -506,9 +520,9 @@
             <Dropdown
               :id="`ticket-asset-assignee-${index}`"
               :model-value="form.assetAssigneeIds[index] ?? ''"
-              :options="assetAssigneeOptions"
-              :root-option="isAssigneeLoading ? '같은 부서 구성원 조회 중' : '자산 할당자 선택'"
-              :disabled="isSubmitting || isAssigneeLoading || assetAssigneeOptions.length === 0"
+              :options="assetAssigneeOptionsFor(index)"
+              :root-option="isAssigneeLoading ? '같은 부서 구성원 조회 중' : assetAssigneeRootOption"
+              :disabled="isSubmitting || isAssigneeLoading || (!allowsUnassignedAssignee && assetAssigneeOptions.length === 0)"
               @update:model-value="(value) => handleAssetAssigneeChange(index, value)"
             />
           </div>
@@ -793,6 +807,7 @@ const form = reactive({
   licenseType: '',
   externalUrl: '',
   quantity: '1',
+  seatCount: '1',
   expectedPrice: '',
   rentalStartDate: '',
   rentalDueDate: '',
@@ -906,6 +921,11 @@ const showsPurchaseQuantityAndPrice = computed(() => (
   || selectedKind.value === 'DIRECT_PURCHASE'
 ))
 
+const showsPurchaseSeatCount = computed(() => (
+  showsPurchaseQuantityAndPrice.value
+  && form.assetType === 'INTANGIBLE'
+))
+
 const assetSelectionLabel = computed(() => {
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') return '품목 선택'
   if (isStandardDirectPurchase.value) return '직접 구매할 표준 품목 선택'
@@ -992,9 +1012,23 @@ const assetAssigneeOptions = computed<DropdownOption[]>(() => (
     .filter((option) => option.value)
 ))
 
-const requestedAssetQuantity = computed(() => (
+const allowsUnassignedAssignee = computed(() => showsPurchaseSeatCount.value)
+
+const assetAssigneeRootOption = computed(() => (
+  '자산 할당자 선택'
+))
+
+const requestedAssetCount = computed(() => (
   positiveNumber(form.quantity) ? Math.max(1, Number(form.quantity)) : 1
 ))
+
+const requestedSeatCount = computed(() => (
+  showsPurchaseSeatCount.value && positiveNumber(form.seatCount)
+    ? Math.max(1, Number(form.seatCount))
+    : 1
+))
+
+const requestedAssetQuantity = computed(() => requestedAssetCount.value * requestedSeatCount.value)
 
 const canSearchAssets = computed(() => Boolean(
   (!requiresAssetSearchUsageType.value || assetSearchForm.assetUsageType)
@@ -1122,7 +1156,7 @@ const isFormValid = computed(() => {
     requiresAssetAssignee.value
     && (
       form.assetAssigneeIds.length !== requestedAssetQuantity.value
-      || form.assetAssigneeIds.some((assigneeId) => !assigneeId)
+      || (!allowsUnassignedAssignee.value && form.assetAssigneeIds.some((assigneeId) => !assigneeId))
     )
   ) return false
   if (requiresPurchaseUsageType.value && !form.assetUsageType) return false
@@ -1138,6 +1172,7 @@ const isFormValid = computed(() => {
       && (form.assetType === 'TANGIBLE' || form.licenseType.trim())
       && form.externalUrl.trim()
       && positiveNumber(form.quantity)
+      && (!showsPurchaseSeatCount.value || positiveNumber(form.seatCount))
       && positiveNumber(form.expectedPrice),
     )
   }
@@ -1146,6 +1181,7 @@ const isFormValid = computed(() => {
       return Boolean(
         form.selectedAssetId
         && positiveNumber(form.quantity)
+        && (!showsPurchaseSeatCount.value || positiveNumber(form.seatCount))
         && positiveNumber(form.expectedPrice),
       )
     }
@@ -1155,6 +1191,7 @@ const isFormValid = computed(() => {
       && form.vendor.trim()
       && (form.assetType === 'TANGIBLE' || form.licenseType.trim())
       && positiveNumber(form.quantity)
+      && (!showsPurchaseSeatCount.value || positiveNumber(form.seatCount))
       && positiveNumber(form.expectedPrice),
     )
   }
@@ -1604,12 +1641,13 @@ async function loadDepartmentMembers() {
       page: 0,
       size: 999,
       departmentId: departmentId || undefined,
+      status: 'ACTIVE',
     })
     let members = response.data.content
     const hasDepartmentScopedResponse = Boolean(departmentId && members.length > 0)
 
     if (members.length === 0 && departmentId) {
-      const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
+      const fallbackResponse = await memberApi.getList({ page: 0, size: 999, status: 'ACTIVE' })
       members = fallbackResponse.data.content
     }
     let targetDepartmentId = departmentId
@@ -1622,7 +1660,7 @@ async function loadDepartmentMembers() {
     }
 
     if (!targetDepartmentId && !targetDepartmentName) {
-      const fallbackResponse = await memberApi.getList({ page: 0, size: 999 })
+      const fallbackResponse = await memberApi.getList({ page: 0, size: 999, status: 'ACTIVE' })
       members = fallbackResponse.data.content
       const requester = members.find((member) => String(memberId(member)) === String(requesterId))
       targetDepartmentId = memberDepartmentId(requester)
@@ -1687,7 +1725,7 @@ function memberDepartmentName(member: Member | null | undefined) {
 }
 
 function isAssignableMember(member: Member) {
-  return member.status !== 'RESIGNED'
+  return member.status === 'ACTIVE'
 }
 
 function isSameDepartmentMember(member: Member, departmentId: string | undefined, departmentName: string) {
@@ -1713,14 +1751,48 @@ function normalizeDepartmentName(value: string | null | undefined) {
 
 function syncAssetAssigneeIds() {
   const quantity = requestedAssetQuantity.value
-  const currentIds = form.assetAssigneeIds.filter(Boolean)
+  const currentIds = allowsUnassignedAssignee.value
+    ? uniqueAssignableAssigneeIds(form.assetAssigneeIds)
+    : form.assetAssigneeIds.filter(Boolean)
   const requesterId = authStore.user?.memberId ?? ''
   const defaultId = departmentMembers.value.some((member) => memberId(member) === requesterId)
     ? requesterId
     : memberId(departmentMembers.value[0])
 
-  form.assetAssigneeIds = Array.from({ length: quantity }, (_, index) => currentIds[index] ?? defaultId)
+  if (!allowsUnassignedAssignee.value) {
+    form.assetAssigneeIds = Array.from({ length: quantity }, (_, index) => currentIds[index] ?? defaultId)
+    form.assetAssigneeId = form.assetAssigneeIds[0] ?? ''
+    return
+  }
+
+  const defaultIds = [
+    ...(departmentMembers.value.some((member) => memberId(member) === requesterId) ? [requesterId] : []),
+    ...departmentMembers.value.map(memberId),
+  ].filter(Boolean)
+  const assignableIds = [...new Set([...currentIds, ...defaultIds])]
+  const usedIds = new Set<string>()
+
+  form.assetAssigneeIds = Array.from({ length: quantity }, (_, index) => {
+    const currentId = currentIds[index]
+    if (currentId && !usedIds.has(currentId)) {
+      usedIds.add(currentId)
+      return currentId
+    }
+
+    const nextId = assignableIds.find((id) => !usedIds.has(id)) ?? ''
+    if (nextId) usedIds.add(nextId)
+    return nextId
+  })
   form.assetAssigneeId = form.assetAssigneeIds[0] ?? ''
+}
+
+function uniqueAssignableAssigneeIds(ids: string[]) {
+  const seen = new Set<string>()
+  return ids.filter((id) => {
+    if (!id || seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
 }
 
 async function loadRequestAvailableAssets() {
@@ -1837,6 +1909,7 @@ function resetForm() {
     licenseType: '',
     externalUrl: '',
     quantity: '1',
+    seatCount: '1',
     expectedPrice: '',
     rentalStartDate: '',
     rentalDueDate: '',
@@ -1858,8 +1931,9 @@ function handleKindSelect(kind: TicketRequestKind) {
   assetSearchForm.assetUsageType = 'DEPARTMENT'
   form.category = ''
   form.selectedAssetId = ''
+  form.seatCount = '1'
   form.assetAssigneeId = authStore.user?.memberId ?? ''
-  form.assetAssigneeIds = Array.from({ length: requestedAssetQuantity.value }, () => authStore.user?.memberId ?? '')
+  syncAssetAssigneeIds()
   assetSearchKeyword.value = ''
   errorMessage.value = ''
   returnAssetOptions.value = []
@@ -1937,6 +2011,25 @@ function handleAssetAssigneeChange(index: number, value: string | number) {
   form.assetAssigneeId = form.assetAssigneeIds[0] ?? ''
 }
 
+function assetAssigneeOptionsFor(index: number) {
+  const currentId = form.assetAssigneeIds[index] ?? ''
+  const selectedIds = new Set(
+    allowsUnassignedAssignee.value
+      ? form.assetAssigneeIds.filter((assigneeId, assigneeIndex) => assigneeIndex !== index && assigneeId)
+      : [],
+  )
+  const unassignedOption = allowsUnassignedAssignee.value
+    ? [{ label: '할당자 없음', value: '' }]
+    : []
+
+  return [
+    ...unassignedOption,
+    ...assetAssigneeOptions.value.filter((option) => (
+      String(option.value) === currentId || !selectedIds.has(String(option.value))
+    )),
+  ]
+}
+
 function handleDirectPurchaseItemTypeChange(value: 'STANDARD' | 'NON_STANDARD') {
   form.directPurchaseItemType = value
   form.category = ''
@@ -1944,6 +2037,7 @@ function handleDirectPurchaseItemTypeChange(value: 'STANDARD' | 'NON_STANDARD') 
   form.requestedItemName = ''
   form.vendor = ''
   form.licenseType = ''
+  form.seatCount = '1'
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
   invalidateAssetSearch()
@@ -1963,6 +2057,7 @@ function handleAssetTypeChange(assetType: AssetType) {
   form.requestedItemName = ''
   form.vendor = ''
   form.licenseType = ''
+  form.seatCount = '1'
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
   invalidateAssetSearch()
@@ -1997,6 +2092,14 @@ function selectedAssetId() {
   return id
 }
 
+function assignmentTargetMemberIds() {
+  return form.assetAssigneeIds.map((assigneeId) => assigneeId || null)
+}
+
+function purchaseSeatCountPayload() {
+  return showsPurchaseSeatCount.value ? Number(form.seatCount) : null
+}
+
 async function handleSubmit() {
   if (isSubmitting.value || !isFormValid.value || !selectedKind.value) return
   if (authStore.currentRole === 'ADMIN' || authStore.currentRole === 'SUPER_ADMIN') {
@@ -2027,12 +2130,13 @@ async function handleSubmit() {
           ...requestedUsagePayload(form.assetType, form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
-          assignmentTargetMemberIds: form.assetAssigneeIds,
+          assignmentTargetMemberIds: assignmentTargetMemberIds(),
           requestedItemDetail: form.requestedItemName.trim(),
           manufacturer: form.vendor.trim(),
           licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
           purchaseUrl: form.externalUrl.trim(),
           quantity: Number(form.quantity),
+          seatCount: purchaseSeatCountPayload(),
           expectedPrice: Number(form.expectedPrice),
           requestReason,
         })
@@ -2045,12 +2149,13 @@ async function handleSubmit() {
             assetType: form.assetType,
             isStandard: true,
             assetItemId: form.selectedAssetId,
-            assignmentTargetMemberIds: form.assetAssigneeIds,
+            assignmentTargetMemberIds: assignmentTargetMemberIds(),
             categoryId: standardPayload.categoryId,
             requestedItemDetail: standardPayload.requestedItemDetail,
             manufacturer: standardPayload.manufacturer,
             licenseType: standardPayload.licenseType,
             quantity: Number(form.quantity),
+            seatCount: purchaseSeatCountPayload(),
             expectedPrice: Number(form.expectedPrice),
             requestReason,
           })
@@ -2060,12 +2165,13 @@ async function handleSubmit() {
             assetType: form.assetType,
             isStandard: false,
             assetItemId: null,
-            assignmentTargetMemberIds: form.assetAssigneeIds,
+            assignmentTargetMemberIds: assignmentTargetMemberIds(),
             categoryId: form.category,
             requestedItemDetail: form.requestedItemName.trim(),
             manufacturer: form.vendor.trim(),
             licenseType: form.assetType === 'INTANGIBLE' ? form.licenseType.trim() : null,
             quantity: Number(form.quantity),
+            seatCount: purchaseSeatCountPayload(),
             expectedPrice: Number(form.expectedPrice),
             requestReason,
           })
