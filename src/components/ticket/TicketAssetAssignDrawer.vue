@@ -335,6 +335,8 @@ interface ItemOption {
   name: string
   category: string
   availableCount: number
+  availableCountLabel?: string
+  assetType?: AssetType
   isStandard?: boolean
   requestedItem?: boolean
 }
@@ -702,7 +704,8 @@ async function loadAssignableAssetIds(itemId: string, quantity: number) {
 }
 
 function showInsufficientQuantityToast(availableCount: number) {
-  notificationStore.warning('수량 부족', `요청 ${requestedQuantity.value}개, 사용가능 ${availableCount}개입니다.`)
+  const unit = selectedItem.value?.assetType === 'INTANGIBLE' ? '명' : '개'
+  notificationStore.warning('수량 부족', `요청 ${requestedQuantity.value}${unit}, 사용가능 ${availableCount}${unit}입니다.`)
 }
 
 function clearItems() {
@@ -771,7 +774,7 @@ function itemCountBadgeClass(item: ItemOption) {
 }
 
 function itemCountText(item: ItemOption) {
-  return `남은 수량 ${item.availableCount}개`
+  return item.availableCountLabel ?? `남은 수량 ${item.availableCount}개`
 }
 
 function isRequestedItem(item: ItemOption) {
@@ -807,13 +810,14 @@ function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
     name: item.name ?? item.productName ?? aliases.assetName ?? item.itemCode ?? itemId,
     category: item.categoryName ?? item.category ?? '',
     availableCount,
+    assetType: 'TANGIBLE',
     isStandard: isStandardValue(item.isStandard),
   }
 }
 
 function toIntangibleItemOption(item: IntangibleItem): ItemOption {
   const itemId = String(item.assetItemId ?? item.itemId ?? item.id ?? '')
-  const availableCount = availableItemCount(item)
+  const availableCount = availableSeatCount(item)
 
   return {
     itemId,
@@ -821,6 +825,8 @@ function toIntangibleItemOption(item: IntangibleItem): ItemOption {
     name: item.productName ?? itemId,
     category: [item.category, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
     availableCount,
+    availableCountLabel: assignablePersonCountLabel(availableCount),
+    assetType: 'INTANGIBLE',
     isStandard: isStandardValue(item.isStandard),
   }
 }
@@ -835,15 +841,29 @@ function toAssetRequestItemOption(item: AssetRequestAssignableItem): ItemOption 
       ?? '',
   )
 
+  const itemAssetType = assetRequestItemAssetType(item)
+  const availableCount = itemAssetType === 'INTANGIBLE'
+    ? availableSeatCount(item)
+    : availableItemCount(item)
+
   return {
     itemId,
     itemNo: String((item.itemIdentifier ?? item.itemNo ?? item.itemCode ?? itemId) || '-'),
     name: String((item.productName ?? item.name ?? item.itemIdentifier ?? itemId) || '-'),
     category: [item.categoryName, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
-    availableCount: availableItemCount(item),
+    availableCount,
+    availableCountLabel: itemAssetType === 'INTANGIBLE'
+      ? assignablePersonCountLabel(availableCount)
+      : undefined,
+    assetType: itemAssetType,
     isStandard: isStandardValue(item.isStandard),
     requestedItem: item.requestedItem,
   }
+}
+
+function assetRequestItemAssetType(item: AssetRequestAssignableItem): AssetType {
+  if (item.assetType === 'INTANGIBLE' || item.assetType === 'TANGIBLE') return item.assetType
+  return item.intangibleAssetItemId || item.licenseType ? 'INTANGIBLE' : assetType.value
 }
 
 function licenseTypeLabel(value: string | null | undefined) {
@@ -918,6 +938,45 @@ function availableItemCount(item: object) {
       ?? source.stockCount
       ?? source.count,
   )
+}
+
+function availableSeatCount(item: object) {
+  const source = item as Record<string, unknown>
+  return numberValue(
+    source.availableSeatCount
+      ?? source.remainingSeatCount
+      ?? source.remainingSeats
+      ?? source.availableSeats
+      ?? source.assignableSeatCount
+      ?? source.remainingAssignableCount
+      ?? source.remainingAssignableSeatCount
+      ?? source.availableUserCount
+      ?? source.remainingUserCount
+      ?? source.availableMemberCount
+      ?? source.remainingMemberCount
+      ?? source.availableAssignmentCount
+      ?? source.remainingAssignmentCount
+      ?? source.available_seat_count
+      ?? source.remaining_seat_count
+      ?? source.available_user_count
+      ?? source.remaining_user_count
+      ?? source.available_member_count
+      ?? source.remaining_member_count
+      ?? source.available_assignment_count
+      ?? source.remaining_assignment_count
+      ?? source.availableCount
+      ?? source.availableAssetCount
+      ?? source.intangibleAssetCount
+      ?? source.totalAssetCount
+      ?? source.assetTotalCount
+      ?? source.assetCount
+      ?? source.stockCount
+      ?? source.count,
+  )
+}
+
+function assignablePersonCountLabel(count: number) {
+  return `할당 가능 ${count}명`
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

@@ -117,6 +117,7 @@ export interface AssetRadioItem {
   name: string
   description?: string
   availableCount?: number
+  availableCountLabel?: string
 }
 
 export interface AssetRadioGroup {
@@ -183,6 +184,6 @@ function availableCountClass(item: AssetRadioItem) {
 }
 
 function availableCountText(item: AssetRadioItem) {
-  return `남은 수량 ${item.availableCount ?? 0}개`
+  return item.availableCountLabel ?? `남은 수량 ${item.availableCount ?? 0}개`
 }
 </script>

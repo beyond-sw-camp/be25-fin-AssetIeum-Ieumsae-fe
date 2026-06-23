@@ -379,6 +379,19 @@ export interface AssetRequestAssignableItem {
   isStandard?: boolean | number | null
   requestedItem?: boolean
   availableCount?: number | string | null
+  availableSeatCount?: number | string | null
+  remainingSeatCount?: number | string | null
+  remainingSeats?: number | string | null
+  availableSeats?: number | string | null
+  assignableSeatCount?: number | string | null
+  remainingAssignableCount?: number | string | null
+  remainingAssignableSeatCount?: number | string | null
+  availableUserCount?: number | string | null
+  remainingUserCount?: number | string | null
+  availableMemberCount?: number | string | null
+  remainingMemberCount?: number | string | null
+  availableAssignmentCount?: number | string | null
+  remainingAssignmentCount?: number | string | null
   availableAssetCount?: number | string | null
   assetCount?: number | string | null
   stockCount?: number | string | null

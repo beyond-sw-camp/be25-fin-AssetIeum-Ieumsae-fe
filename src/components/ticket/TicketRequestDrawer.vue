@@ -666,6 +666,19 @@ interface SelectableAsset extends AssetRadioItem {
 }
 
 type AvailableCountSource = {
+  availableSeatCount?: number | string | null
+  remainingSeatCount?: number | string | null
+  remainingSeats?: number | string | null
+  availableSeats?: number | string | null
+  assignableSeatCount?: number | string | null
+  remainingAssignableCount?: number | string | null
+  remainingAssignableSeatCount?: number | string | null
+  availableUserCount?: number | string | null
+  remainingUserCount?: number | string | null
+  availableMemberCount?: number | string | null
+  remainingMemberCount?: number | string | null
+  availableAssignmentCount?: number | string | null
+  remainingAssignmentCount?: number | string | null
   availableCount?: number | string | null
   availableAssetCount?: number | string | null
   stockCount?: number | string | null
@@ -1210,7 +1223,7 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
     standard?: number | boolean | string | null
   }
 
-  const availableCount = itemAvailableCount(item)
+  const availableCount = intangibleItemAvailableCount(item)
 
   return {
     id: String(item.assetItemId ?? item.itemId ?? responseItem.intangibleAssetItemId ?? item.id ?? ''),
@@ -1221,6 +1234,7 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
       licenseTypeLabel(item.licenseType),
     ].filter(Boolean).join(' · '),
     availableCount,
+    availableCountLabel: availableCountLabel(availableCount, 'person'),
     assetType: 'INTANGIBLE',
     isStandard: standardItemValue(item.isStandard ?? responseItem.is_standard ?? responseItem.standard),
     categoryId: item.categoryId,
@@ -1241,6 +1255,48 @@ function itemAvailableCount(item: AvailableCountSource) {
       ?? item.assetCount
       ?? item.count,
   )
+}
+
+function intangibleItemAvailableCount(item: AvailableCountSource) {
+  const source = item as AvailableCountSource & Record<string, number | string | null | undefined>
+  return numberValue(
+    item.availableSeatCount
+      ?? item.remainingSeatCount
+      ?? item.remainingSeats
+      ?? item.availableSeats
+      ?? item.assignableSeatCount
+      ?? item.remainingAssignableCount
+      ?? item.remainingAssignableSeatCount
+      ?? item.availableUserCount
+      ?? item.remainingUserCount
+      ?? item.availableMemberCount
+      ?? item.remainingMemberCount
+      ?? item.availableAssignmentCount
+      ?? item.remainingAssignmentCount
+      ?? source.available_seat_count
+      ?? source.remaining_seat_count
+      ?? source.available_user_count
+      ?? source.remaining_user_count
+      ?? source.available_member_count
+      ?? source.remaining_member_count
+      ?? source.available_assignment_count
+      ?? source.remaining_assignment_count
+      ?? item.availableCount
+      ?? item.availableAssetCount
+      ?? item.intangibleAssetCount
+      ?? item.totalAssetCount
+      ?? item.assetTotalCount
+      ?? item.stockCount
+      ?? item.assetCount
+      ?? item.count,
+  )
+}
+
+function availableCountLabel(count: number | undefined, unit: 'asset' | 'person' = 'asset') {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return undefined
+  return unit === 'person'
+    ? `할당 가능 ${count}명`
+    : `남은 수량 ${count}개`
 }
 
 function numberValue(value: number | string | null | undefined) {
