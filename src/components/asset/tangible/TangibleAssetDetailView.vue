@@ -47,6 +47,19 @@
           <Input id="edit-warrantyExpiredAt" v-model="assetEditForm.warrantyExpiredAt" type="datetime-local" label="보증 만료 일시" disabled />
         </div>
       </section>
+
+      <section>
+        <div>
+          <QrcodeVue
+            :value="assetEditForm.assetCode"
+            :size="180"
+            level="M"
+          />
+          <p class="mt-2 text-xs text-text-sub">
+            {{ assetEditForm.assetCode }}
+          </p>
+        </div>
+      </section>
     </div>
 
     <template #footer>
@@ -82,6 +95,7 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import QrcodeVue from 'qrcode.vue'
 import type {
   Department,
   Member,
