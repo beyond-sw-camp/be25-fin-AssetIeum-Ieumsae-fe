@@ -625,6 +625,13 @@ interface SelectableAsset extends AssetRadioItem {
   returnDueDate?: string | null
 }
 
+type AvailableCountSource = {
+  availableCount?: number | string | null
+  availableAssetCount?: number | string | null
+  stockCount?: number | string | null
+  assetCount?: number | string | null
+}
+
 const props = defineProps<{
   isOpen: boolean
 }>()
@@ -1044,12 +1051,15 @@ const isFormValid = computed(() => {
 })
 
 function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
+  const availableCount = itemAvailableCount(item)
+
   return {
     id: String(item.assetItemId ?? item.itemId ?? ''),
     name: item.productName ?? item.name,
     description: [item.categoryName ?? item.category, item.manufacturer, item.modelName]
       .filter(Boolean)
       .join(' · '),
+    availableCount,
     assetType: 'TANGIBLE',
     isStandard: item.isStandard,
     categoryId: item.categoryId,
@@ -1059,9 +1069,7 @@ function toTangibleItemOption(item: TangibleAssetItem): SelectableAsset {
 }
 
 function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset {
-  const availableCount = typeof item.availableAssetCount === 'number'
-    ? `${item.availableAssetCount}개 대여 가능`
-    : null
+  const availableCount = itemAvailableCount(item)
 
   return {
     id: String(item.tangibleAssetItemId ?? item.assetItemId ?? item.itemId ?? ''),
@@ -1070,8 +1078,8 @@ function toRentalAvailableItemOption(item: RentalAvailableItem): SelectableAsset
       item.categoryName,
       item.manufacturer,
       item.modelName,
-      availableCount,
     ].filter(Boolean).join(' · '),
+    availableCount,
     assetType: 'TANGIBLE',
     isStandard: item.isStandard,
     categoryId: item.categoryId,
@@ -1087,6 +1095,8 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
     softwareType?: string
   }
 
+  const availableCount = itemAvailableCount(item)
+
   return {
     id: String(item.assetItemId ?? ''),
     name: item.productName ?? responseItem.name ?? '',
@@ -1095,6 +1105,7 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
       item.vendor ?? responseItem.provider,
       item.licenseType,
     ].filter(Boolean).join(' · '),
+    availableCount,
     assetType: 'INTANGIBLE',
     isStandard: item.isStandard,
     categoryId: item.categoryId,
@@ -1102,6 +1113,24 @@ function toIntangibleItemOption(item: IntangibleItem): SelectableAsset {
     manufacturer: item.vendor ?? responseItem.provider,
     licenseType: item.licenseType,
   }
+}
+
+function itemAvailableCount(item: AvailableCountSource) {
+  return numberValue(
+    item.availableCount
+      ?? item.availableAssetCount
+      ?? item.stockCount
+      ?? item.assetCount,
+  )
+}
+
+function numberValue(value: number | string | null | undefined) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
 }
 
 function isStandardItem(value: number | boolean | undefined) {

@@ -14,7 +14,7 @@
         </p>
       </section>
 
-      <section v-if="suggestedItemOptions.length > 0" class="space-y-2">
+      <section v-if="ticket?.ticketType !== 'ASSET_REQUEST' && suggestedItemOptions.length > 0" class="space-y-2">
         <h3 class="text-sm font-semibold text-text-main">요청 품목</h3>
         <label
           v-for="item in suggestedItemOptions"
@@ -43,8 +43,8 @@
               {{ item.itemNo }} · {{ item.category || '-' }}
             </span>
           </span>
-          <span class="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-            사용가능 {{ item.availableCount }}개
+          <span :class="itemCountBadgeClass(item)">
+            {{ itemCountText(item) }}
           </span>
         </label>
       </section>
@@ -98,7 +98,120 @@
         {{ itemErrorMessage }}
       </div>
 
-      <div class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
+      <div v-if="ticket?.ticketType === 'ASSET_REQUEST'" class="rounded-xl border border-border p-3">
+        <div
+          v-if="isItemLoading"
+          class="flex h-40 items-center justify-center text-sm text-text-sub"
+        >
+          품목 목록을 불러오는 중입니다.
+        </div>
+
+        <div
+          v-else-if="!hasSearchedItems || itemOptions.length === 0"
+          class="space-y-2 p-6 text-center text-sm text-text-sub"
+        >
+          <p>{{ emptyItemTitle }}</p>
+          <p class="text-xs text-text-muted">
+            {{ emptyItemDescription }}
+          </p>
+        </div>
+
+        <div v-else class="grid gap-3 md:grid-cols-2">
+          <section class="min-w-0 space-y-2">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <h3 class="text-sm font-semibold text-text-main">표준 품목</h3>
+              <span class="text-xs font-medium text-text-muted">{{ standardItemOptions.length }}개</span>
+            </div>
+            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              <p
+                v-if="standardItemOptions.length === 0"
+                class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
+              >
+                조회된 표준 품목이 없습니다.
+              </p>
+              <label
+                v-for="item in standardItemOptions"
+                :key="`standard-${item.itemId}`"
+                :class="itemRowClass(item)"
+              >
+                <span class="group relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                  <input
+                    v-model="selectedItemId"
+                    type="radio"
+                    class="peer sr-only"
+                    name="assign-asset-item"
+                    :value="item.itemId"
+                    :disabled="isResolvingAssets || submitting"
+                  />
+                  <span
+                    class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+                  />
+                  <span
+                    class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+                  />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
+                  <span class="mt-1 block truncate text-xs leading-5 text-text-muted">
+                    {{ item.itemNo }} · {{ item.category || '-' }}
+                  </span>
+                </span>
+                <span :class="itemCountBadgeClass(item)">
+                  {{ itemCountText(item) }}
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="min-w-0 space-y-2">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <h3 class="text-sm font-semibold text-text-main">비표준 품목</h3>
+              <span class="text-xs font-medium text-text-muted">{{ nonStandardItemOptions.length }}개</span>
+            </div>
+            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              <p
+                v-if="nonStandardItemOptions.length === 0"
+                class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
+              >
+                조회된 비표준 품목이 없습니다.
+              </p>
+              <label
+                v-for="item in nonStandardItemOptions"
+                :key="`non-standard-${item.itemId}`"
+                :class="itemRowClass(item)"
+              >
+                <span class="group relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                  <input
+                    v-model="selectedItemId"
+                    type="radio"
+                    class="peer sr-only"
+                    name="assign-asset-item"
+                    :value="item.itemId"
+                    :disabled="isResolvingAssets || submitting"
+                  />
+                  <span
+                    class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+                  />
+                  <span
+                    class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+                  />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
+                  <span class="mt-1 block truncate text-xs leading-5 text-text-muted">
+                    {{ item.itemNo }} · {{ item.category || '-' }}
+                  </span>
+                </span>
+                <span :class="itemCountBadgeClass(item)">
+                  {{ itemCountText(item) }}
+                </span>
+              </label>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div v-else class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
         <h3 v-if="suggestedItemOptions.length > 0" class="px-1 pt-1 text-sm font-semibold text-text-main">
           검색 결과
         </h3>
@@ -148,8 +261,8 @@
                 {{ item.itemNo }} · {{ item.category || '-' }}
               </span>
             </span>
-            <span class="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-              사용가능 {{ item.availableCount }}개
+            <span :class="itemCountBadgeClass(item)">
+              {{ itemCountText(item) }}
             </span>
           </label>
         </template>
@@ -222,6 +335,7 @@ interface ItemOption {
   name: string
   category: string
   availableCount: number
+  isStandard?: boolean
   requestedItem?: boolean
 }
 
@@ -294,6 +408,14 @@ const suggestedItemOptions = computed(() => (
 
 const visibleItemOptions = computed(() => (
   itemOptions.value.filter((item) => !isRequestedItem(item))
+))
+
+const standardItemOptions = computed(() => (
+  itemOptions.value.filter((item) => item.isStandard !== false)
+))
+
+const nonStandardItemOptions = computed(() => (
+  itemOptions.value.filter((item) => item.isStandard === false)
 ))
 
 const canSearchItems = computed(() => (
@@ -634,6 +756,19 @@ function itemRowClass(item: ItemOption) {
   ]
 }
 
+function itemCountBadgeClass(item: ItemOption) {
+  return [
+    'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
+    item.availableCount >= requestedQuantity.value
+      ? 'bg-primary/10 text-primary'
+      : 'bg-danger/10 text-danger',
+  ]
+}
+
+function itemCountText(item: ItemOption) {
+  return `남은 수량 ${item.availableCount}개`
+}
+
 function isRequestedItem(item: ItemOption) {
   if (item.requestedItem) return true
 
@@ -667,6 +802,7 @@ function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
     name: item.name ?? item.productName ?? aliases.assetName ?? item.itemCode ?? itemId,
     category: item.categoryName ?? item.category ?? '',
     availableCount,
+    isStandard: isStandardValue(item.isStandard),
   }
 }
 
@@ -680,6 +816,7 @@ function toIntangibleItemOption(item: IntangibleItem): ItemOption {
     name: item.productName ?? itemId,
     category: item.category ?? item.licenseType ?? '',
     availableCount,
+    isStandard: isStandardValue(item.isStandard),
   }
 }
 
@@ -699,8 +836,16 @@ function toAssetRequestItemOption(item: AssetRequestAssignableItem): ItemOption 
     name: String((item.productName ?? item.name ?? item.itemIdentifier ?? itemId) || '-'),
     category: item.categoryName ?? '',
     availableCount: availableItemCount(item),
+    isStandard: isStandardValue(item.isStandard),
     requestedItem: item.requestedItem,
   }
+}
+
+function isStandardValue(value: boolean | number | string | null | undefined) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') return value !== '0' && value.toLowerCase() !== 'false'
+  return true
 }
 
 function uniqueItemOptions(items: ItemOption[]) {
