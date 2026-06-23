@@ -17,13 +17,7 @@
         v-if="canTryCamera"
         class="mt-4 overflow-hidden rounded-lg bg-black"
       >
-        <video
-          ref="videoRef"
-          class="aspect-[3/4] w-full object-cover"
-          autoplay
-          muted
-          playsinline
-        />
+        <div :id="readerId" class="aspect-[3/4] w-full overflow-hidden" />
       </div>
 
       <div
@@ -66,30 +60,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { X } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
-
-interface BarcodeDetectorConstructor {
-  new(options?: { formats?: string[] }): {
-    detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
-  }
-}
-
-interface WindowWithBarcodeDetector extends Window {
-  BarcodeDetector?: BarcodeDetectorConstructor
-}
 
 const emit = defineEmits<{
   detected: [value: string]
   close: []
 }>()
 
-const videoRef = ref<HTMLVideoElement | null>(null)
-const stream = ref<MediaStream | null>(null)
-const isScanning = ref(false)
+const readerId = `inspection-qr-reader-${Math.random().toString(36).slice(2)}`
+const scanner = ref<Html5Qrcode | null>(null)
+const isDetected = ref(false)
 const manualCode = ref('')
 const message = ref('')
 const canTryCamera = ref(true)
@@ -100,8 +85,8 @@ const helperText = computed(() => (
     : '현재 접속 환경에서는 직접 입력으로 검수를 진행해주세요.'
 ))
 
-onMounted(startCamera)
-onBeforeUnmount(stopCamera)
+onMounted(() => void startCamera())
+onBeforeUnmount(() => void stopCamera())
 
 async function startCamera() {
   if (!isCameraAllowedContext()) {
@@ -117,16 +102,23 @@ async function startCamera() {
   }
 
   try {
-    stream.value = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false,
+    await nextTick()
+    scanner.value = new Html5Qrcode(readerId, {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      verbose: false,
     })
-
-    if (!videoRef.value) return
-
-    videoRef.value.srcObject = stream.value
-    await videoRef.value.play()
-    startBarcodeLoop()
+    await scanner.value.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7)
+          return { width: size, height: size }
+        },
+      },
+      (decodedText) => void handleDetected(decodedText),
+      undefined,
+    )
   } catch (error) {
     canTryCamera.value = false
     message.value = getCameraErrorMessage(error)
@@ -158,37 +150,24 @@ function getCameraErrorMessage(error: unknown) {
   return '카메라를 시작하지 못했습니다. 자산 번호를 직접 입력해주세요.'
 }
 
-function stopCamera() {
-  isScanning.value = false
-  stream.value?.getTracks().forEach((track) => track.stop())
-  stream.value = null
+async function stopCamera() {
+  const currentScanner = scanner.value
+  scanner.value = null
+  if (!currentScanner) return
+
+  try {
+    if (currentScanner.isScanning) await currentScanner.stop()
+    currentScanner.clear()
+  } catch {
+    // The scanner may already be stopped while the drawer is closing.
+  }
 }
 
-async function startBarcodeLoop() {
-  const BarcodeDetector = (window as WindowWithBarcodeDetector).BarcodeDetector
-  if (!BarcodeDetector || !videoRef.value) {
-    message.value = 'QR 자동 인식이 지원되지 않으면 자산 번호를 직접 입력해주세요.'
-    return
-  }
-
-  const detector = new BarcodeDetector({ formats: ['qr_code'] })
-  isScanning.value = true
-
-  while (isScanning.value && videoRef.value) {
-    try {
-      const codes = await detector.detect(videoRef.value)
-      const rawValue = codes[0]?.rawValue
-      if (rawValue) {
-        emit('detected', rawValue)
-        return
-      }
-    } catch {
-      message.value = 'QR 자동 인식이 어렵습니다. 자산 번호를 직접 입력해주세요.'
-      return
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, 500))
-  }
+async function handleDetected(value: string) {
+  if (isDetected.value) return
+  isDetected.value = true
+  await stopCamera()
+  emit('detected', value)
 }
 
 function emitDetected() {
