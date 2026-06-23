@@ -24,13 +24,13 @@
         <HoldingAssetCard
           :title="holdingAssetCardTitle"
           :segments="holdingAssetSegments"
-          :interactive="isAssetOperator"
+          :interactive="canViewAssetDetails"
           @click="openAssetDrawer('holding')"
         />
         <ExpiringAssetCard
           :tangible-count="expiringSummary.tangibleAssetCount"
           :intangible-count="expiringSummary.intangibleAssetCount"
-          :interactive="isAssetOperator"
+          :interactive="canViewAssetDetails"
           @click="openAssetDrawer('expiring')"
           @click-tangible="openAssetDrawer('expiring-tangible')"
           @click-intangible="openAssetDrawer('expiring-intangible')"
@@ -62,6 +62,7 @@
         <DepartmentLifecycleCard
           :events="departmentHrEvents"
           :statistics="departmentHrStatistics"
+          :department-manager="isDepartmentManager"
         />
       </section>
     </main>
@@ -70,6 +71,7 @@
       :is-open="assetDrawerMode !== null"
       :mode="assetDrawerMode ?? 'owned'"
       :initial-asset-type="assetDrawerType"
+      :department-id="assetDetailDepartmentId"
       @close="assetDrawerMode = null"
     />
 
@@ -174,6 +176,12 @@ const isEmployee = computed(() => role.value === 'EMPLOYEE')
 const isAssetOperator = computed(() => (
   ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(role.value)
 ))
+const canViewAssetDetails = computed(() => (
+  isAssetOperator.value || isDepartmentManager.value || isEmployee.value
+))
+const assetDetailDepartmentId = computed(() => (
+  isDepartmentManager.value ? auth.user?.departmentId : undefined
+))
 const dashboardTitle = computed(() => role.value === 'EMPLOYEE' ? '내 자산 대시보드' : '대시보드')
 const holdingAssetCardTitle = computed(() => isDepartmentManager.value ? '자산 대여 현황' : '보유 자산 현황')
 
@@ -262,7 +270,7 @@ const budgetUsagePercent = computed(() => {
 })
 
 function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'expiring-intangible') {
-  if (!isAssetOperator.value) return
+  if (!canViewAssetDetails.value) return
   assetDrawerMode.value = mode === 'holding' ? 'owned' : 'expiring'
   assetDrawerType.value = mode === 'expiring-tangible'
     ? 'TANGIBLE'

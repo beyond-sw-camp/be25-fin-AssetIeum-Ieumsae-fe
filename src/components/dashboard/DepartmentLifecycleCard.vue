@@ -2,7 +2,7 @@
   <article class="rounded-lg border border-border bg-surface p-5 shadow-sm">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-bold text-text-main">라이프 사이클 진행 현황</h2>
-      <div class="flex flex-wrap gap-2 text-xs font-semibold text-text-sub">
+      <div v-if="!departmentManager" class="flex flex-wrap gap-2 text-xs font-semibold text-text-sub">
         <span class="rounded-full bg-surface-secondary px-2.5 py-1">전체 {{ statistics.totalCount }}건</span>
         <span class="rounded-full bg-warning/10 px-2.5 py-1 text-warning">대기 {{ statistics.pendingCount }}건</span>
         <span class="rounded-full bg-primary/10 px-2.5 py-1 text-primary">진행 {{ statistics.inProgressCount }}건</span>
@@ -10,7 +10,14 @@
       </div>
     </div>
 
-    <div class="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)]">
+    <div
+      :class="[
+        'grid gap-4',
+        departmentManager
+          ? 'xl:grid-cols-[18rem_minmax(0,1fr)_minmax(20rem,0.8fr)]'
+          : 'xl:grid-cols-[18rem_minmax(0,1fr)]',
+      ]"
+    >
       <section class="rounded-lg border border-border p-4">
         <h3 class="mb-4 text-base font-bold text-text-main">카테고리 필터링</h3>
         <div class="space-y-2">
@@ -71,22 +78,50 @@
           <div
             v-for="event in pagedEvents"
             :key="event.eventId"
-            class="grid gap-3 py-3 md:grid-cols-[2rem_minmax(0,1fr)_8rem_5rem] md:items-center"
+            :class="[
+              'grid gap-3 py-3 md:items-center',
+              departmentManager
+                ? 'md:grid-cols-[2rem_minmax(0,1fr)_8rem_5rem]'
+                : 'md:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5rem]',
+            ]"
           >
             <component :is="eventIcon(event.eventType)" :size="20" class="text-text-main" />
             <div class="min-w-0">
               <p class="truncate text-sm font-bold text-text-main">{{ event.memberName }} 님 {{ event.eventType }}</p>
               <p class="mt-1 truncate text-xs text-text-sub">{{ event.departmentName || '-' }}</p>
             </div>
+            <span v-if="!departmentManager" :class="eventStatusClass(event.status)">
+              {{ event.status }}
+            </span>
             <p class="text-sm text-text-sub">{{ formatDate(event.eventDate) }}</p>
             <p class="text-right text-sm font-semibold text-text-sub">{{ dDayText(event) }}</p>
           </div>
         </div>
         <p v-else class="py-16 text-center text-sm text-text-sub">조건에 맞는 인사 이벤트가 없습니다.</p>
       </section>
+
+      <section v-if="departmentManager" class="rounded-lg border border-border p-5">
+        <h3 class="mb-6 text-base font-bold text-text-main">HR 이벤트 상태</h3>
+        <div class="space-y-6">
+          <div
+            v-for="item in statusItems"
+            :key="item.label"
+            class="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_3rem] sm:items-center"
+          >
+            <div>
+              <p class="text-sm font-bold text-text-main">{{ item.label }}</p>
+              <p class="mt-1 text-xs text-text-sub">{{ item.count }}건/{{ item.total }}건</p>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
+              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
+            </div>
+            <span class="text-right text-sm font-semibold text-text-sub">{{ item.percentage }}%</span>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="mt-4 grid gap-4 xl:grid-cols-2">
+    <div v-if="!departmentManager" class="mt-4 grid gap-4 xl:grid-cols-2">
       <section class="rounded-lg border border-border p-4">
         <h3 class="mb-4 text-base font-bold text-text-main">소속 부서 통계</h3>
         <div v-if="departmentItems.length" class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
@@ -119,17 +154,18 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, LogIn, LogOut, MoveRight, Pause, RotateCcw } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, LogIn, LogOut, MoveRight } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
 
-const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
+const EVENT_TYPES = ['입사', '퇴사', '부서이동'] as const
 const PAGE_SIZE = 5
 
 const props = defineProps<{
   events: HrLifecycleEvent[]
   statistics: HrEventStatistics
+  departmentManager?: boolean
 }>()
 
 const selectedTypes = ref<string[]>([...EVENT_TYPES])
@@ -195,9 +231,19 @@ function applyFilter() {
 function eventIcon(type: string) {
   if (type === '입사') return LogIn
   if (type === '퇴사') return LogOut
-  if (type === '부서이동') return MoveRight
-  if (type === '휴직') return Pause
-  return RotateCcw
+  return MoveRight
+}
+
+function eventStatusClass(status: string) {
+  const baseClass = 'w-fit rounded-full px-2.5 py-1 text-xs font-semibold'
+  if (status === '지급완료' || status === '완료' || status === '반납') {
+    return `${baseClass} bg-success/10 text-success`
+  }
+  if (status === '진행중' || status === '회수중') {
+    return `${baseClass} bg-primary/10 text-primary`
+  }
+  if (status === '취소') return `${baseClass} bg-danger/10 text-danger`
+  return `${baseClass} bg-warning/10 text-warning`
 }
 
 function formatDate(value: string) {
