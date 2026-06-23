@@ -1,11 +1,11 @@
 <template>
-  <TicketDetailCard title="커뮤니케이션" class="h-full">
+  <TicketDetailCard title="커뮤니케이션" class="h-full min-h-0 lg:[contain:size]">
     <template #icon>
       <MessageSquareText :size="18" class="text-primary" />
     </template>
 
-    <div class="flex min-h-0 flex-col">
-      <div ref="commentListRef" class="h-80 space-y-4 overflow-y-auto pr-1">
+    <div class="flex h-full min-h-0 flex-col">
+      <div ref="commentListRef" class="min-h-0 flex-1 basis-0 space-y-4 overflow-y-auto pr-1">
         <div v-if="loading" class="flex min-h-40 items-center justify-center text-sm text-text-sub">
           <LoaderCircle :size="18" class="mr-2 animate-spin" />
           댓글을 불러오는 중입니다.
@@ -131,7 +131,7 @@
         </template>
       </div>
 
-      <form class="mt-4 flex items-stretch gap-2 border-t border-border pt-4" @submit.prevent="handleSubmit">
+      <form class="mt-4 flex shrink-0 items-stretch gap-2 border-t border-border pt-4" @submit.prevent="handleSubmit">
         <label class="sr-only" for="ticket-comment">댓글</label>
         <textarea
           id="ticket-comment"

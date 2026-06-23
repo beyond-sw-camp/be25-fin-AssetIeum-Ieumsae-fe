@@ -144,6 +144,10 @@ export interface TicketActions {
 export interface TicketHistory {
   status: TicketStatus
   processedAt: string
+  rejectionReason?: string | null
+  reason?: string | null
+  comment?: string | null
+  memo?: string | null
 }
 
 export interface TicketListFilter {
@@ -210,36 +214,41 @@ export interface TicketCreateResponse {
 }
 
 export interface StandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   assetItemId: string
+  assignmentTargetMemberIds: string[]
   quantity: number
   requestReason: string
 }
 
 export interface NonStandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   categoryId: string
+  assignmentTargetMemberIds: (string | null)[]
   requestedItemDetail: string
   manufacturer: string
   licenseType: string | null
   purchaseUrl: string
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }
 
 export interface DirectPurchaseRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   isStandard: boolean
   assetItemId: string | null
+  assignmentTargetMemberIds: (string | null)[]
   categoryId: string | null
   requestedItemDetail: string | null
   manufacturer: string | null
   licenseType: string | null
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }
@@ -372,6 +381,19 @@ export interface AssetRequestAssignableItem {
   isStandard?: boolean | number | null
   requestedItem?: boolean
   availableCount?: number | string | null
+  availableSeatCount?: number | string | null
+  remainingSeatCount?: number | string | null
+  remainingSeats?: number | string | null
+  availableSeats?: number | string | null
+  assignableSeatCount?: number | string | null
+  remainingAssignableCount?: number | string | null
+  remainingAssignableSeatCount?: number | string | null
+  availableUserCount?: number | string | null
+  remainingUserCount?: number | string | null
+  availableMemberCount?: number | string | null
+  remainingMemberCount?: number | string | null
+  availableAssignmentCount?: number | string | null
+  remainingAssignmentCount?: number | string | null
   availableAssetCount?: number | string | null
   assetCount?: number | string | null
   stockCount?: number | string | null

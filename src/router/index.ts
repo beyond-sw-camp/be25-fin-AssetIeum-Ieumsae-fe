@@ -335,6 +335,22 @@ router.beforeEach(async (to) => {
     return { name: 'SystemCompanies' }
   }
 
+  if (
+    (to.name === 'TicketList' || to.name === 'TicketCreate' || to.name === 'TicketDetail')
+    && (auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN')
+  ) {
+    return auth.currentRole === 'SUPER_ADMIN'
+      ? { name: 'SystemCompanies' }
+      : { name: 'TicketManagement' }
+  }
+
+  if (
+    to.name === 'Purchase'
+    && auth.currentRole === 'SUPER_ADMIN'
+  ) {
+    return { name: 'SystemCompanies' }
+  }
+
   if (to.meta.roles && to.meta.roles.length > 0) {
     const canAccessAllPages = auth.currentRole === 'ADMIN'
     if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {

@@ -533,6 +533,8 @@ const memberBelongsToSelectedDepartment = (member: Member) => {
 const getMemberLabel = (member: Member) => `${getMemberName(member)}(${getMemberNo(member)})`
 
 const filteredMembers = computed(() => props.members.filter((member) => {
+  if (member.status !== 'ACTIVE') return false
+
   const aliases = member as MemberAliases
   const rawRole = aliases.role ?? aliases.memberRole
   if (!rawRole) return true
