@@ -127,9 +127,6 @@ import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
 const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
 const PAGE_SIZE = 5
 
-const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
-const PAGE_SIZE = 5
-
 const props = defineProps<{
   events: HrLifecycleEvent[]
   statistics: HrEventStatistics
