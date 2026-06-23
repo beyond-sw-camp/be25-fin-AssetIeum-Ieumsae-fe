@@ -1,4 +1,4 @@
-import api from './client'
+import api, { ApiError } from './client'
 import type {
   TicketListItem,
   PurchasePlanCandidateTicket,
@@ -20,8 +20,14 @@ import type {
   TicketApproveRequest,
   TicketRejectRequest,
   AssetAssignRequest,
+  AssetRequestAssignRequest,
+  AssetRequestAssignableItemsResponse,
+  RentalAssignableAssetsResponse,
+  RentalAssignRequest,
+  RentalAssignResponse,
   MaintenanceCollectResponse,
   AssetCollectResponse,
+  ReturnCompleteResponse,
   MaintenanceCompleteRequest,
   MaintenanceCompleteResponse,
   TicketAssignMeResponse,
@@ -29,9 +35,12 @@ import type {
   RentalExtensionProcessResponse,
   TicketActualAmountResponse,
   DirectPurchasePaymentRequest,
+  DirectPurchaseAssetAssignRequest,
+  DirectPurchaseAssetAssignResponse,
   TicketComment,
   TicketEvidenceUploadResponse,
   TicketStatus,
+  TicketType,
   TicketCommentDeleteResponse,
   ApiResponse,
   PageResponse,
@@ -47,6 +56,17 @@ function compactParams<T extends object>(params?: T) {
 }
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
+type TicketListItemResponse = Partial<TicketListItem> & Record<string, unknown>
+
+const TICKET_DETAIL_ENDPOINT_BY_TYPE: Record<TicketType, (ticketId: string) => string> = {
+  ASSET_REQUEST: (ticketId) => `/tickets/asset-requests/${ticketId}`,
+  PURCHASE_REQUEST: (ticketId) => `/tickets/purchase-requests/${ticketId}`,
+  RENTAL: (ticketId) => `/tickets/rentals/${ticketId}`,
+  RENTAL_EXTENSION: (ticketId) => `/tickets/rentals/extensions/${ticketId}`,
+  MAINTENANCE_REQUEST: (ticketId) => `/tickets/maintenance/${ticketId}`,
+  ASSET_RETURN: (ticketId) => `/tickets/asset-returns/${ticketId}`,
+  PURCHASE_RETURN: (ticketId) => `/tickets/purchase-returns/${ticketId}`,
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -58,7 +78,7 @@ function pickString(source: Record<string, unknown> | null, keys: string[]): str
   if (!source) return undefined
 
   for (const key of keys) {
-    const value = source[key]
+    const value = getNestedValue(source, key)
     if (typeof value === 'string' && value.trim()) return value
   }
 
@@ -69,9 +89,30 @@ function pickId(source: Record<string, unknown> | null, keys: string[]): string 
   if (!source) return undefined
 
   for (const key of keys) {
-    const value = source[key]
+    const value = getNestedValue(source, key)
     if (typeof value === 'string' && value.trim()) return value
     if (typeof value === 'number') return value
+  }
+
+  return undefined
+}
+
+function getNestedValue(source: Record<string, unknown>, key: string): unknown {
+  if (!key.includes('.')) return source[key]
+
+  return key.split('.').reduce<unknown>((current, path) => (
+    current && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, unknown>)[path]
+      : undefined
+  ), source)
+}
+
+function pickNumber(source: Record<string, unknown> | null, keys: string[]): number | undefined {
+  if (!source) return undefined
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'number' && Number.isFinite(value)) return value
   }
 
   return undefined
@@ -83,7 +124,17 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
     ?? asRecord(rawDetail.member)
   const department = asRecord(rawDetail.department)
     ?? asRecord(rawDetail.requesterDepartment)
-  const rawStatus = pickString(rawDetail, ['status', 'ticketStatus']) ?? 'REQUESTED'
+  const departmentApprover = asRecord(rawDetail.departmentApprover)
+  const assetAssignee = asRecord(rawDetail.assetAssignee)
+    ?? asRecord(rawDetail.assignee)
+  const assetCategory = asRecord(rawDetail.assetCategory)
+  const assetItem = asRecord(rawDetail.assetItem)
+  const requestDetail = asRecord(rawDetail.requestDetail)
+  const rawStatus = pickString(rawDetail, ['currentStatus', 'status', 'ticketStatus']) ?? 'REQUESTED'
+  const requestedReturnDueDate = pickString(rawDetail, ['requestedReturnDueDate'])
+  const returnDueDate = pickString(rawDetail, ['returnDueDate'])
+  const assetItemId = rawDetail.assetItemId
+    ?? pickId(assetItem, ['itemId', 'assetItemId', 'tangibleAssetItemId'])
 
   return {
     ...rawDetail,
@@ -91,6 +142,8 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
     ticketNo: String(rawDetail.ticketNo ?? ''),
     ticketType: rawDetail.ticketType ?? 'ASSET_REQUEST',
     status: normalizeTicketStatus(rawStatus),
+    linkedPurchasePlanId: pickString(rawDetail, ['linkedPurchasePlanId', 'purchasePlanId']) ?? null,
+    linkedPurchasePlanNo: pickString(rawDetail, ['linkedPurchasePlanNo', 'purchasePlanNo', 'planNo']) ?? null,
     requesterId: rawDetail.requesterId ?? pickId(requester, ['memberId', 'employeeId', 'id']) ?? '',
     requesterName: rawDetail.requesterName
       ?? pickString(rawDetail, ['requestMemberName', 'employeeName'])
@@ -101,23 +154,132 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? pickString(rawDetail, ['requesterDepartmentName'])
       ?? pickString(department, ['departmentName', 'name'])
       ?? '',
-    approverId: rawDetail.approverId ?? pickId(rawDetail, ['departmentApproverId']) ?? null,
+    approverId: rawDetail.approverId
+      ?? pickId(rawDetail, ['departmentApproverId'])
+      ?? pickId(departmentApprover, ['memberId', 'employeeId', 'id'])
+      ?? null,
     approverName: rawDetail.approverName
       ?? pickString(rawDetail, ['departmentApproverName'])
+      ?? pickString(departmentApprover, ['memberName', 'name', 'employeeName'])
       ?? null,
-    assigneeId: rawDetail.assigneeId ?? null,
-    assigneeName: rawDetail.assigneeName ?? null,
+    assigneeId: rawDetail.assigneeId
+      ?? pickId(assetAssignee, ['memberId', 'employeeId', 'id'])
+      ?? null,
+    assigneeName: rawDetail.assigneeName
+      ?? pickString(assetAssignee, ['memberName', 'name', 'employeeName'])
+      ?? null,
     requestReason: rawDetail.requestReason ?? null,
-    departmentApprovedAt: rawDetail.departmentApprovedAt ?? null,
+    assetType: rawDetail.assetType ?? null,
+    assetItemId: assetItemId !== undefined && assetItemId !== null ? String(assetItemId) : null,
+    categoryName: rawDetail.categoryName
+      ?? pickString(assetCategory, ['categoryName', 'name'])
+      ?? null,
+    requestedItemName: rawDetail.requestedItemName
+      ?? pickString(assetItem, ['name', 'productName', 'itemName'])
+      ?? pickString(requestDetail, ['productName', 'itemName', 'name'])
+      ?? null,
+    requestedItemDetail: rawDetail.requestedItemDetail ?? null,
+    productName: rawDetail.productName
+      ?? pickString(assetItem, ['productName', 'name', 'itemName'])
+      ?? pickString(requestDetail, ['productName', 'itemName', 'name'])
+      ?? null,
+    manufacturer: rawDetail.manufacturer
+      ?? pickString(assetItem, ['manufacturer', 'manufacturerOrProvider', 'provider'])
+      ?? pickString(requestDetail, ['manufacturer', 'manufacturerOrProvider', 'provider'])
+      ?? null,
+    modelName: rawDetail.modelName
+      ?? pickString(assetItem, ['modelName', 'model'])
+      ?? pickString(requestDetail, ['modelName', 'model'])
+      ?? null,
+    quantity: rawDetail.quantity ?? null,
+    actualAmount: pickNumber(rawDetail, ['actualAmount', 'actualPrice']) ?? null,
+    directPurchaseEvidenceUrl: pickString(rawDetail, ['directPurchaseEvidenceUrl', 'proofFileUrl']) ?? null,
+    directPurchaseEvidenceUploadedAt: pickString(
+      rawDetail,
+      ['directPurchaseEvidenceUploadedAt', 'proofFileUploadedAt'],
+    ) ?? null,
+    directPurchaseEvidenceFileName: rawDetail.directPurchaseEvidenceFileName
+      ?? pickString(rawDetail, ['proofFileName'])
+      ?? null,
+    directPurchaseConfirmationStatus: pickString(rawDetail, ['confirmationStatus', 'directPurchaseConfirmationStatus'])
+      ?? pickString(requestDetail, ['confirmationStatus', 'directPurchaseConfirmationStatus'])
+      ?? null,
+    requestedDueDate: rawDetail.requestedDueDate
+      ?? requestedReturnDueDate
+      ?? returnDueDate
+      ?? null,
+    assetId: rawDetail.assetId
+      ? String(rawDetail.assetId)
+      : pickString(requestDetail, ['assetId']) ?? null,
+    assetStatus: rawDetail.assetStatus
+      ?? pickString(requestDetail, ['assetStatus'])
+      ?? null,
+    startedAt: pickString(rawDetail, ['startedAt', 'usedStartedAt']) ?? null,
+    maintenanceReason: rawDetail.maintenanceReason
+      ?? pickString(rawDetail, ['requestDetail'])
+      ?? rawDetail.requestReason
+      ?? null,
+    returnReason: rawDetail.returnReason
+      ?? pickString(requestDetail, ['returnReason', 'reason'])
+      ?? rawDetail.requestReason
+      ?? null,
+    refundAmount: rawDetail.refundAmount
+      ?? (typeof requestDetail?.refundAmount === 'number' ? requestDetail.refundAmount : null),
+    previousDueDate: rawDetail.previousDueDate
+      ?? rawDetail.currentReturnDueDate
+      ?? rawDetail.rentalDueDate
+      ?? null,
+    changedDueDate: rawDetail.changedDueDate
+      ?? returnDueDate
+      ?? null,
+    departmentApprovedAt: rawDetail.departmentApprovedAt
+      ?? pickString(rawDetail, ['departmentProcessedAt'])
+      ?? null,
     departmentRejectedAt: rawDetail.departmentRejectedAt ?? null,
     departmentRejectionReason: rawDetail.departmentRejectionReason ?? null,
-    purchaseApprovedAt: rawDetail.purchaseApprovedAt ?? null,
+    purchaseApprovedAt: rawDetail.purchaseApprovedAt
+      ?? pickString(rawDetail, ['assetProcessedAt'])
+      ?? null,
     purchaseRejectedAt: rawDetail.purchaseRejectedAt ?? null,
     purchaseRejectionReason: rawDetail.purchaseRejectionReason ?? null,
+    purchaseDate: rawDetail.purchaseDate ?? pickString(requestDetail, ['purchaseDate']) ?? null,
+    purchaseVendor: rawDetail.purchaseVendor ?? pickString(requestDetail, ['purchaseVendor', 'vendor']) ?? null,
+    serialNumber: rawDetail.serialNumber ?? pickString(requestDetail, ['serialNumber', 'serialNo']) ?? null,
+    location: rawDetail.location ?? pickString(requestDetail, ['location']) ?? null,
+    warrantyEndDate: rawDetail.warrantyEndDate
+      ?? rawDetail.warrantyExpiredAt
+      ?? pickString(requestDetail, ['warrantyEndDate', 'warrantyExpiredAt'])
+      ?? null,
+    warrantyExpiredAt: rawDetail.warrantyExpiredAt
+      ?? rawDetail.warrantyEndDate
+      ?? pickString(requestDetail, ['warrantyExpiredAt', 'warrantyEndDate'])
+      ?? null,
+    licenseCode: pickString(rawDetail, ['licenseCode', 'licenseKey'])
+      ?? pickString(requestDetail, ['licenseCode', 'licenseKey'])
+      ?? null,
+    seatCount: pickNumber(rawDetail, ['seatCount']) ?? pickNumber(requestDetail, ['seatCount']) ?? null,
+    isAutoRenewal: typeof rawDetail.isAutoRenewal === 'boolean' ? rawDetail.isAutoRenewal : null,
+    billingCycle: pickString(rawDetail, ['billingCycle', 'paymentCycle'])
+      ?? pickString(requestDetail, ['billingCycle'])
+      ?? null,
+    paymentCycle: pickString(rawDetail, ['paymentCycle', 'billingCycle'])
+      ?? pickString(requestDetail, ['paymentCycle', 'billingCycle'])
+      ?? null,
+    expirationDate: pickString(rawDetail, ['expirationDate', 'expiredAt'])
+      ?? pickString(requestDetail, ['expirationDate', 'expiredAt'])
+      ?? null,
+    assignedAt: rawDetail.assignedAt
+      ?? pickString(rawDetail, ['assetAssignedAt', 'assignmentAt', 'allocatedAt'])
+      ?? pickString(requestDetail, ['assignedAt', 'assetAssignedAt', 'assignmentAt', 'allocatedAt'])
+      ?? null,
+    registeredAt: rawDetail.registeredAt
+      ?? pickString(rawDetail, ['assetRegisteredAt', 'registrationAt'])
+      ?? pickString(requestDetail, ['registeredAt', 'assetRegisteredAt', 'registrationAt'])
+      ?? null,
     completedAt: rawDetail.completedAt ?? null,
     canceledAt: rawDetail.canceledAt ?? (rawDetail.cancelledAt as string | null | undefined) ?? null,
     requestedAt: rawDetail.requestedAt ?? pickString(rawDetail, ['createdAt']) ?? '',
-    updatedAt: rawDetail.updatedAt ?? '',
+    updatedAt: rawDetail.updatedAt ?? pickString(rawDetail, ['processedAt']) ?? '',
   }
 }
 
@@ -130,12 +292,140 @@ function normalizeTicketDetailResponse(
   }
 }
 
+function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListItem {
+  const requester = asRecord(rawItem.requester)
+    ?? asRecord(rawItem.requestMember)
+    ?? asRecord(rawItem.requestMemberInfo)
+    ?? asRecord(rawItem.requesterMember)
+    ?? asRecord(rawItem.requesterMemberInfo)
+    ?? asRecord(rawItem.member)
+    ?? asRecord(rawItem.requesterInfo)
+    ?? asRecord(rawItem.employee)
+    ?? asRecord(rawItem.user)
+    ?? asRecord(rawItem.applicant)
+  const department = asRecord(rawItem.department)
+    ?? asRecord(rawItem.requesterDepartment)
+    ?? asRecord(rawItem.requestDepartment)
+    ?? asRecord(rawItem.requesterDepartmentInfo)
+    ?? asRecord(rawItem.departmentInfo)
+    ?? asRecord(requester?.department)
+    ?? asRecord(requester?.departmentInfo)
+  const rawStatus = pickString(rawItem, ['ticketStatus', 'currentStatus', 'status']) ?? 'REQUESTED'
+  const requesterId = rawItem.requesterId
+    ?? pickId(rawItem, [
+      'requester.memberId',
+      'requester.id',
+      'requestMember.memberId',
+      'requestMember.id',
+      'requestMemberId',
+      'requesterMemberId',
+      'memberId',
+      'employeeId',
+      'applicantId',
+    ])
+    ?? pickId(requester, ['memberId', 'employeeId', 'userId', 'id'])
+  const departmentId = rawItem.departmentId
+    ?? pickId(rawItem, [
+      'requester.departmentId',
+      'requester.department.departmentId',
+      'requestMember.departmentId',
+      'requestMember.department.departmentId',
+      'requesterDepartmentId',
+      'requestDepartmentId',
+    ])
+    ?? pickId(department, ['departmentId', 'id'])
+    ?? pickId(requester, ['departmentId', 'department.id'])
+
+  return {
+    ...rawItem,
+    ticketId: String(rawItem.ticketId ?? ''),
+    ticketNo: String(rawItem.ticketNo ?? ''),
+    ticketType: rawItem.ticketType ?? 'ASSET_REQUEST',
+    requestMethod: rawItem.requestMethod ?? null,
+    requestedItemName: rawItem.requestedItemName
+      ?? pickString(rawItem, ['itemName', 'productName', 'requestedItemDetail'])
+      ?? null,
+    requesterId,
+    requesterName: pickString(rawItem, [
+      'requesterName',
+      'requestMemberName',
+      'requesterMemberName',
+      'memberName',
+      'employeeName',
+      'applicantName',
+      'requester.memberName',
+      'requester.name',
+      'requester.employeeName',
+      'requestMember.memberName',
+      'requestMember.name',
+      'requestMember.employeeName',
+      'member.name',
+      'employee.name',
+      'user.name',
+    ])
+      ?? pickString(requester, ['memberName', 'name', 'employeeName', 'userName'])
+      ?? '',
+    departmentId,
+    departmentName: pickString(rawItem, [
+      'departmentName',
+      'requesterDepartmentName',
+      'requestDepartmentName',
+      'departmentNamePath',
+      'requester.departmentName',
+      'requester.department.departmentName',
+      'requester.department.name',
+      'requestMember.departmentName',
+      'requestMember.department.departmentName',
+      'requestMember.department.name',
+    ])
+      ?? pickString(department, ['departmentName', 'name', 'departmentNamePath'])
+      ?? pickString(requester, ['departmentName', 'departmentNamePath', 'teamName', 'department.departmentName', 'department.name'])
+      ?? '',
+    requestedAt: rawItem.requestedAt ?? pickString(rawItem, ['createdAt']) ?? '',
+    ticketStatus: normalizeTicketStatus(rawStatus),
+    status: normalizeTicketStatus(rawStatus),
+  }
+}
+
+function normalizeTicketListResponse(
+  response: ApiResponse<PageResponse<TicketListItemResponse>>,
+): ApiResponse<PageResponse<TicketListItem>> {
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      content: response.data.content.map(normalizeTicketListItem),
+    },
+  }
+}
+
+async function getDetailFromEndpoint(endpoint: string): Promise<ApiResponse<TicketDetail>> {
+  const response = await api.get<TicketDetailResponse>(endpoint)
+  return normalizeTicketDetailResponse(response)
+}
+
+async function getDetailFromFirstAvailableEndpoint(
+  ticketId: string,
+  ticketType?: TicketType,
+): Promise<ApiResponse<TicketDetail>> {
+  if (!ticketType) {
+    throw new ApiError('티켓 상세 조회에 필요한 티켓 유형이 없습니다.', { status: 400 })
+  }
+
+  return getDetailFromEndpoint(TICKET_DETAIL_ENDPOINT_BY_TYPE[ticketType](ticketId))
+}
+
 // ─── 티켓 공통 API ───────────────────────────────────────────────────────────
 
 export const ticketApi = {
   /** 티켓 목록 조회 */
-  getList: (params?: TicketListFilter) =>
-    api.get<PageResponse<TicketListItem>>('/tickets', params as Record<string, unknown>),
+  getList: async (params?: TicketListFilter) => {
+    const response = await api.get<PageResponse<TicketListItemResponse>>(
+      '/tickets',
+      params as Record<string, unknown>,
+    )
+    return normalizeTicketListResponse(response)
+  },
 
   getStatistics: () =>
     api.get<TicketStatistics>('/tickets/statistics'),
@@ -147,17 +437,14 @@ export const ticketApi = {
     ),
 
   /** 티켓 상세 조회 */
-  getDetail: async (ticketId: string) => {
-    const response = await api.get<TicketDetailResponse>(`/tickets/asset-requests/${ticketId}`)
-    return normalizeTicketDetailResponse(response)
-  },
+  getDetail: (ticketId: string, ticketType?: TicketType) =>
+    getDetailFromFirstAvailableEndpoint(ticketId, ticketType),
 
   approveDepartment: (ticketId: string) =>
     api.patch(`/tickets/${ticketId}/department-approval/approve`, {}),
 
   rejectDepartment: (ticketId: string, rejectionReason: string) =>
     api.patch(`/tickets/${ticketId}/department-approval/reject`, {
-      approver: 'DEPARTMENT_MANAGER',
       rejectionReason,
     }),
 
@@ -180,8 +467,8 @@ export const ticketApi = {
       : ticketApi.rejectDepartment(ticketId, body.rejectionReason),
 
   /** 티켓 상태 변경 */
-  changeStatus: (ticketId: string, status: TicketStatus) =>
-    api.patch(`/tickets/${ticketId}/status`, { status }),
+  changeStatus: (ticketId: string, ticketStatus: TicketStatus) =>
+    api.patch(`/tickets/${ticketId}/processing-status`, { ticketStatus }),
 
   cancel: (ticketId: string) =>
     api.patch<TicketCreateResponse>(`/tickets/${ticketId}/cancel`, {}),
@@ -190,24 +477,50 @@ export const ticketApi = {
   assignAsset: (ticketId: string, body: AssetAssignRequest) =>
     api.post(`/tickets/${ticketId}/asset-assignment`, body),
 
+  getAssetRequestAssignableItems: (
+    ticketId: string,
+    params?: { assetType?: string; categoryId?: string; keyword?: string; page?: number; size?: number },
+  ) =>
+    api.get<AssetRequestAssignableItemsResponse>(
+      `/tickets/asset-requests/${ticketId}/assignable-items`,
+      compactParams(params),
+    ),
+
+  assignAssetRequestItem: (ticketId: string, body: AssetRequestAssignRequest) =>
+    api.post(`/tickets/asset-requests/${ticketId}/assign`, body),
+
+  getRentalAssignableAssets: (ticketId: string, params?: { page?: number; size?: number; keyword?: string }) =>
+    api.get<RentalAssignableAssetsResponse>(
+      `/tickets/rentals/${ticketId}/assignable-assets`,
+      compactParams(params),
+    ),
+
+  assignRentalAsset: (ticketId: string, body: RentalAssignRequest) =>
+    api.post<RentalAssignResponse>(`/tickets/rentals/${ticketId}/assign`, body),
+
   /** 유지보수 대상 자산 회수 처리 */
   collectMaintenanceAsset: (ticketId: string) =>
-    api.patch<MaintenanceCollectResponse>(`/tickets/${ticketId}/maintence/collect`, {}),
+    api.patch<MaintenanceCollectResponse>(`/tickets/maintenance/${ticketId}/collect`, {}),
 
   /** 반납/해지 대상 자산 회수 처리 */
   collectReturnAsset: (ticketId: string) =>
-    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/returns/collect`, {}),
+    api.patch<AssetCollectResponse>(`/tickets/asset-returns/${ticketId}/collect`, {}),
 
   /** 반품 대상 자산 회수 처리 */
   collectPurchaseReturnAsset: (ticketId: string) =>
-    api.patch<AssetCollectResponse>(`/tickets/${ticketId}/purchase-returns/collect`, {}),
+    api.patch<AssetCollectResponse>(`/tickets/purchase-returns/${ticketId}/collect`, {}),
+
+  completeReturnAsset: (ticketId: string) =>
+    api.patch<ReturnCompleteResponse>(`/tickets/asset-returns/${ticketId}/complete`, {}),
+
+  completePurchaseReturnAsset: (ticketId: string) =>
+    api.patch<ReturnCompleteResponse>(`/tickets/purchase-returns/${ticketId}/complete`, {}),
 
   /** 구매자산팀 티켓 담당자 나에게 배정 */
   completeMaintenance: (maintenanceTicketId: string, body: MaintenanceCompleteRequest) =>
-    api.patch<MaintenanceCompleteResponse>(`/maintenance-tickets/${maintenanceTicketId}/complete`, {
-      maintenance_result: body.maintenanceResult,
-      maintenance_completed_at: body.maintenanceCompletedAt,
-      maintenance_cost: body.maintenanceCost,
+    api.patch<MaintenanceCompleteResponse>(`/tickets/maintenance/${maintenanceTicketId}/complete`, {
+      maintenanceResult: body.maintenanceResult,
+      maintenanceCost: body.maintenanceCost,
     }),
 
   assignMe: (ticketId: string) =>
@@ -215,7 +528,9 @@ export const ticketApi = {
 
   /** 대여 연장 반납 예정일 변경 처리 */
   changeRentalExtensionDueDate: (ticketId: string, body: RentalExtensionProcessRequest) =>
-    api.patch<RentalExtensionProcessResponse>(`/tickets/${ticketId}/rental-extension`, body),
+    api.patch<RentalExtensionProcessResponse>(`/tickets/rentals/extensions/${ticketId}/return-due-date`, {
+      returnDueDate: body.returnDueDate ?? body.changedDueDate,
+    }),
 
   /** 구매 증빙 업로드 */
   uploadEvidence: (ticketId: string, file: File) => {
@@ -228,7 +543,36 @@ export const ticketApi = {
   setActualPrice: (ticketId: string, body: DirectPurchasePaymentRequest) =>
     api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, body),
 
+  setDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
+    api.post<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+      body,
+    ),
+
   /** 댓글 목록 조회 */
+  getDirectPurchaseResult: (ticketId: string) =>
+    api.get<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+    ),
+
+  updateDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
+    api.put<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
+      body,
+    ),
+
+  confirmDirectPurchaseResult: (ticketId: string) =>
+    api.patch<TicketActualAmountResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-result/confirm`,
+      {},
+    ),
+
+  assignDirectPurchaseAsset: (ticketId: string, body: DirectPurchaseAssetAssignRequest) =>
+    api.post<DirectPurchaseAssetAssignResponse>(
+      `/tickets/purchase-requests/${ticketId}/direct-purchase-assets/assign`,
+      body,
+    ),
+
   getComments: (ticketId: string, params?: { page?: number; size?: number }) =>
     api.get<PageResponse<TicketComment>>(`/tickets/${ticketId}/comments`, params),
 

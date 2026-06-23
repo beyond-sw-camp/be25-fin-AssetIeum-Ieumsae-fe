@@ -153,19 +153,20 @@
       <Button
         v-if="showsDirectPurchasePaymentAction"
         class="mr-2 shrink-0 bg-orange-500! text-white! hover:bg-orange-600! focus:ring-orange-500/50!"
-        :disabled="!canRegisterDirectPurchasePayment || isPurchasePaymentSubmitting"
+        :disabled="!canRegisterDirectPurchasePayment || isDirectPurchasePaymentActionSubmitting"
+        :loading="isPurchasePaymentLoading || isPurchasePaymentSubmitting"
         :title="directPurchasePaymentActionMessage"
         @click="openPurchasePaymentDrawer"
       >
         <ReceiptText :size="15" />
-        결제 정보 등록
+        {{ directPurchasePaymentActionLabel }}
       </Button>
       <Button
         v-if="canCollectMaintenanceAsset"
         variant="outline"
         class="mr-2 shrink-0"
         :loading="isCollectingMaintenanceAsset"
-        :disabled="isCancelling || isPurchasePaymentSubmitting"
+        :disabled="isCancelling || isDirectPurchasePaymentActionSubmitting"
         @click="isMaintenanceCollectModalOpen = true"
       >
         <PackageCheck :size="15" />
@@ -207,6 +208,8 @@
       v-if="ticket"
       :is-open="isPurchasePaymentDrawerOpen"
       :ticket="ticket"
+      :payment-result="purchasePaymentResult"
+      :submit-label="directPurchasePaymentActionLabel"
       :submitting="isPurchasePaymentSubmitting"
       :error-message="purchasePaymentErrorMessage"
       @close="closePurchasePaymentDrawer"
@@ -229,7 +232,6 @@
 import {
   ArrowLeft,
   CircleAlert,
-  ClipboardCheck,
   ClipboardList,
   PackageCheck,
   ReceiptText,
@@ -250,17 +252,22 @@ import TicketRequestDetailTable from '@/components/ticket/TicketRequestDetailTab
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  DirectPurchasePaymentRequest,
+  TicketActualAmountResponse,
   TicketComment,
   TicketDetail,
   TicketStatus,
+  TicketType,
 } from '@/types'
 import {
   formatCurrency,
   formatDate,
+  getTicketDetailStatusLabel,
   getTicketTypeLabel,
   INTANGIBLE_STATUS_LABEL,
   TANGIBLE_STATUS_LABEL,
   TICKET_STATUS_LABEL,
+  TICKET_TYPE_LABEL,
 } from '@/utils/labels'
 
 interface DetailItem {
@@ -285,10 +292,7 @@ const CANCELLABLE_TICKET_STATUSES: ReadonlySet<TicketStatus> = new Set([
 const DIRECT_PURCHASE_PAYMENT_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'ASSET_APPROVED',
   'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
 ])
-
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -306,7 +310,10 @@ const isCancelModalOpen = ref(false)
 const isCollectingMaintenanceAsset = ref(false)
 const isMaintenanceCollectModalOpen = ref(false)
 const isPurchasePaymentDrawerOpen = ref(false)
+const isPurchasePaymentLoading = ref(false)
 const isPurchasePaymentSubmitting = ref(false)
+const purchasePaymentMode = ref<'create' | 'update'>('create')
+const purchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
 const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
@@ -320,6 +327,13 @@ let commentActionRequestVersion = 0
 const ticketId = computed(() => {
   const value = route.params.ticketId
   return typeof value === 'string' ? value.trim() : ''
+})
+const ticketType = computed<TicketType | undefined>(() => {
+  const value = route.query.ticketType
+  const rawTicketType = Array.isArray(value) ? value[0] : value
+  return typeof rawTicketType === 'string' && Object.prototype.hasOwnProperty.call(TICKET_TYPE_LABEL, rawTicketType)
+    ? rawTicketType as TicketType
+    : undefined
 })
 
 const isRequester = computed(() => (
@@ -348,6 +362,11 @@ const canRegisterDirectPurchasePayment = computed(() => (
   )
 ))
 
+const isDirectPurchasePaymentActionSubmitting = computed(() => (
+  isPurchasePaymentLoading.value
+  || isPurchasePaymentSubmitting.value
+))
+
 const isAssetTeamRole = computed(() => (
   authStore.currentRole === 'ADMIN'
   || authStore.currentRole === 'SUPER_ADMIN'
@@ -374,10 +393,16 @@ const showsDirectPurchasePaymentAction = computed(() => (
   )
 ))
 
+const directPurchasePaymentActionLabel = computed(() => (
+  purchasePaymentMode.value === 'update' || purchasePaymentResult.value || ticket.value?.actualAmount
+    ? '직접구매 결과 수정'
+    : '직접구매 결과 등록'
+))
+
 const directPurchasePaymentActionMessage = computed(() => (
   isRequester.value
-    ? '실제 결제 금액과 영수증 증빙을 등록합니다.'
-    : '요청자 본인만 결제 정보를 등록할 수 있습니다.'
+    ? '직접구매 후 실제 결제 정보를 등록하거나 수정합니다.'
+    : '요청자 본인만 직접구매 결과를 등록할 수 있습니다.'
 ))
 
 const cancelActionMessage = computed(() => {
@@ -438,7 +463,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
 
   const commonItems: DetailItem[] = [
     { label: '현재 상태', value: TICKET_STATUS_LABEL[ticket.value.status] },
-    { label: '세부 상태', value: ticket.value.detailStatus ?? '-' },
+    { label: '세부 상태', value: getTicketDetailStatusLabel(ticket.value.detailStatus) },
     { label: '구매자산팀 담당자', value: ticket.value.assigneeName ?? '미지정' },
   ]
 
@@ -448,7 +473,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
         ...commonItems,
         { label: '발주 일시', value: formatDate(ticket.value.orderedAt, 'YYYY-MM-DD HH:mm') },
         { label: '납품 확인일', value: formatDate(ticket.value.receivedAt, 'YYYY-MM-DD HH:mm') },
-        processingCompletedItem(ticket.value, '등록 일시', ticket.value.registeredAt),
+        assetAssignmentOrRegistrationItem(ticket.value),
       ]
     case 'RENTAL':
       return [
@@ -499,7 +524,7 @@ const processingInfoItems = computed<DetailItem[]>(() => {
             'YYYY-MM-DD HH:mm',
           ),
         },
-        { label: '자산 등록 일시', value: formatDate(ticket.value.registeredAt, 'YYYY-MM-DD HH:mm') },
+        assetAssignmentOrRegistrationItem(ticket.value),
         processingCompletedItem(ticket.value),
       ]
   }
@@ -537,7 +562,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'maintenanceReason', label: '요청 내용' },
         { key: 'processedAt', label: '처리 날짜' },
         { key: 'maintenanceResult', label: '처리 상태' },
@@ -555,7 +579,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'returnReason', label: '반품 사유' },
         { key: 'collected', label: '회수 여부' },
         { key: 'refundAmount', label: '환불 금액' },
@@ -591,16 +614,13 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
-    assetId: ticket.value.assetId === null || ticket.value.assetId === undefined
-      ? '-'
-      : String(ticket.value.assetId),
     startedAt: formatDate(ticket.value.startedAt),
     assetStatus: assetStatusLabel(ticket.value.assetStatus),
     rentalStartDate: formatDate(ticket.value.rentalStartDate),
     requestedDueDate: formatDate(ticket.value.requestedDueDate),
     maintenanceReason: ticket.value.maintenanceReason ?? ticket.value.requestReason ?? '-',
     processedAt: formatDate(ticket.value.processedAt),
-    maintenanceResult: ticket.value.maintenanceResult ?? ticket.value.detailStatus ?? '-',
+    maintenanceResult: ticket.value.maintenanceResult ?? getTicketDetailStatusLabel(ticket.value.detailStatus),
     returnReason: ticket.value.returnReason ?? ticket.value.requestReason ?? '-',
     collected: ticket.value.collectedAt ? 'Y' : 'N',
     refundAmount: formatCurrency(ticket.value.refundAmount),
@@ -617,7 +637,6 @@ function hasRequestDetailData(detail: TicketDetail): boolean {
     detail.quantity,
     detail.expectedPrice,
     detail.actualAmount,
-    detail.assetId,
     detail.assetStatus,
     detail.startedAt,
     detail.rentalStartDate,
@@ -657,6 +676,19 @@ function processingCompletedItem(
     : {
         label: pendingLabel,
         value: formatDate(pendingValue, 'YYYY-MM-DD HH:mm'),
+      }
+}
+
+function assetAssignmentOrRegistrationItem(detail: TicketDetail): DetailItem {
+  const assignedAt = detail.assignedAt
+  return assignedAt
+    ? {
+        label: '자산 할당 일시',
+        value: formatDate(assignedAt, 'YYYY-MM-DD HH:mm'),
+      }
+    : {
+        label: '자산 등록 일시',
+        value: formatDate(detail.registeredAt, 'YYYY-MM-DD HH:mm'),
       }
 }
 
@@ -706,7 +738,7 @@ async function loadTicketDetail() {
   errorMessage.value = ''
 
   try {
-    const response = await ticketApi.getDetail(ticketId.value)
+    const response = await ticketApi.getDetail(ticketId.value, ticketType.value)
     ticket.value = response.data
   } catch (error) {
     ticket.value = null
@@ -836,7 +868,6 @@ async function handleCancelTicket() {
 
   try {
     await ticketApi.cancel(ticketId.value)
-    await ticketApi.changeStatus(ticketId.value, 'CANCELLED')
     isCancelModalOpen.value = false
     await loadTicketDetail()
     notificationStore.success('요청이 취소되었습니다.')
@@ -874,44 +905,86 @@ async function handleCollectMaintenanceAsset() {
   }
 }
 
-function openPurchasePaymentDrawer() {
-  if (!canRegisterDirectPurchasePayment.value) return
+async function openPurchasePaymentDrawer() {
+  if (!ticketId.value || !canRegisterDirectPurchasePayment.value || isPurchasePaymentLoading.value) return
+
   purchasePaymentErrorMessage.value = ''
+  isPurchasePaymentLoading.value = true
+
+  try {
+    const response = await ticketApi.getDirectPurchaseResult(ticketId.value)
+    purchasePaymentResult.value = response.data
+    purchasePaymentMode.value = 'update'
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      purchasePaymentResult.value = null
+      purchasePaymentMode.value = 'create'
+    } else {
+      const message = error instanceof Error
+        ? error.message
+        : '직접구매 결과 정보를 불러오지 못했습니다.'
+      purchasePaymentErrorMessage.value = message
+      notificationStore.error('직접구매 결과 조회 실패', message)
+      return
+    }
+  } finally {
+    isPurchasePaymentLoading.value = false
+  }
+
   isPurchasePaymentDrawerOpen.value = true
 }
 
 function closePurchasePaymentDrawer() {
-  if (isPurchasePaymentSubmitting.value) return
+  if (isPurchasePaymentLoading.value || isPurchasePaymentSubmitting.value) return
   isPurchasePaymentDrawerOpen.value = false
   purchasePaymentErrorMessage.value = ''
 }
 
-async function handlePurchasePaymentSubmit(payload: {
-  actualPrice: number
-  file: File
+async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest & {
+  file: File | null
+  assets?: unknown[]
 }) {
   if (
     !ticketId.value
     || !canRegisterDirectPurchasePayment.value
-    || isPurchasePaymentSubmitting.value
+    || isDirectPurchasePaymentActionSubmitting.value
   ) return
 
   isPurchasePaymentSubmitting.value = true
   purchasePaymentErrorMessage.value = ''
 
   try {
-    const { file, actualPrice } = payload
-    await ticketApi.setActualPrice(ticketId.value, { actualPrice })
-    await ticketApi.uploadEvidence(ticketId.value, file)
+    const {
+      file,
+      assets,
+      serialNumber,
+      licenseCode,
+      ...paymentResult
+    } = payload
+    void assets
+    void serialNumber
+    void licenseCode
+    const isUpdate = purchasePaymentMode.value === 'update'
+    const response = isUpdate
+      ? await ticketApi.updateDirectPurchaseResult(ticketId.value, paymentResult)
+      : await ticketApi.setDirectPurchaseResult(ticketId.value, paymentResult)
+
+    purchasePaymentResult.value = response.data
+    purchasePaymentMode.value = 'update'
+
+    if (file) {
+      await ticketApi.uploadEvidence(ticketId.value, file)
+    }
+
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
-    notificationStore.success('결제 정보가 저장되었습니다.')
+    notificationStore.success(isUpdate ? '직접구매 결과가 수정되었습니다.' : '직접구매 결과가 등록되었습니다.')
   } catch (error) {
     const message = error instanceof Error
       ? error.message
-      : '결제 정보를 저장하지 못했습니다.'
+      : '직접구매 결과를 저장하지 못했습니다.'
     purchasePaymentErrorMessage.value = message
-    notificationStore.error('결제 정보 저장 실패', message)
+    notificationStore.error('직접구매 결과 저장 실패', message)
   } finally {
     isPurchasePaymentSubmitting.value = false
   }
@@ -932,14 +1005,14 @@ function resetCommentActionState() {
 
 function resetTicketActionState() {
   isPurchasePaymentDrawerOpen.value = false
+  isPurchasePaymentLoading.value = false
   isPurchasePaymentSubmitting.value = false
+  purchasePaymentMode.value = 'create'
+  purchasePaymentResult.value = null
   purchasePaymentErrorMessage.value = ''
 }
 
-watch(ticketId, () => {
-  isPurchasePaymentDrawerOpen.value = false
-  isPurchasePaymentSubmitting.value = false
-  purchasePaymentErrorMessage.value = ''
+watch(() => [ticketId.value, ticketType.value], () => {
   isMaintenanceCollectModalOpen.value = false
   isCollectingMaintenanceAsset.value = false
   resetTicketActionState()
