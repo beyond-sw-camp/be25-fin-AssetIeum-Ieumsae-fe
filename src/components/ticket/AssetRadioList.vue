@@ -59,11 +59,14 @@
                 class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
               />
             </span>
-            <span class="min-w-0">
+            <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
               <span v-if="item.description" class="mt-1 block text-xs leading-5 text-text-muted">
                 {{ item.description }}
               </span>
+            </span>
+            <span v-if="hasAvailableCount(item)" :class="availableCountClass(item)">
+              {{ availableCountText(item) }}
             </span>
           </label>
         </div>
@@ -92,11 +95,14 @@
             class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
           />
         </span>
-        <span class="min-w-0">
+        <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
           <span v-if="item.description" class="mt-1 block text-xs leading-5 text-text-muted">
             {{ item.description }}
           </span>
+        </span>
+        <span v-if="hasAvailableCount(item)" :class="availableCountClass(item)">
+          {{ availableCountText(item) }}
         </span>
       </label>
     </div>
@@ -110,6 +116,8 @@ export interface AssetRadioItem {
   id: string
   name: string
   description?: string
+  availableCount?: number
+  availableCountLabel?: string
 }
 
 export interface AssetRadioGroup {
@@ -160,5 +168,22 @@ function itemClass(item: AssetRadioItem) {
       ? 'border-primary bg-primary/5'
       : 'border-border bg-surface hover:bg-surface-secondary',
   ]
+}
+
+function hasAvailableCount(item: AssetRadioItem) {
+  return typeof item.availableCount === 'number' && Number.isFinite(item.availableCount)
+}
+
+function availableCountClass(item: AssetRadioItem) {
+  return [
+    'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
+    (item.availableCount ?? 0) > 0
+      ? 'bg-primary/10 text-primary'
+      : 'bg-danger/10 text-danger',
+  ]
+}
+
+function availableCountText(item: AssetRadioItem) {
+  return item.availableCountLabel ?? `남은 수량 ${item.availableCount ?? 0}개`
 }
 </script>

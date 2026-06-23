@@ -421,8 +421,9 @@ const requestDepartmentId = computed(() => requester.value?.departmentId ?? '')
 const requestDepartmentName = computed(() => requester.value?.departmentName ?? '-')
 const requesterLabel = computed(() => (requester.value ? memberLabel(requester.value) : '요청자 확인 필요'))
 const assignableMembers = computed(() => {
-  if (!requestDepartmentId.value) return props.members
-  return props.members.filter((member) => member.departmentId === requestDepartmentId.value)
+  const activeMembers = props.members.filter((member) => member.status === 'ACTIVE')
+  if (!requestDepartmentId.value) return activeMembers
+  return activeMembers.filter((member) => member.departmentId === requestDepartmentId.value)
 })
 
 const memberOptions = computed<DropdownOption[]>(() => [

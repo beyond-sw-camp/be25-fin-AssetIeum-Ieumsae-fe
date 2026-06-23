@@ -301,7 +301,7 @@
             <p class="page-subtitle mb-1">구매 계획</p>
             <h1 class="page-title">구매 계획 및 집행 관리</h1>
           </div>
-          <Button @click="openCreateDrawer">
+          <Button v-if="canCreatePurchasePlan" @click="openCreateDrawer">
             <Plus :size="16" />
             구매 계획 등록
           </Button>
@@ -1050,6 +1050,9 @@ const router = useRouter();
 const canChangeStatus = computed(() =>
   hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
 );
+const canCreatePurchasePlan = computed(() =>
+  hasRole("ASSET_TEAM", "ASSET_MANAGER"),
+);
 
 const plans = ref<PurchasePlanListItem[]>([]);
 const statistics = ref<PurchasePlanStatistics>({ ...EMPTY_STATISTICS });
@@ -1560,6 +1563,8 @@ function closeDetail() {
 }
 
 function openCreateDrawer() {
+  if (!canCreatePurchasePlan.value) return;
+
   isCreateDrawerOpen.value = true;
   selectedTicketIds.value = [];
   directPlanItems.value = [];
@@ -1730,6 +1735,8 @@ function removePlanRequestItem(id: string) {
 }
 
 async function createPlan() {
+  if (!canCreatePurchasePlan.value) return;
+
   const ticketItems: PurchasePlanCreateItem[] = selectedEligibleTickets.value
     .filter((item) => item.canCreate && item.assetType)
     .map((item) => ({

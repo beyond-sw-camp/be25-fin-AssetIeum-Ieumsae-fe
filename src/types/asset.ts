@@ -259,6 +259,19 @@ export interface IntangibleItem {
   assetCount?: number
   stockCount?: number
   availableCount?: number
+  availableSeatCount?: number | string | null
+  remainingSeatCount?: number | string | null
+  remainingSeats?: number | string | null
+  availableSeats?: number | string | null
+  assignableSeatCount?: number | string | null
+  remainingAssignableCount?: number | string | null
+  remainingAssignableSeatCount?: number | string | null
+  availableUserCount?: number | string | null
+  remainingUserCount?: number | string | null
+  availableMemberCount?: number | string | null
+  remainingMemberCount?: number | string | null
+  availableAssignmentCount?: number | string | null
+  remainingAssignmentCount?: number | string | null
   intangibleAssetCount?: number
   totalAssetCount?: number
   assetTotalCount?: number
