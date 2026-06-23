@@ -221,7 +221,7 @@ const router = createRouter({
           path: 'purchase',
           name: 'Purchase',
           component: () => import('@/views/purchase/PurchaseView.vue'),
-          meta: { title: '구매 계획', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+          meta: { title: '구매 계획', roles: ['ASSET_TEAM', 'ASSET_MANAGER'] },
         },
 
         // ─── 로그 ─────────────────────────────────────
@@ -342,6 +342,15 @@ router.beforeEach(async (to) => {
     return auth.currentRole === 'SUPER_ADMIN'
       ? { name: 'SystemCompanies' }
       : { name: 'TicketManagement' }
+  }
+
+  if (
+    to.name === 'Purchase'
+    && (auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN')
+  ) {
+    return auth.currentRole === 'SUPER_ADMIN'
+      ? { name: 'SystemCompanies' }
+      : { name: 'Dashboard' }
   }
 
   if (to.meta.roles && to.meta.roles.length > 0) {
