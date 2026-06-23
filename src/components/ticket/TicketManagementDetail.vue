@@ -495,10 +495,6 @@
           <p class="font-semibold text-text-main">{{ requestItemName(ticket) }}</p>
           <dl class="mt-4 grid gap-3 text-xs">
             <div class="flex items-center justify-between gap-3">
-              <dt class="text-text-muted">대상 자산</dt>
-              <dd class="font-semibold text-text-main">{{ ticket?.assetId ?? '-' }}</dd>
-            </div>
-            <div class="flex items-center justify-between gap-3">
               <dt class="text-text-muted">재할당 대상</dt>
               <dd class="font-semibold text-text-main">{{ ticket?.requesterName ?? '-' }}</dd>
             </div>
@@ -1142,7 +1138,6 @@ const assetCollectInfoItems = computed<DetailItem[]>(() => {
   return [
     { label: '대상 자산', value: requestItemName(ticket.value) },
     { label: '자산 구분', value: assetTypeLabel(ticket.value.assetType) },
-    { label: '자산 ID', value: ticket.value.assetId ?? '-' },
     { label: '자산 상태', value: assetStatusLabel(ticket.value.assetStatus) },
     { label: '회수 여부', value: ticket.value.collectedAt ? '회수 완료' : '회수 대기' },
     { label: '회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
@@ -1349,7 +1344,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       return [
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'maintenanceReason', label: '요청 내용' },
         { key: 'processedAt', label: '처리 일시' },
         { key: 'maintenanceResult', label: '처리 결과' },
@@ -1360,7 +1354,6 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
         { key: 'assetType', label: '자산 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
-        { key: 'assetId', label: '자산 ID' },
         { key: 'assetStatus', label: '자산 상태' },
         { key: 'refundAmount', label: '환불 금액' },
       ]
@@ -1401,7 +1394,6 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
     expectedPrice: formatCurrency(ticket.value.expectedPrice),
     expectedAmount: formatCurrency(expectedAmount),
     actualAmount: formatCurrency(ticket.value.actualAmount),
-    assetId: ticket.value.assetId ?? '-',
     assetStatus: assetStatusLabel(ticket.value.assetStatus),
     rentalStartDate: formatDate(ticket.value.rentalStartDate),
     requestedDueDate: formatDate(ticket.value.requestedDueDate),
@@ -1440,7 +1432,6 @@ function hasRequestDetailData(detail: TicketDetail): boolean {
     detail.quantity,
     detail.expectedPrice,
     detail.actualAmount,
-    detail.assetId,
     detail.assetStatus,
     detail.rentalStartDate,
     detail.requestedDueDate,
