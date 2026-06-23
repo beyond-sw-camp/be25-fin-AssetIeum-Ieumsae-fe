@@ -478,6 +478,37 @@ function getTargetNameLabel(item: InspectionSearchResponse) {
   return '조사 대상'
 }
 
+function startOfDay(date: Date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function dateTimeValue(value: string) {
+  if (!value) return null
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function resolveInspectionStatusByPeriod(
+  startDate: string,
+  endDate: string,
+  fallbackStatus: IntangibleInspectionStatus,
+): IntangibleInspectionStatus {
+  const today = startOfDay(new Date())
+  const start = dateTimeValue(startDate)
+  const end = dateTimeValue(endDate)
+
+  if (!start || !end) return fallbackStatus
+
+  const startDay = startOfDay(start)
+  const endDay = startOfDay(end)
+
+  if (today < startDay) return 'READY'
+  if (today <= endDay) return 'IN_PROGRESS'
+  return 'COMPLETED'
+}
 
 function toInspectionRow(item: InspectionSearchResponse, index: number): IntangibleInspectionRow {
   const rawStatus = item.inspectionStatus ?? item.status ?? 'READY'
@@ -493,7 +524,7 @@ function toInspectionRow(item: InspectionSearchResponse, index: number): Intangi
     inspectionId,
     targetName: getTargetNameLabel(item),
     executor: getInspectorTypeLabel(inspectorType),
-    status: rawStatus,
+    status: resolveInspectionStatusByPeriod(startDate, endDate, rawStatus),
     inspectorDepartment: '-',
     inspectorName: inspectorName || '-',
     startDate,
