@@ -57,19 +57,6 @@
           <Input id="edit-warrantyExpiredAt" v-model="assetEditForm.warrantyExpiredAt" type="datetime-local" label="보증 만료 일시" disabled />
         </div>
       </section>
-
-      <section>
-        <div>
-          <QrcodeVue
-            :value="assetEditForm.assetCode"
-            :size="90"
-            level="M"
-          />
-          <p class="mt-2 text-xs text-text-sub">
-            {{ assetEditForm.assetCode }}
-          </p>
-        </div>
-      </section>
     </div>
 
     <template #footer>
