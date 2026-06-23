@@ -78,7 +78,7 @@ function pickString(source: Record<string, unknown> | null, keys: string[]): str
   if (!source) return undefined
 
   for (const key of keys) {
-    const value = source[key]
+    const value = getNestedValue(source, key)
     if (typeof value === 'string' && value.trim()) return value
   }
 
@@ -89,12 +89,22 @@ function pickId(source: Record<string, unknown> | null, keys: string[]): string 
   if (!source) return undefined
 
   for (const key of keys) {
-    const value = source[key]
+    const value = getNestedValue(source, key)
     if (typeof value === 'string' && value.trim()) return value
     if (typeof value === 'number') return value
   }
 
   return undefined
+}
+
+function getNestedValue(source: Record<string, unknown>, key: string): unknown {
+  if (!key.includes('.')) return source[key]
+
+  return key.split('.').reduce<unknown>((current, path) => (
+    current && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, unknown>)[path]
+      : undefined
+  ), source)
 }
 
 function pickNumber(source: Record<string, unknown> | null, keys: string[]): number | undefined {
@@ -285,10 +295,13 @@ function normalizeTicketDetailResponse(
 function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListItem {
   const requester = asRecord(rawItem.requester)
     ?? asRecord(rawItem.requestMember)
+    ?? asRecord(rawItem.requestMemberInfo)
+    ?? asRecord(rawItem.requesterMember)
+    ?? asRecord(rawItem.requesterMemberInfo)
     ?? asRecord(rawItem.member)
     ?? asRecord(rawItem.requesterInfo)
-    ?? asRecord(rawItem.requestMemberInfo)
     ?? asRecord(rawItem.employee)
+    ?? asRecord(rawItem.user)
     ?? asRecord(rawItem.applicant)
   const department = asRecord(rawItem.department)
     ?? asRecord(rawItem.requesterDepartment)
@@ -299,10 +312,27 @@ function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListIte
     ?? asRecord(requester?.departmentInfo)
   const rawStatus = pickString(rawItem, ['ticketStatus', 'currentStatus', 'status']) ?? 'REQUESTED'
   const requesterId = rawItem.requesterId
-    ?? pickId(rawItem, ['requestMemberId', 'memberId', 'employeeId', 'applicantId'])
-    ?? pickId(requester, ['memberId', 'employeeId', 'id'])
+    ?? pickId(rawItem, [
+      'requester.memberId',
+      'requester.id',
+      'requestMember.memberId',
+      'requestMember.id',
+      'requestMemberId',
+      'requesterMemberId',
+      'memberId',
+      'employeeId',
+      'applicantId',
+    ])
+    ?? pickId(requester, ['memberId', 'employeeId', 'userId', 'id'])
   const departmentId = rawItem.departmentId
-    ?? pickId(rawItem, ['requesterDepartmentId', 'requestDepartmentId'])
+    ?? pickId(rawItem, [
+      'requester.departmentId',
+      'requester.department.departmentId',
+      'requestMember.departmentId',
+      'requestMember.department.departmentId',
+      'requesterDepartmentId',
+      'requestDepartmentId',
+    ])
     ?? pickId(department, ['departmentId', 'id'])
     ?? pickId(requester, ['departmentId', 'department.id'])
 
@@ -316,15 +346,40 @@ function normalizeTicketListItem(rawItem: TicketListItemResponse): TicketListIte
       ?? pickString(rawItem, ['itemName', 'productName', 'requestedItemDetail'])
       ?? null,
     requesterId,
-    requesterName: rawItem.requesterName
-      ?? pickString(rawItem, ['requestMemberName', 'memberName', 'employeeName', 'applicantName', 'requester', 'requestMember'])
-      ?? pickString(requester, ['memberName', 'name', 'employeeName'])
+    requesterName: pickString(rawItem, [
+      'requesterName',
+      'requestMemberName',
+      'requesterMemberName',
+      'memberName',
+      'employeeName',
+      'applicantName',
+      'requester.memberName',
+      'requester.name',
+      'requester.employeeName',
+      'requestMember.memberName',
+      'requestMember.name',
+      'requestMember.employeeName',
+      'member.name',
+      'employee.name',
+      'user.name',
+    ])
+      ?? pickString(requester, ['memberName', 'name', 'employeeName', 'userName'])
       ?? '',
     departmentId,
-    departmentName: rawItem.departmentName
-      ?? pickString(rawItem, ['requesterDepartmentName', 'requestDepartmentName', 'departmentNamePath', 'requesterDepartment', 'requestDepartment'])
+    departmentName: pickString(rawItem, [
+      'departmentName',
+      'requesterDepartmentName',
+      'requestDepartmentName',
+      'departmentNamePath',
+      'requester.departmentName',
+      'requester.department.departmentName',
+      'requester.department.name',
+      'requestMember.departmentName',
+      'requestMember.department.departmentName',
+      'requestMember.department.name',
+    ])
       ?? pickString(department, ['departmentName', 'name', 'departmentNamePath'])
-      ?? pickString(requester, ['departmentName', 'departmentNamePath', 'teamName'])
+      ?? pickString(requester, ['departmentName', 'departmentNamePath', 'teamName', 'department.departmentName', 'department.name'])
       ?? '',
     requestedAt: rawItem.requestedAt ?? pickString(rawItem, ['createdAt']) ?? '',
     ticketStatus: normalizeTicketStatus(rawStatus),
