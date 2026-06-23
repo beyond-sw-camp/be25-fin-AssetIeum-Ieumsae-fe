@@ -144,10 +144,12 @@ const props = withDefaults(defineProps<{
   departmentId?: string
   initialOwnedStatus?: OwnedAssetDetailStatus
   initialAssetType?: ExpiringAssetType
+  showUnassigned?: boolean
 }>(), {
   departmentId: undefined,
   initialOwnedStatus: 'UNASSIGNED',
   initialAssetType: 'ALL',
+  showUnassigned: true,
 })
 
 const emit = defineEmits<{
@@ -189,7 +191,9 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 
 const modeOptions = computed(() => (
-  props.mode === 'owned' ? OWNED_STATUS_OPTIONS : EXPIRING_TYPE_OPTIONS
+  props.mode === 'owned'
+    ? OWNED_STATUS_OPTIONS.filter((option) => props.showUnassigned || option.value !== 'UNASSIGNED')
+    : EXPIRING_TYPE_OPTIONS
 ))
 const selectedOption = computed(() => (
   props.mode === 'owned' ? selectedOwnedStatus.value : selectedAssetType.value

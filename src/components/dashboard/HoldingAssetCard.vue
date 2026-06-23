@@ -2,13 +2,13 @@
   <button
     type="button"
     :class="[
-      'rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition',
+      'flex min-h-30 flex-col rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition',
       interactive ? 'hover:border-primary/40 hover:shadow-md' : 'cursor-default',
     ]"
     @click="interactive && emit('click')"
   >
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-sm font-bold text-text-main">{{ title }}</h2>
+    <div class="mb-5 flex h-6 shrink-0 items-center justify-between">
+      <h2 class="m-0 text-sm font-bold leading-5 text-text-main">{{ title }}</h2>
       <PackageCheck class="text-primary" :size="18" />
     </div>
     <div class="mb-3 flex h-3 overflow-hidden rounded-full bg-surface-secondary">

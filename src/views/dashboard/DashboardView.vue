@@ -73,6 +73,8 @@
       :is-open="assetDrawerMode !== null"
       :mode="assetDrawerMode ?? 'owned'"
       :initial-asset-type="assetDrawerType"
+      :initial-owned-status="holdingInitialStatus"
+      :show-unassigned="isAssetOperator"
       :department-id="assetDetailDepartmentId"
       @close="assetDrawerMode = null"
     />
@@ -103,6 +105,7 @@ import type {
   HrEventStatistics,
   HrLifecycleEvent,
   OwnedAssetSummary,
+  OwnedAssetDetailStatus,
   TicketProgressSummary,
 } from '@/types'
 
@@ -176,7 +179,12 @@ const assetDetailDepartmentId = computed(() => (
   isDepartmentManager.value ? auth.user?.departmentId : undefined
 ))
 const dashboardTitle = computed(() => role.value === 'EMPLOYEE' ? '내 자산 대시보드' : '대시보드')
-const holdingAssetCardTitle = computed(() => isDepartmentManager.value ? '자산 대여 현황' : '보유 자산 현황')
+const holdingAssetCardTitle = computed(() => (
+  isDepartmentManager.value || isEmployee.value ? '자산 대여 현황' : '보유 자산 현황'
+))
+const holdingInitialStatus = computed<OwnedAssetDetailStatus>(() => (
+  isAssetOperator.value ? 'UNASSIGNED' : 'RENTAL_SCHEDULED'
+))
 
 function toSegments(items: Array<Omit<DashboardSegment, 'percent'>>): DashboardSegment[] {
   const total = items.reduce((sum, item) => sum + item.count, 0)
@@ -194,7 +202,9 @@ const progressTicketSegments = computed(() => toSegments([
 ]))
 
 const holdingAssetSegments = computed(() => toSegments([
-  { label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' },
+  ...(isAssetOperator.value
+    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
+    : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
   { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
   { label: '연체', count: ownedAssets.value.overdue, barClass: 'bg-danger' },
