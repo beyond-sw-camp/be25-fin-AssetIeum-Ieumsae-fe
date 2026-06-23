@@ -127,9 +127,6 @@ import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
 const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
 const PAGE_SIZE = 5
 
-const EVENT_TYPES = ['입사', '퇴사', '부서이동', '휴직', '복직'] as const
-const PAGE_SIZE = 5
-
 const props = defineProps<{
   events: HrLifecycleEvent[]
   statistics: HrEventStatistics
@@ -211,7 +208,7 @@ function formatDate(value: string) {
 }
 
 function dDayText(event: HrLifecycleEvent) {
-  const value = event.dDay ?? event.dday
+  const value = event.dDay
   if (value === null || value === undefined) return '-'
   if (value === 0) return 'D-Day'
   return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
