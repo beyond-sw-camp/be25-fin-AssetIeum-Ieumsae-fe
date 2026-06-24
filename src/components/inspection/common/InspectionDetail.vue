@@ -159,13 +159,13 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
+import { usePermission } from '@/composables'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type { Member } from '@/types/member'
 import type {
   InspectionDetailResponse,
   EmployeeInspectionTargetResponse,
-  InspectionFollowUpResponse,
   InspectionFollowUpStatus,
   InspectionStatus,
   InspectionUninspectedAssetItem,
@@ -262,7 +262,6 @@ const detail = ref<InspectionDetailResponse | null>(null)
 const inspectionTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const members = ref<Member[]>([])
 const assetMemberNames = ref<Map<string, string[]>>(new Map())
-const followUps = ref<InspectionFollowUpResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const inspectionApi = computed(() => (
@@ -288,7 +287,7 @@ const resultRows = computed<ResultRow[]>(() => (
     followUpId: textValue(item.inspectionFollowUpId, item.followUpId),
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
-    memberName: item.memberName ?? '-',
+    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
     responseContent: item.userResponseContent ?? '',
     followUpRequired: item.followUpRequired,
     actionDetail: textValue(item.actionDetail),
@@ -315,36 +314,16 @@ const respondedCount = computed(() => (
   resultRows.value.length
 ))
 
-const followUpRequiredCount = computed(() => followUpRows.value.length)
-
-const followUpRows = computed(() => {
-  const apiRows = followUps.value.map(toFollowUpRow)
-  if (apiRows.length > 0) return apiRows
-
-  return resultRows.value
-    .filter((row) => row.followUpRequired)
-    .map((row) => ({
-      key: `result-${row.inspectionResultId}`,
-      followUpId: row.followUpId,
-      inspectionResultId: row.inspectionResultId,
-      productName: row.productName,
-      assetCode: row.assetCode,
-      memberName: row.memberName,
-      responseContent: row.responseContent,
-      actionDetail: row.actionDetail,
-      status: row.followUpStatus,
-    }))
-})
+const followUpRequiredCount = computed(() => (
+  resultRows.value.filter((row) => row.followUpRequired).length
+))
 
 const displayStatus = computed<InspectionStatus>(() => resolveInspectionStatus({
   startDate: displayStartDate.value,
   endDate: displayEndDate.value,
   fallbackStatus: inspectionInfo.value?.inspectionStatus ?? props.inspection?.status ?? 'READY',
   unrespondedCount: detail.value ? uninspectedRows.value.length : undefined,
-  followUpCount: detail.value ? followUpRows.value.length : undefined,
-  completedFollowUpCount: detail.value
-    ? followUpRows.value.filter((row) => row.status === 'COMPLETED').length
-    : undefined,
+  followUpCount: detail.value ? followUpRequiredCount.value : undefined,
 }))
 
 const completionRate = computed(() => {
@@ -400,23 +379,6 @@ function followUpStatusValue(value: unknown): InspectionFollowUpStatus {
   return 'PENDING'
 }
 
-function toFollowUpRow(item: InspectionFollowUpResponse, index: number) {
-  const followUpId = textValue(item.inspectionFollowUpId, item.followUpId)
-  const inspectionResultId = textValue(item.inspectionResultId)
-
-  return {
-    key: followUpId || inspectionResultId || `follow-up-${index}`,
-    followUpId,
-    inspectionResultId,
-    productName: textValue(item.productName) || '-',
-    assetCode: textValue(item.assetCode) || '-',
-    memberName: textValue(item.memberName) || '-',
-    responseContent: textValue(item.responseContent),
-    actionDetail: textValue(item.actionDetail),
-    status: followUpStatusValue(item.status ?? item.followUpStatus ?? item.inspectionFollowUpStatus),
-  }
-}
-
 function inspectorTypeLabel(value: InspectionDetailResponse['inspectionInfo']['inspectorType'] | undefined) {
   if (!value) return ''
   return value === 'ASSET_TEAM' ? '자산팀 처리' : '소유자 응답'
@@ -427,7 +389,7 @@ function toUninspectedRow(item: InspectionUninspectedAssetItem): UninspectedRow 
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
     category: item.category ?? '-',
-    memberName: item.memberName ?? '-',
+    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
   }
 }
 
@@ -548,13 +510,11 @@ async function loadDetailData() {
     assetMemberNames.value = new Map(
       Array.from(assetNameMap, ([assetCode, names]) => [assetCode, [...names]]),
     )
-    await loadFollowUpData()
   } catch {
     detail.value = null
     inspectionTargets.value = []
     members.value = []
     assetMemberNames.value = new Map()
-    followUps.value = []
     errorMessage.value = '전수조사 상세 정보를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
@@ -568,26 +528,15 @@ async function loadEmployeeDetailData() {
   const respondedTargets = assignedTargets.filter((target) => (
     target.isResponded === true || target.responded === true
   ))
-  const responseResults = await Promise.allSettled(
-    respondedTargets.map((target) => (
-      inspectionApi.value.getResponse(textValue(target.inspectionTargetId))
-    )),
-  )
-
-  const inspectionResults = respondedTargets.map((target, index) => {
-    const responseResult = responseResults[index]
-    const response = responseResult?.status === 'fulfilled' ? responseResult.value.data : null
-
-    return {
-      inspectionResultId: response?.inspectionResultId,
+  const inspectionResults = respondedTargets.map((target) => ({
+      inspectionResultId: target.inspectionTargetId,
       productName: textValue(target.productName, target.itemName) || '-',
       assetCode: textValue(target.assetCode, target.licenseCode) || '-',
       memberId: target.memberId,
       memberName: target.memberName,
-      followUpRequired: response?.followUpRequests === true || response?.followUpRequests === 1,
-      userResponseContent: response?.responseContent ?? '',
-    }
-  })
+      followUpRequired: false,
+      userResponseContent: '',
+    }))
   const uninspectedAssets = assignedTargets
     .filter((target) => target.isResponded !== true && target.responded !== true)
     .map((target) => ({
@@ -601,7 +550,6 @@ async function loadEmployeeDetailData() {
   inspectionTargets.value = assignedTargets
   members.value = []
   assetMemberNames.value = new Map()
-  followUps.value = []
   detail.value = {
     inspectionInfo: {
       inspectorName: props.inspection.inspectorName,
@@ -627,27 +575,4 @@ function addAssetMemberName(
   map.set(assetCode, names)
 }
 
-async function loadFollowUpData() {
-  try {
-    const followUpIds = [
-      ...new Set(
-        (detail.value?.inspectionResults ?? [])
-          .map((item) => textValue(item.inspectionFollowUpId, item.followUpId))
-          .filter((followUpId) => followUpId),
-      ),
-    ]
-
-    if (followUpIds.length === 0) {
-      followUps.value = []
-      return
-    }
-
-    const responses = await Promise.all(
-      followUpIds.map((followUpId) => inspectionApi.value.getFollowUp(followUpId)),
-    )
-    followUps.value = responses.map((response) => response.data)
-  } catch {
-    followUps.value = []
-  }
-}
 </script>

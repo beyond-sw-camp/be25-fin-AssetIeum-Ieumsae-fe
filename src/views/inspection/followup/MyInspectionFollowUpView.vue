@@ -14,7 +14,7 @@
 
     <main class="mx-3 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
       <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <p class="text-xs text-text-sub">총 {{ filteredRows.length.toLocaleString() }}건</p>
+        <p class="text-xs text-text-sub">총 {{ totalElements.toLocaleString() }}건</p>
         <div class="flex gap-2">
           <Dropdown
             v-model="statusFilter"
@@ -28,7 +28,12 @@
             v-model="keyword"
             class="w-56"
             placeholder="제품명, 자산코드 검색"
+            @keyup.enter="handleSearch"
           />
+          <Button class="shrink-0" @click="handleSearch">
+            <Search :size="14" />
+            검색
+          </Button>
         </div>
       </div>
 
@@ -46,19 +51,46 @@
 
         <InspectionFollowUpPanel
           v-else
-          :rows="filteredRows"
+          :rows="rows"
           :submitting-id="submittingFollowUpId"
           @refresh="loadFollowUps"
           @update-status="submitFollowUpStatus"
         />
+      </div>
+
+      <div
+        v-if="totalPages > 1"
+        class="flex shrink-0 items-center justify-center gap-2 border-t border-border px-4 py-3"
+      >
+        <button
+          type="button"
+          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:opacity-30"
+          :disabled="page === 0 || isLoading"
+          aria-label="이전 페이지"
+          @click="changePage(page - 1)"
+        >
+          <ChevronLeft :size="16" />
+        </button>
+        <span class="min-w-16 text-center text-xs font-semibold text-text-sub">
+          {{ page + 1 }} / {{ totalPages }}
+        </span>
+        <button
+          type="button"
+          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:opacity-30"
+          :disabled="page >= totalPages - 1 || isLoading"
+          aria-label="다음 페이지"
+          @click="changePage(page + 1)"
+        >
+          <ChevronRight :size="16" />
+        </button>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
@@ -68,20 +100,24 @@ import InspectionFollowUpPanel, {
 } from '@/components/inspection/common/InspectionFollowUpPanel.vue'
 import { inspectionFollowUpApi } from '@/api'
 import { ApiError } from '@/api/client'
-import { useAuthStore } from '@/stores'
 import type { DropdownOption } from '@/types'
 import type {
-  InspectionFollowUpResponse,
+  InspectionFollowUpSearchResponse,
   InspectionFollowUpStatus,
 } from '@/types/inspection'
 
-const followUps = ref<InspectionFollowUpResponse[]>([])
+const PAGE_SIZE = 20
+
+const followUps = ref<InspectionFollowUpSearchResponse[]>([])
 const statusFilter = ref('')
 const keyword = ref('')
+const appliedKeyword = ref('')
 const isLoading = ref(false)
 const loadError = ref('')
 const submittingFollowUpId = ref('')
-const authStore = useAuthStore()
+const page = ref(0)
+const totalElements = ref(0)
+const totalPages = ref(0)
 
 const statusOptions: DropdownOption[] = [
   { label: '전체 상태', value: '' },
@@ -91,30 +127,20 @@ const statusOptions: DropdownOption[] = [
 ]
 
 const rows = computed<InspectionFollowUpPanelRow[]>(() => followUps.value.map((item, index) => {
-  const followUpId = textValue(item.followUpId, item.inspectionFollowUpId)
+  const followUpId = textValue(item.inspectionFollowUpId)
   return {
     key: followUpId || `follow-up-${index}`,
     followUpId,
-    inspectionResultId: textValue(item.inspectionResultId),
+    inspectionResultId: '',
     productName: textValue(item.productName) || '-',
     assetCode: textValue(item.assetCode) || '-',
     memberName: textValue(item.memberName) || '-',
-    processorName: textValue(item.processorName) || '-',
+    processorName: textValue(item.inspectorName) || '-',
     responseContent: textValue(item.responseContent),
     actionDetail: textValue(item.actionDetail),
-    status: followUpStatusValue(item.status ?? item.followUpStatus ?? item.inspectionFollowUpStatus),
+    status: item.status,
   }
 }))
-
-const filteredRows = computed(() => {
-  const query = keyword.value.trim().toLowerCase()
-  return rows.value.filter((row) => {
-    const matchesStatus = !statusFilter.value || row.status === statusFilter.value
-    const matchesKeyword = !query || [row.productName, row.assetCode, row.memberName]
-      .some((value) => value.toLowerCase().includes(query))
-    return matchesStatus && matchesKeyword
-  })
-})
 
 function textValue(...values: unknown[]) {
   return values.find((value): value is string | number => (
@@ -122,31 +148,46 @@ function textValue(...values: unknown[]) {
   ))?.toString() ?? ''
 }
 
-function followUpStatusValue(value: unknown): InspectionFollowUpStatus {
-  if (value === 'PENDING' || value === 'IN_PROGRESS' || value === 'COMPLETED') return value
-  return 'PENDING'
-}
-
 async function loadFollowUps() {
   isLoading.value = true
   loadError.value = ''
 
   try {
-    const response = await inspectionFollowUpApi.getMyFollowUps({ page: 0, size: 1000 })
-    const currentMemberId = textValue(authStore.user?.memberId)
-    followUps.value = currentMemberId
-      ? response.data.content.filter((item) => (
-        textValue(item.processorId) === currentMemberId
-      ))
-      : []
+    const response = await inspectionFollowUpApi.getFollowUps({
+      page: page.value,
+      size: PAGE_SIZE,
+      status: isFollowUpStatus(statusFilter.value) ? statusFilter.value : undefined,
+      keyword: appliedKeyword.value || undefined,
+    })
+    followUps.value = response.data.content
+    totalElements.value = response.data.totalElements
+    totalPages.value = response.data.totalPages
   } catch (error) {
     followUps.value = []
+    totalElements.value = 0
+    totalPages.value = 0
     loadError.value = error instanceof ApiError
       ? error.message
       : '후속처리 목록을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }
+}
+
+function handleSearch() {
+  appliedKeyword.value = keyword.value.trim()
+  page.value = 0
+  void loadFollowUps()
+}
+
+function changePage(nextPage: number) {
+  if (nextPage < 0 || nextPage >= totalPages.value || nextPage === page.value) return
+  page.value = nextPage
+  void loadFollowUps()
+}
+
+function isFollowUpStatus(value: string): value is InspectionFollowUpStatus {
+  return value === 'PENDING' || value === 'IN_PROGRESS' || value === 'COMPLETED'
 }
 
 async function submitFollowUpStatus(
@@ -168,6 +209,11 @@ async function submitFollowUpStatus(
     submittingFollowUpId.value = ''
   }
 }
+
+watch(statusFilter, () => {
+  page.value = 0
+  void loadFollowUps()
+})
 
 onMounted(loadFollowUps)
 

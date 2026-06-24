@@ -389,6 +389,9 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   return {
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
+    assetId: textValue(item.assetId, item.tangibleAssetId, item.intangibleAssetId),
+    tangibleAssetId: textValue(item.tangibleAssetId),
+    intangibleAssetId: textValue(item.intangibleAssetId),
     inspectionStatus: resolveInspectionStatus({
       startDate: textValue(item.startDate),
       endDate: textValue(item.endDate),
@@ -450,18 +453,29 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
   if (!options.preserveMessage) message.value = ''
 
   try {
-    const responses = isAssetTeamRole(authStore.currentRole)
-      ? await Promise.all([
-          inspectionApi.value.getTargets({ page: 0, size: 100 }),
-          inspectionApi.value.getMyTargets({ page: 0, size: 100 }),
-        ])
-      : [await inspectionApi.value.getMyTargets({ page: 0, size: 100 })]
-    const content = responses.flatMap((response) => (
-      Array.isArray(response.data?.content) ? response.data.content : []
-    ))
+    const currentMemberId = textValue(authStore.user?.memberId)
+    const ownTargetsResponse = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
+    const ownTargets = Array.isArray(ownTargetsResponse.data?.content)
+      ? ownTargetsResponse.data.content
+      : []
+    const inspectorTargets = isAssetTeamRole(authStore.currentRole)
+      ? await inspectionApi.value.getTargets({ page: 0, size: 100 })
+      : null
+    const managedTargets = Array.isArray(inspectorTargets?.data?.content)
+      ? inspectorTargets.data.content
+      : []
     const uniqueTargets = new Map<string, MobileInspectionTarget>()
 
-    content
+    ownTargets
+      .map(toTargetRow)
+      .filter((target) => (
+        target.inspectionTargetId
+        && target.memberId
+        && target.memberId === currentMemberId
+      ))
+      .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
+
+    managedTargets
       .map(toTargetRow)
       .filter((target) => target.inspectionTargetId)
       .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
@@ -476,12 +490,14 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
     } else {
       selectedTarget.value = null
     }
-  } catch {
+  } catch (error) {
     if (targets.value.length === 0) {
       totalElements.value = 0
       selectedTarget.value = null
     }
-    loadError.value = '검수 대상 자산을 불러오지 못했습니다.'
+    loadError.value = error instanceof ApiError
+      ? error.message
+      : '검수 대상 자산을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }

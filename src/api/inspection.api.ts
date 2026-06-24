@@ -4,6 +4,8 @@ import type {
   InspectionDetailResponse,
   EmployeeInspectionTargetResponse,
   InspectionFollowUpResponse,
+  InspectionFollowUpSearchRequest,
+  InspectionFollowUpSearchResponse,
   InspectionFollowUpStatusUpdateRequest,
   InspectionResponseCreateRequest,
   InspectionResponseCreateResponse,
@@ -98,8 +100,16 @@ export const tangibleInspectionApi = createInspectionApi('/tangible-asset/inspec
 export const intangibleInspectionApi = createInspectionApi('/intangible-asset/inspections')
 
 export const inspectionFollowUpApi = {
-  getMyFollowUps: (params?: { page?: number; size?: number; status?: string }) =>
-    api.get<PageResponse<InspectionFollowUpResponse>>('/inspections/follow-ups/my', params),
+  getFollowUps: (params: InspectionFollowUpSearchRequest) =>
+    api.get<PageResponse<InspectionFollowUpSearchResponse>>(
+      '/inspections/follow-ups',
+      {
+        page: params.page,
+        size: params.size,
+        status: params.status,
+        keyword: params.keyword,
+      },
+    ),
 
   getFollowUp: (followUpId: string | number) =>
     api.get<InspectionFollowUpResponse>(`/inspections/follow-ups/${followUpId}`),

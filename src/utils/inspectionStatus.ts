@@ -45,9 +45,7 @@ export function resolveInspectionStatus({
   if (currentDay <= endDay) return 'IN_PROGRESS'
 
   if (unrespondedCount === undefined) {
-    return fallbackStatus === 'COMPLETED' || fallbackStatus === 'CLOSED'
-      ? fallbackStatus
-      : 'IN_PROGRESS'
+    return fallbackStatus === 'COMPLETED' ? fallbackStatus : 'IN_PROGRESS'
   }
 
   if (unrespondedCount > 0) return 'IN_PROGRESS'

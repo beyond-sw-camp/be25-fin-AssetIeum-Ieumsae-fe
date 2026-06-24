@@ -267,19 +267,19 @@ const categoryGroupedOptions = computed<CategoryGroupOption[]>(() => toCategoryG
 const categoryOptions = computed<DropdownOption[]>(() => toCategoryOptions(categoryGroups.value))
 
 const inspectorFieldLabel = computed(() => (
-  '조사 수행자'
+  '조사 담당자'
 ))
 
 const inspectorRootOption = computed(() => (
-  '-- 조사 수행자 선택 --'
+  '-- 조사 담당자 선택 --'
 ))
 
 const inspectionModeHelpText = computed(() => {
   if (registerForm.inspectorType === 'ASSET_TEAM') {
-    return '자산팀이 전수조사 대상 자산을 직접 확인하고 처리합니다.'
+    return '선택한 조사 담당자가 전수조사 대상 자산을 직접 확인하고 후속처리합니다.'
   }
   if (registerForm.inspectorType === 'EMPLOYEE') {
-    return '선택한 조사 수행자가 조사를 관리하고, 실제 응답은 각 대상 자산의 소유자가 진행합니다.'
+    return '각 대상 자산의 소유자가 응답하고, 선택한 조사 담당자가 후속처리합니다.'
   }
 
   return ''
@@ -293,11 +293,7 @@ const inspectorOptions = computed<DropdownOption[]>(() => {
       return false
     }
 
-    if (registerForm.inspectorType === 'ASSET_TEAM') {
-      return role === 'ASSET_TEAM' || role === 'ASSET_MANAGER'
-    }
-
-    return role === 'EMPLOYEE'
+    return role === 'ASSET_TEAM' || role === 'ASSET_MANAGER'
   })
 
   return filteredMembers

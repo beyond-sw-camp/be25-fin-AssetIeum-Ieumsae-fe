@@ -38,7 +38,11 @@ const router = createRouter({
       path: '/mobile/inspections',
       name: 'MobileInspection',
       component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
-      meta: { requiresAuth: true, title: '모바일 자산 검수', roles: ['EMPLOYEE', 'ASSET_TEAM'] },
+      meta: {
+        requiresAuth: true,
+        title: '모바일 자산 검수',
+        roles: ['EMPLOYEE', 'ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'],
+      },
     },
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
     {
@@ -211,7 +215,7 @@ const router = createRouter({
               component: () => import('@/views/inspection/followup/MyInspectionFollowUpView.vue'),
               meta: {
                 title: '내 후속처리',
-                roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'],
+                roles: ['ASSET_TEAM', 'ASSET_MANAGER'],
               },
             },
           ],
@@ -360,6 +364,15 @@ router.beforeEach(async (to) => {
     return { name: 'SystemCompanies' }
   }
 
+  if (
+    to.name === 'MyInspectionFollowUp'
+    && (auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN')
+  ) {
+    return auth.currentRole === 'SUPER_ADMIN'
+      ? { name: 'SystemCompanies' }
+      : { name: 'Dashboard' }
+  }
+
   if (to.meta.roles && to.meta.roles.length > 0) {
     const canAccessAllPages = auth.currentRole === 'ADMIN'
     if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
@@ -380,7 +393,10 @@ function isMobileViewport() {
 }
 
 function canUseMobileInspectionRole(role: Role | null) {
-  return role === 'EMPLOYEE' || role === 'ASSET_TEAM'
+  return role === 'EMPLOYEE'
+    || role === 'ASSET_TEAM'
+    || role === 'ASSET_MANAGER'
+    || role === 'ADMIN'
 }
 
 export default router

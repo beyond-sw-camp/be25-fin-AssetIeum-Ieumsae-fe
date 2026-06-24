@@ -27,7 +27,6 @@ import {
   ShoppingCart,
   Wrench,
 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
 
 import type { TicketRequestKind } from '@/types'
 
@@ -107,12 +106,6 @@ const options: RequestGroupOption[] = [
     ],
   },
 ]
-
-const selectedGroupId = ref<RequestGroupId | ''>('')
-
-const selectedGroup = computed(() => (
-  options.find((option) => option.id === selectedGroupId.value)
-))
 
 const emit = defineEmits<{
   select: [kind: TicketRequestKind]

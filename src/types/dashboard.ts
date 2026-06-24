@@ -1,4 +1,5 @@
 import type { PageResponse } from './common'
+import type { BudgetHistoryType } from './budget'
 
 export interface TicketProgressSummary {
   waitingReceipt: number
