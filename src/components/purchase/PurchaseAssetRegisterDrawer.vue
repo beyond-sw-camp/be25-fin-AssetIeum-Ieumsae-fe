@@ -786,7 +786,6 @@ async function submitPurchasePlanAssets(
       purchaseDate: toLocalDateTime(commonForm.purchaseDate),
       purchasePrice: Number(commonForm.purchasePrice),
       purchaseVendor: commonForm.purchaseVendor,
-      licenseType: intangibleForm.licenseType,
       seatCount: Number(intangibleForm.seatCount) || 1,
       isAutoRenewal: intangibleForm.isAutoRenewal,
       billingCycle: intangibleForm.billingCycle || null,

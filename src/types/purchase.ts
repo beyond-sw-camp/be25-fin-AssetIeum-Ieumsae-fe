@@ -190,10 +190,10 @@ export interface PurchasePlanItemRegisterRequest {
 
 /** 구매 계획 자산 등록 요청 - 유형자산 */
 export interface PurchasePlanTangibleAssetRegisterRequest {
-  usageType: 'TEMPORARY' | 'PERMANENT'
-  assetUsageType: 'PERSONAL' | 'DEPARTMENT' | string
+  usageType?: 'TEMPORARY' | 'PERMANENT'
+  assetUsageType?: 'PERSONAL' | 'DEPARTMENT' | string
   serialNumbers: string[]
-  memberIds: (string | null)[]
+  memberIds?: (string | null)[]
   location: string
   purchaseDate: string
   purchasePrice: number
@@ -206,14 +206,13 @@ export interface PurchasePlanTangibleAssetRegisterRequest {
 
 /** 구매 계획 자산 등록 요청 - 무형자산 */
 export interface PurchasePlanIntangibleAssetRegisterRequest {
-  licenseCodes: string[]
-  memberIds: string[][]
+  licenseCodes?: string[]
+  memberIds?: string[][]
   purchaseDate: string
   purchasePrice: number
   purchaseVendor: string
-  licenseType: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
   seatCount: number
-  isAutoRenewal: boolean
+  isAutoRenewal: boolean | 0 | 1
   billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
   startedAt?: string | null
   expiredAt?: string | null

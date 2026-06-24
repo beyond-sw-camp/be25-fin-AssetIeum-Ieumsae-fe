@@ -277,6 +277,60 @@ function toNullableNumber(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : null
 }
 
+function compactPurchaseAssetRegisterBody<T extends Record<string, unknown>>(body: T) {
+  return Object.fromEntries(
+    Object.entries(body).filter(([, value]) => {
+      if (value === null || value === undefined || value === '') return false
+      if (Array.isArray(value) && value.length === 0) return false
+      return true
+    }),
+  )
+}
+
+function toTangibleAssetRegisterBody(data: PurchasePlanTangibleAssetRegisterRequest) {
+  const normalizedMemberIds = data.memberIds
+    ?.map((memberId) => typeof memberId === 'string' ? memberId.trim() : '')
+  const memberIds = normalizedMemberIds?.every(Boolean) ? normalizedMemberIds : undefined
+
+  return compactPurchaseAssetRegisterBody({
+    usageType: data.usageType,
+    assetUsageType: data.assetUsageType,
+    serialNumbers: data.serialNumbers.map((serialNumber) => serialNumber.trim()),
+    location: data.location,
+    purchaseDate: data.purchaseDate,
+    purchasePrice: data.purchasePrice,
+    purchaseVendor: data.purchaseVendor,
+    warrantyExpiredAt: data.warrantyExpiredAt,
+    memberIds,
+    departmentId: data.departmentId,
+    usedStartedAt: data.usedStartedAt,
+    returnDueDate: data.returnDueDate,
+  })
+}
+
+function toIntangibleAssetRegisterBody(data: PurchasePlanIntangibleAssetRegisterRequest) {
+  const licenseCodes = data.licenseCodes?.map((licenseCode) => licenseCode.trim()).filter(Boolean)
+  const normalizedMemberIds = data.memberIds
+    ?.map((rowMemberIds) => rowMemberIds.map((memberId) => memberId.trim()).filter(Boolean))
+  const memberIds = normalizedMemberIds?.every((rowMemberIds) => rowMemberIds.length > 0)
+    ? normalizedMemberIds
+    : undefined
+
+  return compactPurchaseAssetRegisterBody({
+    licenseCodes,
+    seatCount: data.seatCount,
+    isAutoRenewal: data.isAutoRenewal ? 1 : 0,
+    purchaseDate: data.purchaseDate,
+    purchasePrice: data.purchasePrice,
+    purchaseVendor: data.purchaseVendor,
+    memberIds,
+    departmentId: data.departmentId,
+    startedAt: data.startedAt,
+    expiredAt: data.expiredAt,
+    billingCycle: data.billingCycle,
+  })
+}
+
 function pickPlanItemCategory(item: PurchasePlanItemResponse) {
   return item.category
     ?? item.categoryName
@@ -464,9 +518,13 @@ export const purchaseApi = {
     data: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest,
   ) => {
     const assetPath = assetType === 'TANGIBLE' ? 'tangible-assets' : 'intangible-assets'
+    const body = assetType === 'TANGIBLE'
+      ? toTangibleAssetRegisterBody(data as PurchasePlanTangibleAssetRegisterRequest)
+      : toIntangibleAssetRegisterBody(data as PurchasePlanIntangibleAssetRegisterRequest)
+
     return api.post<Record<string, unknown>>(
       `/purchase-plans/${planId}/items/${itemId}/${assetPath}`,
-      data,
+      body,
     )
   },
 
