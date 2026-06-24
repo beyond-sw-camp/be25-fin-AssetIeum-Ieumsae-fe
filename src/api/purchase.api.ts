@@ -71,6 +71,11 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   purchasePlanItemNo?: number | string
   itemNo?: number | string
   id?: number | string
+  purchasePlanItemStatus?: string | null
+  purchase_plan_item_status?: string | null
+  itemStatus?: string | null
+  item_status?: string | null
+  status?: string | null
   unitPrice?: number
   estimatedAmount?: number
   actual_amount?: number | null
@@ -83,6 +88,8 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   assetRegisteredCount?: number | null
   registeredQuantity?: number | null
   registeredAssetQuantity?: number | null
+  ticketId?: number | string | null
+  ticket_id?: number | string | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
   requesterId?: number | string | null
@@ -176,11 +183,13 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     quantity,
     estimatedUnitPrice,
     totalAmount,
+    purchasePlanItemStatus: normalizePlanItemStatus(item),
     receivedAt: item.receivedAt ?? item.received_at ?? null,
     actualAmount,
     actualUnitPrice,
     isStandard: normalizePlanItemStandard(item),
     registeredCount: normalizeRegisteredAssetCount(item),
+    ticketId: item.ticketId ?? item.ticket_id ?? null,
     ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
     assignmentTargetMemberIds: normalizeAssignmentTargetMemberIds(item),
@@ -188,6 +197,16 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function normalizePlanItemStatus(item: PurchasePlanItemResponse) {
+  const status =
+    item.purchasePlanItemStatus
+    ?? item.purchase_plan_item_status
+    ?? item.itemStatus
+    ?? item.item_status
+    ?? item.status
+  return typeof status === 'string' ? status.trim() || null : null
 }
 
 function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
@@ -372,8 +391,7 @@ function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
 }
 
 function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
-  return item.itemId
-    ?? item.purchasePlanItemId
+  return item.purchasePlanItemId
     ?? item.purchasePlanItemDetailId
     ?? item.purchasePlanItemDetailID
     ?? item.purchase_plan_item_detail_id
@@ -385,14 +403,10 @@ function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
     ?? item.purchase_item_id
     ?? item.planItemId
     ?? item.plan_item_id
-    ?? item.purchaseRequestItemId
-    ?? item.purchase_request_item_id
-    ?? item.purchasePlanId
-    ?? item.purchaseId
-    ?? item.purchase_id
     ?? item.planPurchaseItemId
     ?? item.plan_purchase_item_id
     ?? item.purchasePlanItemNo
+    ?? item.itemId
     ?? item.itemNo
     ?? item.id
 }

@@ -501,6 +501,10 @@ const assignableMembers = computed(() => {
   return activeMembers.filter((member) => toNullableStringId(member.departmentId) === requestDeptId)
 })
 const ticketAssignmentTargetIds = computed(() => extractAssignmentTargetMemberIds(props.item))
+const hasLinkedTicket = computed(() => isLinkedTicketPurchaseItem(props.item))
+const defaultAssignmentMethod = computed<AssignmentMethod>(() => (
+  hasLinkedTicket.value ? 'DIRECT' : 'UNASSIGNED'
+))
 const assignmentCandidateMembers = computed<AssignmentCandidateMember[]>(() => {
   const ticketTargetMembers = ticketAssignmentTargetIds.value.map((memberId) => {
     const member = props.members.find((item) => String(item.memberId) === memberId)
@@ -569,7 +573,7 @@ function createRows(count: number): AssetRegisterRow[] {
   return Array.from({ length: count }, (_, index) => ({
     localId: `purchase-asset-${Date.now()}-${index}`,
     uniqueCode: '',
-    assignmentMethod: 'DIRECT',
+    assignmentMethod: defaultAssignmentMethod.value,
     memberId: '',
     memberIds: [],
     status: 'idle',
@@ -579,7 +583,7 @@ function createRows(count: number): AssetRegisterRow[] {
 
 function applyDefaultAssignments() {
   const defaultMemberIds = ticketAssignmentTargetIds.value.filter(isAssignableMemberId)
-  if (!defaultMemberIds.length) return
+  if (!hasLinkedTicket.value || !defaultMemberIds.length) return
 
   assetRows.value.forEach((row, index) => {
     if (row.assignmentMethod !== 'DIRECT' || row.memberIds.length > 0 || row.status === 'success') return
@@ -934,6 +938,24 @@ function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
       target.targetId,
     ]),
   ])
+}
+
+function isLinkedTicketPurchaseItem(item: PurchasePlanItem | null) {
+  if (!item) return false
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const ticketId = item.ticketId ?? item.ticket_id ?? rawItem.ticket_id
+  if (ticketId !== null && ticketId !== undefined && String(ticketId).trim()) return true
+
+  return Boolean(
+    item.ticketRequesterId
+      ?? rawItem.ticket_requester_id
+      ?? rawItem.purchaseRequestItemId
+      ?? rawItem.purchase_request_item_id
+      ?? rawItem.purchaseRequestId
+      ?? rawItem.purchase_request_id
+      ?? rawItem.requestTicketId
+      ?? rawItem.request_ticket_id,
+  )
 }
 
 function findAssignmentTargetInfo(item: PurchasePlanItem | null, memberId: string) {

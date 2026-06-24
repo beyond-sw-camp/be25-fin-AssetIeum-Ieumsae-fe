@@ -1328,6 +1328,7 @@ const isPlanItemRegisterDrawerOpen = ref(false);
 const planItemRegisterTarget = ref<PurchasePlanItem | null>(null);
 const isPlanItemRegistering = ref(false);
 const planItemRegisterError = ref("");
+const registeredPlanItemIds = ref<Set<string>>(new Set());
 const planItemRegisterForm = ref<PlanItemRegisterForm>({
   assetType: "TANGIBLE",
   categoryId: "",
@@ -2376,7 +2377,7 @@ function canConfirmDelivery(item: PurchasePlanItem) {
   if (
     !canChangeStatus.value ||
     getPurchasePlanItemId(item) == null ||
-    item.receivedAt
+    isPurchaseItemDeliverySettled(item)
   )
     return false;
   if (!selectedPlan.value) return false;
@@ -2389,15 +2390,23 @@ function canRegisterAssetFromItem(item: PurchasePlanItem) {
   if (!selectedPlan.value) return false;
   const registerableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
   return (
-    Boolean(item.receivedAt) &&
+    isPurchasePlanItemReceived(item) &&
     registerableStatuses.includes(displayPlanStatus(selectedPlan.value))
   );
 }
 
 function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
   if (item.receivedAt) return true;
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus === "RECEIVED" || itemStatus === "ASSET_REGISTERED") return true;
   if (!selectedPlan.value) return false;
   return displayPlanStatus(selectedPlan.value) === "COMPLETED";
+}
+
+function isPurchasePlanItemReceived(item: PurchasePlanItem) {
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus) return itemStatus === "RECEIVED";
+  return Boolean(item.receivedAt);
 }
 
 function isConfirmingPurchaseItem(item: PurchasePlanItem) {
@@ -2480,7 +2489,27 @@ function hasMappedAssetItem(item: PurchasePlanItem | null | undefined) {
 }
 
 function shouldRegisterPlanItemBeforeAsset(item: PurchasePlanItem | null | undefined) {
-  return isNonStandardPurchaseItem(item) && !hasMappedAssetItem(item);
+  return (
+    isNonStandardPurchaseItem(item) &&
+    !hasMappedAssetItem(item) &&
+    !isRegisteredPlanItem(item)
+  );
+}
+
+function isRegisteredPlanItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  const itemId = getPurchasePlanItemId(item);
+  if (itemId && registeredPlanItemIds.value.has(itemId)) return true;
+
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Boolean(
+    rawItem.isItemRegistered
+      ?? rawItem.itemRegistered
+      ?? rawItem.is_item_registered
+      ?? rawItem.item_registered
+      ?? rawItem.registeredAt
+      ?? rawItem.registered_at,
+  );
 }
 
 function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket) {
@@ -2569,8 +2598,7 @@ function toStandardIntangiblePurchaseItem(
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
   const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
-  const itemId = item?.itemId
-    ?? item?.purchasePlanItemId
+  const itemId = item?.purchasePlanItemId
     ?? item?.purchasePlanItemDetailId
     ?? item?.purchasePlanItemDetailID
     ?? item?.purchase_plan_item_detail_id
@@ -2582,19 +2610,31 @@ function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
     ?? item?.purchase_item_id
     ?? item?.planItemId
     ?? item?.plan_item_id
-    ?? item?.purchaseRequestItemId
-    ?? item?.purchase_request_item_id
     ?? item?.planPurchaseItemId
     ?? item?.plan_purchase_item_id
     ?? item?.purchasePlanItemNo
-    ?? item?.itemNo
     ?? rawItem?.purchasePlanDetailItemId
     ?? rawItem?.purchase_plan_detail_item_id
     ?? rawItem?.purchasePlanItemDetailNo
     ?? rawItem?.purchase_plan_item_detail_no
+    ?? item?.itemId
+    ?? item?.itemNo
     ?? item?.id;
   if (itemId === null || itemId === undefined) return null;
   const normalized = String(itemId).trim();
+  return normalized || null;
+}
+
+function getPurchasePlanItemStatus(item: PurchasePlanItem | null | undefined) {
+  const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
+  const status =
+    item?.purchasePlanItemStatus
+    ?? item?.purchase_plan_item_status
+    ?? item?.itemStatus
+    ?? item?.item_status
+    ?? rawItem?.status;
+  if (typeof status !== "string") return null;
+  const normalized = status.trim().toUpperCase();
   return normalized || null;
 }
 
@@ -2862,6 +2902,7 @@ async function submitPlanItemRegister() {
       isStandard: false,
     });
 
+    registeredPlanItemIds.value = new Set([...registeredPlanItemIds.value, String(itemId)]);
     isPlanItemRegisterDrawerOpen.value = false;
     planItemRegisterTarget.value = null;
     await fetchPlanDetail(planId);
