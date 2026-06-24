@@ -44,6 +44,7 @@ export interface TicketDetail {
   detailStatus?: string | null
   // TODO: API 명세/백엔드 확인 필요 - 구매 계획 기능 확정 후 실제 응답 필드명에 맞춰 정리
   linkedPurchaseId?: string | null
+  linkedPurchaseNo?: string | null
   linkedPurchasePlanId?: string | null
   purchasePlanId?: string | null
   linkedPurchasePlanNo?: string | null

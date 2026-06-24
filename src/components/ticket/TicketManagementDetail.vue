@@ -145,14 +145,15 @@
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
                     <dd class="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-text-main">
+                      <span v-if="!item.linkTo">{{ item.value }}</span>
                       <RouterLink
                         v-if="item.linkTo"
                         :to="item.linkTo"
-                        class="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                        class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
                       >
-                        {{ item.value }}
+                        <span>바로가기</span>
+                        <ChevronRight :size="12" />
                       </RouterLink>
-                      <span v-else>{{ item.value }}</span>
                       <button
                         v-if="item.actionLabel"
                         type="button"
@@ -600,6 +601,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  ChevronRight,
   PackageCheck,
   RefreshCw,
   ReceiptText,
@@ -1234,7 +1236,8 @@ const linkedPurchasePlanDisplayName = computed(() => {
   const detail = ticket.value
   if (!detail) return ''
 
-  return detail.linkedPurchasePlanNo
+  return detail.linkedPurchaseNo
+    ?? detail.linkedPurchasePlanNo
     ?? detail.purchasePlanNo
     ?? linkedPurchasePlanId.value
 })
