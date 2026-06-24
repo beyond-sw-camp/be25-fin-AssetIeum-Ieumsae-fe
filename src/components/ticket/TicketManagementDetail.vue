@@ -1336,6 +1336,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
   switch (ticket.value.ticketType) {
     case 'PURCHASE_REQUEST':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1345,6 +1347,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'RENTAL':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1353,6 +1357,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'MAINTENANCE_REQUEST':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'maintenanceReason', label: '요청 내용' },
@@ -1363,6 +1369,7 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
     case 'PURCHASE_RETURN':
       return [
         { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'assetStatus', label: '자산 상태' },
@@ -1370,6 +1377,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'RENTAL_EXTENSION':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'previousDueDate', label: '기존 반납 예정일' },
@@ -1380,6 +1389,7 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
     default:
       return [
         { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1399,6 +1409,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
 
   return [{
     assetType: assetTypeLabel(ticket.value.assetType),
+    requestedUsageType: requestedUsageTypeLabel(ticket.value.requestedUsageType),
     category: ticket.value.categoryName ?? '-',
     itemName: requestItemName(ticket.value),
     quantity: quantity === null || quantity === undefined ? '-' : String(quantity),
@@ -1436,6 +1447,7 @@ const requestDetailReason = computed<RequestDetailReason | null>(() => {
 function hasRequestDetailData(detail: TicketDetail): boolean {
   return [
     detail.assetType,
+    detail.requestedUsageType,
     detail.categoryName,
     detail.requestedItemName,
     detail.requestedItemDetail,
@@ -1482,6 +1494,12 @@ function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseA
 function assetTypeLabel(assetType: AssetType | null | undefined): string {
   if (assetType === 'TANGIBLE') return '유형자산'
   if (assetType === 'INTANGIBLE') return '무형자산'
+  return '-'
+}
+
+function requestedUsageTypeLabel(usageType: TicketDetail['requestedUsageType']): string {
+  if (usageType === 'DEPARTMENT') return '공용 자산'
+  if (usageType === 'PERSONAL') return '개인 자산'
   return '-'
 }
 

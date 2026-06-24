@@ -905,15 +905,11 @@ const showsAssetSearch = computed(() => (
 
 const requiresAssetSearchUsageType = computed(() => (
   selectedKind.value === 'RENTAL'
-  || (
-    selectedKind.value === 'STANDARD_ASSET_REQUEST'
-    && selectionAssetType.value === 'TANGIBLE'
-  )
+  || selectedKind.value === 'STANDARD_ASSET_REQUEST'
 ))
 
 const requiresPurchaseUsageType = computed(() => (
   showsPurchaseRequestAssetType.value
-  && form.assetType === 'TANGIBLE'
 ))
 
 const showsPurchaseQuantityAndPrice = computed(() => (
@@ -1141,12 +1137,10 @@ function toRequestedUsageType(
 }
 
 function requestedUsagePayload(
-  assetType: AssetType,
+  _assetType: AssetType,
   value: '' | 'DEPARTMENT' | RequestedUsageType,
 ) {
-  return assetType === 'TANGIBLE'
-    ? { requestedUsageType: toRequestedUsageType(value) }
-    : {}
+  return { requestedUsageType: toRequestedUsageType(value) }
 }
 
 const isFormValid = computed(() => {
