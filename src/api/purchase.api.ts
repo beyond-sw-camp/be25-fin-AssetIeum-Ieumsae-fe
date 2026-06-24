@@ -9,6 +9,7 @@ import type {
   PurchasePlanListFilter,
   PurchasePlanListItem,
   PurchasePlanPage,
+  PurchasePlanPurchaseResultRequest,
   PurchasePlanStatistics,
   PurchasePlanStatus,
   PurchasePlanStatusChangeRequest,
@@ -325,6 +326,20 @@ export const purchaseApi = {
 
   changePlanStatus: (planId: number | string, data: PurchasePlanStatusChangeRequest) =>
     api.patch<PurchasePlanDetail>(`/purchase-plans/${planId}/status`, data),
+
+  updatePurchaseResult: async (
+    planId: number | string,
+    data: PurchasePlanPurchaseResultRequest,
+  ) => {
+    const response = await api.patch<PurchasePlanDetail>(
+      `/purchase-plans/${planId}/purchase-result`,
+      data,
+    )
+    return {
+      ...response,
+      data: normalizePlanDetail(response.data as PurchasePlanDetailResponse),
+    }
+  },
 
   confirmDelivery: (planId: number | string, itemId: number | string) =>
     api.patch<PurchasePlanItem>(`/purchase-plans/${planId}/items/${itemId}/confirm`),

@@ -156,7 +156,10 @@ export interface PurchasePlanDetail {
 
 export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
-  actualAmount?: number
+}
+
+export interface PurchasePlanPurchaseResultRequest {
+  actualAmount: number
 }
 
 export interface PurchasePlanItemRegisterRequest {

@@ -1937,17 +1937,13 @@ function changeSelectedStatus() {
   void reviewPlan(nextStatus.value);
 }
 
-async function changeStatus(
-  status: PurchasePlanStatus,
-  data: { actualAmount?: number } = {},
-) {
+async function changeStatus(status: PurchasePlanStatus) {
   if (!selectedPlanId.value) return false;
   isStatusSaving.value = true;
 
   try {
     await purchaseApi.changePlanStatus(selectedPlanId.value, {
       status,
-      ...data,
     });
     nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
@@ -1981,14 +1977,31 @@ async function submitActualAmount() {
     actualAmountError.value = "실제 결제금액을 입력해주세요.";
     return;
   }
+  if (!selectedPlanId.value) return;
 
   actualAmountError.value = "";
   pendingReviewStatus.value = "DELIVERED";
-  const isChanged = await changeStatus("DELIVERED", { actualAmount });
-  pendingReviewStatus.value = null;
+  isStatusSaving.value = true;
 
-  if (isChanged) {
+  try {
+    await purchaseApi.updatePurchaseResult(selectedPlanId.value, {
+      actualAmount,
+    });
+    await purchaseApi.changePlanStatus(selectedPlanId.value, {
+      status: "DELIVERED",
+    });
+    nextStatus.value = "";
+    await fetchPlanDetail(selectedPlanId.value);
+    await refreshList();
     isActualAmountDrawerOpen.value = false;
+  } catch (error) {
+    detailError.value = getErrorMessage(
+      error,
+      "실제 결제금액 등록에 실패했습니다.",
+    );
+  } finally {
+    pendingReviewStatus.value = null;
+    isStatusSaving.value = false;
   }
 }
 
