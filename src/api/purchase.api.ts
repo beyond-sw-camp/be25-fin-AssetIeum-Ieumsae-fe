@@ -71,6 +71,11 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   id?: number | string
   unitPrice?: number
   estimatedAmount?: number
+  actual_amount?: number | null
+  actual_unit_price?: number | null
+  actualPrice?: number | null
+  purchasePrice?: number | null
+  received_at?: string | null
   registeredCount?: number | null
   registeredAssetCount?: number | null
   assetRegisteredCount?: number | null
@@ -90,6 +95,12 @@ type PurchasePlanListItemResponse = PurchasePlanListItem & {
   itemName?: string | null
   itemSummary?: string | null
   items?: PurchasePlanItemResponse[]
+}
+
+type PurchasePlanDetailResponse = PurchasePlanDetail & {
+  actual_amount?: number | null
+  received_at?: string | null
+  delivered_at?: string | null
 }
 
 function normalizePurchasePlanStatus(data: Record<string, unknown>): PurchasePlanStatus {
@@ -126,6 +137,13 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
   const estimatedUnitPrice = Number(item.estimatedUnitPrice ?? item.unitPrice ?? 0)
   const totalAmount = Number(item.totalAmount ?? item.estimatedAmount ?? estimatedUnitPrice * quantity)
   const itemId = pickPurchasePlanItemId(item)
+  const actualUnitPrice = toNullableNumber(
+    item.actualUnitPrice
+      ?? item.actual_unit_price
+      ?? item.actualPrice
+      ?? item.purchasePrice,
+  )
+  const actualAmount = toNullableNumber(item.actualAmount ?? item.actual_amount)
 
   return {
     ...item,
@@ -135,12 +153,21 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     quantity,
     estimatedUnitPrice,
     totalAmount,
+    receivedAt: item.receivedAt ?? item.received_at ?? null,
+    actualAmount,
+    actualUnitPrice,
     registeredCount: normalizeRegisteredAssetCount(item),
     ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function toNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
 }
 
 function pickPlanItemCategory(item: PurchasePlanItemResponse) {
@@ -197,13 +224,16 @@ function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
     ?? item.id
 }
 
-function normalizePlanDetail(data: PurchasePlanDetail): PurchasePlanDetail {
+function normalizePlanDetail(data: PurchasePlanDetailResponse): PurchasePlanDetail {
   const purchaseRequestStatus = normalizePurchasePlanStatus(data as unknown as Record<string, unknown>)
 
   return {
     ...data,
     purchaseRequestStatus,
     status: purchaseRequestStatus,
+    actualAmount: toNullableNumber(data.actualAmount ?? data.actual_amount),
+    receivedAt: data.receivedAt ?? data.received_at ?? null,
+    deliveredAt: data.deliveredAt ?? data.delivered_at ?? null,
     items: Array.isArray(data.items)
       ? data.items.map((item) => normalizePlanItem(item as PurchasePlanItemResponse))
       : [],

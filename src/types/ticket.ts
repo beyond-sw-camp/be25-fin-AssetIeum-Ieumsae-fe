@@ -174,6 +174,8 @@ export interface PurchasePlanCandidateTicket {
   quantity: number
   estimatedUnitPrice: number
   assetItemId?: string | number | null
+  tangibleAssetItemId?: string | number | null
+  intangibleAssetItemId?: string | number | null
   isStandard?: number | boolean | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null

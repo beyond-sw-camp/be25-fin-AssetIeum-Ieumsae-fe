@@ -28,7 +28,8 @@
             <SummaryItem label="미등록 수량" :value="`${remainingCount}개`" />
             <SummaryItem label="요청자" :value="plan?.requesterName ?? '-'" />
             <SummaryItem label="요청 부서" :value="requestDepartmentName" />
-            <SummaryItem label="납품 확인일" :value="formatDate(item?.receivedAt)" />
+            <SummaryItem label="납품 확인일" :value="formatDate(deliveryConfirmedAt)" />
+            <SummaryItem label="실제 집행 금액" :value="actualExecutionAmountText" />
             <SummaryItem label="예상 단가" :value="formatCurrency(item?.estimatedUnitPrice ?? 0)" />
           </div>
           <p class="text-xs text-text-muted">
@@ -455,6 +456,27 @@ const purchaseQuantity = computed(() => Math.max(0, Number(props.item?.quantity 
 const intangibleSeatCount = computed(() => Math.max(1, Number(intangibleForm.seatCount) || 1))
 const successCount = computed(() => assetRows.value.filter((row) => row.status === 'success').length)
 const remainingCount = computed(() => Math.max(0, purchaseQuantity.value - successCount.value))
+const deliveryConfirmedAt = computed(() => (
+  props.item?.receivedAt ?? props.plan?.receivedAt ?? props.plan?.deliveredAt ?? null
+))
+const actualExecutionAmount = computed(() => props.plan?.actualAmount ?? null)
+const actualExecutionAmountText = computed(() => (
+  actualExecutionAmount.value == null ? '-' : formatCurrency(actualExecutionAmount.value)
+))
+const defaultPurchasePrice = computed(() => {
+  if (props.item?.actualUnitPrice != null) return props.item.actualUnitPrice
+  if (props.item?.actualAmount != null && purchaseQuantity.value > 0) {
+    return Math.round(props.item.actualAmount / purchaseQuantity.value)
+  }
+  if (
+    actualExecutionAmount.value != null &&
+    props.plan?.items.length === 1 &&
+    purchaseQuantity.value > 0
+  ) {
+    return Math.round(actualExecutionAmount.value / purchaseQuantity.value)
+  }
+  return props.item?.estimatedUnitPrice ?? ''
+})
 const rowsToSubmit = computed(() => assetRows.value.filter((row) => row.status !== 'success'))
 const canSubmit = computed(() => Boolean(props.item) && rowsToSubmit.value.length > 0 && !isSubmitting.value)
 const submitButtonText = computed(() => (
@@ -500,11 +522,11 @@ watch(intangibleSeatCount, (seatCount) => {
 // ── 폼 초기화 ──────────────────────────────────────────────
 function resetForm() {
   errorMessage.value = ''
-  const purchaseDate = toDateInputValue(props.item?.receivedAt)
+  const purchaseDate = toDateInputValue(deliveryConfirmedAt.value)
 
   // 공통
   commonForm.purchaseDate = purchaseDate
-  commonForm.purchasePrice = props.item?.estimatedUnitPrice ?? ''
+  commonForm.purchasePrice = defaultPurchasePrice.value
   commonForm.purchaseVendor = ''
 
   // 유형자산

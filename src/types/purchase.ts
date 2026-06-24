@@ -131,6 +131,8 @@ export interface PurchasePlanItem {
   departmentId?: number | string | null
   departmentName?: string | null
   receivedAt?: string | null
+  actualAmount?: number | null
+  actualUnitPrice?: number | null
 }
 
 export type PurchasePlanItemDetailResponse = PurchasePlanItem
@@ -145,6 +147,8 @@ export interface PurchasePlanDetail {
   deletedAt?: string | null
   estimatedAmount: number
   actualAmount: number | null
+  receivedAt?: string | null
+  deliveredAt?: string | null
   requesterId?: number | string | null
   requesterName?: string | null
   items: PurchasePlanItem[]
@@ -152,6 +156,7 @@ export interface PurchasePlanDetail {
 
 export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
+  actualAmount?: number
 }
 
 export interface PurchasePlanItemRegisterRequest {

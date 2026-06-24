@@ -812,6 +812,53 @@
     </BaseDrawer>
 
     <!-- 자산 등록 패널 -->
+    <BaseDrawer
+      :is-open="isActualAmountDrawerOpen"
+      title="납품 확인"
+      panel-class="w-full max-w-md"
+      body-class="space-y-4 p-6"
+      @close="closeActualAmountDrawer"
+    >
+      <div class="space-y-4">
+        <p class="text-sm font-semibold text-text-sub">
+          실제 결제금액을 입력하면 납품 확인 상태로 변경됩니다.
+        </p>
+        <Input
+          id="purchase-actual-amount"
+          v-model="actualAmountInput"
+          type="number"
+          label="실제 결제금액"
+          required
+          placeholder="0"
+          :min="0"
+          :disabled="isStatusSaving"
+          :error="Boolean(actualAmountError)"
+          :error-message="actualAmountError"
+          @keydown.enter.prevent="submitActualAmount"
+        />
+      </div>
+
+      <template #footer>
+        <div class="grid grid-cols-2 gap-2">
+          <Button
+            class="w-full"
+            variant="outline"
+            :disabled="isStatusSaving"
+            @click="closeActualAmountDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            class="w-full"
+            :loading="isStatusSaving"
+            @click="submitActualAmount"
+          >
+            납품 확인
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <PurchaseAssetRegisterDrawer
       :is-open="isAssetRegisterDrawerOpen"
       :plan="selectedPlan"
@@ -1080,6 +1127,9 @@ const nextStatus = ref<PurchasePlanStatus | "">("");
 const isStatusSaving = ref(false);
 const pendingReviewStatus = ref<PurchasePlanStatus | null>(null);
 const isConfirmingItem = ref<number | string | null>(null);
+const isActualAmountDrawerOpen = ref(false);
+const actualAmountInput = ref("");
+const actualAmountError = ref("");
 
 const isCreateDrawerOpen = ref(false);
 const eligibleTickets = ref<EligibleTicket[]>([]);
@@ -1306,6 +1356,21 @@ const purchasePlanTitle = computed(() => {
 
 const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
 
+const selectedPlanDeliveryDate = computed(() => {
+  if (!selectedPlan.value) return null;
+  const itemDeliveryDates = selectedPlanItems.value
+    .map((item) => item.receivedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+
+  return (
+    selectedPlan.value.receivedAt ??
+    selectedPlan.value.deliveredAt ??
+    itemDeliveryDates.at(-1) ??
+    null
+  );
+});
+
 const hasTicketLinkedPlanItem = computed(() =>
   selectedPlanItems.value.some(
     (item) =>
@@ -1348,9 +1413,6 @@ const purchaseExecutionInfoItems = computed(() => {
     (sum, item) => sum + item.quantity,
     0,
   );
-  const deliveredCount = selectedPlanItems.value.filter(
-    (item) => item.receivedAt,
-  ).length;
   const standardCount = selectedPlanItems.value.filter(
     (item) => item.isStandard !== false,
   ).length;
@@ -1366,7 +1428,10 @@ const purchaseExecutionInfoItems = computed(() => {
     },
     { label: "실제 집행 금액", value: actualAmount },
     { label: "총 수량", value: `${totalQuantity}개` },
-    { label: "납품 확인", value: `${deliveredCount}건` },
+    {
+      label: "납품 확인일",
+      value: formatDateTime(selectedPlanDeliveryDate.value ?? ""),
+    },
     { label: "표준 품목", value: `${standardCount}건` },
     {
       label: "비표준 품목",
@@ -1820,6 +1885,11 @@ async function createPlan() {
 }
 
 async function reviewPlan(status: PurchasePlanStatus) {
+  if (status === "DELIVERED") {
+    openActualAmountDrawer();
+    return;
+  }
+
   pendingReviewStatus.value = status;
   await changeStatus(status);
   pendingReviewStatus.value = null;
@@ -1838,24 +1908,61 @@ async function handleFooterAction(action: FooterStatusAction) {
 
 function changeSelectedStatus() {
   if (!nextStatus.value) return;
-  changeStatus(nextStatus.value);
+  void reviewPlan(nextStatus.value);
 }
 
-async function changeStatus(status: PurchasePlanStatus) {
-  if (!selectedPlanId.value) return;
+async function changeStatus(
+  status: PurchasePlanStatus,
+  data: { actualAmount?: number } = {},
+) {
+  if (!selectedPlanId.value) return false;
   isStatusSaving.value = true;
 
   try {
     await purchaseApi.changePlanStatus(selectedPlanId.value, {
       status,
+      ...data,
     });
     nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
+    return true;
   } catch (error) {
     detailError.value = getErrorMessage(error, "상태 변경에 실패했습니다.");
+    return false;
   } finally {
     isStatusSaving.value = false;
+  }
+}
+
+function openActualAmountDrawer() {
+  actualAmountInput.value = String(
+    selectedPlan.value?.actualAmount ?? selectedPlan.value?.estimatedAmount ?? "",
+  );
+  actualAmountError.value = "";
+  isActualAmountDrawerOpen.value = true;
+}
+
+function closeActualAmountDrawer() {
+  if (isStatusSaving.value) return;
+  isActualAmountDrawerOpen.value = false;
+  actualAmountError.value = "";
+}
+
+async function submitActualAmount() {
+  const actualAmount = Number(actualAmountInput.value);
+  if (!Number.isFinite(actualAmount) || actualAmount <= 0) {
+    actualAmountError.value = "실제 결제금액을 입력해주세요.";
+    return;
+  }
+
+  actualAmountError.value = "";
+  pendingReviewStatus.value = "DELIVERED";
+  const isChanged = await changeStatus("DELIVERED", { actualAmount });
+  pendingReviewStatus.value = null;
+
+  if (isChanged) {
+    isActualAmountDrawerOpen.value = false;
   }
 }
 
