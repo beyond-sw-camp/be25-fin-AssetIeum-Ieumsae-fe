@@ -245,12 +245,18 @@ const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
 })
 
 async function fetchTickets() {
+  const currentMemberId = authStore.user?.memberId
+  if (!currentMemberId) {
+    tickets.value = []
+    isLoading.value = false
+    errorMessage.value = '현재 사용자 정보를 확인할 수 없어 나의 요청 목록을 불러올 수 없습니다.'
+    return
+  }
+
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    // TODO: 로그인 사용자 memberId는 UUID지만 명세의 requesterId는 integer다.
-    // 백엔드가 인증 사용자 범위로 목록을 제한하는지 확인 후 requesterId 전달 여부를 확정한다.
     const response = await ticketApi.getList({
       page: 0,
       size: 999,
@@ -259,9 +265,19 @@ async function fetchTickets() {
         ? 'PURCHASE_REQUEST'
         : filterForm.value.ticketType || undefined,
       keyword: appliedKeyword.value.trim() || undefined,
-      requesterId: authStore.user?.memberId,
+      requesterId: currentMemberId,
     })
-    tickets.value = response.data.content
+
+    const hasRequesterScope = response.data.content.some((ticket) => (
+      ticket.requesterId !== undefined && ticket.requesterId !== null
+    ))
+    const scopedTickets = response.data.content.filter((ticket) => (
+      ticket.requesterId !== undefined
+      && ticket.requesterId !== null
+      && String(ticket.requesterId) === currentMemberId
+    ))
+
+    tickets.value = hasRequesterScope ? scopedTickets : response.data.content
   } catch (error) {
     const isEmpty = error instanceof ApiError
       && error.status === 404
@@ -329,8 +345,12 @@ async function handleTicketCreated(ticket: TicketCreateResponse) {
   await fetchTickets()
 }
 
-function openTicketDetail(ticketId: TicketListItem['ticketId']) {
-  router.push({ name: 'TicketDetail', params: { ticketId } })
+function openTicketDetail(ticket: TicketListItem) {
+  router.push({
+    name: 'TicketDetail',
+    params: { ticketId: ticket.ticketId },
+    query: { ticketType: ticket.ticketType },
+  })
 }
 
 watch(totalPages, (nextTotalPages) => {

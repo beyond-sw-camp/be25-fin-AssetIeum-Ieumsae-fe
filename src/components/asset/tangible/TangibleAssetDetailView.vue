@@ -17,6 +17,16 @@
           </FormField>
           <Input id="edit-serialNo" v-model="assetEditForm.serialNo" label="시리얼 번호" disabled />
           <Input id="edit-assetUsageType" v-model="assetEditForm.assetUsageType" label="공용자산 여부" disabled />
+          <div>
+            <QrcodeVue
+              :value="assetEditForm.assetCode"
+              :size="80"
+              level="M"
+            />
+            <p class="mt-2 text-xs text-text-sub">
+              {{ assetEditForm.assetCode }}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -82,6 +92,7 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import QrcodeVue from 'qrcode.vue'
 import type {
   Department,
   Member,

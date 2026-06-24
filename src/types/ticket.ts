@@ -1,4 +1,4 @@
-import type { AssetType, Role, TicketType, TicketStatus } from './common'
+import type { AssetType, PageResponse, Role, TicketType, TicketStatus } from './common'
 
 // =====================================================
 // 티켓(Ticket) 공통 타입
@@ -24,6 +24,8 @@ export interface TicketListItem extends Record<string, unknown> {
   categoryName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
+  manufacturer?: string | null
+  modelName?: string | null
   quantity?: number | null
   expectedPrice?: number | null
   purchasePrice?: number | null
@@ -43,6 +45,8 @@ export interface TicketDetail {
   // TODO: API 명세/백엔드 확인 필요 - 구매 계획 기능 확정 후 실제 응답 필드명에 맞춰 정리
   linkedPurchasePlanId?: string | null
   purchasePlanId?: string | null
+  linkedPurchasePlanNo?: string | null
+  purchasePlanNo?: string | null
   purchaseId?: string | null
   requesterId: string | number
   requesterName: string
@@ -52,6 +56,8 @@ export interface TicketDetail {
   approverName: string | null
   assigneeId: string | number | null
   assigneeName: string | null
+  actions?: TicketActions | null
+  histories?: TicketHistory[] | null
   requestReason: string | null
   // TODO: API 명세/백엔드 확인 필요 - 티켓 상세 응답은 현재 공통 정보만 정의되어 있다.
   // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
@@ -63,6 +69,8 @@ export interface TicketDetail {
   requestedItemName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
+  manufacturer?: string | null
+  modelName?: string | null
   quantity?: number | null
   expectedPrice?: number | null
   actualAmount?: number | null
@@ -84,15 +92,22 @@ export interface TicketDetail {
   purchaseVendor?: string | null
   purchaseDate?: string | null
   serialNumber?: string | null
+  location?: string | null
   warrantyEndDate?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCode?: string | null
+  seatCount?: number | null
   isAutoRenewal?: boolean | null
   paymentCycle?: string | null
+  billingCycle?: string | null
   expirationDate?: string | null
   directPurchaseEvidenceFileName?: string | null
   directPurchaseEvidenceUploadedAt?: string | null
   directPurchaseEvidenceUrl?: string | null
+  directPurchaseConfirmationStatus?: string | null
   returnReason?: string | null
   returnResult?: string | null
+  returnProcessedAt?: string | null
   refundAmount?: number | null
   collectedAt?: string | null
   processedAt?: string | null
@@ -107,10 +122,32 @@ export interface TicketDetail {
   orderedAt?: string | null
   receivedAt?: string | null
   registeredAt?: string | null
+  assignedAt?: string | null
   completedAt: string | null
   canceledAt: string | null
   requestedAt: string
   updatedAt: string
+}
+
+export interface TicketActions {
+  canApproveDepartment?: boolean
+  canRejectDepartment?: boolean
+  canAssignAsset?: boolean
+  canApproveAsset?: boolean
+  canRejectAsset?: boolean
+  canChangeProcessingStatus?: boolean
+  canUpdateReturnDueDate?: boolean
+  canCollectAsset?: boolean
+  canCompleteReturn?: boolean
+}
+
+export interface TicketHistory {
+  status: TicketStatus
+  processedAt: string
+  rejectionReason?: string | null
+  reason?: string | null
+  comment?: string | null
+  memo?: string | null
 }
 
 export interface TicketListFilter {
@@ -177,36 +214,41 @@ export interface TicketCreateResponse {
 }
 
 export interface StandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   assetItemId: string
+  assignmentTargetMemberIds: string[]
   quantity: number
   requestReason: string
 }
 
 export interface NonStandardAssetRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   categoryId: string
+  assignmentTargetMemberIds: (string | null)[]
   requestedItemDetail: string
   manufacturer: string
   licenseType: string | null
   purchaseUrl: string
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }
 
 export interface DirectPurchaseRequestCreate {
-  requestedUsageType: RequestedUsageType
+  requestedUsageType?: RequestedUsageType
   assetType: AssetType
   isStandard: boolean
   assetItemId: string | null
+  assignmentTargetMemberIds: (string | null)[]
   categoryId: string | null
   requestedItemDetail: string | null
   manufacturer: string | null
   licenseType: string | null
   quantity: number
+  seatCount: number | null
   expectedPrice: number
   requestReason: string
 }
@@ -315,6 +357,92 @@ export interface AssetAssignRequest {
   returnDueDate?: string
 }
 
+export interface AssetRequestAssignRequest {
+  assetType: AssetType
+  itemId: string
+}
+
+export interface AssetRequestAssignableItem {
+  assetType?: AssetType
+  itemId?: string | number
+  assetItemId?: string | number
+  tangibleAssetItemId?: string | number
+  intangibleAssetItemId?: string | number
+  categoryId?: string | number
+  categoryName?: string | null
+  productName?: string | null
+  name?: string | null
+  itemIdentifier?: string | number | null
+  itemNo?: string | null
+  itemCode?: string | null
+  manufacturerOrProvider?: string | null
+  modelName?: string | null
+  licenseType?: string | null
+  isStandard?: boolean | number | null
+  requestedItem?: boolean
+  availableCount?: number | string | null
+  availableSeatCount?: number | string | null
+  remainingSeatCount?: number | string | null
+  remainingSeats?: number | string | null
+  availableSeats?: number | string | null
+  assignableSeatCount?: number | string | null
+  remainingAssignableCount?: number | string | null
+  remainingAssignableSeatCount?: number | string | null
+  availableUserCount?: number | string | null
+  remainingUserCount?: number | string | null
+  availableMemberCount?: number | string | null
+  remainingMemberCount?: number | string | null
+  availableAssignmentCount?: number | string | null
+  remainingAssignmentCount?: number | string | null
+  availableAssetCount?: number | string | null
+  assetCount?: number | string | null
+  stockCount?: number | string | null
+}
+
+export interface AssetRequestAssignableItemsResponse {
+  requestedItem?: AssetRequestAssignableItem | null
+  items: PageResponse<AssetRequestAssignableItem>
+}
+
+export interface RentalAssignableAsset {
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  status: string
+  location?: string | null
+  reservedAsset?: boolean
+}
+
+export interface RentalAssignableAssetsResponse {
+  requestedItem: {
+    itemId: string
+    name: string
+    manufacturer?: string | null
+  }
+  reservedAsset?: RentalAssignableAsset | null
+  assets: PageResponse<RentalAssignableAsset>
+}
+
+export interface RentalAssignRequest {
+  assetId: string
+}
+
+export interface RentalAssignResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  rentalStatus: string
+  requesterId: string
+  requesterName: string
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  itemId: string
+  itemName: string
+  rentalStartDate: string
+  requestedDueDate: string
+}
+
 export interface MaintenanceCollectResponse {
   ticketId: string
   tangibleAssetId: string | number
@@ -330,6 +458,17 @@ export interface AssetCollectResponse {
   ticketStatus?: string
   assetStatus: string
   collectedAt: string
+}
+
+export interface ReturnCompleteResponse {
+  ticketId: string | number
+  ticketNo?: string
+  ticketStatus: TicketStatus | string
+  detailStatus?: string
+  assetReturnStatus?: string
+  refundAmount?: number
+  returnProcessedAt?: string
+  completedAt: string
 }
 
 export interface MaintenanceCompleteRequest {
@@ -362,29 +501,71 @@ export interface TicketAssignMeResponse {
 }
 
 export interface RentalExtensionProcessRequest {
-  changedDueDate: string
+  changedDueDate?: string
+  returnDueDate?: string
 }
 
 export interface RentalExtensionProcessResponse {
   ticketId: string
+  ticketNo?: string
   assetId: string | null
-  changedDueDate: string
+  assetCode?: string
+  serialNumber?: string | null
+  changedDueDate?: string
+  previousReturnDueDate?: string
+  returnDueDate?: string
   ticketStatus: TicketStatus
+  rentalStatus?: string
   processedAt: string
   completedAt: string
 }
 
 export interface TicketActualAmountResponse {
   ticketId: string
+  ticketNo?: string
+  ticketType?: TicketType
+  ticketStatus?: TicketStatus
+  assetType?: AssetType
   expectedPrice: number
   actualPrice: number
+  actualAmount?: number
   priceDifference: number
   requiresReapproval: boolean
+  purchaseDate?: string | null
+  purchaseVendor?: string | null
+  serialNumbers?: string[] | null
+  serialNumber?: string | null
+  location?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCodes?: string[] | null
+  licenseCode?: string | null
+  seatCount?: number | null
+  isAutoRenewal?: boolean | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  billingCycle?: string | null
+  expectedTotalPrice?: number | null
+  proofFileUrl?: string | null
+  proofFileUploadedAt?: string | null
+  confirmationStatus?: string | null
   updatedAt: string
 }
 
 export interface DirectPurchasePaymentRequest {
   actualPrice: number
+  purchaseDate?: string | null
+  purchaseVendor?: string | null
+  serialNumbers?: string[] | null
+  serialNumber?: string | null
+  location?: string | null
+  warrantyExpiredAt?: string | null
+  licenseCodes?: string[] | null
+  licenseCode?: string | null
+  seatCount?: number | null
+  isAutoRenewal?: boolean | null
+  startedAt?: string | null
+  expiredAt?: string | null
+  billingCycle?: string | null
 }
 
 export interface TicketEvidenceUploadResponse {
@@ -392,6 +573,34 @@ export interface TicketEvidenceUploadResponse {
   directPurchaseEvidenceFileName?: string | null
   purchaseDate: string
   updatedAt: string
+}
+
+export interface DirectPurchaseAssetAssignRequest {
+  itemId?: string
+  assetItemId?: string
+  productName: string
+  manufacturer: string
+  modelName: string
+}
+
+export interface DirectPurchaseAssetAssignResponse {
+  ticketId: string
+  ticketNo: string
+  ticketStatus: TicketStatus
+  purchaseRequestStatus?: string
+  requesterId?: string
+  requesterName?: string
+  assetType?: AssetType
+  itemId?: string
+  itemName?: string
+  assetIds?: string[]
+  assetCodes?: string[]
+  assignmentIds?: string[]
+  assetId?: string
+  assetCode?: string
+  assignmentId?: string
+  actualPrice?: number
+  confirmationStatus?: string
 }
 
 // =====================================================

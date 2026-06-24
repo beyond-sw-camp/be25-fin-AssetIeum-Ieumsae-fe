@@ -455,7 +455,7 @@ const toLocalDateTimeRequestValue = (value: string) => {
 }
 
 const filteredMembers = computed(() => (
-  props.members.filter(memberBelongsToSelectedDepartment)
+  props.members.filter((member) => member.status === 'ACTIVE' && memberBelongsToSelectedDepartment(member))
 ))
 
 const selectedMembers = computed(() => (

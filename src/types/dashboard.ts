@@ -14,9 +14,47 @@ export interface OwnedAssetSummary {
   overdue: number
 }
 
+export interface RentalAssetSummary {
+  rentalScheduled: number
+  rented: number
+  overdue: number
+}
+
 export interface ExpiringAssetSummary {
   tangibleAssetCount: number
   intangibleAssetCount: number
+}
+
+export type OwnedAssetDetailStatus = 'UNASSIGNED' | 'RENTAL_SCHEDULED' | 'RENTED' | 'OVERDUE'
+
+export interface OwnedAssetDetail {
+  assetId: string
+  assetName: string
+  categoryName?: string | null
+  assetCode?: string | null
+  warrantyExpiredAt?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
+  renterId?: string | null
+  renterName?: string | null
+  usedStartedAt?: string | null
+  returnDueDate?: string | null
+  overdueDays?: number | null
+}
+
+export interface ExpiringAssetDetail {
+  assetType: 'TANGIBLE' | 'INTANGIBLE'
+  assetId: string
+  assetName: string
+  remainingDays: number
+  departmentId?: string | null
+  departmentName?: string | null
+  userId?: string | null
+  userName?: string | null
+  expiredAt: string
+  assetCode: string
+  manufacturer?: string | null
+  issuer?: string | null
 }
 
 export interface AssetDemand {
@@ -56,7 +94,6 @@ export interface DashboardLifecycleEvent {
   assetCode: string
   assetName: string
   dueAt: string | null
-  dday?: number | null
   dDay?: number | null
   status: string
 }
@@ -76,13 +113,38 @@ export interface DepartmentBudgetDetail {
   categoryUsages: BudgetCategoryUsage[]
 }
 
+export interface EmployeeDepartmentBudget {
+  departmentId: string
+  departmentName: string
+  totalAmount: number
+  usedAmount: number
+  remainingAmount: number
+  usageRate: number
+  remainingRate: number
+}
+
+export interface BudgetLedgerItem {
+  historyId: string
+  date: string
+  departmentId?: string | null
+  departmentName: string
+  type: string
+  historyType: BudgetHistoryType
+  usage: string
+  amount: number
+  balance: number
+  ticketId?: string | null
+  ticketNo?: string | null
+  purchasePlanId?: string | null
+  purchasePlanNo?: string | null
+}
+
 export interface HrLifecycleEvent {
   eventId: string
   eventType: string
   memberName: string
   departmentName: string
   eventDate: string
-  dday?: number
   dDay?: number
   status: string
 }

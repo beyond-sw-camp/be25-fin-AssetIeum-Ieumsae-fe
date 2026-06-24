@@ -401,7 +401,7 @@ const memberBelongsToSelectedDepartment = (member: Member) => {
 }
 
 const filteredMembers = computed(() => (
-  props.members.filter(memberBelongsToSelectedDepartment)
+  props.members.filter((member) => member.status === 'ACTIVE' && memberBelongsToSelectedDepartment(member))
 ))
 
 const memberOptions = computed(() => (

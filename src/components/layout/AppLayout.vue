@@ -93,7 +93,7 @@ const navItems = computed(() => {
       name: 'serviceDesk',
       label: '서비스 데스크',
       icon: Ticket,
-      show: canViewMyTickets.value,
+      show: canViewMyTickets.value || canManageTickets.value,
       children: [
         { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
         { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },

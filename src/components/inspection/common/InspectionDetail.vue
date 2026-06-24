@@ -159,7 +159,6 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
-import { usePermission } from '@/composables'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type { Member } from '@/types/member'
@@ -289,7 +288,7 @@ const resultRows = computed<ResultRow[]>(() => (
     followUpId: textValue(item.inspectionFollowUpId, item.followUpId),
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
-    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
+    memberName: item.memberName ?? '-',
     responseContent: item.userResponseContent ?? '',
     followUpRequired: item.followUpRequired,
     actionDetail: textValue(item.actionDetail),
@@ -411,7 +410,7 @@ function toFollowUpRow(item: InspectionFollowUpResponse, index: number) {
     inspectionResultId,
     productName: textValue(item.productName) || '-',
     assetCode: textValue(item.assetCode) || '-',
-    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
+    memberName: textValue(item.memberName) || '-',
     responseContent: textValue(item.responseContent),
     actionDetail: textValue(item.actionDetail),
     status: followUpStatusValue(item.status ?? item.followUpStatus ?? item.inspectionFollowUpStatus),
@@ -428,7 +427,7 @@ function toUninspectedRow(item: InspectionUninspectedAssetItem): UninspectedRow 
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
     category: item.category ?? '-',
-    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
+    memberName: item.memberName ?? '-',
   }
 }
 

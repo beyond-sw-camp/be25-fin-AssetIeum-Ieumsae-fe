@@ -528,13 +528,18 @@ async function handleSubmit() {
 }
 
 function handleDetectedCode(rawValue: string) {
-  const code = rawValue.trim()
-  const target = targets.value.find((item) => (
-    item.assetCode === code
-    || item.inspectionTargetId === code
-    || code.includes(item.assetCode)
-    || code.includes(item.inspectionTargetId)
-  ))
+  const scannedValues = extractScannedValues(rawValue)
+  const target = targets.value.find((item) => {
+    const candidateValues = [
+      item.assetId,
+      item.tangibleAssetId,
+      item.intangibleAssetId,
+      item.assetCode,
+      item.inspectionTargetId,
+    ].filter((value): value is string => Boolean(value))
+
+    return candidateValues.some((value) => scannedValues.has(value.trim()))
+  })
 
   if (!target) {
     isScannerOpen.value = false
@@ -545,6 +550,38 @@ function handleDetectedCode(rawValue: string) {
 
   selectTarget(target)
   isScannerOpen.value = false
+}
+
+function extractScannedValues(rawValue: string) {
+  const values = new Set<string>()
+  const trimmedValue = rawValue.trim()
+  if (!trimmedValue) return values
+
+  values.add(trimmedValue)
+
+  try {
+    values.add(decodeURIComponent(trimmedValue))
+  } catch {
+    // Keep the original value when it is not URI encoded.
+  }
+
+  try {
+    const url = new URL(trimmedValue)
+    for (const key of ['assetCode', 'assetId', 'tangibleAssetId', 'inspectionTargetId']) {
+      const value = url.searchParams.get(key)?.trim()
+      if (value) values.add(value)
+    }
+
+    url.pathname
+      .split('/')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .forEach((value) => values.add(value))
+  } catch {
+    // Plain asset codes are the current QR payload format.
+  }
+
+  return values
 }
 
 async function handleLogout() {

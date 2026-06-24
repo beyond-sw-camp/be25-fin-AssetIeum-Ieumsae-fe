@@ -780,7 +780,7 @@ const loadReferenceData = async () => {
   referenceDataPromise.value = (async () => {
     const [departmentResult, memberResult] = await Promise.allSettled([
       departmentApi.getList({ size: 999 }),
-      memberApi.getList({ size: 999 }),
+      memberApi.getList({ size: 999, status: 'ACTIVE' }),
     ])
 
     const failed = departmentResult.status === 'rejected' || memberResult.status === 'rejected'

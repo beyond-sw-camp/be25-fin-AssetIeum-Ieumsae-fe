@@ -16,69 +16,62 @@
         <div
           class="h-full rounded-full bg-primary"
           :style="{ width: `${clampPercent(budgetUsagePercent)}%` }"
-        ></div>
+        />
       </div>
     </div>
 
-    <div class="overflow-hidden rounded-xl border border-border bg-surface">
-      <table class="w-full table-fixed border-collapse text-sm">
-        <thead class="bg-surface-secondary text-text-main">
-          <tr class="border-b border-border">
-            <th class="px-6 py-5 text-center font-bold">부서</th>
-            <th class="px-6 py-5 text-center font-bold">예산(총액)</th>
-            <th class="px-6 py-5 text-center font-bold">사용 금액</th>
-            <th class="px-6 py-5 text-center font-bold">사용률</th>
-          </tr>
-        </thead>
+    <Table
+      :columns="budgetColumns"
+      :rows="budgetRows"
+      row-key="department"
+      empty-text="부서별 예산 정보가 없습니다."
+    >
+      <template #cell-department="{ value }">
+        <span class="font-bold text-text-main">{{ value }}</span>
+      </template>
 
-        <tbody>
-          <tr
-            v-for="budget in budgetRows"
-            :key="budget.department"
-            class="border-b border-border last:border-b-0"
-          >
-            <td class="px-6 py-5 text-center font-bold text-text-main">
-              {{ budget.department }}
-            </td>
-            <td class="px-6 py-5 text-center font-bold text-text-main">
-              {{ formatCurrency(budget.limit) }}
-            </td>
-            <td class="px-6 py-5 text-center font-bold text-text-main">
-              {{ formatCurrency(budget.used) }}
-            </td>
-            <td class="px-6 py-5">
-              <div class="flex items-center justify-center gap-3">
-                <span class="w-10 text-right text-sm font-semibold text-text-sub">
-                  {{ budget.percent }}%
-                </span>
-                <div class="h-2 w-24 overflow-hidden rounded-full bg-surface-secondary">
-                  <div
-                    class="h-full rounded-full bg-primary"
-                    :style="{ width: `${clampPercent(budget.percent)}%` }"
-                  ></div>
-                </div>
-              </div>
-            </td>
-          </tr>
+      <template #cell-limit="{ value }">
+        <span class="font-bold text-text-main">{{ formatCurrency(Number(value ?? 0)) }}</span>
+      </template>
 
-          <tr v-if="budgetRows.length === 0">
-            <td colspan="4" class="px-6 py-10 text-center text-sm text-text-sub">
-              부서별 예산 정보가 없습니다.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <template #cell-used="{ value }">
+        <span class="font-bold text-text-main">{{ formatCurrency(Number(value ?? 0)) }}</span>
+      </template>
+
+      <template #cell-percent="{ row }">
+        <div class="flex items-center justify-center gap-3">
+          <span class="w-10 text-right text-sm font-semibold text-text-sub">
+            {{ row.percent }}%
+          </span>
+          <div class="h-2 w-24 overflow-hidden rounded-full bg-surface-secondary">
+            <div
+              class="h-full rounded-full bg-primary"
+              :style="{ width: `${clampPercent(row.percent)}%` }"
+            />
+          </div>
+        </div>
+      </template>
+    </Table>
   </div>
 </template>
 
 <script setup lang="ts">
-export interface BudgetRow {
+import Table, { type Column } from '@/components/common/Table.vue'
+
+export interface BudgetRow extends Record<string, unknown> {
+  departmentId: string
   department: string
   limit: number
   used: number
   percent: number
 }
+
+const budgetColumns: Column<BudgetRow>[] = [
+  { key: 'department', label: '부서', width: '25%', align: 'center' },
+  { key: 'used', label: '사용 금액', width: '25%', align: 'center' },
+  { key: 'limit', label: '총 예산', width: '25%', align: 'center' },
+  { key: 'percent', label: '사용률', width: '25%', align: 'center' },
+]
 
 defineProps<{
   budgetRows: BudgetRow[]

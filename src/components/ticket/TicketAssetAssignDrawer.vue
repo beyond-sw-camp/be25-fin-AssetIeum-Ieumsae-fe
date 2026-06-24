@@ -14,7 +14,7 @@
         </p>
       </section>
 
-      <section v-if="suggestedItemOptions.length > 0" class="space-y-2">
+      <section v-if="ticket?.ticketType !== 'ASSET_REQUEST' && suggestedItemOptions.length > 0" class="space-y-2">
         <h3 class="text-sm font-semibold text-text-main">요청 품목</h3>
         <label
           v-for="item in suggestedItemOptions"
@@ -43,8 +43,8 @@
               {{ item.itemNo }} · {{ item.category || '-' }}
             </span>
           </span>
-          <span class="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-            사용가능 {{ item.availableCount }}개
+          <span :class="itemCountBadgeClass(item)">
+            {{ itemCountText(item) }}
           </span>
         </label>
       </section>
@@ -98,7 +98,120 @@
         {{ itemErrorMessage }}
       </div>
 
-      <div class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
+      <div v-if="ticket?.ticketType === 'ASSET_REQUEST'" class="rounded-xl border border-border p-3">
+        <div
+          v-if="isItemLoading"
+          class="flex h-40 items-center justify-center text-sm text-text-sub"
+        >
+          품목 목록을 불러오는 중입니다.
+        </div>
+
+        <div
+          v-else-if="!hasSearchedItems || itemOptions.length === 0"
+          class="space-y-2 p-6 text-center text-sm text-text-sub"
+        >
+          <p>{{ emptyItemTitle }}</p>
+          <p class="text-xs text-text-muted">
+            {{ emptyItemDescription }}
+          </p>
+        </div>
+
+        <div v-else class="grid gap-3 md:grid-cols-2">
+          <section class="min-w-0 space-y-2">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <h3 class="text-sm font-semibold text-text-main">표준 품목</h3>
+              <span class="text-xs font-medium text-text-muted">{{ standardItemOptions.length }}개</span>
+            </div>
+            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              <p
+                v-if="standardItemOptions.length === 0"
+                class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
+              >
+                조회된 표준 품목이 없습니다.
+              </p>
+              <label
+                v-for="item in standardItemOptions"
+                :key="`standard-${item.itemId}`"
+                :class="itemRowClass(item)"
+              >
+                <span class="group relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                  <input
+                    v-model="selectedItemId"
+                    type="radio"
+                    class="peer sr-only"
+                    name="assign-asset-item"
+                    :value="item.itemId"
+                    :disabled="isResolvingAssets || submitting"
+                  />
+                  <span
+                    class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+                  />
+                  <span
+                    class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+                  />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
+                  <span class="mt-1 block truncate text-xs leading-5 text-text-muted">
+                    {{ item.itemNo }} · {{ item.category || '-' }}
+                  </span>
+                </span>
+                <span :class="itemCountBadgeClass(item)">
+                  {{ itemCountText(item) }}
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="min-w-0 space-y-2">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <h3 class="text-sm font-semibold text-text-main">비표준 품목</h3>
+              <span class="text-xs font-medium text-text-muted">{{ nonStandardItemOptions.length }}개</span>
+            </div>
+            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              <p
+                v-if="nonStandardItemOptions.length === 0"
+                class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
+              >
+                조회된 비표준 품목이 없습니다.
+              </p>
+              <label
+                v-for="item in nonStandardItemOptions"
+                :key="`non-standard-${item.itemId}`"
+                :class="itemRowClass(item)"
+              >
+                <span class="group relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                  <input
+                    v-model="selectedItemId"
+                    type="radio"
+                    class="peer sr-only"
+                    name="assign-asset-item"
+                    :value="item.itemId"
+                    :disabled="isResolvingAssets || submitting"
+                  />
+                  <span
+                    class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+                  />
+                  <span
+                    class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+                  />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-text-main">{{ item.name }}</span>
+                  <span class="mt-1 block truncate text-xs leading-5 text-text-muted">
+                    {{ item.itemNo }} · {{ item.category || '-' }}
+                  </span>
+                </span>
+                <span :class="itemCountBadgeClass(item)">
+                  {{ itemCountText(item) }}
+                </span>
+              </label>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div v-else class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
         <h3 v-if="suggestedItemOptions.length > 0" class="px-1 pt-1 text-sm font-semibold text-text-main">
           검색 결과
         </h3>
@@ -148,8 +261,8 @@
                 {{ item.itemNo }} · {{ item.category || '-' }}
               </span>
             </span>
-            <span class="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-              사용가능 {{ item.availableCount }}개
+            <span :class="itemCountBadgeClass(item)">
+              {{ itemCountText(item) }}
             </span>
           </label>
         </template>
@@ -189,6 +302,7 @@ import {
   intangibleItemApi,
   tangibleAssetApi,
   tangibleItemApi,
+  ticketApi,
 } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
@@ -196,8 +310,10 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import { useNotificationStore } from '@/stores'
 import type {
   AssetType,
+  AssetRequestAssignableItem,
   DropdownOption,
   IntangibleItem,
+  RentalAssignableAsset,
   TangibleAsset,
   TangibleAssetItem,
   TicketDetail,
@@ -219,6 +335,10 @@ interface ItemOption {
   name: string
   category: string
   availableCount: number
+  availableCountLabel?: string
+  assetType?: AssetType
+  isStandard?: boolean
+  requestedItem?: boolean
 }
 
 interface TangibleItemAliases extends TangibleAssetItem {
@@ -229,6 +349,11 @@ const ASSET_TYPE_OPTIONS: DropdownOption[] = [
   { label: '유형 자산', value: 'TANGIBLE' },
   { label: '무형 자산', value: 'INTANGIBLE' },
 ]
+const LICENSE_TYPE_LABEL: Record<string, string> = {
+  SUBSCRIPTION: '구독형 (SaaS)',
+  PERPETUAL: '영구 라이선스',
+  TERM: '기간제 라이선스',
+}
 
 const props = defineProps<{
   isOpen: boolean
@@ -247,6 +372,7 @@ const selectedCategory = ref('')
 const keyword = ref('')
 const returnDueDate = ref('')
 const selectedItemId = ref('')
+const assetRequestItemOptions = ref<ItemOption[]>([])
 const tangibleItems = ref<TangibleAssetItem[]>([])
 const intangibleItems = ref<IntangibleItem[]>([])
 const tangibleCategoryOptions = ref<DropdownOption[]>([])
@@ -265,6 +391,9 @@ const requestedQuantity = computed(() => {
 })
 
 const itemOptions = computed<ItemOption[]>(() => (
+  props.ticket?.ticketType === 'ASSET_REQUEST'
+    ? assetRequestItemOptions.value
+    :
   assetType.value === 'TANGIBLE'
     ? tangibleItems.value.map(toTangibleItemOption).filter((item) => item.itemId)
     : intangibleItems.value.map(toIntangibleItemOption).filter((item) => item.itemId)
@@ -288,7 +417,19 @@ const visibleItemOptions = computed(() => (
   itemOptions.value.filter((item) => !isRequestedItem(item))
 ))
 
-const canSearchItems = computed(() => Boolean(selectedCategory.value || keyword.value.trim()))
+const standardItemOptions = computed(() => (
+  itemOptions.value.filter((item) => item.isStandard !== false)
+))
+
+const nonStandardItemOptions = computed(() => (
+  itemOptions.value.filter((item) => item.isStandard === false)
+))
+
+const canSearchItems = computed(() => (
+  props.ticket?.ticketType === 'ASSET_REQUEST'
+  || props.ticket?.ticketType === 'RENTAL'
+  || Boolean(selectedCategory.value || keyword.value.trim())
+))
 
 const emptyItemTitle = computed(() => {
   if (!hasSearchedItems.value) return '자산 분류를 선택하거나 품목명을 입력하고 조회를 눌러주세요.'
@@ -325,7 +466,7 @@ watch(() => props.isOpen, async (isOpen) => {
   selectedItemId.value = ''
   clearItems()
   await loadCategories()
-  if (keyword.value.trim()) {
+  if (props.ticket?.ticketType === 'ASSET_REQUEST' || props.ticket?.ticketType === 'RENTAL' || keyword.value.trim()) {
     await loadItems({ selectSuggested: true })
   }
 })
@@ -392,6 +533,50 @@ async function loadItems(options: { selectSuggested?: boolean } = {}) {
   hasSearchedItems.value = true
 
   try {
+    if (props.ticket?.ticketType === 'RENTAL') {
+      const response = await ticketApi.getRentalAssignableAssets(props.ticket.ticketId, {
+        page: 0,
+        size: 20,
+        keyword: keyword.value.trim() || undefined,
+      })
+      const requestedItem = response.data.requestedItem
+      const availableCount = [
+        response.data.reservedAsset?.assetId,
+        ...response.data.assets.content.map((asset) => asset.assetId),
+      ].filter(Boolean).length
+
+      tangibleItems.value = [{
+        assetItemId: requestedItem.itemId,
+        itemId: requestedItem.itemId,
+        itemNo: requestedItem.itemId,
+        name: requestedItem.name,
+        productName: requestedItem.name,
+        category: props.ticket.categoryName ?? '',
+        categoryName: props.ticket.categoryName ?? '',
+        manufacturer: requestedItem.manufacturer ?? '',
+        modelName: '',
+        vendor: '',
+        purchasePrice: 0,
+        stockCount: availableCount,
+        availableCount,
+      }]
+      return
+    }
+
+    if (props.ticket?.ticketType === 'ASSET_REQUEST') {
+      const response = await ticketApi.getAssetRequestAssignableItems(props.ticket.ticketId, {
+        assetType: assetType.value,
+        keyword: keyword.value.trim() || undefined,
+        page: 0,
+        size: 100,
+      })
+      assetRequestItemOptions.value = uniqueItemOptions([
+        ...(response.data.requestedItem ? [toAssetRequestItemOption(response.data.requestedItem)] : []),
+        ...response.data.items.content.map(toAssetRequestItemOption),
+      ]).filter((item) => item.itemId)
+      return
+    }
+
     if (assetType.value === 'TANGIBLE') {
       const response = await tangibleItemApi.getList({
         page: 0,
@@ -433,7 +618,7 @@ async function handleSubmit() {
 
   validationMessage.value = ''
   const item = selectedItem.value
-  if (item.availableCount < requestedQuantity.value) {
+  if (props.ticket.ticketType !== 'RENTAL' && item.availableCount < requestedQuantity.value) {
     showInsufficientQuantityToast(item.availableCount)
     return
   }
@@ -442,8 +627,11 @@ async function handleSubmit() {
   itemErrorMessage.value = ''
 
   try {
-    const assetIds = await loadAssignableAssetIds(item.itemId, requestedQuantity.value)
-    if (assetIds.length < requestedQuantity.value) {
+    const assetIds = props.ticket.ticketType === 'ASSET_REQUEST'
+      ? []
+      : await loadAssignableAssetIds(item.itemId, requestedQuantity.value)
+
+    if (props.ticket.ticketType !== 'ASSET_REQUEST' && assetIds.length < requestedQuantity.value) {
       showInsufficientQuantityToast(assetIds.length)
       return
     }
@@ -467,6 +655,24 @@ async function handleSubmit() {
 }
 
 async function loadAssignableAssetIds(itemId: string, quantity: number) {
+  if (props.ticket?.ticketType === 'RENTAL') {
+    const response = await ticketApi.getRentalAssignableAssets(props.ticket.ticketId, {
+      page: 0,
+      size: Math.max(quantity, 20),
+      keyword: keyword.value.trim() || undefined,
+    })
+    const reservedAssetId = response.data.reservedAsset?.assetId
+    const assetIds = response.data.assets.content
+      .filter((asset: RentalAssignableAsset) => asset.status === 'AVAILABLE' || asset.reservedAsset)
+      .map((asset) => asset.assetId)
+      .filter(Boolean)
+
+    return [
+      ...(reservedAssetId ? [reservedAssetId] : []),
+      ...assetIds.filter((assetId: string) => assetId !== reservedAssetId),
+    ].slice(0, quantity)
+  }
+
   if (assetType.value === 'TANGIBLE') {
     const response = await tangibleAssetApi.getList({
       page: 0,
@@ -491,17 +697,19 @@ async function loadAssignableAssetIds(itemId: string, quantity: number) {
 
   return response.data.content
     .filter((asset) => isAvailableAsset(asset.status ?? asset.intangibleAssetStatus))
-    .filter((asset) => asset.assetItemId === itemId)
+    .filter((asset) => getIntangibleAssetItemId(asset as unknown as Record<string, unknown>) === itemId)
     .map((asset) => asset.assetId)
     .filter(Boolean)
     .slice(0, quantity)
 }
 
 function showInsufficientQuantityToast(availableCount: number) {
-  notificationStore.warning('수량 부족', `요청 ${requestedQuantity.value}개, 사용가능 ${availableCount}개입니다.`)
+  const unit = selectedItem.value?.assetType === 'INTANGIBLE' ? '명' : '개'
+  notificationStore.warning('수량 부족', `요청 ${requestedQuantity.value}${unit}, 사용가능 ${availableCount}${unit}입니다.`)
 }
 
 function clearItems() {
+  assetRequestItemOptions.value = []
   tangibleItems.value = []
   intangibleItems.value = []
   hasSearchedItems.value = false
@@ -556,7 +764,22 @@ function itemRowClass(item: ItemOption) {
   ]
 }
 
+function itemCountBadgeClass(item: ItemOption) {
+  return [
+    'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
+    item.availableCount >= requestedQuantity.value
+      ? 'bg-primary/10 text-primary'
+      : 'bg-danger/10 text-danger',
+  ]
+}
+
+function itemCountText(item: ItemOption) {
+  return item.availableCountLabel ?? `남은 수량 ${item.availableCount}개`
+}
+
 function isRequestedItem(item: ItemOption) {
+  if (item.requestedItem) return true
+
   const requestedName = normalizeItemName(
     props.ticket?.requestedItemName
       ?? props.ticket?.requestedItemDetail
@@ -579,7 +802,7 @@ function normalizeItemName(value: string | null | undefined) {
 function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
   const aliases = item as TangibleItemAliases
   const itemId = String(item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId ?? '')
-  const availableCount = numberValue(item.availableCount)
+  const availableCount = availableItemCount(item)
 
   return {
     itemId,
@@ -587,20 +810,81 @@ function toTangibleItemOption(item: TangibleAssetItem): ItemOption {
     name: item.name ?? item.productName ?? aliases.assetName ?? item.itemCode ?? itemId,
     category: item.categoryName ?? item.category ?? '',
     availableCount,
+    assetType: 'TANGIBLE',
+    isStandard: isStandardValue(item.isStandard),
   }
 }
 
 function toIntangibleItemOption(item: IntangibleItem): ItemOption {
   const itemId = String(item.assetItemId ?? item.itemId ?? item.id ?? '')
-  const availableCount = numberValue(item.availableCount)
+  const availableCount = availableSeatCount(item)
 
   return {
     itemId,
     itemNo: itemId ? `SW-${itemId.padStart(4, '0')}` : '-',
     name: item.productName ?? itemId,
-    category: item.category ?? item.licenseType ?? '',
+    category: [item.category, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
     availableCount,
+    availableCountLabel: assignablePersonCountLabel(availableCount),
+    assetType: 'INTANGIBLE',
+    isStandard: isStandardValue(item.isStandard),
   }
+}
+
+function toAssetRequestItemOption(item: AssetRequestAssignableItem): ItemOption {
+  const itemId = String(
+    item.itemId
+      ?? item.assetItemId
+      ?? item.tangibleAssetItemId
+      ?? item.intangibleAssetItemId
+      ?? item.itemIdentifier
+      ?? '',
+  )
+
+  const itemAssetType = assetRequestItemAssetType(item)
+  const availableCount = itemAssetType === 'INTANGIBLE'
+    ? availableSeatCount(item)
+    : availableItemCount(item)
+
+  return {
+    itemId,
+    itemNo: String((item.itemIdentifier ?? item.itemNo ?? item.itemCode ?? itemId) || '-'),
+    name: String((item.productName ?? item.name ?? item.itemIdentifier ?? itemId) || '-'),
+    category: [item.categoryName, licenseTypeLabel(item.licenseType)].filter(Boolean).join(' · '),
+    availableCount,
+    availableCountLabel: itemAssetType === 'INTANGIBLE'
+      ? assignablePersonCountLabel(availableCount)
+      : undefined,
+    assetType: itemAssetType,
+    isStandard: isStandardValue(item.isStandard),
+    requestedItem: item.requestedItem,
+  }
+}
+
+function assetRequestItemAssetType(item: AssetRequestAssignableItem): AssetType {
+  if (item.assetType === 'INTANGIBLE' || item.assetType === 'TANGIBLE') return item.assetType
+  return item.intangibleAssetItemId || item.licenseType ? 'INTANGIBLE' : assetType.value
+}
+
+function licenseTypeLabel(value: string | null | undefined) {
+  if (!value) return ''
+  return LICENSE_TYPE_LABEL[value] ?? value
+}
+
+function isStandardValue(value: boolean | number | string | null | undefined) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') return value !== '0' && value.toLowerCase() !== 'false'
+  return true
+}
+
+function uniqueItemOptions(items: ItemOption[]) {
+  const itemMap = new Map<string, ItemOption>()
+  items.forEach((item) => {
+    if (!item.itemId || itemMap.has(item.itemId)) return
+    itemMap.set(item.itemId, item)
+  })
+  return [...itemMap.values()]
 }
 
 function getTangibleAssetId(asset: TangibleAsset) {
@@ -608,14 +892,105 @@ function getTangibleAssetId(asset: TangibleAsset) {
 }
 
 function getAssetItemId(asset: TangibleAsset) {
-  return String(asset.assetItemId ?? asset.tangibleItemId ?? asset.tangibleAssetItemId ?? '')
+  const assetRecord = asset as unknown as Record<string, unknown>
+  const assetItem = asRecord(assetRecord.assetItem)
+  const item = asRecord(assetRecord.item)
+  return String(
+    asset.assetItemId
+      ?? asset.tangibleItemId
+      ?? asset.tangibleAssetItemId
+      ?? assetRecord.itemId
+      ?? assetItem?.itemId
+      ?? assetItem?.assetItemId
+      ?? item?.itemId
+      ?? '',
+  )
+}
+
+function getIntangibleAssetItemId(asset: Record<string, unknown>) {
+  const assetItem = asRecord(asset.assetItem)
+  const item = asRecord(asset.item)
+  return String(
+    asset.assetItemId
+      ?? asset.itemId
+      ?? asset.intangibleItemId
+      ?? asset.intangibleAssetItemId
+      ?? assetItem?.itemId
+      ?? assetItem?.assetItemId
+      ?? item?.itemId
+      ?? '',
+  )
 }
 
 function isAvailableAsset(status: string | null | undefined) {
   return status === 'AVAILABLE'
 }
 
+function availableItemCount(item: object) {
+  const source = item as Record<string, unknown>
+  return numberValue(
+    source.availableCount
+      ?? source.availableAssetCount
+      ?? source.intangibleAssetCount
+      ?? source.totalAssetCount
+      ?? source.assetTotalCount
+      ?? source.assetCount
+      ?? source.stockCount
+      ?? source.count,
+  )
+}
+
+function availableSeatCount(item: object) {
+  const source = item as Record<string, unknown>
+  return numberValue(
+    source.availableSeatCount
+      ?? source.remainingSeatCount
+      ?? source.remainingSeats
+      ?? source.availableSeats
+      ?? source.assignableSeatCount
+      ?? source.remainingAssignableCount
+      ?? source.remainingAssignableSeatCount
+      ?? source.availableUserCount
+      ?? source.remainingUserCount
+      ?? source.availableMemberCount
+      ?? source.remainingMemberCount
+      ?? source.availableAssignmentCount
+      ?? source.remainingAssignmentCount
+      ?? source.available_seat_count
+      ?? source.remaining_seat_count
+      ?? source.available_user_count
+      ?? source.remaining_user_count
+      ?? source.available_member_count
+      ?? source.remaining_member_count
+      ?? source.available_assignment_count
+      ?? source.remaining_assignment_count
+      ?? source.availableCount
+      ?? source.availableAssetCount
+      ?? source.intangibleAssetCount
+      ?? source.totalAssetCount
+      ?? source.assetTotalCount
+      ?? source.assetCount
+      ?? source.stockCount
+      ?? source.count,
+  )
+}
+
+function assignablePersonCountLabel(count: number) {
+  return `할당 가능 ${count}명`
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
 function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
 }
 </script>

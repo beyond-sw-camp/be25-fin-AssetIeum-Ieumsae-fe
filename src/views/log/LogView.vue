@@ -9,11 +9,6 @@
           {{ currentTabLabel }}
         </h1>
       </div>
-
-      <Button variant="outline" size="md" disabled title="TODO: 로그 엑셀 다운로드 API 확정 후 연결">
-        <Download :size="18" />
-        엑셀 다운로드
-      </Button>
     </div>
 
     <div class="card mb-4 flex-1 min-h-0 flex flex-col border border-border overflow-visible relative z-10">
@@ -33,7 +28,7 @@
           <Dropdown
             v-model="filters.action"
             :options="actionFilterOptions"
-            class="w-40"
+            class="w-30!"
             menu-align="right"
           />
 
@@ -41,6 +36,7 @@
             id="log-keyword"
             v-model="filters.keyword"
             placeholder="로그 검색"
+            class="w-50!"
             autocomplete="off"
             @keyup.enter="handleSearch"
           />
@@ -122,10 +118,11 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { logApi } from '@/api/log.api'
+import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
@@ -222,6 +219,118 @@ const tabFromRoute = (): LogTab => (
   route.name === 'ActivityLog' ? 'activity' : 'audit'
 )
 
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
+
+function validSubjectId(subjectId: unknown) {
+  if (typeof subjectId !== 'string' || subjectId === EMPTY_UUID) return null
+  return subjectId
+}
+
+function pathUuid(path: string) {
+  return path.match(/[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}/)?.[0] ?? null
+}
+
+function logTargetPath(row: AuditLog | ActivityLog) {
+  const value = row.targetPath
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
+
+function logSubjectId(row: AuditLog | ActivityLog) {
+  return validSubjectId(row.subjectId)
+}
+
+function normalizeTargetPath(targetPath: string | null | undefined, subjectId: unknown) {
+  if (!targetPath) return null
+
+  const path = targetPath.replace(/^\/api\/v1/, '')
+  const id = pathUuid(path) ?? validSubjectId(subjectId)
+
+  if (path.startsWith('/assets/tangible')) return '/assets/tangible'
+  if (path.startsWith('/assets/intangible')) {
+    return id ? `/assets/intangible/${id}` : '/assets/intangible'
+  }
+  if (path.startsWith('/item/tangible')) return '/item/tangible'
+  if (path.startsWith('/item/intangible')) return '/item/intangible'
+  if (path.startsWith('/tickets')) return id ? `/tickets/${id}` : '/tickets'
+  if (path.startsWith('/members')) return '/members'
+  if (path.startsWith('/purchase')) return '/purchase'
+  if (path.startsWith('/hrworkflows')) return '/hrworkflows'
+  if (path.startsWith('/inspections/tangible')) return '/inspections/tangible'
+  if (path.startsWith('/inspections/intangible')) return '/inspections/intangible'
+
+  if (path.startsWith('/tangible-asset/assets') || path.startsWith('/tangible-assets')) {
+    return '/assets/tangible'
+  }
+  if (path.startsWith('/intangible-asset/assets') || path.startsWith('/intangible-assets')) {
+    return id ? `/assets/intangible/${id}` : '/assets/intangible'
+  }
+  if (path.startsWith('/tangible-asset/items')) return '/item/tangible'
+  if (path.startsWith('/intangible-asset/items')) return '/item/intangible'
+  if (path.startsWith('/tangible-asset/inspections')) return '/inspections/tangible'
+  if (path.startsWith('/intangible-asset/inspections')) return '/inspections/intangible'
+  if (path.startsWith('/purchase-plans')) return '/purchase'
+  if (path.startsWith('/departments')) return '/organization'
+  if (path.startsWith('/hr-events') || path.startsWith('/hr-')) return '/hrworkflows'
+
+  return null
+}
+
+function resolveTargetPath(subjectType: AuditLog['subjectType'] | ActivityLog['subjectType'], subjectId: unknown) {
+  const id = validSubjectId(subjectId)
+
+  if (subjectType === 'TANGIBLE_ASSET') return '/assets/tangible'
+  if (subjectType === 'INTANGIBLE_ASSET') return id ? `/assets/intangible/${id}` : '/assets/intangible'
+  if (subjectType === 'TANGIBLE_ASSET_ITEM') return '/item/tangible'
+  if (subjectType === 'INTANGIBLE_ASSET_ITEM') return '/item/intangible'
+  if (subjectType === 'TICKET') return id ? `/tickets/${id}` : '/tickets'
+  if (subjectType === 'MEMBER') return '/members'
+  if (subjectType === 'PURCHASE_PLAN') return '/purchase'
+  if (subjectType === 'HR_EVENT') return '/hrworkflows'
+
+  return null
+}
+
+async function enrichLogTargetPaths<T extends AuditLog | ActivityLog>(rows: T[]): Promise<T[]> {
+  const inspectionIds = new Set(
+    rows
+      .filter((row) => row.subjectType === 'INSPECTION' && !logTargetPath(row))
+      .map((row) => logSubjectId(row))
+      .filter((subjectId): subjectId is string => Boolean(subjectId)),
+  )
+  const inspectionPathById = new Map<string, string>()
+
+  if (inspectionIds.size > 0) {
+    const inspectionResults = await Promise.allSettled([
+      tangibleInspectionApi.getList({ page: 0, size: 1000 }),
+      intangibleInspectionApi.getList({ page: 0, size: 1000 }),
+    ])
+    inspectionResults.forEach((result, index) => {
+      if (result.status !== 'fulfilled') return
+      const targetPath = index === 0 ? '/inspections/tangible' : '/inspections/intangible'
+
+      result.value.data.content.forEach((inspection) => {
+        if (!inspection.inspectionId) return
+        inspectionPathById.set(String(inspection.inspectionId), targetPath)
+      })
+    })
+  }
+
+  return rows.map((row) => {
+    const subjectId = logSubjectId(row)
+    const inspectionPath = row.subjectType === 'INSPECTION' && subjectId
+      ? inspectionPathById.get(subjectId) ?? null
+      : null
+    const normalizedTargetPath = normalizeTargetPath(logTargetPath(row), subjectId)
+
+    return {
+      ...row,
+      targetPath: normalizedTargetPath
+        ?? inspectionPath
+        ?? resolveTargetPath(row.subjectType, subjectId),
+    } as T
+  })
+}
+
 const loadLogs = async () => {
   isLoading.value = true
   errorMessage.value = ''
@@ -229,14 +338,16 @@ const loadLogs = async () => {
   try {
     if (activeTab.value === 'audit') {
       const response = await logApi.getAuditLogs(requestParams())
-      auditRows.value = Array.isArray(response.data.content) ? response.data.content : []
+      const rows = Array.isArray(response.data.content) ? response.data.content : []
+      auditRows.value = await enrichLogTargetPaths(rows)
       totalElements.value = response.data.totalElements
       totalPages.value = response.data.totalPages
       return
     }
 
     const response = await logApi.getActivityLogs(requestParams())
-    activityRows.value = Array.isArray(response.data.content) ? response.data.content : []
+    const rows = Array.isArray(response.data.content) ? response.data.content : []
+    activityRows.value = await enrichLogTargetPaths(rows)
     totalElements.value = response.data.totalElements
     totalPages.value = response.data.totalPages
   } catch {
