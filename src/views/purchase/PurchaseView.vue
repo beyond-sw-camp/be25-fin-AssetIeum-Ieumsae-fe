@@ -1729,6 +1729,13 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
 
   if (!ticket.assetType) disabledReasons.push("자산 유형 없음");
   if (!estimatedUnitPrice) disabledReasons.push("예상 단가 없음");
+  if (
+    ticket.isStandard !== false &&
+    ticket.isStandard !== 0 &&
+    !assetItemIds.assetItemId
+  ) {
+    disabledReasons.push("자산 품목 ID 없음");
+  }
 
   return {
     ticketId: ticket.ticketId,
@@ -1853,9 +1860,6 @@ async function createPlan() {
       productName: item.itemName,
       assetType: item.assetType!,
       assetItemId: item.assetItemId,
-      tangibleAssetItemId: item.tangibleAssetItemId,
-      intangibleAssetItemId: item.intangibleAssetItemId,
-      categoryName: item.categoryName,
       quantity: item.quantity,
       isStandard: item.isStandard ? 1 : 0,
       estimatedUnitPrice: item.estimatedUnitPrice,
@@ -1870,8 +1874,6 @@ async function createPlan() {
         productName: item.itemName,
         assetType: item.assetType,
         assetItemId: null,
-        tangibleAssetItemId: null,
-        intangibleAssetItemId: null,
         quantity: item.quantity,
         isStandard: 0,
         estimatedUnitPrice: item.estimatedUnitPrice,
