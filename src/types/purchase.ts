@@ -150,7 +150,13 @@ export interface PurchasePlanItem {
     departmentName?: string | null
   }[]
   ticketDepartmentId?: number | string | null
+  ticket_department_id?: number | string | null
+  requestDepartmentId?: number | string | null
+  request_department_id?: number | string | null
   ticketDepartmentName?: string | null
+  ticket_department_name?: string | null
+  requestDepartmentName?: string | null
+  request_department_name?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
   receivedAt?: string | null

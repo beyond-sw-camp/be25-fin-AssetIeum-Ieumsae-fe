@@ -95,11 +95,21 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   requesterId?: number | string | null
   requesterName?: string | null
   ticketDepartmentId?: number | string | null
+  ticket_department_id?: number | string | null
+  requestDepartmentId?: number | string | null
+  request_department_id?: number | string | null
   ticketDepartmentName?: string | null
+  ticket_department_name?: string | null
+  requestDepartmentName?: string | null
+  request_department_name?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
   assignmentTargetMemberIds?: (number | string | null)[]
   assignment_target_member_ids?: (number | string | null)[]
+  assignmentTargetIds?: (number | string | null)[]
+  assignment_target_ids?: (number | string | null)[]
+  targetMemberIds?: (number | string | null)[]
+  target_member_ids?: (number | string | null)[]
   assigneeIds?: (number | string | null)[]
   assignee_ids?: (number | string | null)[]
   assignmentTargets?: unknown[]
@@ -194,8 +204,18 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
     assignmentTargetMemberIds: normalizeAssignmentTargetMemberIds(item),
     assignmentTargets: normalizeAssignmentTargets(item),
-    ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
-    ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
+    ticketDepartmentId: item.ticketDepartmentId
+      ?? item.ticket_department_id
+      ?? item.requestDepartmentId
+      ?? item.request_department_id
+      ?? item.departmentId
+      ?? null,
+    ticketDepartmentName: item.ticketDepartmentName
+      ?? item.ticket_department_name
+      ?? item.requestDepartmentName
+      ?? item.request_department_name
+      ?? item.departmentName
+      ?? null,
   }
 }
 
@@ -213,6 +233,10 @@ function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
   return uniqueNormalizedIds([
     ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
     ...(Array.isArray(item.assignment_target_member_ids) ? item.assignment_target_member_ids : []),
+    ...(Array.isArray(item.assignmentTargetIds) ? item.assignmentTargetIds : []),
+    ...(Array.isArray(item.assignment_target_ids) ? item.assignment_target_ids : []),
+    ...(Array.isArray(item.targetMemberIds) ? item.targetMemberIds : []),
+    ...(Array.isArray(item.target_member_ids) ? item.target_member_ids : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
     ...(Array.isArray(item.assignee_ids) ? item.assignee_ids : []),
     ...normalizeAssignmentTargets(item).flatMap((target) => [
@@ -243,21 +267,25 @@ function normalizeAssignmentTargets(item: PurchasePlanItemResponse): PurchasePla
     const record = target as Record<string, unknown>
     const memberId = normalizeId(
       record.memberId
+      ?? record.member_id
       ?? record.assigneeId
+      ?? record.assignee_id
       ?? record.targetMemberId
+      ?? record.target_member_id
       ?? record.targetId
+      ?? record.target_id
       ?? record.id,
     )
     return [{
-      targetId: normalizeId(record.targetId ?? record.id),
+      targetId: normalizeId(record.targetId ?? record.target_id ?? record.id),
       memberId,
-      assigneeId: normalizeId(record.assigneeId),
-      targetMemberId: normalizeId(record.targetMemberId),
+      assigneeId: normalizeId(record.assigneeId ?? record.assignee_id),
+      targetMemberId: normalizeId(record.targetMemberId ?? record.target_member_id),
       name: normalizeString(record.name),
-      memberName: normalizeString(record.memberName ?? record.targetName),
-      assigneeName: normalizeString(record.assigneeName),
-      departmentId: normalizeId(record.departmentId),
-      departmentName: normalizeString(record.departmentName),
+      memberName: normalizeString(record.memberName ?? record.member_name ?? record.targetName ?? record.target_name),
+      assigneeName: normalizeString(record.assigneeName ?? record.assignee_name),
+      departmentId: normalizeId(record.departmentId ?? record.department_id),
+      departmentName: normalizeString(record.departmentName ?? record.department_name),
     }]
   })
 }

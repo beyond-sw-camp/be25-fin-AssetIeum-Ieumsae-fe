@@ -1841,18 +1841,10 @@ async function fetchPurchaseCategoryOptions() {
 
 async function fetchAssetRegisterReferenceData() {
   try {
-    const [departmentResult, memberResult] = await Promise.allSettled([
-      departmentApi.getList({ size: 999 }),
-      memberApi.getList({ size: 999, status: "ACTIVE" }),
-    ]);
+    const departmentResult = await departmentApi.getList({ size: 999 });
 
-    if (departmentResult.status === "fulfilled") {
-      departments.value = departmentResult.value.data.content;
-    }
-
-    if (memberResult.status === "fulfilled") {
-      members.value = memberResult.value.data.content;
-    }
+    departments.value = departmentResult.data.content;
+    members.value = [];
   } catch {
     departments.value = [];
     members.value = [];

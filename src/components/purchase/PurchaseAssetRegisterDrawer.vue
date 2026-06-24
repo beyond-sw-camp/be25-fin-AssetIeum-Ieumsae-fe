@@ -14,7 +14,7 @@
           {{ item?.itemName ?? '구매 품목' }}
         </h2>
         <p class="mt-1 text-sm text-text-sub">
-          {{ item?.category || item?.categoryName || '-' }} · 납품 확인 후 자산 등록
+          {{ item?.category || item?.categoryName || '-' }}
         </p>
       </div>
 
@@ -268,6 +268,9 @@
                           </span>
                         </button>
                       </div>
+                      <p v-else-if="isDepartmentMembersLoading" class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
+                        부서 멤버를 조회하고 있습니다.
+                      </p>
                       <p v-else class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
                         선택 가능한 자산 할당자가 없습니다.
                       </p>
@@ -327,7 +330,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 
-import { ApiError, purchaseApi } from '@/api'
+import { ApiError, memberApi, purchaseApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
@@ -425,6 +428,9 @@ const ASSIGNMENT_METHOD_OPTIONS: DropdownOption[] = [
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const assetRows = ref<AssetRegisterRow[]>([])
+const departmentAssignableMembers = ref<Member[]>([])
+const isDepartmentMembersLoading = ref(false)
+let departmentMemberFetchSeq = 0
 
 const commonForm = reactive({
   purchaseDate: '',
@@ -489,16 +495,18 @@ const requester = computed(() => {
   return props.members.find((member) => String(member.memberId) === String(requesterId)) ?? null
 })
 const requestDepartmentId = computed(() => (
-  props.item?.ticketDepartmentId ?? props.item?.departmentId ?? requester.value?.departmentId ?? ''
+  resolveTicketRequestDepartmentId(props.item) ?? requester.value?.departmentId ?? ''
 ))
 const requestDepartmentName = computed(() => (
-  props.item?.ticketDepartmentName ?? props.item?.departmentName ?? requester.value?.departmentName ?? '-'
+  resolveTicketRequestDepartmentName(props.item) ?? requester.value?.departmentName ?? '-'
 ))
 const assignableMembers = computed(() => {
-  const activeMembers = props.members.filter((member) => !member.status || member.status === 'ACTIVE')
   const requestDeptId = toNullableStringId(requestDepartmentId.value)
   if (!requestDeptId) return []
-  return activeMembers.filter((member) => toNullableStringId(member.departmentId) === requestDeptId)
+  return departmentAssignableMembers.value.filter((member) => (
+    (!member.status || member.status === 'ACTIVE')
+    && resolveMemberDepartmentId(member) === requestDeptId
+  ))
 })
 const ticketAssignmentTargetIds = computed(() => extractAssignmentTargetMemberIds(props.item))
 const hasLinkedTicket = computed(() => isLinkedTicketPurchaseItem(props.item))
@@ -506,29 +514,35 @@ const defaultAssignmentMethod = computed<AssignmentMethod>(() => (
   hasLinkedTicket.value ? 'DIRECT' : 'UNASSIGNED'
 ))
 const assignmentCandidateMembers = computed<AssignmentCandidateMember[]>(() => {
-  const ticketTargetMembers = ticketAssignmentTargetIds.value.map((memberId) => {
+  const departmentMembers = assignableMembers.value.map(toAssignmentCandidateMember)
+  const missingTargetMembers = ticketAssignmentTargetIds.value.flatMap((memberId) => {
+    if (departmentMembers.some((member) => member.memberId === memberId)) return []
     const member = props.members.find((item) => String(item.memberId) === memberId)
-    if (member) return toAssignmentCandidateMember(member)
+    if (member) return [toAssignmentCandidateMember(member)]
     const target = findAssignmentTargetInfo(props.item, memberId)
-    return {
+    return [{
       memberId,
       memberNo: null,
       name: target?.name || memberId,
       departmentId: target?.departmentId ?? null,
       departmentName: target?.departmentName ?? null,
-    }
+    }]
   })
 
-  const candidateMembers = ticketTargetMembers.length > 0
-    ? ticketTargetMembers
-    : assignableMembers.value.map(toAssignmentCandidateMember)
-
-  return uniqueAssignmentCandidates(candidateMembers)
+  return uniqueAssignmentCandidates([...departmentMembers, ...missingTargetMembers])
 })
 
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) resetForm()
 })
+
+watch(
+  () => [props.isOpen, requestDepartmentId.value] as const,
+  ([isOpen, departmentId]) => {
+    if (!isOpen) return
+    void fetchDepartmentAssignableMembers(toNullableStringId(departmentId))
+  },
+)
 
 watch(assignmentCandidateMembers, () => {
   if (!props.isOpen) return
@@ -567,6 +581,62 @@ function resetForm() {
 
   assetRows.value = createRows(purchaseQuantity.value)
   applyDefaultAssignments()
+}
+
+async function fetchDepartmentAssignableMembers(departmentId: string | null) {
+  const fetchSeq = ++departmentMemberFetchSeq
+  departmentAssignableMembers.value = []
+  if (!departmentId) return
+
+  isDepartmentMembersLoading.value = true
+  try {
+    const firstResponse = await memberApi.getList({
+      page: 0,
+      size: 200,
+      status: 'ACTIVE',
+      departmentId,
+    })
+    if (fetchSeq !== departmentMemberFetchSeq) return
+
+    const firstPage = firstResponse.data
+    const totalPages = Math.max(1, Number(firstPage.totalPages || 1))
+    const memberMap = new Map<string, Member>()
+
+    firstPage.content.forEach((member) => {
+      memberMap.set(String(member.memberId), member)
+    })
+
+    if (totalPages > 1) {
+      const restResponses = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, index) =>
+          memberApi.getList({
+            page: index + 1,
+            size: firstPage.size || 200,
+            status: 'ACTIVE',
+            departmentId,
+          }),
+        ),
+      )
+      if (fetchSeq !== departmentMemberFetchSeq) return
+
+      restResponses.forEach((response) => {
+        response.data.content.forEach((member) => {
+          memberMap.set(String(member.memberId), member)
+        })
+      })
+    }
+
+    departmentAssignableMembers.value = Array.from(memberMap.values())
+    applyDefaultAssignments()
+  } catch {
+    if (fetchSeq === departmentMemberFetchSeq) {
+      departmentAssignableMembers.value = []
+    }
+  } finally {
+    if (fetchSeq === departmentMemberFetchSeq) {
+      isDepartmentMembersLoading.value = false
+    }
+  }
 }
 
 function createRows(count: number): AssetRegisterRow[] {
@@ -902,10 +972,36 @@ function toAssignmentCandidateMember(member: Member): AssignmentCandidateMember 
   return {
     memberId: String(member.memberId),
     memberNo: member.memberNo ?? null,
-    name: member.name || String(member.memberId),
-    departmentId: toNullableStringId(member.departmentId),
-    departmentName: member.departmentName || null,
+    name: resolveMemberName(member),
+    departmentId: resolveMemberDepartmentId(member),
+    departmentName: resolveMemberDepartmentName(member),
   }
+}
+
+function resolveMemberName(member: Member) {
+  const rawMember = member as Member & Record<string, unknown>
+  const name = member.name ?? rawMember.memberName ?? rawMember.member_name
+  return typeof name === 'string' && name.trim() ? name.trim() : String(member.memberId)
+}
+
+function resolveMemberDepartmentId(member: Member) {
+  const rawMember = member as Member & Record<string, unknown>
+  return toNullableStringId(
+    member.departmentId
+      ?? rawMember.department_id
+      ?? rawMember.department?.departmentId
+      ?? rawMember.department?.id,
+  )
+}
+
+function resolveMemberDepartmentName(member: Member) {
+  const rawMember = member as Member & Record<string, unknown>
+  const name =
+    member.departmentName
+    ?? rawMember.department_name
+    ?? rawMember.department?.departmentName
+    ?? rawMember.department?.name
+  return typeof name === 'string' && name.trim() ? name.trim() : null
 }
 
 function uniqueAssignmentCandidates(members: AssignmentCandidateMember[]) {
@@ -917,6 +1013,38 @@ function uniqueAssignmentCandidates(members: AssignmentCandidateMember[]) {
   return Array.from(memberMap.values())
 }
 
+function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
+  if (!item) return null
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  return toNullableStringId(
+    item.ticketDepartmentId
+      ?? item.ticket_department_id
+      ?? item.requestDepartmentId
+      ?? item.request_department_id
+      ?? rawItem.ticketDepartment?.departmentId
+      ?? rawItem.ticketDepartment?.id
+      ?? rawItem.requestDepartment?.departmentId
+      ?? rawItem.requestDepartment?.id
+      ?? item.departmentId,
+  )
+}
+
+function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
+  if (!item) return null
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const name =
+    item.ticketDepartmentName
+    ?? item.ticket_department_name
+    ?? item.requestDepartmentName
+    ?? item.request_department_name
+    ?? rawItem.ticketDepartment?.departmentName
+    ?? rawItem.ticketDepartment?.name
+    ?? rawItem.requestDepartment?.departmentName
+    ?? rawItem.requestDepartment?.name
+    ?? item.departmentName
+  return typeof name === 'string' && name.trim() ? name.trim() : null
+}
+
 function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
   if (!item) return []
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
@@ -924,9 +1052,15 @@ function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
     ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
     ...(Array.isArray(rawItem.assignment_target_member_ids) ? rawItem.assignment_target_member_ids : []),
+    ...(Array.isArray(rawItem.assignmentTargetIds) ? rawItem.assignmentTargetIds : []),
+    ...(Array.isArray(rawItem.assignment_target_ids) ? rawItem.assignment_target_ids : []),
+    ...(Array.isArray(rawItem.targetMemberIds) ? rawItem.targetMemberIds : []),
+    ...(Array.isArray(rawItem.target_member_ids) ? rawItem.target_member_ids : []),
     ...(Array.isArray(rawItem.assignee_ids) ? rawItem.assignee_ids : []),
     rawItem.assignmentTargetMemberId,
     rawItem.assignment_target_member_id,
+    rawItem.assignmentTargetId,
+    rawItem.assignment_target_id,
     rawItem.assigneeId,
     rawItem.assignee_id,
     rawItem.targetMemberId,
@@ -985,11 +1119,20 @@ function extractAssignmentTargetRecords(item: PurchasePlanItem | null): Assignme
 
     const record = target as Record<string, unknown>
     return [{
-      targetId: toNullableStringId(record.targetId ?? record.id),
+      targetId: toNullableStringId(record.targetId ?? record.target_id ?? record.id),
       memberId: toNullableStringId(record.memberId ?? record.member_id),
       assigneeId: toNullableStringId(record.assigneeId ?? record.assignee_id),
       targetMemberId: toNullableStringId(record.targetMemberId ?? record.target_member_id),
-      name: String(record.name ?? record.memberName ?? record.assigneeName ?? record.targetName ?? '').trim() || null,
+      name: String(
+        record.name
+          ?? record.memberName
+          ?? record.member_name
+          ?? record.assigneeName
+          ?? record.assignee_name
+          ?? record.targetName
+          ?? record.target_name
+          ?? '',
+      ).trim() || null,
       departmentId: toNullableStringId(record.departmentId ?? record.department_id),
       departmentName: String(record.departmentName ?? record.department_name ?? '').trim() || null,
     }]
