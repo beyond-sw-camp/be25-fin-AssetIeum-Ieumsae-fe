@@ -24,13 +24,13 @@
         <HoldingAssetCard
           :title="holdingAssetCardTitle"
           :segments="holdingAssetSegments"
-          :interactive="isAssetOperator"
+          :interactive="canViewAssetDetails"
           @click="openAssetDrawer('holding')"
         />
         <ExpiringAssetCard
           :tangible-count="expiringSummary.tangibleAssetCount"
           :intangible-count="expiringSummary.intangibleAssetCount"
-          :interactive="isAssetOperator"
+          :interactive="canViewAssetDetails"
           @click="openAssetDrawer('expiring')"
           @click-tangible="openAssetDrawer('expiring-tangible')"
           @click-intangible="openAssetDrawer('expiring-intangible')"
@@ -45,8 +45,7 @@
         <DepartmentBudgetSummaryCard
           v-if="isDepartmentManager || isEmployee"
           :summary="departmentBudget"
-          :interactive="isDepartmentManager"
-          @click="openDepartmentBudgetDrawer(auth.user?.departmentId, departmentBudget.departmentName)"
+          :interactive="false"
         />
         <DepartmentBudgetCard
           v-else
@@ -54,14 +53,18 @@
           :total-budget-used="totalBudgetUsed"
           :total-budget-limit="totalBudgetLimit"
           :budget-usage-percent="budgetUsagePercent"
-          @select-department="openDepartmentBudgetDrawer($event.departmentId, $event.department)"
         />
+      </section>
+
+      <section v-if="isAssetOperator" class="mb-4">
+        <BudgetHistoryTableCard :departments="budgetHistoryDepartments" />
       </section>
 
       <section v-if="isDepartmentManager || isAssetOperator" class="mb-4">
         <DepartmentLifecycleCard
           :events="departmentHrEvents"
           :statistics="departmentHrStatistics"
+          :department-manager="isDepartmentManager"
         />
       </section>
     </main>
@@ -70,14 +73,10 @@
       :is-open="assetDrawerMode !== null"
       :mode="assetDrawerMode ?? 'owned'"
       :initial-asset-type="assetDrawerType"
+      :initial-owned-status="holdingInitialStatus"
+      :show-unassigned="isAssetOperator"
+      :department-id="assetDetailDepartmentId"
       @close="assetDrawerMode = null"
-    />
-
-    <DashboardBudgetDetailDrawer
-      :is-open="budgetDrawerDepartmentId !== null"
-      :department-id="budgetDrawerDepartmentId ?? undefined"
-      :department-name="budgetDrawerDepartmentName"
-      @close="budgetDrawerDepartmentId = null"
     />
   </div>
 </template>
@@ -88,8 +87,8 @@ import { RefreshCw } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import AssetDemandTableCard, { type DemandRow } from '@/components/dashboard/AssetDemandTableCard.vue'
+import BudgetHistoryTableCard from '@/components/dashboard/BudgetHistoryTableCard.vue'
 import DashboardAssetDetailDrawer from '@/components/dashboard/DashboardAssetDetailDrawer.vue'
-import DashboardBudgetDetailDrawer from '@/components/dashboard/DashboardBudgetDetailDrawer.vue'
 import DepartmentBudgetCard, { type BudgetRow } from '@/components/dashboard/DepartmentBudgetCard.vue'
 import DepartmentBudgetSummaryCard from '@/components/dashboard/DepartmentBudgetSummaryCard.vue'
 import DepartmentLifecycleCard from '@/components/dashboard/DepartmentLifecycleCard.vue'
@@ -102,10 +101,12 @@ import type {
   AssetDemand,
   BudgetOverview,
   DepartmentBudgetDetail,
+  DepartmentBudgetOverview,
   ExpiringAssetSummary,
   HrEventStatistics,
   HrLifecycleEvent,
   OwnedAssetSummary,
+  OwnedAssetDetailStatus,
   TicketProgressSummary,
 } from '@/types'
 
@@ -163,8 +164,6 @@ const departmentHrEvents = ref<HrLifecycleEvent[]>([])
 const departmentHrStatistics = ref<HrEventStatistics>({ ...EMPTY_HR_STATISTICS })
 const assetDrawerMode = ref<AssetDrawerMode | null>(null)
 const assetDrawerType = ref<AssetDrawerType>('ALL')
-const budgetDrawerDepartmentId = ref<string | null>(null)
-const budgetDrawerDepartmentName = ref('-')
 const isLoading = ref(false)
 const loadError = ref('')
 
@@ -174,8 +173,19 @@ const isEmployee = computed(() => role.value === 'EMPLOYEE')
 const isAssetOperator = computed(() => (
   ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'].includes(role.value)
 ))
+const canViewAssetDetails = computed(() => (
+  isAssetOperator.value || isDepartmentManager.value || isEmployee.value
+))
+const assetDetailDepartmentId = computed(() => (
+  isDepartmentManager.value ? auth.user?.departmentId : undefined
+))
 const dashboardTitle = computed(() => role.value === 'EMPLOYEE' ? '내 자산 대시보드' : '대시보드')
-const holdingAssetCardTitle = computed(() => isDepartmentManager.value ? '자산 대여 현황' : '보유 자산 현황')
+const holdingAssetCardTitle = computed(() => (
+  isDepartmentManager.value || isEmployee.value ? '자산 대여 현황' : '보유 자산 현황'
+))
+const holdingInitialStatus = computed<OwnedAssetDetailStatus>(() => (
+  isAssetOperator.value ? 'UNASSIGNED' : 'RENTAL_SCHEDULED'
+))
 
 function toSegments(items: Array<Omit<DashboardSegment, 'percent'>>): DashboardSegment[] {
   const total = items.reduce((sum, item) => sum + item.count, 0)
@@ -193,7 +203,9 @@ const progressTicketSegments = computed(() => toSegments([
 ]))
 
 const holdingAssetSegments = computed(() => toSegments([
-  { label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' },
+  ...(isAssetOperator.value
+    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
+    : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
   { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
   { label: '연체', count: ownedAssets.value.overdue, barClass: 'bg-danger' },
@@ -209,16 +221,18 @@ const demandColumns = [
   { key: 'status', label: '상태', align: 'center' as const, width: '13%' },
 ]
 
-const demandRows = computed<DemandRow[]>(() => assetDemands.value.map((item) => ({
-  id: item.itemId,
-  kind: item.assetType === 'TANGIBLE' ? '유형' : '무형',
-  name: item.assetName,
-  expectedDemand: item.expectedDemand,
-  currentStock: item.currentInventory,
-  returnExpected: item.scheduledReturn,
-  availability: item.availabilityRate,
-  status: item.status,
-})))
+const demandRows = computed<DemandRow[]>(() => assetDemands.value
+  .filter((item) => item.expectedDemand > 0)
+  .map((item) => ({
+    id: item.itemId,
+    kind: item.assetType === 'TANGIBLE' ? '유형' : '무형',
+    name: item.assetName,
+    expectedDemand: item.expectedDemand,
+    currentStock: item.currentInventory,
+    returnExpected: item.scheduledReturn,
+    availability: item.availabilityRate,
+    status: item.status,
+  })))
 
 const budgetRows = computed<BudgetRow[]>(() => (
   budgetOverview.value?.departmentBudgets.content.map((item) => ({
@@ -227,6 +241,12 @@ const budgetRows = computed<BudgetRow[]>(() => (
     limit: item.totalAmount,
     used: item.usedAmount,
     percent: item.usageRate,
+  })) ?? []
+))
+const budgetHistoryDepartments = computed(() => (
+  budgetOverview.value?.departmentBudgets.content.map((item) => ({
+    departmentId: item.departmentId,
+    departmentName: item.departmentName,
   })) ?? []
 ))
 
@@ -262,7 +282,7 @@ const budgetUsagePercent = computed(() => {
 })
 
 function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'expiring-intangible') {
-  if (!isAssetOperator.value) return
+  if (!canViewAssetDetails.value) return
   assetDrawerMode.value = mode === 'holding' ? 'owned' : 'expiring'
   assetDrawerType.value = mode === 'expiring-tangible'
     ? 'TANGIBLE'
@@ -271,10 +291,12 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
-function openDepartmentBudgetDrawer(departmentId: string | undefined, departmentName: string) {
-  if (!departmentId || isEmployee.value) return
-  budgetDrawerDepartmentId.value = departmentId
-  budgetDrawerDepartmentName.value = departmentName
+function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview): DepartmentBudgetDetail {
+  return {
+    ...budget,
+    remainingAmount: Math.max(budget.totalAmount - budget.usedAmount, 0),
+    categoryUsages: [],
+  }
 }
 
 async function loadDashboardData() {
@@ -308,7 +330,14 @@ async function loadDashboardData() {
     }
 
     if (isEmployee.value) {
-      departmentBudget.value = { ...EMPTY_DEPARTMENT_BUDGET }
+      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1 })
+      const employeeBudget = budgetResponse.data.departmentBudgets.content[0]
+      departmentBudget.value = employeeBudget
+        ? toDepartmentBudgetDetail(employeeBudget)
+        : {
+            ...EMPTY_DEPARTMENT_BUDGET,
+            departmentName: auth.user?.departmentName || '-',
+          }
       return
     }
     const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })

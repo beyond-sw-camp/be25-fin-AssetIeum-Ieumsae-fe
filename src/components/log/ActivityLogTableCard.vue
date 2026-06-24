@@ -55,11 +55,6 @@ function subjectSummary(row: ActivityLog) {
   return LOG_SUBJECT_TYPE_LABEL[row.subjectType] ?? '-'
 }
 
-function textValue(row: ActivityLog, key: string) {
-  const value = (row as Record<string, unknown>)[key]
-  return typeof value === 'string' && value.trim().length > 0 ? value : ''
-}
-
 const displayRows = computed<ActivityLogDisplayRow[]>(() => props.rows.map((row) => {
   const memberName = row.actorName ?? row.memberName ?? '-'
   const memberNumber = row.actorMemberNo ?? row.memberNo ?? row.actorId ?? row.memberId ?? '-'
@@ -70,7 +65,7 @@ const displayRows = computed<ActivityLogDisplayRow[]>(() => props.rows.map((row)
     actor: `${memberName}(${memberNumber})`,
     targetSummary: subjectSummary(row),
     action: ACTIVITY_LOG_ACTION_LABEL[row.action],
-    detail: textValue(row, 'detail') || textValue(row, 'description') || '-',
+    detail: row.detail?.trim() || row.description?.trim() || '-',
   }
 }))
 </script>

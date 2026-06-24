@@ -221,15 +221,25 @@ const tabFromRoute = (): LogTab => (
 
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
 
-function validSubjectId(subjectId: string | null) {
-  return subjectId && subjectId !== EMPTY_UUID ? subjectId : null
+function validSubjectId(subjectId: unknown) {
+  if (typeof subjectId !== 'string' || subjectId === EMPTY_UUID) return null
+  return subjectId
 }
 
 function pathUuid(path: string) {
   return path.match(/[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}/)?.[0] ?? null
 }
 
-function normalizeTargetPath(targetPath: string | null | undefined, subjectId: string | null) {
+function logTargetPath(row: AuditLog | ActivityLog) {
+  const value = row.targetPath
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
+
+function logSubjectId(row: AuditLog | ActivityLog) {
+  return validSubjectId(row.subjectId)
+}
+
+function normalizeTargetPath(targetPath: string | null | undefined, subjectId: unknown) {
   if (!targetPath) return null
 
   const path = targetPath.replace(/^\/api\/v1/, '')
@@ -265,7 +275,7 @@ function normalizeTargetPath(targetPath: string | null | undefined, subjectId: s
   return null
 }
 
-function resolveTargetPath(subjectType: AuditLog['subjectType'], subjectId: string | null) {
+function resolveTargetPath(subjectType: AuditLog['subjectType'] | ActivityLog['subjectType'], subjectId: unknown) {
   const id = validSubjectId(subjectId)
 
   if (subjectType === 'TANGIBLE_ASSET') return '/assets/tangible'
@@ -283,8 +293,8 @@ function resolveTargetPath(subjectType: AuditLog['subjectType'], subjectId: stri
 async function enrichLogTargetPaths<T extends AuditLog | ActivityLog>(rows: T[]): Promise<T[]> {
   const inspectionIds = new Set(
     rows
-      .filter((row) => row.subjectType === 'INSPECTION' && !row.targetPath)
-      .map((row) => validSubjectId(row.subjectId))
+      .filter((row) => row.subjectType === 'INSPECTION' && !logTargetPath(row))
+      .map((row) => logSubjectId(row))
       .filter((subjectId): subjectId is string => Boolean(subjectId)),
   )
   const inspectionPathById = new Map<string, string>()
@@ -306,18 +316,18 @@ async function enrichLogTargetPaths<T extends AuditLog | ActivityLog>(rows: T[])
   }
 
   return rows.map((row) => {
-    const subjectId = validSubjectId(row.subjectId)
+    const subjectId = logSubjectId(row)
     const inspectionPath = row.subjectType === 'INSPECTION' && subjectId
       ? inspectionPathById.get(subjectId) ?? null
       : null
-    const normalizedTargetPath = normalizeTargetPath(row.targetPath, row.subjectId)
+    const normalizedTargetPath = normalizeTargetPath(logTargetPath(row), subjectId)
 
     return {
       ...row,
       targetPath: normalizedTargetPath
         ?? inspectionPath
-        ?? resolveTargetPath(row.subjectType, row.subjectId),
-    }
+        ?? resolveTargetPath(row.subjectType, subjectId),
+    } as T
   })
 }
 

@@ -1,14 +1,14 @@
 <template>
   <button
     type="button"
-    class="rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
+    class="flex min-h-30 flex-col rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
     @click="emit('click')"
   >
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-sm font-bold text-text-main">진행중인 티켓 현황</h2>
+    <div class="mb-5 flex h-6 shrink-0 items-center justify-between">
+      <h2 class="m-0 text-sm font-bold leading-5 text-text-main">진행중인 티켓 현황</h2>
       <RefreshCw class="text-primary" :size="18" />
     </div>
-    <div class="mb-3 flex h-3 overflow-hidden rounded-full bg-surface-secondary">
+    <div class="mb-5 flex h-3 overflow-hidden rounded-full bg-surface-secondary">
       <div
         v-for="item in segments"
         :key="item.label"

@@ -32,6 +32,37 @@ export interface BudgetOverrunConfig {
   allowedOverrunPercent: number  // 초과 허용 범위(%)
 }
 
+export type BudgetHistoryType =
+  | 'HOLD_INCREASE'
+  | 'HOLD_DECREASE'
+  | 'USE_INCREASE'
+  | 'RECOVERY'
+  | 'TRANSFER'
+
+export interface BudgetHistoryItem {
+  historyId: string | number
+  departmentId: string | null
+  departmentName: string | null
+  budgetId: string
+  budgetYear: number
+  historyType: BudgetHistoryType
+  amount: number
+  usedAmountBefore: number
+  usedAmountAfter: number
+  holdAmountBefore: number
+  holdAmountAfter: number
+  totalBudget: number
+  description: string | null
+  createdAt: string
+}
+
+export interface BudgetHistorySearchRequest extends Record<string, unknown> {
+  page?: number
+  size?: number
+  departmentId?: string
+  budgetYear?: number
+}
+
 // =====================================================
 // 대시보드 통계 타입
 // =====================================================
