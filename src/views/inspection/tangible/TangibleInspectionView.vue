@@ -3,7 +3,7 @@
     <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          ASSET ITEM
+          전수조사 > 유형자산
         </p>
         <h1 class="page-title">
           유형자산 전수조사
@@ -120,7 +120,7 @@
           </template>
 
           <template #cell-inspectorName="{ row }">
-            <span class="text-text-sub">{{ row.inspectorName }}</span>
+            <span class="text-text-main">{{ row.inspectorName }}</span>
           </template>
 
           <template #cell-startDate="{ value: startDate }">
@@ -177,9 +177,9 @@
     />
 
     <TangibleInspectionDetail
-      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
+      :assigned-targets="selectedAssignedTargets"
       @close="selectedInspection = null"
     />
   </div>
@@ -201,6 +201,7 @@ import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type {
+  EmployeeInspectionTargetResponse,
   InspectionSearchResponse,
   InspectionStatus,
   InspectorType,
@@ -244,6 +245,7 @@ const STATUS_LABEL: Record<TangibleInspectionStatus, string> = {
 const { canManageInspection } = usePermission()
 
 const inspections = ref<TangibleInspectionRow[]>([])
+const employeeTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const selectedInspection = ref<TangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
 const isLoading = ref(false)
@@ -266,12 +268,19 @@ const appliedFilters = reactive({
 const canRegisterInspection = computed(() => (
   canManageInspection.value
 ))
+const selectedAssignedTargets = computed(() => (
+  selectedInspection.value
+    ? employeeTargets.value.filter((target) => (
+      String(target.inspectionId) === selectedInspection.value?.inspectionId
+    ))
+    : []
+))
 
 const columns: Column<TangibleInspectionRow>[] = [
-  { key: 'targetName', label: '조사 대상', width: '18%' },
-  { key: 'executor', label: '조사 방식', width: '16%' },
-  { key: 'status', label: '조사 상태', width: '16%' },
-  { key: 'inspectorName', label: '조사 수행자', width: '22%' },
+  { key: 'targetName', label: '조사 대상', width: '22%', align: 'center' },
+  { key: 'executor', label: '조사 방식', width: '16%', align: 'center' },
+  { key: 'status', label: '조사 상태', width: '16%', align: 'center' },
+  { key: 'inspectorName', label: '조사 수행자', width: '10%', align: 'center' },
   { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
   { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
 ]
@@ -430,7 +439,6 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: TangibleInspectionRow) {
-  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -557,11 +565,13 @@ async function loadInspectionData() {
     if (!canManageInspection.value) {
       const response = await tangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
       const content = Array.isArray(response.data.content) ? response.data.content : []
+      employeeTargets.value = content
       inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
       currentPage.value = 0
       return
     }
 
+    employeeTargets.value = []
     const response = await tangibleInspectionApi.getList({ page: 0, size: 1000 })
     const content = response.data.content
     const rows = Array.isArray(content) ? content.map(toInspectionRow) : []
