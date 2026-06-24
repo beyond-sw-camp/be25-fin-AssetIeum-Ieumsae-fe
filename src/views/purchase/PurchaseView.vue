@@ -202,7 +202,7 @@
 
                     <template #cell-isStandard="{ row }">
                       <span>{{
-                        row.isStandard === false ? "비표준" : "표준"
+                        isNonStandardPurchaseItem(row) ? "비표준" : "표준"
                       }}</span>
                     </template>
 
@@ -238,7 +238,11 @@
                           @click.stop="openAssetRegisterDrawer(row)"
                         >
                           <BoxIcon :size="13" />
-                          자산 등록
+                          {{
+                            shouldRegisterPlanItemBeforeAsset(row)
+                              ? "품목 등록"
+                              : "자산 등록"
+                          }}
                         </Button>
                       </div>
                       <div
@@ -267,7 +271,11 @@
                         :loading="isConfirmingPurchaseItem(row)"
                         @click.stop="confirmDelivery(row)"
                       >
-                        납품 확인
+                        {{
+                          shouldRegisterPlanItemBeforeAsset(row)
+                            ? "품목 등록"
+                            : "납품 확인"
+                        }}
                       </Button>
                     </template>
                   </Table>
@@ -1653,7 +1661,7 @@ const purchaseExecutionInfoItems = computed(() => {
     0,
   );
   const standardCount = selectedPlanItems.value.filter(
-    (item) => item.isStandard !== false,
+    (item) => !isNonStandardPurchaseItem(item),
   ).length;
   const actualAmount =
     selectedPlan.value.actualAmount == null
@@ -2344,6 +2352,11 @@ function findFormattedCursorPosition(value: string, digitCount: number) {
 }
 
 async function confirmDelivery(item: PurchasePlanItem) {
+  if (shouldRegisterPlanItemBeforeAsset(item)) {
+    openPlanItemRegisterDrawer(item);
+    return;
+  }
+
   const itemId = getPurchasePlanItemId(item);
   if (!selectedPlanId.value || itemId == null) return;
   isConfirmingItem.value = itemId;
@@ -2368,14 +2381,17 @@ function canConfirmDelivery(item: PurchasePlanItem) {
     return false;
   if (!selectedPlan.value) return false;
 
-  const confirmableStatuses: PurchasePlanStatus[] = ["ORDERED"];
+  const confirmableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
   return confirmableStatuses.includes(displayPlanStatus(selectedPlan.value));
 }
 
 function canRegisterAssetFromItem(item: PurchasePlanItem) {
-  void item;
   if (!selectedPlan.value) return false;
-  return displayPlanStatus(selectedPlan.value) === "DELIVERED";
+  const registerableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
+  return (
+    Boolean(item.receivedAt) &&
+    registerableStatuses.includes(displayPlanStatus(selectedPlan.value))
+  );
 }
 
 function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
@@ -2432,6 +2448,39 @@ function parseAssetItemId(value: string | number | null | undefined) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function isNonStandardPurchaseItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  const value = item.isStandard ?? rawItem.is_standard;
+  if (value === false || value === 0) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "false" || normalized === "0";
+  }
+  return false;
+}
+
+function hasMappedAssetItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Boolean(
+    parseAssetItemId(item.assetItemId)
+      ?? parseAssetItemId(item.tangibleAssetItemId)
+      ?? parseAssetItemId(item.intangibleAssetItemId)
+      ?? parseAssetItemId(item.tangibleItemId)
+      ?? parseAssetItemId(item.intangibleItemId)
+      ?? parseAssetItemId(rawItem.asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.tangible_asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.intangible_asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.tangible_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.intangible_item_id as string | number | null | undefined),
+  );
+}
+
+function shouldRegisterPlanItemBeforeAsset(item: PurchasePlanItem | null | undefined) {
+  return isNonStandardPurchaseItem(item) && !hasMappedAssetItem(item);
 }
 
 function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket) {
@@ -2816,16 +2865,7 @@ async function submitPlanItemRegister() {
     isPlanItemRegisterDrawerOpen.value = false;
     planItemRegisterTarget.value = null;
     await fetchPlanDetail(planId);
-    const refreshedItem = selectedPlanItems.value.find(
-      (item) => getPurchasePlanItemId(item) === String(itemId),
-    );
-    const nextAssetRegisterItem: PurchasePlanItem = refreshedItem ?? targetItem;
-    assetRegisterTargetItem.value = {
-      ...nextAssetRegisterItem,
-      assetType,
-    };
-    isAssetRegisterDrawerOpen.value = true;
-    void fetchAssetRegisterReferenceData();
+    await refreshList();
   } catch (error) {
     planItemRegisterError.value = getErrorMessage(
       error,
@@ -2837,7 +2877,7 @@ async function submitPlanItemRegister() {
 }
 
 function openAssetRegisterDrawer(item: PurchasePlanItem) {
-  if (item.isStandard === false) {
+  if (shouldRegisterPlanItemBeforeAsset(item)) {
     openPlanItemRegisterDrawer(item);
     return;
   }

@@ -100,6 +100,7 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   targetMembers?: unknown[]
   target_members?: unknown[]
   asset_type?: string | null
+  is_standard?: boolean | 0 | 1 | string | null
   tangibleAssetItemId?: number | string | null
   intangibleAssetItemId?: number | string | null
   tangible_asset_item_id?: number | string | null
@@ -178,6 +179,7 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     receivedAt: item.receivedAt ?? item.received_at ?? null,
     actualAmount,
     actualUnitPrice,
+    isStandard: normalizePlanItemStandard(item),
     registeredCount: normalizeRegisteredAssetCount(item),
     ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
@@ -357,6 +359,16 @@ function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {
     ?? item.registeredAssetQuantity
     ?? 0
   return Number(count || 0)
+}
+
+function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
+  const value = item.isStandard ?? item.is_standard
+  if (value === false || value === 0) return false
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'false' || normalized === '0') return false
+  }
+  return true
 }
 
 function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {

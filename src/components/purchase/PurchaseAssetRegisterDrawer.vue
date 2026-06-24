@@ -184,7 +184,7 @@
                     {{ isTangible ? '시리얼 번호' : '라이선스 코드' }}
                   </th>
                   <th class="w-[190px] px-3 py-2 text-left">할당 방식</th>
-                  <th class="w-[390px] px-3 py-2 text-left">할당 사용자</th>
+                  <th class="w-[480px] px-3 py-2 text-left">할당 사용자</th>
                   <th class="w-[120px] px-3 py-2 text-center">상태</th>
                 </tr>
               </thead>
@@ -232,17 +232,17 @@
                     <div v-else class="space-y-2">
                       <div
                         v-if="assignmentCandidateMembers.length"
-                        class="grid max-h-36 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-border bg-surface p-2 md:grid-cols-2"
+                        class="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-lg border border-border bg-surface-secondary/40 p-2"
                       >
                         <button
                           v-for="member in assignmentCandidateMembers"
                           :key="member.memberId"
                           type="button"
-                          class="flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition disabled:cursor-not-allowed"
+                          class="flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition disabled:cursor-not-allowed"
                           :class="[
                             isRowMemberSelected(row, member.memberId)
                               ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                              : 'border-border bg-surface text-text-main hover:border-primary/50 hover:bg-surface-secondary',
+                              : 'border-border bg-surface text-text-main hover:border-primary/50 hover:bg-white',
                             isMemberOptionDisabled(row, member.memberId)
                               ? 'opacity-50 hover:border-border hover:bg-surface'
                               : ''
@@ -258,10 +258,12 @@
                           >
                             ✓
                           </span>
-                          <span class="min-w-0 flex-1">
-                            <span class="block truncate text-sm font-bold">{{ member.name }}</span>
-                            <span class="block truncate text-xs font-semibold text-text-muted">
-                              {{ member.memberNo || '-' }} · {{ member.departmentName || '-' }}
+                          <span class="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                            <span class="shrink-0 font-bold">{{ member.name }}</span>
+                            <span class="truncate text-xs font-semibold text-text-muted">
+                              {{ member.memberNo || '-' }}
+                              <span class="mx-1 text-border">|</span>
+                              {{ member.departmentName || '-' }}
                             </span>
                           </span>
                         </button>
@@ -495,7 +497,7 @@ const requestDepartmentName = computed(() => (
 const assignableMembers = computed(() => {
   const activeMembers = props.members.filter((member) => !member.status || member.status === 'ACTIVE')
   const requestDeptId = toNullableStringId(requestDepartmentId.value)
-  if (!requestDeptId) return activeMembers
+  if (!requestDeptId) return []
   return activeMembers.filter((member) => toNullableStringId(member.departmentId) === requestDeptId)
 })
 const ticketAssignmentTargetIds = computed(() => extractAssignmentTargetMemberIds(props.item))
@@ -513,12 +515,20 @@ const assignmentCandidateMembers = computed<AssignmentCandidateMember[]>(() => {
     }
   })
 
-  if (ticketTargetMembers.length > 0) return uniqueAssignmentCandidates(ticketTargetMembers)
-  return uniqueAssignmentCandidates(assignableMembers.value.map(toAssignmentCandidateMember))
+  const candidateMembers = ticketTargetMembers.length > 0
+    ? ticketTargetMembers
+    : assignableMembers.value.map(toAssignmentCandidateMember)
+
+  return uniqueAssignmentCandidates(candidateMembers)
 })
 
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) resetForm()
+})
+
+watch(assignmentCandidateMembers, () => {
+  if (!props.isOpen) return
+  applyDefaultAssignments()
 })
 
 watch(intangibleSeatCount, (seatCount) => {
@@ -552,6 +562,7 @@ function resetForm() {
   intangibleForm.expiredAt = ''
 
   assetRows.value = createRows(purchaseQuantity.value)
+  applyDefaultAssignments()
 }
 
 function createRows(count: number): AssetRegisterRow[] {
@@ -564,6 +575,25 @@ function createRows(count: number): AssetRegisterRow[] {
     status: 'idle',
     errorMessage: '',
   }))
+}
+
+function applyDefaultAssignments() {
+  const defaultMemberIds = ticketAssignmentTargetIds.value.filter(isAssignableMemberId)
+  if (!defaultMemberIds.length) return
+
+  assetRows.value.forEach((row, index) => {
+    if (row.assignmentMethod !== 'DIRECT' || row.memberIds.length > 0 || row.status === 'success') return
+
+    if (isTangible.value) {
+      const memberId = defaultMemberIds[index] ?? defaultMemberIds[0]
+      row.memberId = memberId
+      row.memberIds = [memberId]
+      return
+    }
+
+    row.memberIds = defaultMemberIds.slice(0, intangibleSeatCount.value)
+    row.memberId = row.memberIds[0] ?? ''
+  })
 }
 
 function markRowEdited(row: AssetRegisterRow) {
@@ -891,6 +921,12 @@ function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
     ...(Array.isArray(rawItem.assignment_target_member_ids) ? rawItem.assignment_target_member_ids : []),
     ...(Array.isArray(rawItem.assignee_ids) ? rawItem.assignee_ids : []),
+    rawItem.assignmentTargetMemberId,
+    rawItem.assignment_target_member_id,
+    rawItem.assigneeId,
+    rawItem.assignee_id,
+    rawItem.targetMemberId,
+    rawItem.target_member_id,
     ...extractAssignmentTargetRecords(item).flatMap((target) => [
       target.memberId,
       target.assigneeId,
