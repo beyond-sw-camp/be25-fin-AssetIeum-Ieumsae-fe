@@ -120,7 +120,7 @@
           </template>
 
           <template #cell-inspectorName="{ row }">
-            <span class="text-text-sub">{{ row.inspectorName }}</span>
+            <span class="text-text-main">{{ row.inspectorName }}</span>
           </template>
 
           <template #cell-startDate="{ value: startDate }">
@@ -277,10 +277,10 @@ const selectedAssignedTargets = computed(() => (
 ))
 
 const columns: Column<IntangibleInspectionRow>[] = [
-  { key: 'targetName', label: '조사 대상', width: '18%' },
-  { key: 'executor', label: '조사 방식', width: '16%' },
-  { key: 'status', label: '조사 상태', width: '16%' },
-  { key: 'inspectorName', label: '조사 담당자', width: '22%' },
+  { key: 'targetName', label: '조사 대상', width: '22%', align: 'center' },
+  { key: 'executor', label: '조사 방식', width: '16%', align: 'center' },
+  { key: 'status', label: '조사 상태', width: '16%', align: 'center' },
+  { key: 'inspectorName', label: '조사 담당자', width: '10%', align: 'center' },
   { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
   { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
 ]

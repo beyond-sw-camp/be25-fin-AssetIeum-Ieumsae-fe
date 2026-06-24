@@ -3,6 +3,7 @@
     :is-open="isOpen"
     title="전수조사 상세"
     body-class="p-0"
+    :panel-class="'w-[70%]'"
     hide-footer
     @close="emit('close')"
   >
@@ -33,7 +34,14 @@
               {{ tile.label }}
             </p>
             <p class="mt-2 text-lg font-bold text-text-main">
-              {{ tile.value }}
+              <template v-if="tile.lines">
+                <span v-for="line in tile.lines" :key="line" class="block">
+                  {{ line }}
+                </span>
+              </template>
+              <template v-else>
+                {{ tile.value }}
+              </template>
             </p>
           </div>
         </div>
@@ -58,7 +66,7 @@
 
       <div class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
         <section v-if="activeTab === 'overview'" class="space-y-5">
-          <div class="grid gap-3 md:grid-cols-2">
+          <div class="grid gap-3 md:grid-cols-3">
             <div
               v-for="item in overviewItems"
               :key="item.label"
@@ -158,7 +166,11 @@ import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
-import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
+import {
+  inspectionFollowUpApi,
+  intangibleInspectionApi,
+  tangibleInspectionApi,
+} from '@/api/inspection.api'
 import { usePermission } from '@/composables'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
@@ -206,6 +218,12 @@ interface UninspectedRow extends Record<string, unknown> {
   memberName: string
 }
 
+interface SummaryTile {
+  label: string
+  value?: string
+  lines?: string[]
+}
+
 const props = defineProps<{
   isOpen: boolean
   inspection: InspectionRow | null
@@ -236,18 +254,18 @@ type InspectionDetailTab = (typeof allTabs)[number]['value']
 const tabs = allTabs
 
 const resultColumns: Column<ResultRow>[] = [
-  { key: 'productName', label: '제품명', width: '20%' },
-  { key: 'assetCode', label: '자산코드', width: '17%' },
-  { key: 'memberName', label: '대상 사용자', width: '15%' },
-  { key: 'followUpRequired', label: '후속처리 여부', width: '16%', align: 'center' },
-  { key: 'responseContent', label: '사용자 응답 내용', width: '32%' },
+  { key: 'productName', label: '제품명', width: '20%', align: 'center' },
+  { key: 'assetCode', label: '자산코드', width: '20%', align: 'center' },
+  { key: 'memberName', label: '대상 사용자', width: '12%', align: 'center' },
+  { key: 'followUpRequired', label: '후속처리 여부', width: '15%', align: 'center' },
+  { key: 'responseContent', label: '사용자 응답 내용', width: '32%', align: 'center' },
 ]
 
 const uninspectedColumns: Column<UninspectedRow>[] = [
-  { key: 'productName', label: '제품명', width: '28%' },
-  { key: 'category', label: '카테고리', width: '22%' },
-  { key: 'assetCode', label: '자산코드', width: '27%' },
-  { key: 'memberName', label: '대상 사용자', width: '23%' },
+  { key: 'productName', label: '제품명', width: '28%', align: 'center' },
+  { key: 'category', label: '카테고리', width: '22%', align: 'center' },
+  { key: 'assetCode', label: '자산코드', width: '27%', align: 'center' },
+  { key: 'memberName', label: '대상 사용자', width: '23%', align: 'center' },
 ]
 
 const resultFilterOptions: DropdownOption[] = [
@@ -332,14 +350,20 @@ const completionRate = computed(() => {
   return Math.round((respondedCount.value / totalCount) * 100)
 })
 
-const summaryTiles = computed(() => {
+const summaryTiles = computed<SummaryTile[]>(() => {
   if (!props.inspection) return []
 
   return [
     { label: '대상 자산', value: `${(resultRows.value.length + uninspectedRows.value.length).toLocaleString()}건` },
     { label: '응답 완료', value: `${respondedCount.value.toLocaleString()}건` },
     { label: '후속 필요', value: `${followUpRequiredCount.value.toLocaleString()}건` },
-    { label: '조사 기간', value: `${formatDate(displayStartDate.value)} ~ ${formatDate(displayEndDate.value)}` },
+    {
+      label: '조사 기간',
+      lines: [
+        `${formatDate(displayStartDate.value)} ~`,
+        formatDate(displayEndDate.value),
+      ],
+    },
   ]
 })
 
@@ -528,15 +552,35 @@ async function loadEmployeeDetailData() {
   const respondedTargets = assignedTargets.filter((target) => (
     target.isResponded === true || target.responded === true
   ))
-  const inspectionResults = respondedTargets.map((target) => ({
+  const followUpResult = await Promise.allSettled([
+    inspectionFollowUpApi.getMyFollowUps({ page: 0, size: 1000 }),
+  ])
+  const myFollowUps = followUpResult[0]?.status === 'fulfilled'
+    ? followUpResult[0].value.data.content
+    : []
+  const inspectionResults = respondedTargets.map((target) => {
+    const assetCode = textValue(target.assetCode, target.licenseCode)
+    const memberId = textValue(target.memberId)
+    const followUp = myFollowUps.find((item) => (
+      textValue(item.assetCode) === assetCode
+      && (!item.memberId || textValue(item.memberId) === memberId)
+    ))
+
+    return {
       inspectionResultId: target.inspectionTargetId,
-      productName: textValue(target.productName, target.itemName) || '-',
-      assetCode: textValue(target.assetCode, target.licenseCode) || '-',
+      inspectionFollowUpId: followUp?.inspectionFollowUpId,
+      followUpId: followUp?.inspectionFollowUpId,
+      productName: textValue(followUp?.productName, target.productName, target.itemName) || '-',
+      assetCode: assetCode || '-',
       memberId: target.memberId,
-      memberName: target.memberName,
-      followUpRequired: false,
-      userResponseContent: '',
-    }))
+      memberName: textValue(followUp?.memberName, target.memberName) || '-',
+      followUpRequired: Boolean(followUp),
+      userResponseContent: textValue(followUp?.responseContent),
+      actionDetail: textValue(followUp?.actionDetail),
+      followUpStatus: followUpStatusValue(followUp?.status),
+      status: followUpStatusValue(followUp?.status),
+    }
+  })
   const uninspectedAssets = assignedTargets
     .filter((target) => target.isResponded !== true && target.responded !== true)
     .map((target) => ({

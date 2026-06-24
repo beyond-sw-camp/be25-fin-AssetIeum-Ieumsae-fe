@@ -100,6 +100,17 @@ export const tangibleInspectionApi = createInspectionApi('/tangible-asset/inspec
 export const intangibleInspectionApi = createInspectionApi('/intangible-asset/inspections')
 
 export const inspectionFollowUpApi = {
+  getMyFollowUps: (params: InspectionFollowUpSearchRequest) =>
+    api.get<PageResponse<InspectionFollowUpSearchResponse>>(
+      '/inspections/follow-ups/my',
+      {
+        page: params.page,
+        size: params.size,
+        status: params.status,
+        keyword: params.keyword,
+      },
+    ),
+
   getFollowUps: (params: InspectionFollowUpSearchRequest) =>
     api.get<PageResponse<InspectionFollowUpSearchResponse>>(
       '/inspections/follow-ups',

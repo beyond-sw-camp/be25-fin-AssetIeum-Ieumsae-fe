@@ -5,9 +5,6 @@
         <p class="text-sm font-bold text-text-main">후속 처리</p>
         <p class="mt-1 text-xs text-text-sub">후속 처리가 필요한 전수조사 결과의 처리 상태를 관리합니다.</p>
       </div>
-      <Button size="sm" variant="secondary" :disabled="effectiveLoading" @click="handleRefresh">
-        새로고침
-      </Button>
     </div>
 
     <div
@@ -230,15 +227,6 @@ async function loadFollowUps() {
   } finally {
     isFetching.value = false
   }
-}
-
-async function handleRefresh() {
-  if (props.loadFromApi) {
-    await loadFollowUps()
-    return
-  }
-
-  emit('refresh')
 }
 
 function updateDraftAction(key: string, value: string) {
