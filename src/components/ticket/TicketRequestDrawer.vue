@@ -1130,9 +1130,7 @@ function toRentalDateTime(value: string, time: '09:00:00' | '18:00:00') {
 function toRequestedUsageType(
   value: '' | 'DEPARTMENT' | RequestedUsageType,
 ): RequestedUsageType {
-  if (!value) {
-    throw new Error('공용자산 여부를 선택해주세요.')
-  }
+  if (!value) return 'DEPARTMENT'
   return value
 }
 

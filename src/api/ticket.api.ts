@@ -57,6 +57,7 @@ function compactParams<T extends object>(params?: T) {
 
 type TicketDetailResponse = Partial<TicketDetail> & Record<string, unknown>
 type TicketListItemResponse = Partial<TicketListItem> & Record<string, unknown>
+const DEFAULT_REQUESTED_USAGE_TYPE = 'DEPARTMENT'
 
 const TICKET_DETAIL_ENDPOINT_BY_TYPE: Record<TicketType, (ticketId: string) => string> = {
   ASSET_REQUEST: (ticketId) => `/tickets/asset-requests/${ticketId}`,
@@ -169,6 +170,10 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? pickString(assetAssignee, ['memberName', 'name', 'employeeName'])
       ?? null,
     requestReason: rawDetail.requestReason ?? null,
+    requestedUsageType: rawDetail.requestedUsageType
+      ?? pickString(rawDetail, ['assetUsageType'])
+      ?? pickString(requestDetail, ['requestedUsageType', 'assetUsageType'])
+      ?? null,
     assetType: rawDetail.assetType ?? null,
     assetItemId: assetItemId !== undefined && assetItemId !== null ? String(assetItemId) : null,
     categoryName: rawDetail.categoryName
@@ -594,15 +599,24 @@ export const ticketApi = {
 export const ticketCreateApi = {
   /** 표준 자산 요청 */
   createStandardRequest: (body: StandardAssetRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/asset-requests', body),
+    api.post<TicketCreateResponse>('/tickets/asset-requests', {
+      ...body,
+      requestedUsageType: body.requestedUsageType ?? DEFAULT_REQUESTED_USAGE_TYPE,
+    }),
 
   /** 비표준 자산 요청 */
   createNonStandardRequest: (body: NonStandardAssetRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/purchase-requests/non-standard', body),
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/non-standard', {
+      ...body,
+      requestedUsageType: body.requestedUsageType ?? DEFAULT_REQUESTED_USAGE_TYPE,
+    }),
 
   /** 직접 구매 자산 요청 */
   createDirectPurchaseRequest: (body: DirectPurchaseRequestCreate) =>
-    api.post<TicketCreateResponse>('/tickets/purchase-requests/direct-purchase', body),
+    api.post<TicketCreateResponse>('/tickets/purchase-requests/direct-purchase', {
+      ...body,
+      requestedUsageType: body.requestedUsageType ?? DEFAULT_REQUESTED_USAGE_TYPE,
+    }),
 
   /** 대여 요청 */
   createRentalRequest: (body: RentalRequestCreate) =>
