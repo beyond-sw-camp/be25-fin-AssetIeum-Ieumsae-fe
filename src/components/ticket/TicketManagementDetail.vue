@@ -145,7 +145,14 @@
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
                     <dd class="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-text-main">
-                      <span>{{ item.value }}</span>
+                      <RouterLink
+                        v-if="item.linkTo"
+                        :to="item.linkTo"
+                        class="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                      >
+                        {{ item.value }}
+                      </RouterLink>
+                      <span v-else>{{ item.value }}</span>
                       <button
                         v-if="item.actionLabel"
                         type="button"
@@ -1218,7 +1225,8 @@ const linkedPurchasePlanId = computed(() => {
   const detail = ticket.value
   if (!detail) return ''
 
-  return detail.linkedPurchasePlanId
+  return detail.linkedPurchaseId
+    ?? detail.linkedPurchasePlanId
     ?? detail.purchasePlanId
     ?? ''
 })

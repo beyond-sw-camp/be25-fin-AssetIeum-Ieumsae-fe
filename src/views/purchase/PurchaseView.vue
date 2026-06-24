@@ -176,7 +176,7 @@
                   </template>
 
                   <Table
-                    :columns="planItemColumns"
+                    :columns="displayPlanItemColumns"
                     :rows="selectedPlanItems"
                     row-key="itemId"
                     empty-text="구매 품목이 없습니다."
@@ -608,7 +608,7 @@
               </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
               <div class="xl:col-span-2">
                 <Input
                   id="direct-plan-item-name"
@@ -630,7 +630,7 @@
                   @update:model-value="handleDirectAssetTypeChange"
                 />
               </div>
-              <div class="space-y-2 text-left">
+              <div v-if="false" class="space-y-2 text-left">
                 <label
                   for="direct-plan-category"
                   class="block px-0.5 text-sm font-semibold text-text-main"
@@ -679,7 +679,7 @@
                   </span>
                 </div>
               </div>
-              <div class="md:col-span-2 xl:col-span-5">
+              <div class="md:col-span-2 xl:col-span-4">
                 <Input
                   id="direct-plan-url"
                   v-model="directItemForm.externalUrl"
@@ -863,7 +863,6 @@ import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
-import { useAuthStore } from "@/stores";
 import type {
   AssetType,
   Department,
@@ -889,6 +888,8 @@ interface EligibleTicket {
   quantity: number;
   estimatedUnitPrice: number;
   assetItemId: string | null;
+  tangibleAssetItemId: string | null;
+  intangibleAssetItemId: string | null;
   isStandard: boolean;
   canCreate: boolean;
   disabledReason: string;
@@ -1044,7 +1045,6 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
 };
 
 const { hasRole } = usePermission();
-const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const canChangeStatus = computed(() =>
@@ -1158,7 +1158,7 @@ const statCards = computed(() => [
 
 const selectedEligibleTickets = computed(() =>
   eligibleTickets.value.filter((item) =>
-    selectedTicketIds.value.includes(item.ticket.ticketId),
+    selectedTicketIds.value.includes(item.ticketId),
   ),
 );
 
@@ -1305,6 +1305,25 @@ const purchasePlanTitle = computed(() => {
 });
 
 const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
+
+const hasTicketLinkedPlanItem = computed(() =>
+  selectedPlanItems.value.some(
+    (item) =>
+      item.ticketId ||
+      item.ticketRequesterId ||
+      item.ticketDepartmentId,
+  ),
+);
+
+const displayPlanItemColumns = computed(() => {
+  if (hasTicketLinkedPlanItem.value) return planItemColumns;
+  return planItemColumns.filter(
+    (column) =>
+      !["category", "ticketRequesterName", "ticketDepartmentName"].includes(
+        String(column.key),
+      ),
+  );
+});
 
 const purchasePlanInfoItems = computed(() => {
   if (!selectedPlan.value) return [];
@@ -1616,7 +1635,7 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     ticket.purchasePrice ??
     ticket.unitPrice ??
     0;
-  const assetItemId = parseAssetItemId(ticket.assetItemId);
+  const assetItemIds = resolvePurchasePlanCandidateItemIds(ticket);
   const disabledReasons: string[] = [];
 
   if (!ticket.assetType) disabledReasons.push("자산 유형 없음");
@@ -1630,7 +1649,9 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     assetType: ticket.assetType,
     quantity,
     estimatedUnitPrice,
-    assetItemId,
+    assetItemId: assetItemIds.assetItemId,
+    tangibleAssetItemId: assetItemIds.tangibleAssetItemId,
+    intangibleAssetItemId: assetItemIds.intangibleAssetItemId,
     isStandard: ticket.isStandard !== false && ticket.isStandard !== 0,
     canCreate: disabledReasons.length === 0,
     disabledReason: disabledReasons.join(", "),
@@ -1687,7 +1708,6 @@ function handleDirectEstimatedUnitPriceInput(event: Event) {
 function addDirectPlanItem() {
   directItemError.value = "";
   const itemName = directItemForm.value.itemName.trim();
-  const categoryName = directItemForm.value.categoryName.trim();
   const quantity = Number(directItemForm.value.quantity);
   const estimatedUnitPrice = Number(directItemForm.value.estimatedUnitPrice);
 
@@ -1711,7 +1731,7 @@ function addDirectPlanItem() {
     {
       localId: `direct-${Date.now()}-${directPlanItems.value.length}`,
       itemName,
-      categoryName,
+      categoryName: "",
       assetType: directItemForm.value.assetType,
       quantity,
       estimatedUnitPrice,
@@ -1740,10 +1760,13 @@ async function createPlan() {
   const ticketItems: PurchasePlanCreateItem[] = selectedEligibleTickets.value
     .filter((item) => item.canCreate && item.assetType)
     .map((item) => ({
-      ticketId: item.ticket.ticketId,
+      ticketId: item.ticketId,
       productName: item.itemName,
       assetType: item.assetType!,
       assetItemId: item.assetItemId,
+      tangibleAssetItemId: item.tangibleAssetItemId,
+      intangibleAssetItemId: item.intangibleAssetItemId,
+      categoryName: item.categoryName,
       quantity: item.quantity,
       isStandard: item.isStandard ? 1 : 0,
       estimatedUnitPrice: item.estimatedUnitPrice,
@@ -1753,22 +1776,13 @@ async function createPlan() {
 
   const directItems: PurchasePlanCreateItem[] = directPlanItems.value.map(
     (item) => {
-      const requester = authStore.user;
-
       return {
         ticketId: null,
         productName: item.itemName,
         assetType: item.assetType,
         assetItemId: null,
-        categoryName: item.categoryName,
-        requesterId: requester?.memberId ?? null,
-        requesterName: requester?.name ?? null,
-        departmentId: requester?.departmentId ?? null,
-        departmentName: requester?.departmentName ?? null,
-        ticketRequesterId: requester?.memberId ?? null,
-        ticketRequesterName: requester?.name ?? null,
-        ticketDepartmentId: requester?.departmentId ?? null,
-        ticketDepartmentName: requester?.departmentName ?? null,
+        tangibleAssetItemId: null,
+        intangibleAssetItemId: null,
         quantity: item.quantity,
         isStandard: 0,
         estimatedUnitPrice: item.estimatedUnitPrice,
@@ -1934,6 +1948,28 @@ function parseAssetItemId(value: string | number | null | undefined) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket) {
+  const assetItemId = parseAssetItemId(ticket.assetItemId);
+  const tangibleAssetItemId = parseAssetItemId(ticket.tangibleAssetItemId);
+  const intangibleAssetItemId = parseAssetItemId(ticket.intangibleAssetItemId);
+
+  if (ticket.assetType === "INTANGIBLE") {
+    const resolvedIntangibleItemId = intangibleAssetItemId ?? assetItemId;
+    return {
+      assetItemId: assetItemId ?? resolvedIntangibleItemId,
+      tangibleAssetItemId: null,
+      intangibleAssetItemId: resolvedIntangibleItemId,
+    };
+  }
+
+  const resolvedTangibleItemId = tangibleAssetItemId ?? assetItemId;
+  return {
+    assetItemId: assetItemId ?? resolvedTangibleItemId,
+    tangibleAssetItemId: resolvedTangibleItemId,
+    intangibleAssetItemId: null,
+  };
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
