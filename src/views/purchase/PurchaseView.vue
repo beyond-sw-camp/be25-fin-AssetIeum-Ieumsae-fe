@@ -823,19 +823,43 @@
         <p class="text-sm font-semibold text-text-sub">
           실제 결제금액을 입력하면 납품 확인 상태로 변경됩니다.
         </p>
-        <Input
-          id="purchase-actual-amount"
-          v-model="actualAmountInput"
-          type="number"
-          label="실제 결제금액"
-          required
-          placeholder="0"
-          :min="0"
-          :disabled="isStatusSaving"
-          :error="Boolean(actualAmountError)"
-          :error-message="actualAmountError"
-          @keydown.enter.prevent="submitActualAmount"
-        />
+        <div class="w-full space-y-2 text-left">
+          <label
+            for="purchase-actual-amount"
+            class="flex items-center gap-0.5 px-0.5 text-sm font-semibold text-text-main"
+          >
+            실제 결제금액
+            <span class="font-bold text-primary">*</span>
+          </label>
+          <div class="relative">
+            <input
+              id="purchase-actual-amount"
+              :value="actualAmountInput"
+              inputmode="numeric"
+              placeholder="0"
+              :disabled="isStatusSaving"
+              :aria-invalid="Boolean(actualAmountError)"
+              aria-describedby="purchase-actual-amount-error"
+              class="w-full rounded-xl border border-border bg-surface px-4 py-3 pr-10 text-sm font-medium text-text-main outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
+              :class="actualAmountError && 'border-danger focus:border-danger focus:ring-danger/20'"
+              @input="handleActualAmountInput"
+              @keydown.enter.prevent="submitActualAmount"
+            />
+            <span
+              class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted"
+            >
+              원
+            </span>
+          </div>
+          <p
+            v-if="actualAmountError"
+            id="purchase-actual-amount-error"
+            class="mt-0.5 px-0.5 text-xs font-medium text-danger"
+            role="alert"
+          >
+            {{ actualAmountError }}
+          </p>
+        </div>
       </div>
 
       <template #footer>
@@ -890,7 +914,7 @@ import {
   ShoppingCart,
   Trash2,
 } from "lucide-vue-next";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -1936,8 +1960,8 @@ async function changeStatus(
 }
 
 function openActualAmountDrawer() {
-  actualAmountInput.value = String(
-    selectedPlan.value?.actualAmount ?? selectedPlan.value?.estimatedAmount ?? "",
+  actualAmountInput.value = formatAmountInput(
+    selectedPlan.value?.actualAmount ?? selectedPlan.value?.estimatedAmount,
   );
   actualAmountError.value = "";
   isActualAmountDrawerOpen.value = true;
@@ -1950,7 +1974,7 @@ function closeActualAmountDrawer() {
 }
 
 async function submitActualAmount() {
-  const actualAmount = Number(actualAmountInput.value);
+  const actualAmount = parseAmountInput(actualAmountInput.value);
   if (!Number.isFinite(actualAmount) || actualAmount <= 0) {
     actualAmountError.value = "실제 결제금액을 입력해주세요.";
     return;
@@ -1964,6 +1988,51 @@ async function submitActualAmount() {
   if (isChanged) {
     isActualAmountDrawerOpen.value = false;
   }
+}
+
+function handleActualAmountInput(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const cursor = target.selectionStart ?? target.value.length;
+  const digitCountBeforeCursor = target.value
+    .slice(0, cursor)
+    .replace(/[^\d]/g, "").length;
+
+  actualAmountInput.value = formatAmountInput(parseAmountInput(target.value));
+  actualAmountError.value = "";
+
+  void nextTick(() => {
+    const nextCursor = findFormattedCursorPosition(
+      actualAmountInput.value,
+      digitCountBeforeCursor,
+    );
+    target.setSelectionRange(nextCursor, nextCursor);
+  });
+}
+
+function parseAmountInput(value: string) {
+  const digits = value.replace(/[^\d]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatAmountInput(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("ko-KR").format(value);
+}
+
+function findFormattedCursorPosition(value: string, digitCount: number) {
+  if (digitCount <= 0) return 0;
+
+  let seenDigits = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (/\d/.test(value[index])) {
+      seenDigits += 1;
+    }
+    if (seenDigits >= digitCount) {
+      return index + 1;
+    }
+  }
+
+  return value.length;
 }
 
 async function confirmDelivery(item: PurchasePlanItem) {

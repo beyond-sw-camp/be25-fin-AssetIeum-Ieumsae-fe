@@ -19,24 +19,6 @@
       </div>
 
       <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-        <section class="space-y-3">
-          <SectionTitle title="구매 계획 및 등록 현황" />
-          <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SummaryItem label="구매 계획 번호" :value="plan?.planNo ?? '-'" />
-            <SummaryItem label="구매 수량" :value="`${purchaseQuantity}개`" />
-            <SummaryItem label="자산 등록 진행률" :value="`${successCount} / ${purchaseQuantity}`" />
-            <SummaryItem label="미등록 수량" :value="`${remainingCount}개`" />
-            <SummaryItem label="요청자" :value="plan?.requesterName ?? '-'" />
-            <SummaryItem label="요청 부서" :value="requestDepartmentName" />
-            <SummaryItem label="납품 확인일" :value="formatDate(deliveryConfirmedAt)" />
-            <SummaryItem label="실제 집행 금액" :value="actualExecutionAmountText" />
-            <SummaryItem label="예상 단가" :value="formatCurrency(item?.estimatedUnitPrice ?? 0)" />
-          </div>
-          <p class="text-xs text-text-muted">
-            각 자산 행에서 요청자 할당, 사용자 직접 선택, 미할당을 선택할 수 있습니다.
-          </p>
-        </section>
-
         <section class="space-y-4">
           <SectionTitle title="공통 정보" />
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -320,7 +302,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import { ApiError, purchaseApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -342,18 +324,7 @@ import type {
 type RowStatus = 'idle' | 'ready' | 'error' | 'submitting' | 'success' | 'failed'
 type AssignmentMethod = 'REQUESTER' | 'DIRECT' | 'UNASSIGNED'
 
-const SummaryItem = defineComponent({
-  props: {
-    label: { type: String, required: true },
-    value: { type: String, required: true },
-  },
-  setup(props) {
-    return () => h('div', { class: 'rounded-xl border border-border bg-surface-secondary/40 px-4 py-3' }, [
-      h('dt', { class: 'text-xs font-semibold text-text-muted' }, props.label),
-      h('dd', { class: 'mt-1 text-sm font-bold text-text-main' }, props.value),
-    ])
-  },
-})
+
 
 interface AssetRegisterRow {
   localId: string
@@ -454,15 +425,10 @@ const isTangible = computed(() => assetType.value === 'TANGIBLE')
 const assetTypeLabel = computed(() => (isTangible.value ? '유형자산' : '무형자산'))
 const purchaseQuantity = computed(() => Math.max(0, Number(props.item?.quantity ?? 0)))
 const intangibleSeatCount = computed(() => Math.max(1, Number(intangibleForm.seatCount) || 1))
-const successCount = computed(() => assetRows.value.filter((row) => row.status === 'success').length)
-const remainingCount = computed(() => Math.max(0, purchaseQuantity.value - successCount.value))
 const deliveryConfirmedAt = computed(() => (
   props.item?.receivedAt ?? props.plan?.receivedAt ?? props.plan?.deliveredAt ?? null
 ))
 const actualExecutionAmount = computed(() => props.plan?.actualAmount ?? null)
-const actualExecutionAmountText = computed(() => (
-  actualExecutionAmount.value == null ? '-' : formatCurrency(actualExecutionAmount.value)
-))
 const defaultPurchasePrice = computed(() => {
   if (props.item?.actualUnitPrice != null) return props.item.actualUnitPrice
   if (props.item?.actualAmount != null && purchaseQuantity.value > 0) {
@@ -915,22 +881,9 @@ function toLocalDateTime(value: string) {
   return value
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return '-'
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
-}
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+
+
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message || fallback
