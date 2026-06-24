@@ -338,6 +338,39 @@
         </div>
       </section>
 
+      <section v-if="selectedKind === 'STANDARD_ASSET_REQUEST'" class="space-y-2">
+        <p class="text-sm font-semibold text-text-main">
+          공용자산 여부 <span class="text-primary">*</span>
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <label
+            v-for="option in assetScopeOptions"
+            :key="option.value"
+            class="group flex cursor-pointer select-none items-center gap-2.5 text-sm text-text-main"
+          >
+            <span class="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                v-model="form.assetUsageType"
+                type="radio"
+                name="ticket-standard-request-asset-usage-type"
+                :value="option.value"
+                class="peer sr-only"
+                @change="handleAssetUsageTypeChange"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-gray-300 bg-white transition-all duration-200 group-hover:border-gray-400 peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"
+              >
+              </span>
+              <span
+                class="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-primary transition-transform duration-200 ease-out peer-checked:scale-100"
+              >
+              </span>
+            </span>
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
       <section v-if="usesNestedAssetSelection" class="space-y-3">
         <div class="flex items-center justify-between">
           <p class="text-sm font-semibold text-text-main">
@@ -905,7 +938,6 @@ const showsAssetSearch = computed(() => (
 
 const requiresAssetSearchUsageType = computed(() => (
   selectedKind.value === 'RENTAL'
-  || selectedKind.value === 'STANDARD_ASSET_REQUEST'
 ))
 
 const requiresPurchaseUsageType = computed(() => (
@@ -1948,6 +1980,9 @@ function openAssetSelection() {
   if (isStandardDirectPurchase.value) {
     assetSearchForm.assetUsageType = form.assetUsageType === 'PERSONAL' ? 'PERSONAL' : 'DEPARTMENT'
   }
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
+    assetSearchForm.assetUsageType = form.assetUsageType === 'PERSONAL' ? 'PERSONAL' : 'DEPARTMENT'
+  }
   isAssetSelectionStep.value = true
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
     void loadRequestAvailableAssets()
@@ -2059,6 +2094,13 @@ function handleAssetTypeChange(assetType: AssetType) {
   }
 }
 
+function handleAssetUsageTypeChange() {
+  assetSearchForm.assetUsageType = form.assetUsageType
+  form.selectedAssetId = ''
+  confirmedSelectedAsset.value = null
+  pendingSelectedAssetId.value = ''
+}
+
 function handleAssetServiceTypeChange(assetServiceType: 'REPAIR' | 'RETURN') {
   form.assetServiceType = assetServiceType
   form.selectedAssetId = ''
@@ -2109,7 +2151,7 @@ async function handleSubmit() {
     switch (selectedKind.value) {
       case 'STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createStandardRequest({
-          ...requestedUsagePayload(form.assetType, assetSearchForm.assetUsageType),
+          ...requestedUsagePayload(form.assetType, form.assetUsageType),
           assetType: form.assetType,
           assetItemId: form.selectedAssetId,
           assignmentTargetMemberIds: form.assetAssigneeIds,

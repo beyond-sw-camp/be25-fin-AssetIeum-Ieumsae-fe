@@ -119,6 +119,10 @@ function pickNumber(source: Record<string, unknown> | null, keys: string[]): num
   return undefined
 }
 
+function normalizeRequestedUsageType(value: unknown): TicketDetail['requestedUsageType'] {
+  return value === 'DEPARTMENT' || value === 'PERSONAL' ? value : null
+}
+
 function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
   const requester = asRecord(rawDetail.requester)
     ?? asRecord(rawDetail.requestMember)
@@ -170,10 +174,11 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? pickString(assetAssignee, ['memberName', 'name', 'employeeName'])
       ?? null,
     requestReason: rawDetail.requestReason ?? null,
-    requestedUsageType: rawDetail.requestedUsageType
-      ?? pickString(rawDetail, ['assetUsageType'])
-      ?? pickString(requestDetail, ['requestedUsageType', 'assetUsageType'])
-      ?? null,
+    requestedUsageType: normalizeRequestedUsageType(
+      rawDetail.requestedUsageType
+        ?? pickString(rawDetail, ['assetUsageType'])
+        ?? pickString(requestDetail, ['requestedUsageType', 'assetUsageType']),
+    ),
     assetType: rawDetail.assetType ?? null,
     assetItemId: assetItemId !== undefined && assetItemId !== null ? String(assetItemId) : null,
     categoryName: rawDetail.categoryName
