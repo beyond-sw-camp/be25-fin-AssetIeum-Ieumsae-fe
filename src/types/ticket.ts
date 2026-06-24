@@ -580,11 +580,29 @@ export interface TicketEvidenceUploadResponse {
 }
 
 export interface DirectPurchaseAssetAssignRequest {
-  itemId?: string
-  assetItemId?: string
   productName: string
   manufacturer: string
   modelName: string
+}
+
+export interface DirectPurchaseAssignedAsset {
+  assetId: string
+  assetCode: string
+  assignmentId: string
+  serialNumber?: string | null
+  licenseCode?: string | null
+  assigneeId: string
+  assigneeName: string
+  departmentId: string
+  departmentName: string
+}
+
+export interface DirectPurchaseRegisteredAsset {
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  licenseCode?: string | null
+  assignedSeatCount: number
 }
 
 export interface DirectPurchaseAssetAssignResponse {
@@ -597,12 +615,12 @@ export interface DirectPurchaseAssetAssignResponse {
   assetType?: AssetType
   itemId?: string
   itemName?: string
-  assetIds?: string[]
-  assetCodes?: string[]
-  assignmentIds?: string[]
   assetId?: string
   assetCode?: string
   assignmentId?: string
+  quantity?: number
+  assets?: DirectPurchaseAssignedAsset[]
+  registeredAssets?: DirectPurchaseRegisteredAsset[]
   actualPrice?: number
   confirmationStatus?: string
 }

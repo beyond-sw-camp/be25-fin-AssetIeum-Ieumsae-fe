@@ -1487,8 +1487,6 @@ function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseA
   if (!productName || productName === '-' || !manufacturer || !modelName) return null
 
   return {
-    itemId: detail.assetItemId ?? undefined,
-    assetItemId: detail.assetItemId ?? undefined,
     productName,
     manufacturer,
     modelName,
@@ -2063,8 +2061,6 @@ async function handleDirectPurchaseItemRegistrationSubmit(payload: DirectPurchas
 
   try {
     await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, {
-      itemId: payload.itemId,
-      assetItemId: payload.itemId,
       productName: payload.productName,
       manufacturer: payload.manufacturer,
       modelName: payload.modelName,
