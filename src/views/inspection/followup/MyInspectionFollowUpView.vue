@@ -2,7 +2,7 @@
   <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
     <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <p class="page-subtitle mb-1">INSPECTION</p>
+        <p class="page-subtitle mb-1">전수조사 > 내 후속처리</p>
         <h1 class="page-title">내 후속처리</h1>
         <p class="mt-2 text-sm text-text-sub">내가 담당자로 지정된 전수조사 후속처리를 확인합니다.</p>
       </div>

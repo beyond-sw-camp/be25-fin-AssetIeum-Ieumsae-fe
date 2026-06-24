@@ -3,7 +3,7 @@
     <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          ASSET ITEM
+          전수조사 > 무형자산
         </p>
         <h1 class="page-title">
           무형자산 전수조사
