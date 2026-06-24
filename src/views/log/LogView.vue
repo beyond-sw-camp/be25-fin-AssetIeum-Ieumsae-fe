@@ -231,12 +231,12 @@ function pathUuid(path: string) {
 }
 
 function logTargetPath(row: AuditLog | ActivityLog) {
-  const value = (row as Record<string, unknown>).targetPath
+  const value = row.targetPath
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 }
 
 function logSubjectId(row: AuditLog | ActivityLog) {
-  return validSubjectId((row as Record<string, unknown>).subjectId)
+  return validSubjectId(row.subjectId)
 }
 
 function normalizeTargetPath(targetPath: string | null | undefined, subjectId: unknown) {

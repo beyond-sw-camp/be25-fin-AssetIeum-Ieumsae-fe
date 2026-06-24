@@ -101,6 +101,7 @@ import type {
   AssetDemand,
   BudgetOverview,
   DepartmentBudgetDetail,
+  DepartmentBudgetOverview,
   ExpiringAssetSummary,
   HrEventStatistics,
   HrLifecycleEvent,
@@ -290,6 +291,14 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
+function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview): DepartmentBudgetDetail {
+  return {
+    ...budget,
+    remainingAmount: Math.max(budget.totalAmount - budget.usedAmount, 0),
+    categoryUsages: [],
+  }
+}
+
 async function loadDashboardData() {
   isLoading.value = true
   loadError.value = ''
@@ -324,14 +333,7 @@ async function loadDashboardData() {
       const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1 })
       const employeeBudget = budgetResponse.data.departmentBudgets.content[0]
       departmentBudget.value = employeeBudget
-        ? {
-            departmentName: employeeBudget.departmentName,
-            totalAmount: employeeBudget.totalAmount,
-            usedAmount: employeeBudget.usedAmount,
-            remainingAmount: Math.max(employeeBudget.totalAmount - employeeBudget.usedAmount, 0),
-            usageRate: employeeBudget.usageRate,
-            categoryUsages: [],
-          }
+        ? toDepartmentBudgetDetail(employeeBudget)
         : {
             ...EMPTY_DEPARTMENT_BUDGET,
             departmentName: auth.user?.departmentName || '-',

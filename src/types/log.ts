@@ -63,5 +63,8 @@ export interface ActivityLog extends Record<string, unknown> {
   action: ActivityLogAction
   subjectType: LogSubjectType
   subjectId: string | null
+  targetPath?: string | null
+  detail?: string | null
+  description?: string | null
   createdAt: string
 }
