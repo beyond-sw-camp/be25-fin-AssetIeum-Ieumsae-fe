@@ -35,7 +35,7 @@
       <section class="card m-1 flex min-h-24 items-center justify-between border border-border bg-surface p-5">
         <div>
           <p class="text-xs font-semibold text-text-sub">
-            이달의 자동화 실행 완료
+            이달 완료된 이벤트
           </p>
           <p class="mt-3 text-2xl font-bold text-text-main">
             {{ completedThisMonthCount }}
@@ -306,8 +306,6 @@ const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
   OFFBOARDING: '퇴사',
   DEPARTMENT_TRANSFER: '부서 이동',
-  LEAVE: '휴직',
-  RETURN: '복직',
 }
 
 const STATUS_LABEL: Record<HrEventStatus, string> = {
@@ -684,7 +682,8 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
 }
 
 async function handleCompleteEvent(row: HrEventRow) {
-  if (isActing.value) return
+  if (row.status !== 'IN_PROGRESS' || isActing.value) return
+  if (!window.confirm('이 HR 이벤트와 모든 처리 대상을 완료할까요?')) return
 
   actingEventId.value = row.hrEventId
   errorMessage.value = ''

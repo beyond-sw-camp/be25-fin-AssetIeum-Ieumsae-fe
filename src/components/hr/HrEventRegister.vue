@@ -36,6 +36,14 @@
           menu-strategy="fixed"
         />
       </div>
+
+      <div class="space-y-2">
+        <label class="flex items-center gap-0.5 text-sm font-bold text-text-main" for="department-transition-type">
+          부서 이동 시 자산 처리 방법
+        </label>
+        
+      </div>
+
       <Input
         id="hr-event-date"
         v-model="form.eventDate"
@@ -85,8 +93,6 @@ const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
   OFFBOARDING: '퇴사',
   DEPARTMENT_TRANSFER: '부서 이동',
-  LEAVE: '휴직',
-  RETURN: '복직',
 }
 
 const props = defineProps<{

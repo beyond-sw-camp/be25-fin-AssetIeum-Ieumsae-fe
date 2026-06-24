@@ -45,8 +45,8 @@ export interface HrTemplateItemResponse {
 // HR 이벤트 (HREvent) 타입
 // =====================================================
 
-export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER' | 'LEAVE' | 'RETURN'
-export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CANCELLED'
+export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER'
+export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type HrEventId = string | number
 
 export interface HrEventCreateRequest {
