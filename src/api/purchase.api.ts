@@ -91,6 +91,14 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   ticketDepartmentName?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
+  assignmentTargetMemberIds?: (number | string | null)[]
+  assignment_target_member_ids?: (number | string | null)[]
+  assigneeIds?: (number | string | null)[]
+  assignee_ids?: (number | string | null)[]
+  assignmentTargets?: unknown[]
+  assignment_targets?: unknown[]
+  targetMembers?: unknown[]
+  target_members?: unknown[]
   asset_type?: string | null
   tangibleAssetItemId?: number | string | null
   intangibleAssetItemId?: number | string | null
@@ -103,6 +111,8 @@ type PurchasePlanListItemResponse = PurchasePlanListItem & {
   itemSummary?: string | null
   items?: PurchasePlanItemResponse[]
 }
+
+type PurchasePlanAssignmentTarget = NonNullable<PurchasePlanItem['assignmentTargets']>[number]
 
 type PurchasePlanDetailResponse = PurchasePlanDetail & {
   actual_amount?: number | null
@@ -171,9 +181,80 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     registeredCount: normalizeRegisteredAssetCount(item),
     ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
+    assignmentTargetMemberIds: normalizeAssignmentTargetMemberIds(item),
+    assignmentTargets: normalizeAssignmentTargets(item),
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
+  return uniqueNormalizedIds([
+    ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
+    ...(Array.isArray(item.assignment_target_member_ids) ? item.assignment_target_member_ids : []),
+    ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
+    ...(Array.isArray(item.assignee_ids) ? item.assignee_ids : []),
+    ...normalizeAssignmentTargets(item).flatMap((target) => [
+      target.memberId,
+      target.assigneeId,
+      target.targetMemberId,
+      target.targetId,
+    ]),
+  ])
+}
+
+function normalizeAssignmentTargets(item: PurchasePlanItemResponse): PurchasePlanAssignmentTarget[] {
+  const source =
+    item.assignmentTargets
+    ?? item.assignment_targets
+    ?? item.targetMembers
+    ?? item.target_members
+    ?? []
+  if (!Array.isArray(source)) return []
+
+  return source.flatMap<PurchasePlanAssignmentTarget>((target) => {
+    if (target === null || target === undefined) return []
+    if (typeof target !== 'object') {
+      const id = normalizeId(target)
+      return id ? [{ memberId: id }] : []
+    }
+
+    const record = target as Record<string, unknown>
+    const memberId = normalizeId(
+      record.memberId
+      ?? record.assigneeId
+      ?? record.targetMemberId
+      ?? record.targetId
+      ?? record.id,
+    )
+    return [{
+      targetId: normalizeId(record.targetId ?? record.id),
+      memberId,
+      assigneeId: normalizeId(record.assigneeId),
+      targetMemberId: normalizeId(record.targetMemberId),
+      name: normalizeString(record.name),
+      memberName: normalizeString(record.memberName ?? record.targetName),
+      assigneeName: normalizeString(record.assigneeName),
+      departmentId: normalizeId(record.departmentId),
+      departmentName: normalizeString(record.departmentName),
+    }]
+  })
+}
+
+function uniqueNormalizedIds(values: unknown[]) {
+  return Array.from(new Set(values.map(normalizeId).filter((value): value is string => Boolean(value))))
+}
+
+function normalizeId(value: unknown) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
+  return normalized || null
+}
+
+function normalizeString(value: unknown) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
+  return normalized || null
 }
 
 function normalizePlanItemAssetType(item: PurchasePlanItemResponse) {

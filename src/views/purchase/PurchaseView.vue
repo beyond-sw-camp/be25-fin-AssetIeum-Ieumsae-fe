@@ -898,6 +898,127 @@
       </template>
     </BaseDrawer>
 
+    <BaseDrawer
+      :is-open="isPlanItemRegisterDrawerOpen"
+      title="구매 품목 등록"
+      panel-class="w-full max-w-lg"
+      body-class="space-y-4 p-6"
+      @close="closePlanItemRegisterDrawer"
+    >
+      <div class="space-y-4">
+        <div class="rounded-xl border border-border bg-surface-secondary px-4 py-3">
+          <p class="text-sm font-bold text-text-main">
+            {{ planItemRegisterTarget?.itemName ?? "비표준 품목" }}
+          </p>
+          <p class="mt-1 text-xs font-semibold text-text-muted">
+            {{ planItemRegisterAssetType === "INTANGIBLE" ? "무형자산" : "유형자산" }}
+            · 자산 등록 전 품목 정보를 먼저 등록합니다.
+          </p>
+        </div>
+
+        <div class="space-y-2 text-left">
+          <label
+            for="purchase-plan-item-asset-type"
+            class="block px-0.5 text-sm font-semibold text-text-main"
+          >
+            자산 유형 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="purchase-plan-item-asset-type"
+            :model-value="planItemRegisterAssetType"
+            :options="ASSET_TYPE_OPTIONS"
+            :disabled="isPlanItemRegistering || !!resolvePurchaseItemAssetType(planItemRegisterTarget)"
+            @update:model-value="(value) => {
+              planItemRegisterForm.assetType = value as AssetType;
+              planItemRegisterForm.categoryId = '';
+            }"
+          />
+        </div>
+
+        <div class="space-y-2 text-left">
+          <label
+            for="purchase-plan-item-category"
+            class="block px-0.5 text-sm font-semibold text-text-main"
+          >
+            카테고리 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="purchase-plan-item-category"
+            :model-value="planItemRegisterForm.categoryId"
+            :options="planItemRegisterCategoryOptions"
+            :disabled="isPlanItemRegistering"
+            @update:model-value="(value) => planItemRegisterForm.categoryId = String(value)"
+          />
+        </div>
+
+        <template v-if="planItemRegisterAssetType === 'INTANGIBLE'">
+          <Input
+            id="purchase-plan-item-provider"
+            v-model="planItemRegisterForm.provider"
+            label="제공사"
+            placeholder="예: Microsoft"
+            :disabled="isPlanItemRegistering"
+          />
+          <div class="space-y-2 text-left">
+            <label
+              for="purchase-plan-item-license-type"
+              class="block px-0.5 text-sm font-semibold text-text-main"
+            >
+              라이선스 유형
+            </label>
+            <Dropdown
+              id="purchase-plan-item-license-type"
+              :model-value="planItemRegisterForm.licenseType"
+              :options="LICENSE_TYPE_OPTIONS"
+              :disabled="isPlanItemRegistering"
+              @update:model-value="(value) => planItemRegisterForm.licenseType = String(value) as 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <Input
+            id="purchase-plan-item-manufacturer"
+            v-model="planItemRegisterForm.manufacturer"
+            label="제조사"
+            placeholder="예: Samsung"
+            :disabled="isPlanItemRegistering"
+          />
+          <Input
+            id="purchase-plan-item-model-name"
+            v-model="planItemRegisterForm.modelName"
+            label="모델명"
+            placeholder="예: NT960XGK"
+            :disabled="isPlanItemRegistering"
+          />
+        </template>
+
+        <p v-if="planItemRegisterError" class="text-xs font-semibold text-danger">
+          {{ planItemRegisterError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="grid grid-cols-2 gap-2">
+          <Button
+            class="w-full"
+            variant="outline"
+            :disabled="isPlanItemRegistering"
+            @click="closePlanItemRegisterDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            class="w-full"
+            :loading="isPlanItemRegistering"
+            @click="submitPlanItemRegister"
+          >
+            품목 등록
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <PurchaseAssetRegisterDrawer
       :is-open="isAssetRegisterDrawerOpen"
       :plan="selectedPlan"
@@ -1016,6 +1137,15 @@ interface DirectItemForm {
   externalUrl: string;
 }
 
+interface PlanItemRegisterForm {
+  assetType: AssetType;
+  categoryId: string;
+  manufacturer: string;
+  modelName: string;
+  provider: string;
+  licenseType: "SUBSCRIPTION" | "PERPETUAL" | "TERM";
+}
+
 type StandardPurchaseItem = {
   assetItemId: string;
   itemName: string;
@@ -1042,6 +1172,12 @@ const PAGE_SIZE_OPTIONS: DropdownOption[] = [
 const ASSET_TYPE_OPTIONS: DropdownOption[] = [
   { label: "유형자산", value: "TANGIBLE" },
   { label: "무형자산", value: "INTANGIBLE" },
+];
+
+const LICENSE_TYPE_OPTIONS: DropdownOption[] = [
+  { label: "구독형", value: "SUBSCRIPTION" },
+  { label: "영구", value: "PERPETUAL" },
+  { label: "기간형", value: "TERM" },
 ];
 
 const STATUS_FILTER_OPTIONS: DropdownOption[] = [
@@ -1180,6 +1316,18 @@ const isConfirmingItem = ref<number | string | null>(null);
 const isActualAmountDrawerOpen = ref(false);
 const actualAmountInput = ref("");
 const actualAmountError = ref("");
+const isPlanItemRegisterDrawerOpen = ref(false);
+const planItemRegisterTarget = ref<PurchasePlanItem | null>(null);
+const isPlanItemRegistering = ref(false);
+const planItemRegisterError = ref("");
+const planItemRegisterForm = ref<PlanItemRegisterForm>({
+  assetType: "TANGIBLE",
+  categoryId: "",
+  manufacturer: "",
+  modelName: "",
+  provider: "",
+  licenseType: "SUBSCRIPTION",
+});
 
 const isCreateDrawerOpen = ref(false);
 const eligibleTickets = ref<EligibleTicket[]>([]);
@@ -1215,6 +1363,18 @@ const tangibleCategoryOptions = computed(() =>
 const intangibleCategoryOptions = computed(() =>
   categoryGroupsToOptions(intangibleCategoryGroups.value),
 );
+
+const planItemRegisterAssetType = computed<AssetType>(() =>
+  resolvePurchaseItemAssetType(planItemRegisterTarget.value)
+    ?? planItemRegisterForm.value.assetType,
+);
+
+const planItemRegisterCategoryOptions = computed<DropdownOption[]>(() => [
+  { label: "카테고리 선택", value: "" },
+  ...(planItemRegisterAssetType.value === "INTANGIBLE"
+    ? categoryGroupsToIdOptions(intangibleCategoryGroups.value)
+    : categoryGroupsToIdOptions(tangibleCategoryGroups.value)),
+]);
 
 const directCategoryOptions = computed<DropdownOption[]>(() => {
   const categories =
@@ -2296,6 +2456,33 @@ function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket
   };
 }
 
+function resolvePurchaseItemAssetType(item: PurchasePlanItem | null | undefined) {
+  if (!item) return null;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  const rawAssetType =
+    item.assetType
+    ?? rawItem.asset_type
+    ?? rawItem.assetItemType
+    ?? rawItem.asset_item_type
+    ?? rawItem.type;
+  if (rawAssetType === "TANGIBLE" || rawAssetType === "INTANGIBLE") {
+    return rawAssetType;
+  }
+  if (
+    item.intangibleItemId
+    || item.intangibleAssetItemId
+    || rawItem.intangible_asset_item_id
+    || rawItem.intangible_item_id
+  ) return "INTANGIBLE";
+  if (
+    item.tangibleItemId
+    || item.tangibleAssetItemId
+    || rawItem.tangible_asset_item_id
+    || rawItem.tangible_item_id
+  ) return "TANGIBLE";
+  return null;
+}
+
 function toStandardTangiblePurchaseItem(
   item: TangibleAssetItem,
 ): StandardPurchaseItem | null {
@@ -2332,9 +2519,39 @@ function toStandardIntangiblePurchaseItem(
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
-  const itemId = item?.itemId ?? item?.purchasePlanItemId ?? item?.id;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
+  const itemId = item?.itemId
+    ?? item?.purchasePlanItemId
+    ?? item?.purchasePlanItemDetailId
+    ?? item?.purchasePlanItemDetailID
+    ?? item?.purchase_plan_item_detail_id
+    ?? item?.purchasePlanItemDetail_id
+    ?? item?.purchasePlanItemID
+    ?? item?.purchase_plan_item_id
+    ?? item?.purchasePlanItem_id
+    ?? item?.purchaseItemId
+    ?? item?.purchase_item_id
+    ?? item?.planItemId
+    ?? item?.plan_item_id
+    ?? item?.purchaseRequestItemId
+    ?? item?.purchase_request_item_id
+    ?? item?.planPurchaseItemId
+    ?? item?.plan_purchase_item_id
+    ?? item?.purchasePlanItemNo
+    ?? item?.itemNo
+    ?? rawItem?.purchasePlanDetailItemId
+    ?? rawItem?.purchase_plan_detail_item_id
+    ?? rawItem?.purchasePlanItemDetailNo
+    ?? rawItem?.purchase_plan_item_detail_no
+    ?? item?.id;
   if (itemId === null || itemId === undefined) return null;
   const normalized = String(itemId).trim();
+  return normalized || null;
+}
+
+function normalizeNullableId(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
   return normalized || null;
 }
 
@@ -2353,6 +2570,58 @@ function categoryGroupsToOptions(groups: unknown): DropdownOption[] {
     label: name,
     value: name,
   }));
+}
+
+function categoryGroupsToIdOptions(groups: unknown): DropdownOption[] {
+  const optionMap = new Map<string, DropdownOption>();
+  collectCategoryIdOptions(groups).forEach((option) => {
+    optionMap.set(String(option.value), option);
+  });
+  return Array.from(optionMap.values());
+}
+
+function collectCategoryIdOptions(value: unknown): DropdownOption[] {
+  if (Array.isArray(value)) return value.flatMap(collectCategoryIdOptions);
+  if (!value || typeof value !== "object") return [];
+
+  const category = value as Record<string, unknown>;
+  const options: DropdownOption[] = [];
+  const label = String(
+    category.name ?? category.categoryName ?? category.mainCategory ?? "",
+  ).trim();
+  const id =
+    category.categoryId
+    ?? category.tangibleAssetCategoryId
+    ?? category.intangibleAssetCategoryId
+    ?? category.tangibleCategoryId
+    ?? category.intangibleCategoryId
+    ?? category.assetCategoryId
+    ?? category.id
+    ?? category.uuid;
+
+  if (label && id !== null && id !== undefined && String(id).trim()) {
+    options.push({ label, value: String(id) });
+  }
+
+  if (category.subCategoryIds && typeof category.subCategoryIds === "object") {
+    Object.entries(category.subCategoryIds).forEach(([name, value]) => {
+      if (value !== null && value !== undefined && String(value).trim()) {
+        options.push({ label: name, value: String(value) });
+      }
+    });
+  }
+
+  if (category.childCategoryIds && typeof category.childCategoryIds === "object") {
+    Object.entries(category.childCategoryIds).forEach(([name, value]) => {
+      if (value !== null && value !== undefined && String(value).trim()) {
+        options.push({ label: name, value: String(value) });
+      }
+    });
+  }
+
+  options.push(...collectCategoryIdOptions(category.children));
+  options.push(...collectCategoryIdOptions(category.subCategories));
+  return options;
 }
 
 function collectCategoryNames(value: unknown): string[] {
@@ -2467,7 +2736,112 @@ async function handlePurchaseAssetRegistered() {
   await refreshList();
 }
 
+function openPlanItemRegisterDrawer(item: PurchasePlanItem) {
+  const assetType = resolvePurchaseItemAssetType(item) ?? "TANGIBLE";
+  planItemRegisterTarget.value = item;
+  planItemRegisterError.value = "";
+  planItemRegisterForm.value = {
+    assetType,
+    categoryId: normalizeNullableId(item.categoryId) ?? "",
+    manufacturer: "",
+    modelName: "",
+    provider: "",
+    licenseType: "SUBSCRIPTION",
+  };
+  isPlanItemRegisterDrawerOpen.value = true;
+  void fetchPurchaseCategoryOptions();
+}
+
+function closePlanItemRegisterDrawer() {
+  if (isPlanItemRegistering.value) return;
+  isPlanItemRegisterDrawerOpen.value = false;
+  planItemRegisterTarget.value = null;
+  planItemRegisterError.value = "";
+}
+
+async function submitPlanItemRegister() {
+  const planId = selectedPlan.value?.planId ?? selectedPlanId.value;
+  const targetItem = planItemRegisterTarget.value;
+  const itemId = getPurchasePlanItemId(targetItem);
+  const assetType =
+    resolvePurchaseItemAssetType(targetItem) ?? planItemRegisterForm.value.assetType;
+
+  if (!planId) {
+    planItemRegisterError.value = "구매계획 ID를 확인할 수 없습니다.";
+    return;
+  }
+  if (!targetItem) {
+    planItemRegisterError.value = "등록할 구매 품목을 확인할 수 없습니다.";
+    return;
+  }
+  if (!itemId) {
+    planItemRegisterError.value =
+      "구매계획 품목 ID를 확인할 수 없습니다. 상세조회 응답에 itemId 또는 purchasePlanItemId가 필요합니다.";
+    return;
+  }
+  if (!assetType) {
+    planItemRegisterError.value = "자산 유형을 선택해주세요.";
+    return;
+  }
+  if (!planItemRegisterForm.value.categoryId) {
+    planItemRegisterError.value = "카테고리를 선택해주세요.";
+    return;
+  }
+
+  planItemRegisterError.value = "";
+  isPlanItemRegistering.value = true;
+
+  try {
+    await purchaseApi.registerPlanItem(planId, itemId, {
+      categoryId: planItemRegisterForm.value.categoryId,
+      manufacturer:
+        assetType === "TANGIBLE"
+          ? planItemRegisterForm.value.manufacturer.trim() || undefined
+          : undefined,
+      modelName:
+        assetType === "TANGIBLE"
+          ? planItemRegisterForm.value.modelName.trim() || undefined
+          : undefined,
+      provider:
+        assetType === "INTANGIBLE"
+          ? planItemRegisterForm.value.provider.trim() || undefined
+          : undefined,
+      licenseType:
+        assetType === "INTANGIBLE"
+          ? planItemRegisterForm.value.licenseType
+          : undefined,
+      isStandard: false,
+    });
+
+    isPlanItemRegisterDrawerOpen.value = false;
+    planItemRegisterTarget.value = null;
+    await fetchPlanDetail(planId);
+    const refreshedItem = selectedPlanItems.value.find(
+      (item) => getPurchasePlanItemId(item) === String(itemId),
+    );
+    const nextAssetRegisterItem: PurchasePlanItem = refreshedItem ?? targetItem;
+    assetRegisterTargetItem.value = {
+      ...nextAssetRegisterItem,
+      assetType,
+    };
+    isAssetRegisterDrawerOpen.value = true;
+    void fetchAssetRegisterReferenceData();
+  } catch (error) {
+    planItemRegisterError.value = getErrorMessage(
+      error,
+      "구매계획 품목 등록에 실패했습니다.",
+    );
+  } finally {
+    isPlanItemRegistering.value = false;
+  }
+}
+
 function openAssetRegisterDrawer(item: PurchasePlanItem) {
+  if (item.isStandard === false) {
+    openPlanItemRegisterDrawer(item);
+    return;
+  }
+
   assetRegisterTargetItem.value = item;
   isAssetRegisterDrawerOpen.value = true;
   void fetchAssetRegisterReferenceData();

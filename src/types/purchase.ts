@@ -130,6 +130,19 @@ export interface PurchasePlanItem {
   ticketRequesterName?: string | null
   requesterId?: number | string | null
   requesterName?: string | null
+  assignmentTargetMemberIds?: (number | string | null)[]
+  assigneeIds?: (number | string | null)[]
+  assignmentTargets?: {
+    targetId?: number | string | null
+    memberId?: number | string | null
+    assigneeId?: number | string | null
+    targetMemberId?: number | string | null
+    name?: string | null
+    memberName?: string | null
+    assigneeName?: string | null
+    departmentId?: number | string | null
+    departmentName?: string | null
+  }[]
   ticketDepartmentId?: number | string | null
   ticketDepartmentName?: string | null
   departmentId?: number | string | null
