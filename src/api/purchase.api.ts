@@ -32,6 +32,7 @@ const PURCHASE_PLAN_STATUSES = new Set([
 type PurchasePlanItemResponse = PurchasePlanItem & {
   productName?: string | null
   name?: string | null
+  categoryId?: number | string | null
   categoryName?: string | null
   assetCategoryName?: string | null
   assetCategory?: {
@@ -150,6 +151,8 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     ...item,
     itemId,
     category: pickPlanItemCategory(item),
+    categoryId: item.categoryId ?? null,
+    categoryName: pickPlanItemCategory(item),
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
     quantity,
     estimatedUnitPrice,

@@ -108,6 +108,8 @@ export interface PurchasePlanItem {
   tangibleItemId?: number | string | null
   intangibleItemId?: number | string | null
   category: string
+  categoryId?: number | string | null
+  categoryName?: string | null
   itemName: string
   productName?: string | null
   name?: string | null

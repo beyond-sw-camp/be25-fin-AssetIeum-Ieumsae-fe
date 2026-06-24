@@ -182,7 +182,7 @@
                     empty-text="구매 품목이 없습니다."
                     class="rounded-none! border-0! [&_table]:min-w-[1100px]"
                   >
-                    <template #cell-category="{ value }">
+                    <template #cell-categoryName="{ value }">
                       <span class="text-text-sub">{{ value || "-" }}</span>
                     </template>
 
@@ -608,11 +608,11 @@
               </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <div class="xl:col-span-2">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+              <div v-if="false" class="xl:col-span-2">
                 <Input
                   id="direct-plan-item-name"
-                  v-model="directItemForm.itemName"
+                  v-model="directItemForm.assetItemId"
                   label="품목명"
                   required
                   placeholder="예: MacBook Pro 14"
@@ -630,7 +630,7 @@
                   @update:model-value="handleDirectAssetTypeChange"
                 />
               </div>
-              <div v-if="false" class="space-y-2 text-left">
+              <div class="space-y-2 text-left">
                 <label
                   for="direct-plan-category"
                   class="block px-0.5 text-sm font-semibold text-text-main"
@@ -643,6 +643,21 @@
                   :options="directCategoryOptions"
                   :disabled="isDirectCategoryDisabled"
                   @update:model-value="handleDirectCategoryChange"
+                />
+              </div>
+              <div class="space-y-2 text-left xl:col-span-2">
+                <label
+                  for="direct-plan-standard-item"
+                  class="block px-0.5 text-sm font-semibold text-text-main"
+                >
+                  표준 품목
+                </label>
+                <Dropdown
+                  id="direct-plan-standard-item"
+                  :model-value="directItemForm.assetItemId"
+                  :options="standardPurchaseItemOptions"
+                  :disabled="isStandardPurchaseItemDisabled"
+                  @update:model-value="handleDirectStandardItemChange"
                 />
               </div>
               <Input
@@ -679,7 +694,7 @@
                   </span>
                 </div>
               </div>
-              <div class="md:col-span-2 xl:col-span-4">
+              <div v-if="false" class="md:col-span-2 xl:col-span-4">
                 <Input
                   id="direct-plan-url"
                   v-model="directItemForm.externalUrl"
@@ -939,6 +954,7 @@ import type {
   Department,
   DropdownOption,
   IntangibleCategoryGroup,
+  IntangibleItem,
   Member,
   PurchasePlanCandidateTicket,
   PurchasePlanCreateItem,
@@ -947,6 +963,7 @@ import type {
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
+  TangibleAssetItem,
   TangibleCategoryGroup,
 } from "@/types";
 
@@ -968,6 +985,7 @@ interface EligibleTicket {
 
 interface DirectPlanItem {
   localId: string;
+  assetItemId: string;
   itemName: string;
   categoryName: string;
   assetType: AssetType;
@@ -990,13 +1008,21 @@ interface PlanRequestItem {
 }
 
 interface DirectItemForm {
-  itemName: string;
+  assetItemId: string;
   categoryName: string;
   assetType: AssetType;
   quantity: string;
   estimatedUnitPrice: string;
   externalUrl: string;
 }
+
+type StandardPurchaseItem = {
+  assetItemId: string;
+  itemName: string;
+  categoryName: string;
+  assetType: AssetType;
+  estimatedUnitPrice: number | null;
+};
 
 interface FooterStatusAction {
   key?: string;
@@ -1072,7 +1098,7 @@ const columns: Column<PurchasePlanListItem>[] = [
 ];
 
 const planItemColumns: Column<PurchasePlanItem>[] = [
-  { key: "category", label: "분류", width: "11%", align: "center" },
+  { key: "categoryName", label: "카테고리", width: "11%", align: "center" },
   { key: "itemName", label: "품목명", width: "20%", align: "center" },
   {
     key: "ticketRequesterName",
@@ -1160,13 +1186,15 @@ const eligibleTickets = ref<EligibleTicket[]>([]);
 const selectedTicketIds = ref<string[]>([]);
 const directPlanItems = ref<DirectPlanItem[]>([]);
 const directItemForm = ref<DirectItemForm>({
-  itemName: "",
+  assetItemId: "",
   categoryName: "",
   assetType: "TANGIBLE",
   quantity: "1",
   estimatedUnitPrice: "",
   externalUrl: "",
 });
+const standardPurchaseItems = ref<StandardPurchaseItem[]>([]);
+const isStandardItemLoading = ref(false);
 const directItemError = ref("");
 const isEligibleLoading = ref(false);
 const eligibleError = ref("");
@@ -1198,6 +1226,33 @@ const directCategoryOptions = computed<DropdownOption[]>(() => {
 });
 
 const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
+
+const selectedStandardPurchaseItem = computed(
+  () =>
+    standardPurchaseItems.value.find(
+      (item) => item.assetItemId === directItemForm.value.assetItemId,
+    ) ?? null,
+);
+
+const standardPurchaseItemOptions = computed<DropdownOption[]>(() => [
+  {
+    label: isStandardItemLoading.value
+      ? "표준 품목 불러오는 중"
+      : "표준 품목 선택",
+    value: "",
+  },
+  ...standardPurchaseItems.value.map((item) => ({
+    label: `${item.itemName} · ${item.categoryName}`,
+    value: item.assetItemId,
+  })),
+]);
+
+const isStandardPurchaseItemDisabled = computed(
+  () =>
+    isCreatingPlan.value ||
+    isStandardItemLoading.value ||
+    !directItemForm.value.categoryName,
+);
 
 const formattedDirectEstimatedUnitPrice = computed(() =>
   formatNumberInput(directItemForm.value.estimatedUnitPrice),
@@ -1408,7 +1463,7 @@ const displayPlanItemColumns = computed(() => {
   if (hasTicketLinkedPlanItem.value) return planItemColumns;
   return planItemColumns.filter(
     (column) =>
-      !["category", "ticketRequesterName", "ticketDepartmentName"].includes(
+      !["ticketRequesterName", "ticketDepartmentName"].includes(
         String(column.key),
       ),
   );
@@ -1506,6 +1561,28 @@ watch(
     void fetchPlanDetail(nextPlanId);
   },
   { immediate: true },
+);
+
+watch(
+  () => [directItemForm.value.assetType, directItemForm.value.categoryName],
+  () => {
+    directItemForm.value.assetItemId = "";
+    directItemForm.value.estimatedUnitPrice = "";
+    if (!isCreateDrawerOpen.value || !directItemForm.value.categoryName) {
+      standardPurchaseItems.value = [];
+      return;
+    }
+    void fetchStandardPurchaseItems();
+  },
+);
+
+watch(
+  () => directItemForm.value.assetItemId,
+  () => {
+    const item = selectedStandardPurchaseItem.value;
+    directItemForm.value.estimatedUnitPrice =
+      item?.estimatedUnitPrice == null ? "" : String(item.estimatedUnitPrice);
+  },
 );
 
 onMounted(() => {
@@ -1710,6 +1787,49 @@ async function fetchEligibleTickets() {
   }
 }
 
+async function fetchStandardPurchaseItems() {
+  const categoryName = directItemForm.value.categoryName;
+  if (!categoryName) {
+    standardPurchaseItems.value = [];
+    return;
+  }
+
+  isStandardItemLoading.value = true;
+
+  try {
+    if (directItemForm.value.assetType === "INTANGIBLE") {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        category: categoryName,
+        isStandard: 1,
+      });
+      standardPurchaseItems.value = response.data.content
+        .map(toStandardIntangiblePurchaseItem)
+        .filter((item): item is StandardPurchaseItem => Boolean(item));
+      return;
+    }
+
+    const response = await tangibleItemApi.getList({
+      page: 0,
+      size: 100,
+      categoryName,
+      isStandard: 1,
+    });
+    standardPurchaseItems.value = response.data.content
+      .map(toStandardTangiblePurchaseItem)
+      .filter((item): item is StandardPurchaseItem => Boolean(item));
+  } catch (error) {
+    standardPurchaseItems.value = [];
+    directItemError.value = getErrorMessage(
+      error,
+      "표준 품목 목록을 불러오지 못했습니다.",
+    );
+  } finally {
+    isStandardItemLoading.value = false;
+  }
+}
+
 function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
   const itemName =
     ticket.itemName ||
@@ -1780,13 +1900,14 @@ function handleDirectCategoryChange(value: string | number) {
 
 function resetDirectItemForm() {
   directItemForm.value = {
-    itemName: "",
+    assetItemId: "",
     categoryName: "",
     assetType: "TANGIBLE",
     quantity: "1",
     estimatedUnitPrice: "",
     externalUrl: "",
   };
+  standardPurchaseItems.value = [];
   directItemError.value = "";
 }
 
@@ -1794,6 +1915,12 @@ function handleDirectAssetTypeChange(value: string | number) {
   directItemForm.value.assetType =
     value === "INTANGIBLE" ? "INTANGIBLE" : "TANGIBLE";
   directItemForm.value.categoryName = "";
+  directItemForm.value.assetItemId = "";
+  standardPurchaseItems.value = [];
+}
+
+function handleDirectStandardItemChange(value: string | number) {
+  directItemForm.value.assetItemId = String(value);
 }
 
 function handleDirectEstimatedUnitPriceInput(event: Event) {
@@ -1803,12 +1930,17 @@ function handleDirectEstimatedUnitPriceInput(event: Event) {
 
 function addDirectPlanItem() {
   directItemError.value = "";
-  const itemName = directItemForm.value.itemName.trim();
+  const selectedItem = selectedStandardPurchaseItem.value;
   const quantity = Number(directItemForm.value.quantity);
   const estimatedUnitPrice = Number(directItemForm.value.estimatedUnitPrice);
 
-  if (!itemName) {
-    directItemError.value = "품목명을 입력해주세요.";
+  if (!directItemForm.value.categoryName) {
+    directItemError.value = "카테고리를 선택해주세요.";
+    return;
+  }
+
+  if (!selectedItem) {
+    directItemError.value = "표준 품목을 선택해주세요.";
     return;
   }
 
@@ -1826,12 +1958,13 @@ function addDirectPlanItem() {
     ...directPlanItems.value,
     {
       localId: `direct-${Date.now()}-${directPlanItems.value.length}`,
-      itemName,
-      categoryName: "",
-      assetType: directItemForm.value.assetType,
+      assetItemId: selectedItem.assetItemId,
+      itemName: selectedItem.itemName,
+      categoryName: selectedItem.categoryName,
+      assetType: selectedItem.assetType,
       quantity,
       estimatedUnitPrice,
-      externalUrl: directItemForm.value.externalUrl.trim() || null,
+      externalUrl: null,
     },
   ];
   resetDirectItemForm();
@@ -1873,9 +2006,9 @@ async function createPlan() {
         ticketId: null,
         productName: item.itemName,
         assetType: item.assetType,
-        assetItemId: null,
+        assetItemId: item.assetItemId,
         quantity: item.quantity,
-        isStandard: 0,
+        isStandard: 1,
         estimatedUnitPrice: item.estimatedUnitPrice,
         estimatedAmount: item.estimatedUnitPrice * item.quantity,
         externalUrl: item.externalUrl,
@@ -2160,6 +2293,41 @@ function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket
     assetItemId: assetItemId ?? resolvedTangibleItemId,
     tangibleAssetItemId: resolvedTangibleItemId,
     intangibleAssetItemId: null,
+  };
+}
+
+function toStandardTangiblePurchaseItem(
+  item: TangibleAssetItem,
+): StandardPurchaseItem | null {
+  const assetItemId = parseAssetItemId(
+    item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId,
+  );
+  if (!assetItemId) return null;
+
+  return {
+    assetItemId,
+    itemName: item.productName || item.name || "-",
+    categoryName: item.categoryName || item.category || "-",
+    assetType: "TANGIBLE",
+    estimatedUnitPrice:
+      Number.isFinite(Number(item.purchasePrice)) && Number(item.purchasePrice) > 0
+        ? Number(item.purchasePrice)
+        : null,
+  };
+}
+
+function toStandardIntangiblePurchaseItem(
+  item: IntangibleItem,
+): StandardPurchaseItem | null {
+  const assetItemId = parseAssetItemId(item.assetItemId ?? item.itemId ?? item.id);
+  if (!assetItemId) return null;
+
+  return {
+    assetItemId,
+    itemName: item.productName || "-",
+    categoryName: item.category || "-",
+    assetType: "INTANGIBLE",
+    estimatedUnitPrice: null,
   };
 }
 
