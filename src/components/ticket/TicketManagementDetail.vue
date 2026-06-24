@@ -643,6 +643,7 @@ import type {
 import {
   formatCurrency,
   formatDate,
+  getDirectPurchaseConfirmationStatusLabel,
   getTicketDetailStatusLabel,
   getTicketStatusLabel,
   getTicketTypeLabel,
@@ -850,6 +851,9 @@ const directPurchasePaymentConfirmationStatus = computed(() => (
   directPurchasePaymentResult.value?.confirmationStatus
     ?? ticket.value?.directPurchaseConfirmationStatus
     ?? null
+))
+const directPurchasePaymentConfirmationStatusLabel = computed(() => (
+  getDirectPurchaseConfirmationStatusLabel(directPurchasePaymentConfirmationStatus.value)
 ))
 const directPurchaseEvidenceFileName = computed(() => (
   ticket.value?.directPurchaseEvidenceFileName ?? ''
@@ -1070,7 +1074,7 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     },
     {
       label: '확인 상태',
-      value: directPurchasePaymentConfirmationStatus.value ?? '-',
+      value: directPurchasePaymentConfirmationStatusLabel.value,
     },
     ...(ticket.value.assetType === 'TANGIBLE' ? [
       { label: '시리얼 번호', value: serialNumberText },

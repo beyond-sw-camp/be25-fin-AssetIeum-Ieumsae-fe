@@ -101,6 +101,26 @@ export function getTicketDetailStatusLabel(status: string | null | undefined): s
     ?? status
 }
 
+export const DIRECT_PURCHASE_CONFIRMATION_STATUS_LABEL: Record<string, string> = {
+  PENDING: '확인 대기',
+  SUBMITTED: '제출 완료',
+  CONFIRMED: '확인 완료',
+  APPROVED: '확인 완료',
+  COMPLETED: '확인 완료',
+  REJECTED: '확인 반려',
+  CANCELLED: '취소',
+  FAILED: '확인 실패',
+}
+
+export function getDirectPurchaseConfirmationStatusLabel(
+  status: string | null | undefined,
+  fallback = '-',
+): string {
+  if (!status) return fallback
+  const normalizedStatus = status.trim().toUpperCase()
+  return DIRECT_PURCHASE_CONFIRMATION_STATUS_LABEL[normalizedStatus] ?? status
+}
+
 export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   ASSET_REQUEST: '자산 요청',
   RENTAL: '대여 요청',
