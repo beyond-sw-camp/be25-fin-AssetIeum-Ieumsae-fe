@@ -107,6 +107,8 @@ export interface PurchasePlanItem {
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
   intangibleItemId?: number | string | null
+  tangibleAssetItemId?: number | string | null
+  intangibleAssetItemId?: number | string | null
   category: string
   categoryId?: number | string | null
   categoryName?: string | null
@@ -121,7 +123,7 @@ export interface PurchasePlanItem {
   assetRegisteredCount?: number | null
   registeredQuantity?: number | null
   registeredAssetQuantity?: number | null
-  assetType?: AssetType
+  assetType?: AssetType | null
   isStandard?: boolean
   ticketId?: number | string | null
   ticketRequesterId?: number | string | null

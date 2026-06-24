@@ -91,6 +91,11 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   ticketDepartmentName?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
+  asset_type?: string | null
+  tangibleAssetItemId?: number | string | null
+  intangibleAssetItemId?: number | string | null
+  tangible_asset_item_id?: number | string | null
+  intangible_asset_item_id?: number | string | null
 }
 
 type PurchasePlanListItemResponse = PurchasePlanListItem & {
@@ -154,6 +159,9 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     categoryId: item.categoryId ?? null,
     categoryName: pickPlanItemCategory(item),
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
+    assetType: normalizePlanItemAssetType(item),
+    tangibleAssetItemId: item.tangibleAssetItemId ?? item.tangible_asset_item_id ?? item.tangibleItemId ?? null,
+    intangibleAssetItemId: item.intangibleAssetItemId ?? item.intangible_asset_item_id ?? item.intangibleItemId ?? null,
     quantity,
     estimatedUnitPrice,
     totalAmount,
@@ -166,6 +174,20 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function normalizePlanItemAssetType(item: PurchasePlanItemResponse) {
+  const rawAssetType = item.assetType ?? item.asset_type
+  if (rawAssetType === 'TANGIBLE' || rawAssetType === 'INTANGIBLE') return rawAssetType
+
+  if (item.intangibleItemId || item.intangibleAssetItemId || item.intangible_asset_item_id) {
+    return 'INTANGIBLE'
+  }
+  if (item.tangibleItemId || item.tangibleAssetItemId || item.tangible_asset_item_id) {
+    return 'TANGIBLE'
+  }
+
+  return null
 }
 
 function toNullableNumber(value: unknown) {
@@ -356,13 +378,13 @@ export const purchaseApi = {
 
   registerAssets: (
     planId: number | string,
-    itemId: number | string | null,
+    itemId: number | string,
+    assetType: 'TANGIBLE' | 'INTANGIBLE',
     data: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest,
   ) => {
-    const assetPath = 'serialNumbers' in data ? 'tangible-assets' : 'intangible-assets'
-    const itemPath = itemId ? `/items/${itemId}` : ''
+    const assetPath = assetType === 'TANGIBLE' ? 'tangible-assets' : 'intangible-assets'
     return api.post<Record<string, unknown>>(
-      `/purchase-plans/${planId}${itemPath}/${assetPath}`,
+      `/purchase-plans/${planId}/items/${itemId}/${assetPath}`,
       data,
     )
   },

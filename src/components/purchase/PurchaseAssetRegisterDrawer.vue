@@ -418,11 +418,13 @@ const intangibleForm = reactive({
 })
 
 // ── 계산 속성 ──────────────────────────────────────────────
-const assetType = computed<AssetType>(() => (
-  props.item?.assetType === 'INTANGIBLE' ? 'INTANGIBLE' : 'TANGIBLE'
-))
+const assetType = computed<AssetType | null>(() => resolvePurchaseItemAssetType(props.item))
 const isTangible = computed(() => assetType.value === 'TANGIBLE')
-const assetTypeLabel = computed(() => (isTangible.value ? '유형자산' : '무형자산'))
+const assetTypeLabel = computed(() => {
+  if (assetType.value === 'TANGIBLE') return '유형자산'
+  if (assetType.value === 'INTANGIBLE') return '무형자산'
+  return '자산 유형 확인 필요'
+})
 const purchaseQuantity = computed(() => Math.max(0, Number(props.item?.quantity ?? 0)))
 const intangibleSeatCount = computed(() => Math.max(1, Number(intangibleForm.seatCount) || 1))
 const deliveryConfirmedAt = computed(() => (
@@ -450,13 +452,17 @@ const submitButtonText = computed(() => (
 ))
 
 const requester = computed(() => {
-  const requesterId = props.plan?.requesterId
+  const requesterId = props.item?.ticketRequesterId ?? props.item?.requesterId ?? props.plan?.requesterId
   if (requesterId === null || requesterId === undefined) return null
   return props.members.find((member) => String(member.memberId) === String(requesterId)) ?? null
 })
 
-const requestDepartmentId = computed(() => requester.value?.departmentId ?? '')
-const requestDepartmentName = computed(() => requester.value?.departmentName ?? '-')
+const requestDepartmentId = computed(() => (
+  props.item?.ticketDepartmentId ?? props.item?.departmentId ?? requester.value?.departmentId ?? ''
+))
+const requestDepartmentName = computed(() => (
+  props.item?.ticketDepartmentName ?? props.item?.departmentName ?? requester.value?.departmentName ?? '-'
+))
 const requesterLabel = computed(() => (requester.value ? memberLabel(requester.value) : '요청자 확인 필요'))
 const assignableMembers = computed(() => {
   const activeMembers = props.members.filter((member) => member.status === 'ACTIVE')
@@ -686,12 +692,23 @@ async function handleSubmit() {
 
   const planId = props.plan?.planId
   const itemId = getPurchasePlanItemId(props.item)
-  if (!planId) return
+  if (!planId) {
+    errorMessage.value = '구매계획 정보를 확인할 수 없습니다.'
+    return
+  }
+  if (!itemId) {
+    errorMessage.value = '구매계획 품목 ID를 확인할 수 없습니다.'
+    return
+  }
+  if (!assetType.value) {
+    errorMessage.value = '자산 유형을 확인할 수 없어 등록 엔드포인트를 결정할 수 없습니다.'
+    return
+  }
 
   const submittedCount = rowsToSubmit.value.length
   isSubmitting.value = true
   try {
-    await submitPurchasePlanAssets(planId, itemId)
+    await submitPurchasePlanAssets(planId, itemId, assetType.value)
     rowsToSubmit.value.forEach((row) => {
       row.status = 'success'
       row.errorMessage = ''
@@ -707,7 +724,11 @@ async function handleSubmit() {
   }
 }
 
-async function submitPurchasePlanAssets(planId: number | string, itemId: number | string | null) {
+async function submitPurchasePlanAssets(
+  planId: number | string,
+  itemId: number | string,
+  resolvedAssetType: AssetType,
+) {
   rowsToSubmit.value.forEach((row) => {
     row.status = 'submitting'
     row.errorMessage = ''
@@ -715,7 +736,7 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
 
   let body: PurchasePlanTangibleAssetRegisterRequest | PurchasePlanIntangibleAssetRegisterRequest
 
-  if (isTangible.value) {
+  if (resolvedAssetType === 'TANGIBLE') {
     const { serialNumbers, memberIds } = toTangibleAssetRowsPayload(rowsToSubmit.value)
     body = {
       serialNumbers,
@@ -727,7 +748,7 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
       warrantyExpiredAt: toLocalDateTime(tangibleForm.warrantyExpiredAt),
       usageType: tangibleForm.usageType as 'TEMPORARY' | 'PERMANENT',
       assetUsageType: tangibleForm.assetUsageType,
-      departmentId: requestDepartmentId.value || null,
+      departmentId: toNullableStringId(requestDepartmentId.value),
       usedStartedAt: tangibleForm.usedStartedAt ? toLocalDateTime(tangibleForm.usedStartedAt) : null,
       returnDueDate: tangibleForm.returnDueDate ? toLocalDateTime(tangibleForm.returnDueDate) : null,
     } satisfies PurchasePlanTangibleAssetRegisterRequest
@@ -745,12 +766,12 @@ async function submitPurchasePlanAssets(planId: number | string, itemId: number 
       billingCycle: intangibleForm.billingCycle || null,
       startedAt: intangibleForm.startedAt ? toLocalDateTime(intangibleForm.startedAt) : null,
       expiredAt: intangibleForm.expiredAt ? toLocalDateTime(intangibleForm.expiredAt) : null,
-      departmentId: requestDepartmentId.value || null,
+      departmentId: toNullableStringId(requestDepartmentId.value),
     } satisfies PurchasePlanIntangibleAssetRegisterRequest
   }
 
   try {
-    await purchaseApi.registerAssets(planId, itemId, body)
+    await purchaseApi.registerAssets(planId, itemId, resolvedAssetType, body)
   } catch (error) {
     rowsToSubmit.value.forEach((row) => {
       row.status = 'failed'
@@ -820,7 +841,25 @@ function memberNameById(memberId: string | number) {
 }
 
 function memberLabel(member: Member) {
-  return `${member.name} / ${member.memberNo} / ${member.departmentName}`
+  return [member.name, member.memberNo, member.departmentName]
+    .filter((value) => value !== null && value !== undefined && String(value).trim())
+    .join(' / ')
+}
+
+function resolvePurchaseItemAssetType(item: PurchasePlanItem | null): AssetType | null {
+  if (!item) return null
+  if (item.assetType === 'TANGIBLE' || item.assetType === 'INTANGIBLE') {
+    return item.assetType
+  }
+  if (item.intangibleItemId || item.intangibleAssetItemId) return 'INTANGIBLE'
+  if (item.tangibleItemId || item.tangibleAssetItemId) return 'TANGIBLE'
+  return null
+}
+
+function toNullableStringId(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
+  return normalized || null
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {
