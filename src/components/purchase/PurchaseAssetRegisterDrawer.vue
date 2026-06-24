@@ -199,7 +199,7 @@
                   <th class="w-14 px-3 py-2 text-center">번호</th>
                   <th class="px-3 py-2 text-left">{{ isTangible ? '시리얼 번호' : '라이선스 코드' }}</th>
                   <th class="w-[180px] px-3 py-2 text-left">할당 방식</th>
-                  <th class="w-[260px] px-3 py-2 text-left">할당 사용자</th>
+                  <th class="w-[320px] px-3 py-2 text-left">할당 사용자</th>
                   <th class="w-[120px] px-3 py-2 text-center">상태</th>
                 </tr>
               </thead>
@@ -232,10 +232,13 @@
                   </td>
                   <td class="px-3 py-3">
                     <div v-if="row.assignmentMethod === 'REQUESTER'" class="rounded-xl border border-border bg-surface-secondary px-3 py-2 text-sm text-text-main">
-                      {{ requesterLabel }}
+                      <div>{{ requesterLabel }}</div>
+                      <p v-if="!isTangible" class="mt-1 text-xs font-semibold text-text-muted">
+                        {{ selectedMemberCountLabel(row) }}
+                      </p>
                     </div>
                     <Dropdown
-                      v-else
+                      v-else-if="isTangible"
                       :id="`purchase-asset-member-${index}`"
                       :model-value="row.memberId"
                       :options="memberOptions"
@@ -243,6 +246,51 @@
                       menu-strategy="fixed"
                       @update:model-value="(value) => handleRowMemberChange(row, value)"
                     />
+                    <div v-else-if="row.assignmentMethod === 'UNASSIGNED'" class="rounded-xl border border-border bg-surface-secondary px-3 py-2 text-sm text-text-muted">
+                      미할당
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div class="max-h-32 overflow-y-auto rounded-xl border border-border bg-surface">
+                        <label
+                          v-for="member in assignableMembers"
+                          :key="String(member.memberId)"
+                          class="flex cursor-pointer items-center gap-2 border-b border-border/60 px-3 py-2 text-sm text-text-main last:border-b-0 hover:bg-surface-secondary"
+                          :class="isIntangibleMemberOptionDisabled(row, member.memberId) && 'cursor-not-allowed opacity-50 hover:bg-surface'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                            :checked="isRowMemberSelected(row, member.memberId)"
+                            :disabled="isSubmitting || row.status === 'success' || isIntangibleMemberOptionDisabled(row, member.memberId)"
+                            @change="handleRowMemberToggle(row, member.memberId)"
+                          />
+                          <span class="min-w-0 flex-1 truncate">{{ memberLabel(member) }}</span>
+                        </label>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span
+                          v-for="memberId in row.memberIds"
+                          :key="memberId"
+                          class="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
+                        >
+                          <span class="truncate">{{ memberNameById(memberId) }}</span>
+                          <button
+                            type="button"
+                            class="text-primary/70 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isSubmitting || row.status === 'success'"
+                            @click="handleRowMemberToggle(row, memberId)"
+                          >
+                            x
+                          </button>
+                        </span>
+                        <span v-if="row.memberIds.length === 0" class="text-xs font-semibold text-text-muted">
+                          사용자를 선택해주세요.
+                        </span>
+                      </div>
+                      <p class="text-xs font-semibold text-text-muted">
+                        {{ selectedMemberCountLabel(row) }}
+                      </p>
+                    </div>
                   </td>
                   <td class="px-3 py-3 text-center">
                     <span :class="rowStatusClass(row)">
@@ -311,6 +359,7 @@ interface AssetRegisterRow {
   uniqueCode: string
   assignmentMethod: AssignmentMethod
   memberId: string
+  memberIds: string[]
   status: RowStatus
   errorMessage: string
 }
@@ -403,6 +452,7 @@ const assetType = computed<AssetType>(() => (
 const isTangible = computed(() => assetType.value === 'TANGIBLE')
 const assetTypeLabel = computed(() => (isTangible.value ? '유형자산' : '무형자산'))
 const purchaseQuantity = computed(() => Math.max(0, Number(props.item?.quantity ?? 0)))
+const intangibleSeatCount = computed(() => Math.max(1, Number(intangibleForm.seatCount) || 1))
 const successCount = computed(() => assetRows.value.filter((row) => row.status === 'success').length)
 const remainingCount = computed(() => Math.max(0, purchaseQuantity.value - successCount.value))
 const rowsToSubmit = computed(() => assetRows.value.filter((row) => row.status !== 'success'))
@@ -437,6 +487,14 @@ const memberOptions = computed<DropdownOption[]>(() => [
 // ── 워처 ──────────────────────────────────────────────────
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) resetForm()
+})
+
+watch(intangibleSeatCount, (seatCount) => {
+  assetRows.value.forEach((row) => {
+    if (row.memberIds.length <= seatCount) return
+    row.memberIds = row.memberIds.slice(0, seatCount)
+    row.memberId = row.memberIds[0] ?? ''
+  })
 })
 
 // ── 폼 초기화 ──────────────────────────────────────────────
@@ -474,6 +532,7 @@ function createRows(count: number): AssetRegisterRow[] {
     uniqueCode: '',
     assignmentMethod: 'REQUESTER',
     memberId: '',
+    memberIds: [],
     status: 'idle',
     errorMessage: '',
   }))
@@ -488,6 +547,7 @@ function markRowEdited(row: AssetRegisterRow) {
 function handleRowAssignmentMethodChange(row: AssetRegisterRow, value: string | number) {
   row.assignmentMethod = toAssignmentMethod(value)
   row.memberId = ''
+  row.memberIds = []
   if (row.status !== 'success') {
     row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
     row.errorMessage = ''
@@ -496,10 +556,26 @@ function handleRowAssignmentMethodChange(row: AssetRegisterRow, value: string | 
 
 function handleRowMemberChange(row: AssetRegisterRow, value: string | number) {
   row.memberId = String(value)
+  row.memberIds = row.memberId ? [row.memberId] : []
   if (row.status !== 'success') {
     row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
     row.errorMessage = ''
   }
+}
+
+function handleRowMemberToggle(row: AssetRegisterRow, memberId: string | number) {
+  const normalizedMemberId = String(memberId)
+  if (row.status === 'success') return
+
+  if (row.memberIds.includes(normalizedMemberId)) {
+    row.memberIds = row.memberIds.filter((selectedMemberId) => selectedMemberId !== normalizedMemberId)
+  } else if (row.memberIds.length < intangibleSeatCount.value) {
+    row.memberIds = [...row.memberIds, normalizedMemberId]
+  }
+
+  row.memberId = row.memberIds[0] ?? ''
+  row.status = row.uniqueCode.trim() ? 'ready' : 'idle'
+  row.errorMessage = ''
 }
 
 // ── 유효성 검사 ────────────────────────────────────────────
@@ -566,6 +642,17 @@ function validateRows() {
 }
 
 function validateRowAssignment(row: AssetRegisterRow) {
+  if (row.assignmentMethod === 'DIRECT' && !isTangible.value) {
+    if (row.memberIds.length === 0) return '할당 사용자를 1명 이상 선택해주세요.'
+    if (row.memberIds.length > intangibleSeatCount.value) {
+      return `선택한 사용자가 좌석 수(${intangibleSeatCount.value}명)를 초과했습니다.`
+    }
+    if (row.memberIds.some((memberId) => !isAssignableMemberId(memberId))) {
+      return '현재 회사 또는 요청 부서에 속한 사용자만 선택할 수 있습니다.'
+    }
+    return ''
+  }
+
   if (row.assignmentMethod === 'REQUESTER') {
     if (!requester.value?.memberId) return '요청자 ID를 확인할 수 없습니다.'
     if (!isAssignableMemberId(requester.value.memberId)) return '요청자를 현재 선택 가능한 사용자 목록에서 확인할 수 없습니다.'
@@ -613,6 +700,7 @@ async function handleSubmit() {
   const itemId = getPurchasePlanItemId(props.item)
   if (!planId) return
 
+  const submittedCount = rowsToSubmit.value.length
   isSubmitting.value = true
   try {
     await submitPurchasePlanAssets(planId, itemId)
@@ -622,7 +710,7 @@ async function handleSubmit() {
     })
     emit('registered', {
       itemId,
-      registeredCount: rowsToSubmit.value.length,
+      registeredCount: submittedCount,
     })
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '자산 등록에 실패했습니다.')
@@ -695,10 +783,7 @@ function toTangibleAssetRowsPayload(rows: AssetRegisterRow[]) {
 function toIntangibleAssetRowsPayload(rows: AssetRegisterRow[]) {
   return {
     licenseCodes: rows.map((row) => row.uniqueCode.trim()),
-    memberIds: rows.map((row) => {
-      const memberId = resolveAssignedMemberId(row)
-      return memberId ? [memberId] : []
-    }),
+    memberIds: rows.map(resolveAssignedMemberIds),
   }
 }
 
@@ -706,6 +791,14 @@ function resolveAssignedMemberId(row: AssetRegisterRow) {
   if (row.assignmentMethod === 'UNASSIGNED') return null
   if (row.assignmentMethod === 'REQUESTER') return requester.value?.memberId ?? null
   return row.memberId || null
+}
+
+function resolveAssignedMemberIds(row: AssetRegisterRow) {
+  if (row.assignmentMethod === 'UNASSIGNED') return []
+  if (row.assignmentMethod === 'REQUESTER') {
+    return requester.value?.memberId ? [String(requester.value.memberId)] : []
+  }
+  return row.memberIds.filter(Boolean)
 }
 
 function toAssignmentMethod(value: string | number): AssignmentMethod {
@@ -716,6 +809,26 @@ function toAssignmentMethod(value: string | number): AssignmentMethod {
 
 function isAssignableMemberId(memberId: string | number) {
   return assignableMembers.value.some((member) => String(member.memberId) === String(memberId))
+}
+
+function isRowMemberSelected(row: AssetRegisterRow, memberId: string | number) {
+  return row.memberIds.includes(String(memberId))
+}
+
+function isIntangibleMemberOptionDisabled(row: AssetRegisterRow, memberId: string | number) {
+  return !isRowMemberSelected(row, memberId) && row.memberIds.length >= intangibleSeatCount.value
+}
+
+function selectedMemberCountLabel(row: AssetRegisterRow) {
+  const selectedCount = row.assignmentMethod === 'REQUESTER' && requester.value?.memberId
+    ? 1
+    : row.memberIds.length
+  return `${selectedCount} / ${intangibleSeatCount.value}명`
+}
+
+function memberNameById(memberId: string | number) {
+  const member = props.members.find((item) => String(item.memberId) === String(memberId))
+  return member ? memberLabel(member) : String(memberId)
 }
 
 function memberLabel(member: Member) {

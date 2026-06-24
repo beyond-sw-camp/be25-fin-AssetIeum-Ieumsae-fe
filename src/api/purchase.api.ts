@@ -33,6 +33,14 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   name?: string | null
   categoryName?: string | null
   assetCategoryName?: string | null
+  assetCategory?: {
+    categoryName?: string | null
+    name?: string | null
+  } | null
+  assetItem?: {
+    categoryName?: string | null
+    category?: string | null
+  } | null
   assetItemCategory?: string | null
   assetItemCategoryName?: string | null
   itemCategory?: string | null
@@ -122,17 +130,7 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
   return {
     ...item,
     itemId,
-    category:
-      item.category
-      ?? item.categoryName
-      ?? item.assetCategoryName
-      ?? item.assetItemCategory
-      ?? item.assetItemCategoryName
-      ?? item.itemCategory
-      ?? item.itemCategoryName
-      ?? item.tangibleCategoryName
-      ?? item.intangibleCategoryName
-      ?? '-',
+    category: pickPlanItemCategory(item),
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
     quantity,
     estimatedUnitPrice,
@@ -143,6 +141,23 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     ticketDepartmentId: item.ticketDepartmentId ?? item.departmentId ?? null,
     ticketDepartmentName: item.ticketDepartmentName ?? item.departmentName ?? null,
   }
+}
+
+function pickPlanItemCategory(item: PurchasePlanItemResponse) {
+  return item.category
+    ?? item.categoryName
+    ?? item.assetCategoryName
+    ?? item.assetCategory?.categoryName
+    ?? item.assetCategory?.name
+    ?? item.assetItem?.categoryName
+    ?? item.assetItem?.category
+    ?? item.assetItemCategory
+    ?? item.assetItemCategoryName
+    ?? item.itemCategory
+    ?? item.itemCategoryName
+    ?? item.tangibleCategoryName
+    ?? item.intangibleCategoryName
+    ?? '-'
 }
 
 function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {

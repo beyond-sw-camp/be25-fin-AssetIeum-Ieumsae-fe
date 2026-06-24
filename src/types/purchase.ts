@@ -16,6 +16,8 @@ export interface PurchasePlanCreateItem {
   productName: string
   assetType: AssetType
   assetItemId?: string | null
+  tangibleAssetItemId?: string | null
+  intangibleAssetItemId?: string | null
   categoryName?: string
   requesterId?: number | string | null
   requesterName?: string | null
