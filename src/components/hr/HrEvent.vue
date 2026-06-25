@@ -230,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -473,6 +473,15 @@ async function loadEvents() {
   } finally {
     isLoading.value = false
   }
+}
+
+async function refreshSelectedEventFromList() {
+  const event = selectedEvent.value
+  if (!event) return
+
+  await loadEvents()
+  const refreshedEvent = eventRows.value.find((row) => row.hrEventId === event.hrEventId)
+  if (refreshedEvent) selectedEvent.value = refreshedEvent
 }
 
 async function loadEventSummary() {
@@ -758,6 +767,7 @@ async function loadSelectedEventTargets() {
   detailErrorMessage.value = ''
 
   try {
+    await refreshSelectedEventFromList()
     const response = await hrApi.getEventTargets(selectedEvent.value.hrEventId)
     selectedEventTargets.value = await enrichIntangibleTargetNames(response.data)
   } catch (error) {
@@ -821,9 +831,12 @@ async function handleSelectedEventComplete() {
   if (!event) return
 
   await handleCompleteEvent(event)
-  const refreshedEvent = eventRows.value.find((row) => row.hrEventId === event.hrEventId)
-  if (refreshedEvent) selectedEvent.value = refreshedEvent
   await loadSelectedEventTargets()
+}
+
+function handleWindowFocus() {
+  if (!isDetailDrawerOpen.value || isLoadingTargets.value) return
+  void loadSelectedEventTargets()
 }
 
 function movePage(page: number) {
@@ -890,9 +903,14 @@ function isCurrentMonth(date: Date | null) {
 }
 
 onMounted(async () => {
+  window.addEventListener('focus', handleWindowFocus)
   await loadTemplate()
   void loadDepartments()
   void loadMembers()
   void loadEvents()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', handleWindowFocus)
 })
 </script>

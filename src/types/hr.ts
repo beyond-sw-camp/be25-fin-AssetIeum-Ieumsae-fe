@@ -84,9 +84,17 @@ export interface HrEventAssetTargetResponse {
   transferMemberName?: string | null
   targetDepartmentId?: string | null
   targetDepartmentName?: string | null
-  status?: HrEventStatus
-  targetStatus?: HrEventStatus
+  status?: HrEventStatus | string | null
+  targetStatus?: HrEventStatus | string | null
+  hrEventAssetTargetStatus?: HrEventStatus | string | null
+  assetTargetStatus?: HrEventStatus | string | null
+  ticketStatus?: string | null
+  returnTicketStatus?: string | null
+  requestTicketStatus?: string | null
+  assetReturnStatus?: string | null
   processedAt?: string | null
+  completedAt?: string | null
+  targetProcessedAt?: string | null
   createdAt?: string
 }
 

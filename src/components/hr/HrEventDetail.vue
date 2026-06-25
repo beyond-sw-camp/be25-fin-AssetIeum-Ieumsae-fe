@@ -24,8 +24,16 @@
       <main class="flex-1 space-y-4 px-6 py-5">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <h4 class="text-sm font-bold text-text-main">자산 처리 대상</h4>
-            <p class="mt-1 text-xs text-text-sub">배치 실행 결과와 대상별 처리 방식을 확인합니다.</p>
+            <h4 class="text-sm font-bold text-text-main">
+              {{ event.eventType === 'ONBOARDING' ? '입사 자산 요청' : '자산 처리 대상' }}
+            </h4>
+            <p class="mt-1 text-xs text-text-sub">
+              {{
+                event.eventType === 'ONBOARDING'
+                  ? '입사 템플릿 기준으로 자산 요청 티켓이 자동 생성됩니다.'
+                  : '배치 실행 결과와 대상별 처리 방식을 확인합니다.'
+              }}
+            </p>
           </div>
           <Button variant="outline" size="sm" :disabled="isLoading" @click="emit('refresh')">
             <RefreshCw :size="14" />
@@ -47,7 +55,11 @@
           v-else-if="targets.length === 0"
           class="rounded-lg border border-border bg-surface-secondary px-4 py-12 text-center text-sm text-text-muted"
         >
-          등록된 자산 처리 대상이 없습니다.
+          {{
+            event.eventType === 'ONBOARDING'
+              ? '입사 이벤트는 별도 자산 처리 대상 없이 입사 템플릿으로 자산 요청 티켓을 생성합니다.'
+              : '등록된 자산 처리 대상이 없습니다.'
+          }}
         </div>
         <article
           v-for="(target, index) in targets"
@@ -62,8 +74,8 @@
                 {{ target.assetCode || '-' }} · {{ assetTypeLabel(target.assetType) }}
               </p>
             </div>
-            <span :class="statusBadgeClass(target.status ?? target.targetStatus ?? 'PENDING')">
-              {{ statusLabel(target.status ?? target.targetStatus) }}
+            <span :class="statusBadgeClass(targetStatusValue(target))">
+              {{ statusLabel(targetStatusValue(target)) }}
             </span>
           </div>
           <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -81,9 +93,9 @@
               <dt class="text-xs font-semibold text-text-muted">이동 부서</dt>
               <dd class="mt-1 font-semibold text-text-main">{{ target.targetDepartmentName }}</dd>
             </div>
-            <div v-if="target.processedAt">
+            <div v-if="targetProcessedAtText(target)">
               <dt class="text-xs font-semibold text-text-muted">처리 시각</dt>
-              <dd class="mt-1 font-semibold text-text-main">{{ formatDateTime(target.processedAt) }}</dd>
+              <dd class="mt-1 font-semibold text-text-main">{{ targetProcessedAtText(target) }}</dd>
             </div>
           </dl>
         </article>
@@ -151,6 +163,59 @@ function assetTypeLabel(value?: HrEventAssetType) {
   if (value === 'TANGIBLE') return '유형자산'
   if (value === 'INTANGIBLE') return '무형자산'
   return '-'
+}
+
+function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
+  const explicitStatus = normalizeStatus(
+    target.status
+    ?? target.targetStatus
+    ?? target.hrEventAssetTargetStatus
+    ?? target.assetTargetStatus,
+  )
+
+  if (explicitStatus === 'COMPLETED') return 'COMPLETED'
+
+  const ticketStatus = normalizeStatus(
+    target.ticketStatus
+    ?? target.returnTicketStatus
+    ?? target.requestTicketStatus
+    ?? target.assetReturnStatus,
+  )
+
+  return ticketStatus ?? explicitStatus ?? 'PENDING'
+}
+
+function normalizeStatus(value: unknown): HrEventStatus | null {
+  if (typeof value !== 'string') return null
+
+  const normalized = value.trim().toUpperCase().replaceAll(' ', '_')
+  if (normalized === 'COMPLETED' || normalized === 'COMPLETE' || normalized === 'DONE' || normalized === 'CLOSED') {
+    return 'COMPLETED'
+  }
+  if (normalized === 'IN_PROGRESS' || normalized === 'PROCESSING' || normalized === 'PROCESS') {
+    return 'IN_PROGRESS'
+  }
+  if (normalized === 'CANCELLED' || normalized === 'CANCELED') {
+    return 'CANCELLED'
+  }
+  if (normalized === 'PENDING' || normalized === 'WAITING') {
+    return 'PENDING'
+  }
+  if (value.includes('완료')) return 'COMPLETED'
+  if (value.includes('처리') || value.includes('진행') || value.includes('실행')) return 'IN_PROGRESS'
+  if (value.includes('취소')) return 'CANCELLED'
+  if (value.includes('대기')) return 'PENDING'
+
+  return null
+}
+
+function targetProcessedAt(target: HrEventAssetTargetResponse) {
+  return target.completedAt ?? target.processedAt ?? target.targetProcessedAt ?? null
+}
+
+function targetProcessedAtText(target: HrEventAssetTargetResponse) {
+  const processedAt = targetProcessedAt(target)
+  return processedAt ? formatDateTime(processedAt) : ''
 }
 
 function statusLabel(value?: HrEventStatus) {

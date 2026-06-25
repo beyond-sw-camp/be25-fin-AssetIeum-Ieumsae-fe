@@ -253,18 +253,6 @@ async function loadDetails() {
 
   try {
     if (props.mode === 'owned') {
-      if (selectedOwnedStatus.value === 'RENTED') {
-        const activeRentedDetails = (await loadAllOwnedDetails('RENTED'))
-          .filter((item) => !isOverdueOwnedAsset(item))
-        totalElements.value = activeRentedDetails.length
-        totalPages.value = Math.max(Math.ceil(activeRentedDetails.length / pageSize), 1)
-        const start = currentPage.value * pageSize
-        rows.value = activeRentedDetails
-          .slice(start, start + pageSize)
-          .map((item) => toOwnedRow(item, selectedOwnedStatus.value))
-        return
-      }
-
       const response = await dashboardApi.getOwnedAssetDetails({
         status: selectedOwnedStatus.value,
         departmentId: props.departmentId,
@@ -314,28 +302,6 @@ async function loadDetails() {
   }
 }
 
-async function loadAllOwnedDetails(status: OwnedAssetDetailStatus) {
-  const params = {
-    status,
-    departmentId: props.departmentId,
-    keyword: keyword.value.trim() || undefined,
-    size: 100,
-  }
-  const firstResponse = await dashboardApi.getOwnedAssetDetails({ ...params, page: 0 })
-  const remainingPages = Array.from(
-    { length: Math.max(firstResponse.data.totalPages - 1, 0) },
-    (_, index) => index + 1,
-  )
-  const remainingResponses = await Promise.all(
-    remainingPages.map((page) => dashboardApi.getOwnedAssetDetails({ ...params, page })),
-  )
-
-  return [
-    ...firstResponse.data.content,
-    ...remainingResponses.flatMap((response) => response.data.content),
-  ]
-}
-
 async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
   const params = {
     assetType,
@@ -356,17 +322,6 @@ async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
     ...firstResponse.data.content,
     ...remainingResponses.flatMap((response) => response.data.content),
   ]
-}
-
-function isOverdueOwnedAsset(item: OwnedAssetDetail) {
-  if (typeof item.overdueDays === 'number' && item.overdueDays > 0) return true
-  if (!item.returnDueDate) return false
-
-  const dueDate = startOfDay(item.returnDueDate)
-  const today = startOfDay(new Date())
-  if (!dueDate || !today) return false
-
-  return dueDate.getTime() < today.getTime()
 }
 
 function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): DetailRow {
@@ -418,13 +373,6 @@ function ownerDepartmentText(owner: string, department: string) {
   if (owner === '-') return department
   if (department === '-') return owner
   return `${owner}(${department})`
-}
-
-function startOfDay(value: string | Date) {
-  const date = value instanceof Date ? new Date(value) : new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  date.setHours(0, 0, 0, 0)
-  return date
 }
 
 function formatDateTime(value: string) {

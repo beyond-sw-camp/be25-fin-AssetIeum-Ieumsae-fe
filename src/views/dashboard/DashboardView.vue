@@ -202,16 +202,12 @@ const progressTicketSegments = computed(() => toSegments([
   { label: '처리 완료', count: ticketProgress.value.completed, barClass: 'bg-success' },
 ]))
 
-const activeRentedAssetCount = computed(() => (
-  Math.max(ownedAssets.value.rented - ownedAssets.value.overdue, 0)
-))
-
 const holdingAssetSegments = computed(() => toSegments([
   ...(isAssetOperator.value
     ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
     : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
-  { label: '대여 중', count: activeRentedAssetCount.value, barClass: 'bg-success' },
+  { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
   { label: '연체', count: ownedAssets.value.overdue, barClass: 'bg-danger' },
 ]))
 
