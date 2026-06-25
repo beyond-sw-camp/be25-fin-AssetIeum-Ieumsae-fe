@@ -1362,7 +1362,7 @@ const standardPurchaseItemOptions = computed<DropdownOption[]>(() => [
     value: "",
   },
   ...standardPurchaseItems.value.map((item) => ({
-    label: `${item.itemName} · ${item.categoryName}`,
+    label: item.itemName,
     value: item.assetItemId,
   })),
 ]);
