@@ -51,38 +51,22 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   intangibleCategoryName?: string | null
   purchasePlanItemId?: number | string
   purchasePlanItemDetailId?: number | string
-  purchasePlanItemDetailID?: number | string
-  purchase_plan_item_detail_id?: number | string
-  purchasePlanItemDetail_id?: number | string
-  purchasePlanItemID?: number | string
-  purchase_plan_item_id?: number | string
-  purchasePlanItem_id?: number | string
   purchaseItemId?: number | string
-  purchase_item_id?: number | string
   planItemId?: number | string
-  plan_item_id?: number | string
   purchaseRequestItemId?: number | string
-  purchase_request_item_id?: number | string
   purchasePlanId?: number | string
   purchaseId?: number | string
-  purchase_id?: number | string
   planPurchaseItemId?: number | string
-  plan_purchase_item_id?: number | string
   purchasePlanItemNo?: number | string
   itemNo?: number | string
   id?: number | string
   purchasePlanItemStatus?: string | null
-  purchase_plan_item_status?: string | null
   itemStatus?: string | null
-  item_status?: string | null
   status?: string | null
   unitPrice?: number
   estimatedAmount?: number
-  actual_amount?: number | null
-  actual_unit_price?: number | null
   actualPrice?: number | null
   purchasePrice?: number | null
-  received_at?: string | null
   registeredCount?: number | null
   registeredAssetCount?: number | null
   assetRegisteredCount?: number | null
@@ -94,42 +78,26 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
     ticketDepartmentId?: number | string | null
     ticketDepartmentName?: string | null
     ticketTargetMemberIds?: (number | string | null)[]
-    ticket_target_member_ids?: (number | string | null)[]
   } | null
   ticketId?: number | string | null
-  ticket_id?: number | string | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
   requesterId?: number | string | null
   requesterName?: string | null
   ticketDepartmentId?: number | string | null
-  ticket_department_id?: number | string | null
   requestDepartmentId?: number | string | null
-  request_department_id?: number | string | null
   ticketDepartmentName?: string | null
-  ticket_department_name?: string | null
   requestDepartmentName?: string | null
-  request_department_name?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
   assignmentTargetMemberIds?: (number | string | null)[]
-  assignment_target_member_ids?: (number | string | null)[]
   assignmentTargetIds?: (number | string | null)[]
-  assignment_target_ids?: (number | string | null)[]
   targetMemberIds?: (number | string | null)[]
-  target_member_ids?: (number | string | null)[]
   assigneeIds?: (number | string | null)[]
-  assignee_ids?: (number | string | null)[]
   assignmentTargets?: unknown[]
-  assignment_targets?: unknown[]
   targetMembers?: unknown[]
-  target_members?: unknown[]
-  asset_type?: string | null
-  is_standard?: boolean | 0 | 1 | string | null
   tangibleAssetItemId?: number | string | null
   intangibleAssetItemId?: number | string | null
-  tangible_asset_item_id?: number | string | null
-  intangible_asset_item_id?: number | string | null
 }
 
 type PurchasePlanListItemResponse = PurchasePlanListItem & {
@@ -140,11 +108,7 @@ type PurchasePlanListItemResponse = PurchasePlanListItem & {
 
 type PurchasePlanAssignmentTarget = NonNullable<PurchasePlanItem['assignmentTargets']>[number]
 
-type PurchasePlanDetailResponse = PurchasePlanDetail & {
-  actual_amount?: number | null
-  received_at?: string | null
-  delivered_at?: string | null
-}
+type PurchasePlanDetailResponse = PurchasePlanDetail
 
 function normalizePurchasePlanStatus(data: Record<string, unknown>): PurchasePlanStatus {
   const statusCandidates = [
@@ -182,11 +146,10 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
   const itemId = pickPurchasePlanItemId(item)
   const actualUnitPrice = toNullableNumber(
     item.actualUnitPrice
-      ?? item.actual_unit_price
       ?? item.actualPrice
       ?? item.purchasePrice,
   )
-  const actualAmount = toNullableNumber(item.actualAmount ?? item.actual_amount)
+  const actualAmount = toNullableNumber(item.actualAmount)
 
   return {
     ...item,
@@ -196,34 +159,30 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     categoryName: pickPlanItemCategory(item),
     itemName: item.itemName ?? item.productName ?? item.name ?? '-',
     assetType: normalizePlanItemAssetType(item),
-    tangibleAssetItemId: item.tangibleAssetItemId ?? item.tangible_asset_item_id ?? item.tangibleItemId ?? null,
-    intangibleAssetItemId: item.intangibleAssetItemId ?? item.intangible_asset_item_id ?? item.intangibleItemId ?? null,
+    tangibleAssetItemId: item.tangibleAssetItemId ?? item.tangibleItemId ?? null,
+    intangibleAssetItemId: item.intangibleAssetItemId ?? item.intangibleItemId ?? null,
     quantity,
     estimatedUnitPrice,
     totalAmount,
     purchasePlanItemStatus: normalizePlanItemStatus(item),
-    receivedAt: item.receivedAt ?? item.received_at ?? null,
+    receivedAt: item.receivedAt ?? null,
     actualAmount,
     actualUnitPrice,
     isStandard: normalizePlanItemStandard(item),
     registeredCount: normalizeRegisteredAssetCount(item),
-    ticketId: item.ticketId ?? item.ticket_id ?? null,
+    ticketId: item.ticketId ?? null,
     ticketRequesterId: item.ticketRequesterId ?? item.ticket?.ticketRequesterId ?? item.requesterId ?? null,
     ticketRequesterName: item.ticketRequesterName ?? item.ticket?.ticketRequesterName ?? item.requesterName ?? null,
     assignmentTargetMemberIds: normalizeAssignmentTargetMemberIds(item),
     assignmentTargets: normalizeAssignmentTargets(item),
     ticketDepartmentId: item.ticketDepartmentId
-      ?? item.ticket_department_id
       ?? item.ticket?.ticketDepartmentId
       ?? item.requestDepartmentId
-      ?? item.request_department_id
       ?? item.departmentId
       ?? null,
     ticketDepartmentName: item.ticketDepartmentName
-      ?? item.ticket_department_name
       ?? item.ticket?.ticketDepartmentName
       ?? item.requestDepartmentName
-      ?? item.request_department_name
       ?? item.departmentName
       ?? null,
   }
@@ -232,9 +191,7 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
 function normalizePlanItemStatus(item: PurchasePlanItemResponse) {
   const status =
     item.purchasePlanItemStatus
-    ?? item.purchase_plan_item_status
     ?? item.itemStatus
-    ?? item.item_status
     ?? item.status
   return typeof status === 'string' ? status.trim() || null : null
 }
@@ -242,15 +199,10 @@ function normalizePlanItemStatus(item: PurchasePlanItemResponse) {
 function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
   return uniqueNormalizedIds([
     ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
-    ...(Array.isArray(item.assignment_target_member_ids) ? item.assignment_target_member_ids : []),
     ...(Array.isArray(item.assignmentTargetIds) ? item.assignmentTargetIds : []),
-    ...(Array.isArray(item.assignment_target_ids) ? item.assignment_target_ids : []),
     ...(Array.isArray(item.ticket?.ticketTargetMemberIds) ? item.ticket.ticketTargetMemberIds : []),
-    ...(Array.isArray(item.ticket?.ticket_target_member_ids) ? item.ticket.ticket_target_member_ids : []),
     ...(Array.isArray(item.targetMemberIds) ? item.targetMemberIds : []),
-    ...(Array.isArray(item.target_member_ids) ? item.target_member_ids : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
-    ...(Array.isArray(item.assignee_ids) ? item.assignee_ids : []),
     ...normalizeAssignmentTargets(item).flatMap((target) => [
       target.memberId,
       target.assigneeId,
@@ -263,9 +215,7 @@ function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
 function normalizeAssignmentTargets(item: PurchasePlanItemResponse): PurchasePlanAssignmentTarget[] {
   const source =
     item.assignmentTargets
-    ?? item.assignment_targets
     ?? item.targetMembers
-    ?? item.target_members
     ?? []
   if (!Array.isArray(source)) return []
 
@@ -279,25 +229,21 @@ function normalizeAssignmentTargets(item: PurchasePlanItemResponse): PurchasePla
     const record = target as Record<string, unknown>
     const memberId = normalizeId(
       record.memberId
-      ?? record.member_id
       ?? record.assigneeId
-      ?? record.assignee_id
       ?? record.targetMemberId
-      ?? record.target_member_id
       ?? record.targetId
-      ?? record.target_id
       ?? record.id,
     )
     return [{
-      targetId: normalizeId(record.targetId ?? record.target_id ?? record.id),
+      targetId: normalizeId(record.targetId ?? record.id),
       memberId,
-      assigneeId: normalizeId(record.assigneeId ?? record.assignee_id),
-      targetMemberId: normalizeId(record.targetMemberId ?? record.target_member_id),
+      assigneeId: normalizeId(record.assigneeId),
+      targetMemberId: normalizeId(record.targetMemberId),
       name: normalizeString(record.name),
-      memberName: normalizeString(record.memberName ?? record.member_name ?? record.targetName ?? record.target_name),
-      assigneeName: normalizeString(record.assigneeName ?? record.assignee_name),
-      departmentId: normalizeId(record.departmentId ?? record.department_id),
-      departmentName: normalizeString(record.departmentName ?? record.department_name),
+      memberName: normalizeString(record.memberName ?? record.targetName),
+      assigneeName: normalizeString(record.assigneeName),
+      departmentId: normalizeId(record.departmentId),
+      departmentName: normalizeString(record.departmentName),
     }]
   })
 }
@@ -319,13 +265,13 @@ function normalizeString(value: unknown) {
 }
 
 function normalizePlanItemAssetType(item: PurchasePlanItemResponse) {
-  const rawAssetType = item.assetType ?? item.asset_type
+  const rawAssetType = item.assetType
   if (rawAssetType === 'TANGIBLE' || rawAssetType === 'INTANGIBLE') return rawAssetType
 
-  if (item.intangibleItemId || item.intangibleAssetItemId || item.intangible_asset_item_id) {
+  if (item.intangibleItemId || item.intangibleAssetItemId) {
     return 'INTANGIBLE'
   }
-  if (item.tangibleItemId || item.tangibleAssetItemId || item.tangible_asset_item_id) {
+  if (item.tangibleItemId || item.tangibleAssetItemId) {
     return 'TANGIBLE'
   }
 
@@ -421,7 +367,7 @@ function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {
 }
 
 function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
-  const value = item.isStandard ?? item.is_standard
+  const value = item.isStandard
   if (value === false || value === 0) return false
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase()
@@ -431,21 +377,12 @@ function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
 }
 
 function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
-  return item.purchasePlanItemId
+  return item.itemId
+    ?? item.purchasePlanItemId
     ?? item.purchasePlanItemDetailId
-    ?? item.purchasePlanItemDetailID
-    ?? item.purchase_plan_item_detail_id
-    ?? item.purchasePlanItemDetail_id
-    ?? item.purchasePlanItemID
-    ?? item.purchase_plan_item_id
-    ?? item.purchasePlanItem_id
     ?? item.purchaseItemId
-    ?? item.purchase_item_id
     ?? item.planItemId
-    ?? item.plan_item_id
     ?? item.planPurchaseItemId
-    ?? item.plan_purchase_item_id
-    ?? item.itemId
 }
 
 function normalizePlanDetail(data: PurchasePlanDetailResponse): PurchasePlanDetail {
@@ -455,9 +392,9 @@ function normalizePlanDetail(data: PurchasePlanDetailResponse): PurchasePlanDeta
     ...data,
     purchaseRequestStatus,
     status: purchaseRequestStatus,
-    actualAmount: toNullableNumber(data.actualAmount ?? data.actual_amount),
-    receivedAt: data.receivedAt ?? data.received_at ?? null,
-    deliveredAt: data.deliveredAt ?? data.delivered_at ?? null,
+    actualAmount: toNullableNumber(data.actualAmount),
+    receivedAt: data.receivedAt ?? null,
+    deliveredAt: data.deliveredAt ?? null,
     items: Array.isArray(data.items)
       ? data.items.map((item) => normalizePlanItem(item as PurchasePlanItemResponse))
       : [],
