@@ -53,27 +53,22 @@
           {{ loadError }}
         </div>
 
-        <section class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm">
+        <section
+          v-if="summaryTiles.length > 0 || departmentChartItems.length > 0"
+          class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm"
+        >
           <div class="grid gap-6 xl:grid-cols-[22rem_1fr]">
-            <div class="grid content-start gap-4">
+            <div v-if="summaryTiles.length > 0" class="grid content-start gap-4">
               <SummaryTile
-                label="전체 미반납 자산 수"
-                caption="전체 부서 기준"
-                :value="`${formatNumber(unreturnedReport?.totalUnreturnedAssetCount ?? 0)}건`"
-              />
-              <SummaryTile
-                label="전체 반납 지연 건수"
-                caption="반납 예정일 초과"
-                :value="`${formatNumber(unreturnedReport?.overdueReturnCount ?? 0)}건`"
-              />
-              <SummaryTile
-                label="반복 지연 사용자"
-                :caption="`전체 사용자 대비 ${formatRate(unreturnedReport?.repeatDelayedUserRate ?? 0)}`"
-                :value="`${formatNumber(unreturnedReport?.repeatDelayedUserCount ?? 0)}명`"
+                v-for="tile in summaryTiles"
+                :key="tile.label"
+                :label="tile.label"
+                :caption="tile.caption"
+                :value="tile.value"
               />
             </div>
 
-            <div class="min-h-80 rounded-lg border border-border bg-surface p-4">
+            <div v-if="departmentChartItems.length > 0" class="min-h-80 rounded-lg border border-border bg-surface p-4">
               <div class="mb-2 flex items-center justify-between">
                 <h2 class="text-sm font-bold text-text-main">부서별 미반납 현황</h2>
                 <span class="text-xs font-semibold text-text-sub">상위 {{ departmentChartItems.length }}개 부서</span>
@@ -87,7 +82,7 @@
           </div>
         </section>
 
-        <NumberedReportSection number="1" title="사용자별 반복 지연 분석">
+        <NumberedReportSection v-if="userRows.length > 0" number="1" title="사용자별 반복 지연 분석">
           <template #description>
             같은 사용자가 반복적으로 반납을 지연시키는 현황을 조회합니다.
           </template>
@@ -101,58 +96,42 @@
           />
         </NumberedReportSection>
 
-        <NumberedReportSection number="2" title="자산 회수 프로세스 분석">
+        <NumberedReportSection v-if="recoveryMetricCards.length > 0" number="2" title="자산 회수 프로세스 분석">
           <template #description>
             회수 요청 생성, 회수 완료, 평균 회수 소요 기간, 회수 지연 기간을 조회합니다.
           </template>
 
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              tone="blue"
-              label="회수 요청 생성"
-              badge="요청"
-              :value="`${formatNumber(recoveryReport?.returnRequestCreatedCount ?? 0)}건`"
-              :caption="formatChangeRate(recoveryReport?.returnRequestCreatedChangeRate)"
-            />
-            <MetricCard
-              tone="green"
-              label="회수 완료 처리"
-              badge="완료"
-              :value="`${formatNumber(recoveryReport?.returnCompletedCount ?? 0)}건`"
-              :caption="formatChangeRate(recoveryReport?.returnCompletedChangeRate)"
-            />
-            <MetricCard
-              tone="amber"
-              label="평균 회수 소요 기간"
-              badge="평균"
-              :value="formatDays(recoveryReport?.averageRecoveryDays ?? 0)"
-              :caption="formatChangeRate(recoveryReport?.averageRecoveryDaysChangeRate)"
-            />
-            <MetricCard
-              tone="red"
-              label="회수 지연 기간 합계"
-              badge="지연"
-              :value="formatDays(recoveryReport?.totalRecoveryDelayDays ?? 0)"
-              :caption="formatChangeRate(recoveryReport?.totalRecoveryDelayDaysChangeRate)"
+              v-for="metric in recoveryMetricCards"
+              :key="metric.label"
+              :tone="metric.tone"
+              :label="metric.label"
+              :badge="metric.badge"
+              :value="metric.value"
+              :caption="metric.caption"
             />
           </div>
         </NumberedReportSection>
 
-        <NumberedReportSection number="3" title="자산 구매 분석">
+        <NumberedReportSection v-if="purchaseMetricCards.length > 0 || purchaseRows.length > 0" number="3" title="자산 구매 분석">
           <template #description>
             신규 구매 수량과 부서별 구매 요청, 승인, 완료, 누적 구매 수량을 조회합니다.
           </template>
 
           <div class="grid gap-4 xl:grid-cols-[16rem_1fr_24rem]">
             <MetricCard
-              tone="purple"
-              label="신규 구매 수량"
-              badge="신규"
-              :value="`${formatNumber(purchaseReport?.newPurchaseQuantity ?? 0)}개`"
-              :caption="formatChangeRate(purchaseReport?.newPurchaseQuantityChangeRate)"
+              v-for="metric in purchaseMetricCards"
+              :key="metric.label"
+              :tone="metric.tone"
+              :label="metric.label"
+              :badge="metric.badge"
+              :value="metric.value"
+              :caption="metric.caption"
             />
 
             <Table
+              v-if="purchaseRows.length > 0"
               :columns="purchaseColumns"
               :rows="purchaseRows"
               :loading="purchaseLoading"
@@ -160,7 +139,7 @@
               empty-text="부서별 구매 요청 데이터가 없습니다."
             />
 
-            <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
+            <div v-if="purchaseQuantityChartItems.length > 0" class="rounded-lg border border-border bg-surface p-4 shadow-sm">
               <h3 class="mb-3 text-sm font-bold text-text-main">부서별 누적 구매 수량</h3>
               <HorizontalBarChart :items="purchaseQuantityChartItems" unit="개" />
             </div>
@@ -193,6 +172,21 @@ import type {
 } from '@/types'
 
 type TableRow = Record<string, string | number>
+type MetricTone = 'blue' | 'green' | 'amber' | 'red' | 'purple'
+
+interface MetricCardModel {
+  label: string
+  value: string
+  caption: string
+  badge: string
+  tone: MetricTone
+}
+
+interface SummaryTileModel {
+  label: string
+  caption: string
+  value: string
+}
 
 const DEFAULT_TOP_USER_LIMIT = 5
 const DEFAULT_PAGE_SIZE = 10
@@ -235,8 +229,44 @@ const isRefreshing = computed(() =>
   unreturnedLoading.value || recoveryLoading.value || purchaseLoading.value,
 )
 
+const summaryTiles = computed<SummaryTileModel[]>(() => {
+  const report = unreturnedReport.value
+  if (!report) return []
+
+  const tiles: SummaryTileModel[] = []
+
+  if (hasNumber(report.totalUnreturnedAssetCount)) {
+    tiles.push({
+      label: '전체 미반납 자산 수',
+      caption: '전체 부서 기준',
+      value: `${formatNumber(report.totalUnreturnedAssetCount)}건`,
+    })
+  }
+
+  if (hasNumber(report.overdueReturnCount)) {
+    tiles.push({
+      label: '전체 반납 지연 건수',
+      caption: '반납 예정일 초과',
+      value: `${formatNumber(report.overdueReturnCount)}건`,
+    })
+  }
+
+  if (hasNumber(report.repeatDelayedUserCount)) {
+    tiles.push({
+      label: '반복 지연 사용자',
+      caption: hasNumber(report.repeatDelayedUserRate)
+        ? `전체 사용자 대비 ${formatRate(report.repeatDelayedUserRate)}`
+        : '반복 지연 사용자 수',
+      value: `${formatNumber(report.repeatDelayedUserCount)}명`,
+    })
+  }
+
+  return tiles
+})
+
 const departmentChartItems = computed<GroupedBarItem[]>(() =>
   (unreturnedReport.value?.departmentUnreturnedAssets ?? [])
+    .filter((item) => hasNumber(item.unreturnedAssetCount) || hasNumber(item.overdueReturnCount))
     .slice(0, 10)
     .map((item) => ({
       label: item.departmentName ?? '-',
@@ -250,29 +280,83 @@ const userRows = computed<TableRow[]>(() =>
     rank: item.rank ?? index + 1,
     memberName: item.memberName ?? '-',
     departmentName: item.departmentName ?? '-',
-    delayCount: `${formatNumber(item.delayCount ?? 0)}건`,
-    averageDelayDays: formatDays(item.averageDelayDays ?? 0),
+    delayCount: hasNumber(item.delayCount) ? `${formatNumber(item.delayCount)}건` : '-',
+    averageDelayDays: hasNumber(item.averageDelayDays) ? formatDays(item.averageDelayDays) : '-',
     recentDelayedAt: formatDateTime(item.recentDelayedAt),
   })),
 )
 
+const recoveryMetricCards = computed<MetricCardModel[]>(() => {
+  const report = recoveryReport.value
+  if (!report) return []
+
+  return [
+    createMetricCard(
+      hasNumber(report.returnRequestCreatedCount),
+      '회수 요청 생성',
+      `${formatNumber(report.returnRequestCreatedCount ?? 0)}건`,
+      formatChangeRate(report.returnRequestCreatedChangeRate),
+      '요청',
+      'blue',
+    ),
+    createMetricCard(
+      hasNumber(report.returnCompletedCount),
+      '회수 완료 처리',
+      `${formatNumber(report.returnCompletedCount ?? 0)}건`,
+      formatChangeRate(report.returnCompletedChangeRate),
+      '완료',
+      'green',
+    ),
+    createMetricCard(
+      hasNumber(report.averageRecoveryDays),
+      '평균 회수 소요 기간',
+      formatDays(report.averageRecoveryDays ?? 0),
+      formatChangeRate(report.averageRecoveryDaysChangeRate),
+      '평균',
+      'amber',
+    ),
+    createMetricCard(
+      hasNumber(report.totalRecoveryDelayDays),
+      '회수 지연 기간 합계',
+      formatDays(report.totalRecoveryDelayDays ?? 0),
+      formatChangeRate(report.totalRecoveryDelayDaysChangeRate),
+      '지연',
+      'red',
+    ),
+  ].filter((card): card is MetricCardModel => card !== null)
+})
+
 const purchaseItems = computed<DepartmentPurchaseRequest[]>(() =>
-  purchaseReport.value?.departmentPurchaseRequests.content ?? [],
+  purchaseReport.value?.departmentPurchaseRequests?.content ?? [],
 )
+
+const purchaseMetricCards = computed<MetricCardModel[]>(() => {
+  const report = purchaseReport.value
+  if (!report || !hasNumber(report.newPurchaseQuantity)) return []
+
+  return [{
+    label: '신규 구매 수량',
+    value: `${formatNumber(report.newPurchaseQuantity)}개`,
+    caption: formatChangeRate(report.newPurchaseQuantityChangeRate),
+    badge: '신규',
+    tone: 'purple',
+  }]
+})
 
 const purchaseRows = computed<TableRow[]>(() =>
   purchaseItems.value.map((item, index) => ({
     departmentId: item.departmentId ?? `department-${index}`,
     departmentName: item.departmentName ?? '-',
-    purchaseRequestCount: `${formatNumber(item.purchaseRequestCount ?? 0)}건`,
-    purchaseApprovedCount: `${formatNumber(item.purchaseApprovedCount ?? 0)}건`,
-    purchaseCompletedCount: `${formatNumber(item.purchaseCompletedCount ?? 0)}건`,
-    accumulatedPurchaseQuantity: `${formatNumber(item.accumulatedPurchaseQuantity ?? 0)}개`,
+    purchaseRequestCount: hasNumber(item.purchaseRequestCount) ? `${formatNumber(item.purchaseRequestCount)}건` : '-',
+    purchaseApprovedCount: hasNumber(item.purchaseApprovedCount) ? `${formatNumber(item.purchaseApprovedCount)}건` : '-',
+    purchaseCompletedCount: hasNumber(item.purchaseCompletedCount) ? `${formatNumber(item.purchaseCompletedCount)}건` : '-',
+    accumulatedPurchaseQuantity: hasNumber(item.accumulatedPurchaseQuantity) ? `${formatNumber(item.accumulatedPurchaseQuantity)}개` : '-',
   })),
 )
 
 const purchaseQuantityChartItems = computed(() =>
   purchaseItems.value
+    .filter((item) => hasNumber(item.accumulatedPurchaseQuantity))
     .slice(0, 8)
     .map((item) => ({
       label: item.departmentName ?? '-',
@@ -360,6 +444,29 @@ function isValidDateRange() {
   return true
 }
 
+function createMetricCard(
+  shouldShow: boolean,
+  label: string,
+  value: string,
+  caption: string,
+  badge: string,
+  tone: MetricTone,
+) {
+  if (!shouldShow) return null
+
+  return {
+    label,
+    value,
+    caption,
+    badge,
+    tone,
+  }
+}
+
+function hasNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
@@ -371,14 +478,14 @@ function formatRate(value: number) {
 }
 
 function formatChangeRate(value: number | undefined) {
-  if (value === undefined || value === null) return '이전 기간 대비 -'
+  if (!hasNumber(value)) return '이전 기간 대비 -'
 
   const sign = value > 0 ? '+' : ''
   return `이전 기간 대비 ${sign}${formatRate(value)}`
 }
 
 function formatDays(value: number) {
-  if (!value) return '-'
+  if (!hasNumber(value)) return '-'
   return `${new Intl.NumberFormat('ko-KR', {
     maximumFractionDigits: 1,
   }).format(value)}일`
