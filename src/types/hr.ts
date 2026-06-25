@@ -15,7 +15,7 @@ export interface HrTemplateResponse {
   departmentId?: HrTemplateId
   departmentName?: string
   name?: string
-  items?: HrTemplateItemResponse[]
+  items?: HrTemplateItemResponse[] | null
   createdAt: string
   updatedAt?: string
   deletedAt?: string | null
@@ -59,15 +59,15 @@ export interface HrEventAssetTargetCreateRequest {
   assetType: HrEventAssetType
   assetId: string
   actionType: HrEventAssetActionType
-  transferMemberId?: string
+  transferMemberId: string | null
 }
 
 export interface HrEventCreateRequest {
   memberId: string
   eventType: HrEventType
   eventDate: string
-  targetDepartmentId?: string
-  assetTargets?: HrEventAssetTargetCreateRequest[]
+  targetDepartmentId: string | null
+  assetTargets: HrEventAssetTargetCreateRequest[] | null
 }
 
 export interface HrEventAssetTargetResponse {
@@ -99,7 +99,7 @@ export interface HrEventAssetTargetResponse {
 }
 
 export interface HrEventResponse { 
-  hrEventId: HrEventId
+  hrEventId?: HrEventId
   hrEventNo?: string
   eventNo?: string
   departmentId?: string
@@ -118,10 +118,10 @@ export interface HrEventResponse {
   hrEventType?: HrEventType
   eventType?: HrEventType
   eventDate: string
-  executedAt?: string
-  completedAt?: string
-  cancelledAt?: string
-  createdAt: string
+  executedAt?: string | null
+  completedAt?: string | null
+  cancelledAt?: string | null
+  createdAt?: string
   updatedAt?: string
 }
 

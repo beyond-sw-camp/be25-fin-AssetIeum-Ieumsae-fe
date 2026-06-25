@@ -170,8 +170,8 @@ export interface HrEventRegisterSubmitPayload {
   memberId: string
   eventType: HrEventType
   eventDate: string
-  targetDepartmentId?: string
-  assetTargets?: HrEventAssetTargetCreateRequest[]
+  targetDepartmentId: string | null
+  assetTargets: HrEventAssetTargetCreateRequest[] | null
 }
 
 interface AssetTargetDraft {
@@ -304,10 +304,10 @@ function handleSubmit() {
     memberId: String(form.memberId),
     eventType: form.eventType,
     eventDate: form.eventDate,
-    targetDepartmentId: form.targetDepartmentId || undefined,
+    targetDepartmentId: form.targetDepartmentId || null,
     assetTargets: requiresAssetTargets.value
       ? assetTargets.value.filter((target) => target.isSelected).map(toCreateTarget)
-      : undefined,
+      : null,
   })
 }
 
@@ -378,7 +378,7 @@ function toCreateTarget(target: AssetTargetDraft): HrEventAssetTargetCreateReque
     assetType: target.assetType,
     assetId: target.assetId,
     actionType: target.actionType,
-    transferMemberId: target.actionType === 'TRANSFER_REQUIRED' ? target.transferMemberId : undefined,
+    transferMemberId: target.actionType === 'TRANSFER_REQUIRED' ? target.transferMemberId : null,
   }
 }
 

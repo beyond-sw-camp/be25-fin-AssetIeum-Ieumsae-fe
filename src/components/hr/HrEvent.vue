@@ -428,7 +428,7 @@ function toEventRow(event: HrEventResponse): HrEventRow {
 
   return {
     rowKey: String(eventId),
-    hrEventId: eventId,
+    hrEventId: eventId ?? '-',
     eventNo: event.hrEventNo ?? event.eventNo ?? '-',
     targetMemberName: event.memberName ?? event.targetMemberName ?? '-',
     eventType,
