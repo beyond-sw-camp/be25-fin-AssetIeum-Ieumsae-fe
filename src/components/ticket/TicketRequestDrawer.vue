@@ -97,6 +97,7 @@
             :model-value="assetSearchForm.category"
             :options="assetCategoryOptions"
             root-option="자산 카테고리 선택"
+            category-select-mode="leaf-only"
             @update:model-value="handleAssetCategoryChange"
           />
         </div>
@@ -311,6 +312,7 @@
             :model-value="form.category"
             :options="purchaseRequestCategoryOptions"
             root-option="자산 카테고리 선택"
+            category-select-mode="leaf-only"
             @update:model-value="handlePurchaseRequestCategoryChange"
           />
         </section>
@@ -687,12 +689,14 @@ import type {
   ActiveRentalAsset,
   DropdownOption,
   IntangibleAsset,
+  IntangibleCategoryGroup,
   IntangibleItem,
   MaintenanceAvailableAsset,
   Member,
   RentalAvailableItem,
   RequestedUsageType,
   TangibleAsset,
+  TangibleCategoryGroup,
   TangibleAssetItem,
   TangibleAssetUsageType,
   TicketCreateResponse,
@@ -814,10 +818,8 @@ const assetErrorMessage = ref('')
 const assigneeErrorMessage = ref('')
 const assetSearchKeyword = ref('')
 const hasSearchedAssets = ref(false)
-const tangibleCategoryOptions = ref<DropdownOption[]>([])
-const intangibleCategoryOptions = ref<DropdownOption[]>([])
-const tangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
-const intangiblePurchaseCategoryOptions = ref<DropdownOption[]>([])
+const tangibleCategoryGroups = ref<TangibleCategoryGroup[]>([])
+const intangibleCategoryGroups = ref<IntangibleCategoryGroup[]>([])
 const itemOptions = ref<SelectableAsset[]>([])
 const ownedAssetOptions = ref<SelectableAsset[]>([])
 const activeRentalAssetOptions = ref<SelectableAsset[]>([])
@@ -1019,16 +1021,16 @@ const visibleAssetOptions = computed(() => {
 
 const assetCategoryOptions = computed(() => (
   selectedKind.value === 'RENTAL'
-    ? tangiblePurchaseCategoryOptions.value
+    ? tangibleCategoryGroups.value
     : selectionAssetType.value === 'INTANGIBLE'
-      ? intangibleCategoryOptions.value
-      : tangibleCategoryOptions.value
+      ? intangibleCategoryGroups.value
+      : tangibleCategoryGroups.value
 ))
 
 const purchaseRequestCategoryOptions = computed(() => (
   form.assetType === 'INTANGIBLE'
-    ? intangiblePurchaseCategoryOptions.value
-    : tangiblePurchaseCategoryOptions.value
+    ? intangibleCategoryGroups.value
+    : tangibleCategoryGroups.value
 ))
 
 const assetAssigneeOptions = computed<DropdownOption[]>(() => (
@@ -1385,9 +1387,11 @@ function isStandardItem(value: number | boolean | string | null | undefined) {
 }
 
 function categoryIdByLabel(label: string) {
-  const options = form.assetType === 'INTANGIBLE'
-    ? intangiblePurchaseCategoryOptions.value
-    : tangiblePurchaseCategoryOptions.value
+  const options = uniqueCategoryOptions(collectPurchaseCategoryOptions(
+    form.assetType === 'INTANGIBLE'
+      ? intangibleCategoryGroups.value
+      : tangibleCategoryGroups.value,
+  ))
   return String(options.find((option) => option.label === label)?.value ?? '')
 }
 
@@ -1508,47 +1512,6 @@ function toIntangibleAssetOption(asset: IntangibleAsset): SelectableAsset {
   }
 }
 
-function collectTangibleCategoryNames(value: unknown): string[] {
-  if (typeof value === 'string') {
-    const name = value.trim()
-    return name ? [name] : []
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap(collectTangibleCategoryNames)
-  }
-
-  if (!value || typeof value !== 'object') {
-    return []
-  }
-
-  const category = value as Record<string, unknown>
-  const categoryNames = [
-    ...collectTangibleCategoryNames(category.mainCategory),
-    ...collectTangibleCategoryNames(category.name),
-    ...collectTangibleCategoryNames(category.categoryName),
-    ...collectTangibleCategoryNames(category.children),
-    ...collectTangibleCategoryNames(category.subCategories),
-  ]
-
-  if (category.childCategories && typeof category.childCategories === 'object') {
-    Object.entries(category.childCategories).forEach(([name, children]) => {
-      categoryNames.push(...collectTangibleCategoryNames(name))
-      categoryNames.push(...collectTangibleCategoryNames(children))
-    })
-  }
-
-  return categoryNames
-}
-
-function toTangibleCategoryOptions(groups: unknown): DropdownOption[] {
-  const categoryNames = collectTangibleCategoryNames(groups)
-
-  return [...new Set(categoryNames)]
-    .filter(Boolean)
-    .map((category) => ({ label: category, value: category }))
-}
-
 function collectPurchaseCategoryOptions(value: unknown): DropdownOption[] {
   if (Array.isArray(value)) {
     return value.flatMap(collectPurchaseCategoryOptions)
@@ -1593,6 +1556,118 @@ function uniqueCategoryOptions(options: DropdownOption[]): DropdownOption[] {
   return [...new Map(options.map((option) => [String(option.value), option])).values()]
 }
 
+type TicketCategoryGroup = TangibleCategoryGroup | IntangibleCategoryGroup
+
+type TicketCategoryTreeNode = {
+  categoryId?: string | number | null
+  tangibleAssetCategoryId?: string | number | null
+  intangibleAssetCategoryId?: string | number | null
+  tangibleCategoryId?: string | number | null
+  intangibleCategoryId?: string | number | null
+  assetCategoryId?: string | number | null
+  id?: string | number | null
+  uuid?: string | number | null
+  mainCategory?: string | null
+  name?: string | null
+  categoryName?: string | null
+  children?: TicketCategoryTreeNode[] | null
+  subCategories?: string[] | TicketCategoryTreeNode[] | null
+  childCategories?: Record<string, string[]> | null
+  subCategoryIds?: Record<string, string> | null
+  childCategoryIds?: Record<string, string> | null
+}
+
+function normalizeCategoryGroups(categories: TicketCategoryGroup[] | TicketCategoryTreeNode[] | string[]): TicketCategoryGroup[] {
+  if (!categories.length) return []
+
+  if (typeof categories[0] === 'string') {
+    return (categories as string[]).map((category) => ({
+      mainCategory: category,
+      subCategories: [],
+    }))
+  }
+
+  return (categories as TicketCategoryTreeNode[])
+    .map((category) => {
+      if (
+        category.mainCategory
+        && Array.isArray(category.subCategories)
+        && category.subCategories.every((subCategory) => typeof subCategory === 'string')
+      ) {
+        return {
+          categoryId: normalizeCategoryId(category),
+          mainCategory: category.mainCategory,
+          subCategories: category.subCategories,
+          childCategories: category.childCategories ?? {},
+          subCategoryIds: category.subCategoryIds ?? {},
+          childCategoryIds: category.childCategoryIds ?? {},
+        }
+      }
+
+      const mainCategory = normalizeCategoryName(category)
+      const subCategories: string[] = []
+      const childCategories: Record<string, string[]> = {}
+      const subCategoryIds: Record<string, string> = {}
+      const childCategoryIds: Record<string, string> = {}
+
+      normalizeCategoryChildren(category).forEach((middleCategory) => {
+        const middleName = normalizeCategoryName(middleCategory)
+        if (!middleName) return
+
+        subCategories.push(middleName)
+        subCategoryIds[middleName] = normalizeCategoryId(middleCategory)
+
+        const smallCategories = normalizeCategoryChildren(middleCategory)
+          .map((smallCategory) => {
+            const smallName = normalizeCategoryName(smallCategory)
+            if (smallName) childCategoryIds[smallName] = normalizeCategoryId(smallCategory)
+            return smallName
+          })
+          .filter(Boolean)
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories
+          subCategories.push(...smallCategories)
+        }
+      })
+
+      return {
+        categoryId: normalizeCategoryId(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      }
+    })
+    .filter((category) => category.mainCategory)
+}
+
+function normalizeCategoryId(category: TicketCategoryTreeNode) {
+  const id = category.categoryId
+    ?? category.tangibleAssetCategoryId
+    ?? category.intangibleAssetCategoryId
+    ?? category.tangibleCategoryId
+    ?? category.intangibleCategoryId
+    ?? category.assetCategoryId
+    ?? category.id
+    ?? category.uuid
+    ?? ''
+
+  return String(id)
+}
+
+function normalizeCategoryName(category: TicketCategoryTreeNode) {
+  return String(category.mainCategory ?? category.name ?? category.categoryName ?? '').trim()
+}
+
+function normalizeCategoryChildren(category: TicketCategoryTreeNode): TicketCategoryTreeNode[] {
+  const children = category.children ?? category.subCategories ?? []
+  return Array.isArray(children)
+    ? children.filter((child): child is TicketCategoryTreeNode => typeof child === 'object' && child !== null)
+    : []
+}
+
 async function loadAssetCategories() {
   const results = await Promise.allSettled([
     tangibleItemApi.getCategories(),
@@ -1600,20 +1675,14 @@ async function loadAssetCategories() {
   ])
   const [tangibleResult, intangibleResult] = results
 
-  tangibleCategoryOptions.value = tangibleResult.status === 'fulfilled'
-    ? toTangibleCategoryOptions(tangibleResult.value.data)
-    : []
-  tangiblePurchaseCategoryOptions.value = tangibleResult.status === 'fulfilled'
-    ? uniqueCategoryOptions(collectPurchaseCategoryOptions(tangibleResult.value.data))
+  tangibleCategoryGroups.value = tangibleResult.status === 'fulfilled'
+    ? normalizeCategoryGroups(tangibleResult.value.data)
     : []
 
   const intangibleCategories = intangibleResult.status === 'fulfilled'
-    ? intangibleResult.value.data as unknown
+    ? intangibleResult.value.data
     : []
-  intangibleCategoryOptions.value = toTangibleCategoryOptions(intangibleCategories)
-  intangiblePurchaseCategoryOptions.value = uniqueCategoryOptions(
-    collectPurchaseCategoryOptions(intangibleCategories),
-  )
+  intangibleCategoryGroups.value = normalizeCategoryGroups(intangibleCategories)
 }
 
 async function loadOwnedAssets() {
@@ -1879,7 +1948,7 @@ async function handleAssetSearch() {
       const response = await intangibleItemApi.getList({
         page: 0,
         size: 100,
-        category: assetSearchForm.category || undefined,
+        categoryId: assetSearchForm.category || undefined,
         keyword: assetSearchForm.keyword.trim() || undefined,
       })
       itemOptions.value = response.data.content.map(toIntangibleItemOption).filter((item) => item.id)
@@ -1887,7 +1956,7 @@ async function handleAssetSearch() {
       const response = await tangibleItemApi.getList({
         page: 0,
         size: 100,
-        categoryName: assetSearchForm.category || undefined,
+        categoryId: assetSearchForm.category || undefined,
         keyword: assetSearchForm.keyword.trim() || undefined,
       })
       itemOptions.value = response.data.content.map(toTangibleItemOption).filter((item) => item.id)

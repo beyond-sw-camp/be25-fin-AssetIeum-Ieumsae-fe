@@ -646,6 +646,9 @@
                   :model-value="directItemForm.categoryName"
                   :options="directCategoryOptions"
                   :disabled="isDirectCategoryDisabled"
+                  root-option="분류 선택"
+                  category-select-mode="leaf-only"
+                  category-value-mode="label"
                   @update:model-value="handleDirectCategoryChange"
                 />
               </div>
@@ -939,6 +942,8 @@
             :model-value="planItemRegisterForm.categoryId"
             :options="planItemRegisterCategoryOptions"
             :disabled="isPlanItemRegistering"
+            root-option="카테고리 선택"
+            category-select-mode="leaf-only"
             @update:model-value="(value) => planItemRegisterForm.categoryId = String(value)"
           />
         </div>
@@ -1353,34 +1358,22 @@ const requesterOptions = computed<DropdownOption[]>(() => [
   })),
 ]);
 
-const tangibleCategoryOptions = computed(() =>
-  categoryGroupsToOptions(tangibleCategoryGroups.value),
-);
-
-const intangibleCategoryOptions = computed(() =>
-  categoryGroupsToOptions(intangibleCategoryGroups.value),
-);
-
 const planItemRegisterAssetType = computed<AssetType>(() =>
   resolvePurchaseItemAssetType(planItemRegisterTarget.value)
     ?? planItemRegisterForm.value.assetType,
 );
 
-const planItemRegisterCategoryOptions = computed<DropdownOption[]>(() => [
-  { label: "카테고리 선택", value: "" },
+const planItemRegisterCategoryOptions = computed(() => [
   ...(planItemRegisterAssetType.value === "INTANGIBLE"
-    ? categoryGroupsToIdOptions(intangibleCategoryGroups.value)
-    : categoryGroupsToIdOptions(tangibleCategoryGroups.value)),
+    ? intangibleCategoryGroups.value
+    : tangibleCategoryGroups.value),
 ]);
 
-const directCategoryOptions = computed<DropdownOption[]>(() => {
-  const categories =
-    directItemForm.value.assetType === "INTANGIBLE"
-      ? intangibleCategoryOptions.value
-      : tangibleCategoryOptions.value;
-
-  return [{ label: "분류 선택", value: "" }, ...categories];
-});
+const directCategoryOptions = computed(() =>
+  directItemForm.value.assetType === "INTANGIBLE"
+    ? intangibleCategoryGroups.value
+    : tangibleCategoryGroups.value,
+);
 
 const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
 
@@ -1819,15 +1812,13 @@ async function fetchPurchaseCategoryOptions() {
   ]);
 
   if (tangibleResult.status === "fulfilled") {
-    tangibleCategoryGroups.value = tangibleResult.value.data;
+    tangibleCategoryGroups.value = normalizeCategoryGroups(tangibleResult.value.data);
   } else {
     tangibleCategoryGroups.value = [];
   }
 
   if (intangibleResult.status === "fulfilled") {
-    intangibleCategoryGroups.value = normalizeIntangibleCategoryGroups(
-      intangibleResult.value.data,
-    );
+    intangibleCategoryGroups.value = normalizeCategoryGroups(intangibleResult.value.data);
   } else {
     intangibleCategoryGroups.value = [];
   }
@@ -2627,104 +2618,30 @@ function formatNumberInput(value: string) {
   return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function categoryGroupsToOptions(groups: unknown): DropdownOption[] {
-  return [...new Set(collectCategoryNames(groups))].map((name) => ({
-    label: name,
-    value: name,
-  }));
-}
+type PurchaseCategoryGroup = TangibleCategoryGroup | IntangibleCategoryGroup;
 
-function categoryGroupsToIdOptions(groups: unknown): DropdownOption[] {
-  const optionMap = new Map<string, DropdownOption>();
-  collectCategoryIdOptions(groups).forEach((option) => {
-    optionMap.set(String(option.value), option);
-  });
-  return Array.from(optionMap.values());
-}
+type PurchaseCategoryTreeNode = {
+  categoryId?: string | number | null;
+  tangibleAssetCategoryId?: string | number | null;
+  intangibleAssetCategoryId?: string | number | null;
+  tangibleCategoryId?: string | number | null;
+  intangibleCategoryId?: string | number | null;
+  assetCategoryId?: string | number | null;
+  id?: string | number | null;
+  uuid?: string | number | null;
+  mainCategory?: string | null;
+  name?: string | null;
+  categoryName?: string | null;
+  children?: PurchaseCategoryTreeNode[] | null;
+  subCategories?: string[] | PurchaseCategoryTreeNode[] | null;
+  childCategories?: Record<string, string[]> | null;
+  subCategoryIds?: Record<string, string> | null;
+  childCategoryIds?: Record<string, string> | null;
+};
 
-function collectCategoryIdOptions(value: unknown): DropdownOption[] {
-  if (Array.isArray(value)) return value.flatMap(collectCategoryIdOptions);
-  if (!value || typeof value !== "object") return [];
-
-  const category = value as Record<string, unknown>;
-  const options: DropdownOption[] = [];
-  const label = String(
-    category.name ?? category.categoryName ?? category.mainCategory ?? "",
-  ).trim();
-  const id =
-    category.categoryId
-    ?? category.tangibleAssetCategoryId
-    ?? category.intangibleAssetCategoryId
-    ?? category.tangibleCategoryId
-    ?? category.intangibleCategoryId
-    ?? category.assetCategoryId
-    ?? category.id
-    ?? category.uuid;
-
-  if (label && id !== null && id !== undefined && String(id).trim()) {
-    options.push({ label, value: String(id) });
-  }
-
-  if (category.subCategoryIds && typeof category.subCategoryIds === "object") {
-    Object.entries(category.subCategoryIds).forEach(([name, value]) => {
-      if (value !== null && value !== undefined && String(value).trim()) {
-        options.push({ label: name, value: String(value) });
-      }
-    });
-  }
-
-  if (category.childCategoryIds && typeof category.childCategoryIds === "object") {
-    Object.entries(category.childCategoryIds).forEach(([name, value]) => {
-      if (value !== null && value !== undefined && String(value).trim()) {
-        options.push({ label: name, value: String(value) });
-      }
-    });
-  }
-
-  options.push(...collectCategoryIdOptions(category.children));
-  options.push(...collectCategoryIdOptions(category.subCategories));
-  return options;
-}
-
-function collectCategoryNames(value: unknown): string[] {
-  if (typeof value === "string") {
-    const name = value.trim();
-    return name ? [name] : [];
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap(collectCategoryNames);
-  }
-
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-
-  const category = value as Record<string, unknown>;
-  const names = [
-    ...collectCategoryNames(category.mainCategory),
-    ...collectCategoryNames(category.name),
-    ...collectCategoryNames(category.categoryName),
-    ...collectCategoryNames(category.children),
-    ...collectCategoryNames(category.subCategories),
-  ];
-
-  if (
-    category.childCategories &&
-    typeof category.childCategories === "object"
-  ) {
-    Object.entries(category.childCategories).forEach(([name, children]) => {
-      names.push(...collectCategoryNames(name));
-      names.push(...collectCategoryNames(children));
-    });
-  }
-
-  return names;
-}
-
-function normalizeIntangibleCategoryGroups(
-  categories: IntangibleCategoryGroup[] | string[],
-): IntangibleCategoryGroup[] {
+function normalizeCategoryGroups(
+  categories: PurchaseCategoryGroup[] | PurchaseCategoryTreeNode[] | string[],
+): PurchaseCategoryGroup[] {
   if (!categories.length) return [];
 
   if (typeof categories[0] === "string") {
@@ -2734,7 +2651,86 @@ function normalizeIntangibleCategoryGroups(
     }));
   }
 
-  return categories as IntangibleCategoryGroup[];
+  return (categories as PurchaseCategoryTreeNode[])
+    .map((category) => {
+      if (
+        category.mainCategory
+        && Array.isArray(category.subCategories)
+        && category.subCategories.every((subCategory) => typeof subCategory === "string")
+      ) {
+        return {
+          categoryId: normalizeCategoryId(category),
+          mainCategory: category.mainCategory,
+          subCategories: category.subCategories,
+          childCategories: category.childCategories ?? {},
+          subCategoryIds: category.subCategoryIds ?? {},
+          childCategoryIds: category.childCategoryIds ?? {},
+        };
+      }
+
+      const mainCategory = normalizeCategoryName(category);
+      const children = normalizeCategoryChildren(category);
+      const subCategories: string[] = [];
+      const childCategories: Record<string, string[]> = {};
+      const subCategoryIds: Record<string, string> = {};
+      const childCategoryIds: Record<string, string> = {};
+
+      children.forEach((middleCategory) => {
+        const middleName = normalizeCategoryName(middleCategory);
+        if (!middleName) return;
+
+        subCategories.push(middleName);
+        subCategoryIds[middleName] = normalizeCategoryId(middleCategory);
+
+        const smallCategories = normalizeCategoryChildren(middleCategory)
+          .map((smallCategory) => {
+            const smallName = normalizeCategoryName(smallCategory);
+            if (smallName) childCategoryIds[smallName] = normalizeCategoryId(smallCategory);
+            return smallName;
+          })
+          .filter(Boolean);
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories;
+          subCategories.push(...smallCategories);
+        }
+      });
+
+      return {
+        categoryId: normalizeCategoryId(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      };
+    })
+    .filter((category) => category.mainCategory);
+}
+
+function normalizeCategoryId(category: PurchaseCategoryTreeNode) {
+  const id = category.categoryId
+    ?? category.tangibleAssetCategoryId
+    ?? category.intangibleAssetCategoryId
+    ?? category.tangibleCategoryId
+    ?? category.intangibleCategoryId
+    ?? category.assetCategoryId
+    ?? category.id
+    ?? category.uuid
+    ?? "";
+
+  return String(id);
+}
+
+function normalizeCategoryName(category: PurchaseCategoryTreeNode) {
+  return String(category.mainCategory ?? category.name ?? category.categoryName ?? "").trim();
+}
+
+function normalizeCategoryChildren(category: PurchaseCategoryTreeNode): PurchaseCategoryTreeNode[] {
+  const children = category.children ?? category.subCategories ?? [];
+  return Array.isArray(children)
+    ? children.filter((child): child is PurchaseCategoryTreeNode => typeof child === "object" && child !== null)
+    : [];
 }
 
 function formatCurrency(value: number) {
