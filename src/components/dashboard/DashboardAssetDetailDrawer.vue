@@ -134,6 +134,7 @@ interface DetailRow extends Record<string, unknown> {
   category: string
   owner: string
   department: string
+  ownerDepartment: string
   date: string
   note: number
 }
@@ -169,12 +170,11 @@ const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> 
   { label: '무형자산', value: 'INTANGIBLE' },
 ]
 
-const columns: Column<DetailRow>[] = [
+const baseColumns: Column<DetailRow>[] = [
   { key: 'name', label: '자산명', width: '18%', align: 'center' },
   { key: 'code', label: '자산코드', width: '15%', align: 'center' },
-  { key: 'category', label: '카테고리/공급자', width: '11%', align: 'center' },
-  { key: 'owner', label: '사용자', width: '12%', align: 'center' },
-  { key: 'department', label: '부서', width: '12%', align: 'center' },
+  { key: 'category', label: '카테고리', width: '11%', align: 'center' },
+  { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
   { key: 'date', label: '만료/반납 예정일', width: '13%', align: 'center' },
   { key: 'note', label: '잔여/연체', width: '15%', align: 'center' },
 ]
@@ -195,6 +195,13 @@ const modeOptions = computed(() => (
     ? OWNED_STATUS_OPTIONS.filter((option) => props.showUnassigned || option.value !== 'UNASSIGNED')
     : EXPIRING_TYPE_OPTIONS
 ))
+const columns = computed<Column<DetailRow>[]>(() => {
+  if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
+    return baseColumns.filter((column) => column.key !== 'ownerDepartment')
+  }
+
+  return baseColumns
+})
 const selectedOption = computed(() => (
   props.mode === 'owned' ? selectedOwnedStatus.value : selectedAssetType.value
 ))
@@ -363,14 +370,18 @@ function isOverdueOwnedAsset(item: OwnedAssetDetail) {
 }
 
 function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): DetailRow {
+  const owner = ownedAssetOwnerText(item, status)
+  const department = textValue(item.departmentName) || '부서 미지정'
+
   return {
     id: item.assetId,
     kind: OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
     name: item.assetName || '-',
     code: item.assetCode || '-',
     category: textValue(item.categoryOrProvider, item.categoryName) || '-',
-    owner: ownedAssetOwnerText(item, status),
-    department: textValue(item.departmentName) || '부서 미지정',
+    owner,
+    department,
+    ownerDepartment: ownerDepartmentText(owner, department),
     date: textValue(item.returnDueDate, item.dueDate, item.warrantyExpiredAt),
     note: item.overdueDays ?? item.dayCount ?? 0,
   }
@@ -385,17 +396,28 @@ function ownedAssetOwnerText(item: OwnedAssetDetail, status: OwnedAssetDetailSta
 }
 
 function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
+  const owner = item.userName || '-'
+  const department = item.departmentName || '-'
+
   return {
     id: item.assetId,
     kind: item.assetType === 'TANGIBLE' ? '유형자산' : '무형자산',
     name: item.assetName || '-',
     code: item.assetCode || '-',
     category: item.manufacturer ?? item.issuer ?? '-',
-    owner: item.userName || '-',
-    department: item.departmentName || '-',
+    owner,
+    department,
+    ownerDepartment: ownerDepartmentText(owner, department),
     date: item.expiredAt,
     note: item.remainingDays,
   }
+}
+
+function ownerDepartmentText(owner: string, department: string) {
+  if (owner === '-' && department === '-') return '-'
+  if (owner === '-') return department
+  if (department === '-') return owner
+  return `${owner}(${department})`
 }
 
 function startOfDay(value: string | Date) {
