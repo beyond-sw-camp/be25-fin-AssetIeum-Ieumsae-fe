@@ -239,6 +239,10 @@ function connectRealtimeNotifications() {
 
 function handleIncomingNotification(event: { data: ServerNotification }) {
   const incoming = event.data
+  const existingNotification = notifications.value.find((notification) => (
+    notification.notificationId === incoming.notificationId
+  ))
+
   notifications.value = [
     incoming,
     ...notifications.value.filter((notification) => (
@@ -246,7 +250,7 @@ function handleIncomingNotification(event: { data: ServerNotification }) {
     )),
   ].slice(0, 10)
 
-  if (!incoming.isRead) {
+  if (!incoming.isRead && !existingNotification) {
     unreadCount.value += 1
   }
 }

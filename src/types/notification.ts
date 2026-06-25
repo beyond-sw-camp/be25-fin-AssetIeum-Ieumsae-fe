@@ -30,21 +30,6 @@ export interface ServerNotification {
   createdAt: string
 }
 
-export interface NotificationCreateRequest {
-  receiverId?: number | string
-  receiverIds?: Array<number | string>
-  sendToAll?: boolean
-  notificationType: NotificationType
-  title: string
-  content: string
-  targetType: NotificationTargetType
-  targetId: number | string
-}
-
-export interface NotificationCreateResponse {
-  createdCount: number
-}
-
 export interface NotificationReadAllResponse {
   updatedCount: number
 }
@@ -58,13 +43,3 @@ export interface NotificationUnreadCountResponse {
 }
 
 export type NotificationListResponse = PageResponse<ServerNotification>
-
-export interface NotificationPreferences {
-  system: boolean
-  ticketStatus: boolean
-  assetReturnDue: boolean
-  intangibleExpiration: boolean
-  inspection: boolean
-  budgetThreshold: boolean
-  email: boolean
-}

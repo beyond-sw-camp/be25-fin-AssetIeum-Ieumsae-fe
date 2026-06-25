@@ -76,6 +76,7 @@ const navItems = computed(() => {
   if (canManagePlatform.value) {
     return [
       { name: 'system-companies', to: '/system/companies', label: '회사 관리', icon: Building, show: true },
+      { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: true },
     ]
   }
 
@@ -137,7 +138,7 @@ const navItems = computed(() => {
         { name: 'activity-logs', to: '/activity', label: '활동로그', show: canViewLogs.value },
       ],
     },
-    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
+    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: true },
   ]
 
   return menuConfig

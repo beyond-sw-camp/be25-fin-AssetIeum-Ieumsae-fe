@@ -1,21 +1,14 @@
 import api, { ApiError } from './client'
 import type {
-  NotificationCreateRequest,
-  NotificationCreateResponse,
   NotificationListResponse,
   NotificationReadAllResponse,
   NotificationReadResponse,
   NotificationUnreadCountResponse,
-  ServerNotification,
 } from '@/types'
 
 const NOTIFICATION_BASE = '/notifications'
 
 export const notificationApi = {
-  create(payload: NotificationCreateRequest) {
-    return api.post<NotificationCreateResponse>(NOTIFICATION_BASE, payload)
-  },
-
   getSubscribePath() {
     return `${NOTIFICATION_BASE}/subscribe`
   },
@@ -29,10 +22,6 @@ export const notificationApi = {
       }
       throw error
     }
-  },
-
-  getDetail(notificationId: number | string) {
-    return api.get<ServerNotification>(`${NOTIFICATION_BASE}/${notificationId}`)
   },
 
   markAllAsRead() {

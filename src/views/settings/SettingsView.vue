@@ -42,41 +42,57 @@
           <BellRing :size="20" />
         </div>
         <div>
-          <h2 class="text-base font-semibold text-text-main">알림 설정</h2>
+          <h2 class="text-base font-semibold text-text-main">알림 구독</h2>
           <p class="mt-1 text-sm text-text-sub">
-            받고 싶은 알림 유형과 보조 수신 방식을 선택합니다.
+            실시간 알림 수신 연결 상태를 관리합니다.
           </p>
         </div>
       </div>
 
-      <div class="space-y-3">
-        <label
-          v-for="option in notificationPreferenceOptions"
-          :key="option.key"
-          class="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-secondary"
-        >
-          <span>
-            <span class="block text-sm font-semibold text-text-main">{{ option.label }}</span>
-            <span class="mt-1 block text-xs leading-5 text-text-sub">{{ option.description }}</span>
+      <div class="rounded-xl border border-border bg-surface-secondary px-4 py-3">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p class="text-sm font-bold text-text-main">현재 구독 상태</p>
+            <p class="mt-1 text-sm text-text-sub">{{ notificationSubscriptionSummary }}</p>
+          </div>
+          <span
+            class="w-fit rounded-full px-3 py-1 text-xs font-semibold"
+            :class="isNotificationSubscribed ? 'bg-success/10 text-success' : 'bg-surface text-text-sub'"
+          >
+            {{ isNotificationSubscribed ? '구독 중' : '연결 전' }}
           </span>
-          <input
-            v-model="notificationPreferences[option.key]"
-            type="checkbox"
-            class="mt-1 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
-          />
-        </label>
+        </div>
       </div>
 
       <div
-        v-if="notificationPreferenceMessage"
-        class="mt-4 rounded-xl border border-success/30 bg-success/5 px-4 py-3 text-sm font-semibold text-success"
+        v-if="notificationSubscriptionError"
+        class="mt-4 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger"
       >
-        {{ notificationPreferenceMessage }}
+        {{ notificationSubscriptionError }}
       </div>
 
-      <div class="mt-5 flex justify-end">
-        <Button variant="outline" @click="saveNotificationPreferences">
-          저장
+      <div
+        v-if="latestNotification"
+        class="mt-4 rounded-xl border border-border bg-surface px-4 py-3"
+      >
+        <p class="text-xs font-semibold text-text-sub">최근 수신 알림</p>
+        <p class="mt-2 text-sm font-bold text-text-main">{{ latestNotification.title }}</p>
+        <p class="mt-1 text-sm text-text-sub">{{ latestNotification.content }}</p>
+      </div>
+
+      <div class="mt-5 flex justify-end gap-2">
+        <Button
+          v-if="isNotificationSubscribed"
+          variant="outline"
+          @click="disconnectNotificationSubscription"
+        >
+          구독 해제
+        </Button>
+        <Button
+          :variant="isNotificationSubscribed ? 'outline' : 'primary'"
+          @click="connectNotificationSubscription"
+        >
+          {{ isNotificationSubscribed ? '다시 연결' : '구독 연결' }}
         </Button>
       </div>
     </section>
@@ -190,17 +206,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { BellRing, KeyRound, Settings2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-import { ApiError, purchaseApi } from '@/api'
+import { ApiError, notificationApi, purchaseApi } from '@/api'
 import Button from '@/components/common/Button.vue'
+import { useEventSource } from '@/composables/useEventSource'
 import { usePermission } from '@/composables/usePermission'
 import type {
-  NotificationPreferences,
   PurchasePolicy,
   PurchasePolicyMode,
+  ServerNotification,
 } from '@/types'
 
 interface PurchasePolicyForm {
@@ -210,69 +227,14 @@ interface PurchasePolicyForm {
   overPercentageLimit: number
 }
 
-type NotificationPreferenceKey = keyof NotificationPreferences
-
 const router = useRouter()
 const { canManagePurchasePolicy } = usePermission()
 
-const NOTIFICATION_PREFERENCES_KEY = 'assetIeumNotificationPreferences'
-
-const defaultNotificationPreferences: NotificationPreferences = {
-  system: true,
-  ticketStatus: true,
-  assetReturnDue: true,
-  intangibleExpiration: true,
-  inspection: true,
-  budgetThreshold: true,
-  email: false,
-}
-
-const notificationPreferenceOptions: Array<{
-  key: NotificationPreferenceKey
-  label: string
-  description: string
-}> = [
-  {
-    key: 'system',
-    label: '서비스 공지',
-    description: '점검, 정책 변경 등 시스템에서 보내는 안내를 받습니다.',
-  },
-  {
-    key: 'ticketStatus',
-    label: '티켓 상태 변경',
-    description: '승인, 반려, 처리 완료 등 내 요청의 상태 변화를 받습니다.',
-  },
-  {
-    key: 'assetReturnDue',
-    label: '자산 반납 예정',
-    description: '대여 자산의 반납 예정일이 가까워지면 알림을 받습니다.',
-  },
-  {
-    key: 'intangibleExpiration',
-    label: '무형자산 만료 예정',
-    description: '라이선스와 구독 만료 예정 알림을 받습니다.',
-  },
-  {
-    key: 'inspection',
-    label: '전수조사',
-    description: '전수조사 시작과 응답 요청 알림을 받습니다.',
-  },
-  {
-    key: 'budgetThreshold',
-    label: '예산 기준',
-    description: '예산 사용률과 한도 관련 알림을 받습니다.',
-  },
-  {
-    key: 'email',
-    label: '이메일 보조 수신',
-    description: '중요 알림을 이메일로도 함께 받습니다.',
-  },
-]
-
-const notificationPreferences = reactive<NotificationPreferences>({
-  ...defaultNotificationPreferences,
-})
-const notificationPreferenceMessage = ref('')
+const notificationSubscription = useEventSource()
+const notificationSubscriptionError = ref('')
+const latestNotification = ref<ServerNotification | null>(null)
+let offNotificationEvent: (() => void) | null = null
+let offMessageEvent: (() => void) | null = null
 
 const purchaseModeOptions: Array<{
   label: string
@@ -316,38 +278,49 @@ const currentPolicySummary = computed(() => {
   return `${getPurchaseModeLabel(currentPolicy.value.purchaseMethod)} · 초과 허용률 ${currentPolicy.value.overPercentageLimit}%`
 })
 
-onMounted(() => {
-  loadNotificationPreferences()
+const isNotificationSubscribed = computed(() => notificationSubscription.isConnected.value)
 
+const notificationSubscriptionSummary = computed(() => (
+  isNotificationSubscribed.value
+    ? '실시간 알림을 받을 수 있습니다.'
+    : '실시간 알림 구독이 연결되어 있지 않습니다.'
+))
+
+onMounted(() => {
   if (canManagePurchasePolicy.value) {
     void loadPolicy()
   }
 })
 
-function loadNotificationPreferences() {
-  const saved = localStorage.getItem(NOTIFICATION_PREFERENCES_KEY)
-  if (!saved) return
+onUnmounted(() => {
+  offNotificationEvent?.()
+  offMessageEvent?.()
+})
+
+function connectNotificationSubscription() {
+  notificationSubscriptionError.value = ''
+  offNotificationEvent?.()
+  offMessageEvent?.()
 
   try {
-    Object.assign(notificationPreferences, {
-      ...defaultNotificationPreferences,
-      ...JSON.parse(saved),
-    })
-  } catch {
-    Object.assign(notificationPreferences, defaultNotificationPreferences)
+    notificationSubscription.connect(notificationApi.getSubscribePath())
+    offNotificationEvent = notificationSubscription.on<ServerNotification>('notification', handleSubscribedNotification)
+    offMessageEvent = notificationSubscription.on<ServerNotification>('message', handleSubscribedNotification)
+  } catch (error) {
+    notificationSubscriptionError.value = getErrorMessage(error, '알림 구독 연결에 실패했습니다.')
   }
 }
 
-function saveNotificationPreferences() {
-  localStorage.setItem(
-    NOTIFICATION_PREFERENCES_KEY,
-    JSON.stringify(notificationPreferences),
-  )
-  notificationPreferenceMessage.value = '알림 설정이 저장되었습니다.'
+function disconnectNotificationSubscription() {
+  offNotificationEvent?.()
+  offMessageEvent?.()
+  offNotificationEvent = null
+  offMessageEvent = null
+  notificationSubscription.disconnect()
+}
 
-  window.setTimeout(() => {
-    notificationPreferenceMessage.value = ''
-  }, 3000)
+function handleSubscribedNotification(event: { data: ServerNotification }) {
+  latestNotification.value = event.data
 }
 
 function setPurchaseMode(value: PurchasePolicyMode) {
