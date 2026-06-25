@@ -11,6 +11,7 @@
   --color-primary: #f97316;
   --color-primary-hover: #ea580c;
   --color-primary-light: #fff7ed;
+  --color-primary-trans: #f6bc98;
 
   /* ------------------------------
      Status
@@ -115,6 +116,7 @@
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
   --color-primary-light: var(--color-primary-light);
+  --color-primary-trans: var(--color-primary-trans);
 
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);

@@ -80,6 +80,9 @@ export interface AssetDemand {
 export interface CommonBudgetSummary {
   totalAmount: number
   remainingAmount: number
+  usedAmount?: number | null
+  heldAmount?: number | null
+  holdAmount?: number | null
   remainingRate: number
 }
 
@@ -88,6 +91,9 @@ export interface DepartmentBudgetOverview {
   departmentName: string
   totalAmount: number
   usedAmount: number
+  remainingAmount?: number | null
+  heldAmount?: number | null
+  holdAmount?: number | null
   usageRate: number
 }
 

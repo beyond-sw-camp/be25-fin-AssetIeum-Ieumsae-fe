@@ -50,9 +50,12 @@
         <DepartmentBudgetCard
           v-else
           :budget-rows="budgetRows"
+          :total-budget-held="totalBudgetHeld"
+          :total-budget-committed="totalBudgetCommitted"
           :total-budget-used="totalBudgetUsed"
           :total-budget-limit="totalBudgetLimit"
-          :budget-usage-percent="budgetUsagePercent"
+          :budget-committed-percent="budgetCommittedPercent"
+          :budget-used-percent="budgetUsedPercent"
         />
       </section>
 
@@ -95,10 +98,12 @@ import DepartmentLifecycleCard from '@/components/dashboard/DepartmentLifecycleC
 import ExpiringAssetCard from '@/components/dashboard/ExpiringAssetCard.vue'
 import HoldingAssetCard from '@/components/dashboard/HoldingAssetCard.vue'
 import ProgressTicketCard, { type DashboardSegment } from '@/components/dashboard/ProgressTicketCard.vue'
+import { budgetApi } from '@/api/budget.api'
 import { dashboardApi } from '@/api/dashboard.api'
 import { useAuthStore } from '@/stores'
 import type {
   AssetDemand,
+  BudgetListItem,
   BudgetOverview,
   DepartmentBudgetDetail,
   DepartmentBudgetOverview,
@@ -159,6 +164,7 @@ const ownedAssets = ref<OwnedAssetSummary>({ ...EMPTY_OWNED_ASSETS })
 const expiringSummary = ref<ExpiringAssetSummary>({ ...EMPTY_EXPIRING_ASSETS })
 const assetDemands = ref<AssetDemand[]>([])
 const budgetOverview = ref<BudgetOverview | null>(null)
+const budgetItems = ref<BudgetListItem[]>([])
 const departmentBudget = ref<DepartmentBudgetDetail>({ ...EMPTY_DEPARTMENT_BUDGET })
 const departmentHrEvents = ref<HrLifecycleEvent[]>([])
 const departmentHrStatistics = ref<HrEventStatistics>({ ...EMPTY_HR_STATISTICS })
@@ -240,22 +246,126 @@ function clampPercent(value: number) {
 }
 
 const budgetRows = computed<BudgetRow[]>(() => (
-  budgetOverview.value?.departmentBudgets.content.map((item) => ({
+  budgetItems.value.length > 0
+    ? budgetItems.value.map(toBudgetRow)
+    : fallbackBudgetRows.value
+))
+
+const fallbackBudgetRows = computed<BudgetRow[]>(() => [
+  ...(budgetOverview.value?.commonBudget
+    ? [{
+        departmentId: 'COMMON',
+        department: '전사 공통 예산',
+        limit: commonBudgetLimit.value,
+        available: Math.max(commonBudgetLimit.value - commonBudgetCommitted.value, 0),
+        held: commonBudgetHeld.value,
+        committed: commonBudgetCommitted.value,
+        used: commonBudgetUsed.value,
+        percent: commonBudgetUsagePercent.value,
+        isCommon: true,
+      }]
+    : []),
+  ...(budgetOverview.value?.departmentBudgets.content.map((item) => ({
     departmentId: item.departmentId,
     department: item.departmentName,
     limit: item.totalAmount,
-    used: item.usedAmount,
-    percent: item.usageRate,
-  })) ?? []
-))
+    available: Math.max(item.totalAmount - budgetCommittedAmount(item), 0),
+    held: budgetHeldAmount(item),
+    committed: budgetCommittedAmount(item),
+    used: budgetUsedAmount(item),
+    percent: budgetUsagePercent(item.usedAmount, item.totalAmount),
+    isCommon: false,
+  })) ?? []),
+])
+
 const budgetHistoryDepartments = computed(() => (
-  budgetOverview.value?.departmentBudgets.content.map((item) => ({
-    departmentId: item.departmentId,
-    departmentName: item.departmentName,
-  })) ?? []
+  budgetItems.value.length > 0
+    ? budgetItems.value
+        .filter((item) => item.departmentId)
+        .map((item) => ({
+          departmentId: String(item.departmentId),
+          departmentName: item.departmentName ?? '-',
+        }))
+    : budgetOverview.value?.departmentBudgets.content.map((item) => ({
+        departmentId: item.departmentId,
+        departmentName: item.departmentName,
+      })) ?? []
 ))
 
+const commonBudgetItem = computed(() => (
+  budgetItems.value.find((item) => !item.departmentId) ?? null
+))
+
+const commonBudgetLimit = computed(() => (
+  commonBudgetItem.value?.totalAmount
+  ?? budgetOverview.value?.commonBudget?.totalAmount
+  ?? 0
+))
+
+const commonBudgetUsed = computed(() => {
+  return Math.max(
+    commonBudgetItem.value?.usedAmount
+    ?? budgetOverview.value?.commonBudget?.usedAmount
+    ?? 0,
+    0,
+  )
+})
+
+const commonBudgetCommitted = computed(() => {
+  const commonBudget = commonBudgetItem.value ?? budgetOverview.value?.commonBudget
+  if (!commonBudget) return 0
+  return Math.max(commonBudgetUsed.value + budgetHeldAmount(commonBudget), 0)
+})
+
+const commonBudgetHeld = computed(() => {
+  const commonBudget = commonBudgetItem.value ?? budgetOverview.value?.commonBudget
+  return commonBudget ? budgetHeldAmount(commonBudget) : 0
+})
+
+const commonBudgetUsagePercent = computed(() => {
+  if (commonBudgetLimit.value <= 0) return 0
+  return budgetUsagePercent(commonBudgetUsed.value, commonBudgetLimit.value)
+})
+
+function budgetCommittedAmount(budget: DepartmentBudgetOverview) {
+  return Math.max(budgetUsedAmount(budget) + budgetHeldAmount(budget), 0)
+}
+
+function budgetUsedAmount(budget: DepartmentBudgetOverview) {
+  return Math.max(budget.usedAmount ?? 0, 0)
+}
+
+function budgetHeldAmount(budget: { heldAmount?: number | null; holdAmount?: number | null }) {
+  return Math.max(budget.heldAmount ?? budget.holdAmount ?? 0, 0)
+}
+
+function budgetUsagePercent(usedAmount: number, totalAmount: number) {
+  if (totalAmount <= 0) return 0
+  return Math.round((usedAmount / totalAmount) * 1000) / 10
+}
+
+function toBudgetRow(item: BudgetListItem): BudgetRow {
+  const usedAmount = Math.max(item.usedAmount ?? 0, 0)
+  const heldAmount = Math.max(item.heldAmount ?? 0, 0)
+
+  return {
+    departmentId: item.departmentId ?? 'COMMON',
+    department: item.departmentName ?? '전사 공통 예산',
+    limit: item.totalAmount,
+    available: Math.max(item.totalAmount - (usedAmount + heldAmount), 0),
+    held: heldAmount,
+    committed: usedAmount + heldAmount,
+    used: usedAmount,
+    percent: budgetUsagePercent(usedAmount, item.totalAmount),
+    isCommon: !item.departmentId,
+  }
+}
+
 const totalBudgetLimit = computed(() => {
+  if (budgetItems.value.length > 0) {
+    return budgetItems.value.reduce((sum, budget) => sum + budget.totalAmount, 0)
+  }
+
   const overview = budgetOverview.value
   if (!overview) return 0
 
@@ -263,27 +373,67 @@ const totalBudgetLimit = computed(() => {
     (sum, budget) => sum + budget.totalAmount,
     0,
   )
-  return (overview.commonBudget?.totalAmount ?? 0) + departmentBudgetTotal
+  return commonBudgetLimit.value + departmentBudgetTotal
 })
 
 const totalBudgetUsed = computed(() => {
+  if (budgetItems.value.length > 0) {
+    return budgetItems.value.reduce((sum, budget) => sum + Math.max(budget.usedAmount ?? 0, 0), 0)
+  }
+
   const overview = budgetOverview.value
   if (!overview) return 0
 
-  const commonBudgetUsed = overview.commonBudget
-    ? overview.commonBudget.totalAmount - overview.commonBudget.remainingAmount
-    : 0
   const departmentBudgetUsed = overview.departmentBudgets.content.reduce(
-    (sum, budget) => sum + budget.usedAmount,
+    (sum, budget) => sum + budgetUsedAmount(budget),
     0,
   )
 
-  return commonBudgetUsed + departmentBudgetUsed
+  return commonBudgetUsed.value + departmentBudgetUsed
 })
 
-const budgetUsagePercent = computed(() => {
+const totalBudgetHeld = computed(() => {
+  if (budgetItems.value.length > 0) {
+    return budgetItems.value.reduce((sum, budget) => sum + Math.max(budget.heldAmount ?? 0, 0), 0)
+  }
+
+  const overview = budgetOverview.value
+  if (!overview) return 0
+
+  const departmentBudgetHeld = overview.departmentBudgets.content.reduce(
+    (sum, budget) => sum + budgetHeldAmount(budget),
+    0,
+  )
+
+  return commonBudgetHeld.value + departmentBudgetHeld
+})
+
+const totalBudgetCommitted = computed(() => {
+  if (budgetItems.value.length > 0) {
+    return budgetItems.value.reduce((sum, budget) => (
+      sum + Math.max((budget.usedAmount ?? 0) + (budget.heldAmount ?? 0), 0)
+    ), 0)
+  }
+
+  const overview = budgetOverview.value
+  if (!overview) return 0
+
+  const departmentBudgetCommitted = overview.departmentBudgets.content.reduce(
+    (sum, budget) => sum + budgetCommittedAmount(budget),
+    0,
+  )
+
+  return commonBudgetCommitted.value + departmentBudgetCommitted
+})
+
+const budgetCommittedPercent = computed(() => {
   if (totalBudgetLimit.value <= 0) return 0
-  return Math.round((totalBudgetUsed.value / totalBudgetLimit.value) * 1000) / 10
+  return budgetUsagePercent(totalBudgetCommitted.value, totalBudgetLimit.value)
+})
+
+const budgetUsedPercent = computed(() => {
+  if (totalBudgetLimit.value <= 0) return 0
+  return budgetUsagePercent(totalBudgetUsed.value, totalBudgetLimit.value)
 })
 
 function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'expiring-intangible') {
@@ -345,8 +495,12 @@ async function loadDashboardData() {
           }
       return
     }
-    const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })
+    const [budgetResponse, budgetListResponse] = await Promise.all([
+      dashboardApi.getBudgets({ page: 0, size: 1000 }),
+      budgetApi.getList({ page: 0, size: 1000 }),
+    ])
     budgetOverview.value = budgetResponse.data
+    budgetItems.value = budgetListResponse.data.content
 
     if (isAssetOperator.value) {
       const [eventsResponse, statisticsResponse] = await Promise.all([
