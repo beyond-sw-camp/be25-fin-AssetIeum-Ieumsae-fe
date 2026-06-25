@@ -741,19 +741,19 @@ type AvailableCountSource = {
 }
 
 type MemberRecord = Member & {
-  id?: string | number
-  employeeId?: string | number
-  employee_id?: string | number
-  member_id?: string | number
-  department_id?: string | number
-  deptId?: string | number
-  dept_id?: string | number
+  id?: string
+  employeeId?: string
+  employee_id?: string
+  member_id?: string
+  department_id?: string
+  deptId?: string
+  dept_id?: string
   deptName?: string | null
   teamName?: string | null
   department?: {
-    departmentId?: string | number
-    department_id?: string | number
-    id?: string | number
+    departmentId?: string
+    department_id?: string
+    id?: string
     name?: string | null
     departmentName?: string | null
     departmentNamePath?: string | null
@@ -1169,7 +1169,6 @@ function toRequestedUsageType(
 }
 
 function requestedUsagePayload(
-  _assetType: AssetType,
   value: '' | 'DEPARTMENT' | RequestedUsageType,
 ) {
   return { requestedUsageType: toRequestedUsageType(value) }
@@ -1559,14 +1558,14 @@ function uniqueCategoryOptions(options: DropdownOption[]): DropdownOption[] {
 type TicketCategoryGroup = TangibleCategoryGroup | IntangibleCategoryGroup
 
 type TicketCategoryTreeNode = {
-  categoryId?: string | number | null
-  tangibleAssetCategoryId?: string | number | null
-  intangibleAssetCategoryId?: string | number | null
-  tangibleCategoryId?: string | number | null
-  intangibleCategoryId?: string | number | null
-  assetCategoryId?: string | number | null
-  id?: string | number | null
-  uuid?: string | number | null
+  categoryId?: string | null
+  tangibleAssetCategoryId?: string | null
+  intangibleAssetCategoryId?: string | null
+  tangibleCategoryId?: string | null
+  intangibleCategoryId?: string | null
+  assetCategoryId?: string | null
+  id?: string | null
+  uuid?: string | null
   mainCategory?: string | null
   name?: string | null
   categoryName?: string | null
@@ -2220,7 +2219,7 @@ async function handleSubmit() {
     switch (selectedKind.value) {
       case 'STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createStandardRequest({
-          ...requestedUsagePayload(form.assetType, form.assetUsageType),
+          ...requestedUsagePayload(form.assetUsageType),
           assetType: form.assetType,
           assetItemId: form.selectedAssetId,
           assignmentTargetMemberIds: form.assetAssigneeIds,
@@ -2230,7 +2229,7 @@ async function handleSubmit() {
         break
       case 'NON_STANDARD_ASSET_REQUEST':
         response = await ticketCreateApi.createNonStandardRequest({
-          ...requestedUsagePayload(form.assetType, form.assetUsageType),
+          ...requestedUsagePayload(form.assetUsageType),
           assetType: form.assetType,
           categoryId: form.category,
           assignmentTargetMemberIds: assignmentTargetMemberIds(),
@@ -2248,7 +2247,7 @@ async function handleSubmit() {
         if (isStandardDirectPurchase.value) {
           const standardPayload = standardDirectPurchasePayload()
           response = await ticketCreateApi.createDirectPurchaseRequest({
-            ...requestedUsagePayload(form.assetType, form.assetUsageType),
+            ...requestedUsagePayload(form.assetUsageType),
             assetType: form.assetType,
             isStandard: true,
             assetItemId: form.selectedAssetId,
@@ -2264,7 +2263,7 @@ async function handleSubmit() {
           })
         } else {
           response = await ticketCreateApi.createDirectPurchaseRequest({
-            ...requestedUsagePayload(form.assetType, form.assetUsageType),
+            ...requestedUsagePayload(form.assetUsageType),
             assetType: form.assetType,
             isStandard: false,
             assetItemId: null,

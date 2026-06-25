@@ -57,9 +57,7 @@
               >
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-xl font-semibold text-text-muted"
-                      >#{{ selectedPlan.planNo }}</span
-                    >
+                    <span class="text-xl font-semibold text-text-muted">#{{ selectedPlan.planNo }}</span>
                     <span class="text-text-muted">|</span>
                     <h1 class="text-2xl font-bold text-text-main">
                       {{ purchasePlanTitle }}
@@ -266,7 +264,7 @@
                         class="min-w-[5.75rem] whitespace-nowrap px-3!"
                         :disabled="
                           !canConfirmDelivery(row) ||
-                          isConfirmingPurchaseItem(row)
+                            isConfirmingPurchaseItem(row)
                         "
                         :loading="isConfirmingPurchaseItem(row)"
                         @click.stop="confirmDelivery(row)"
@@ -614,9 +612,7 @@
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
               <div class="space-y-2 text-left">
-                <label class="block px-0.5 text-sm font-semibold text-text-main"
-                  >자산 유형</label
-                >
+                <label class="block px-0.5 text-sm font-semibold text-text-main">자산 유형</label>
                 <Dropdown
                   :model-value="directItemForm.assetType"
                   :options="ASSET_TYPE_OPTIONS"
@@ -713,9 +709,7 @@
               <h2 class="text-sm font-bold text-text-main">
                 구매계획 요청 품목
               </h2>
-              <span class="text-xs font-semibold text-text-muted"
-                >총 {{ planRequestItems.length }}건</span
-              >
+              <span class="text-xs font-semibold text-text-muted">총 {{ planRequestItems.length }}건</span>
             </div>
 
             <div
@@ -756,13 +750,11 @@
                   <span
                     class="truncate font-semibold text-text-main"
                     :title="item.itemName"
-                    >{{ item.itemName }}</span
-                  >
+                  >{{ item.itemName }}</span>
                   <span
                     class="truncate text-text-sub"
                     :title="item.categoryName || '-'"
-                    >{{ item.categoryName || "-" }}</span
-                  >
+                  >{{ item.categoryName || "-" }}</span>
                   <span class="text-center">{{ item.quantity }}</span>
                   <span class="text-right">{{
                     formatCurrency(item.estimatedUnitPrice)
@@ -789,17 +781,13 @@
           <div
             class="mb-4 flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3"
           >
-            <span class="text-sm font-semibold text-text-sub"
-              >요청 품목 {{ planRequestItems.length }}건</span
-            >
-            <span class="text-lg font-bold text-text-main"
-              >합계 {{ formatCurrency(selectedEstimatedAmount) }}</span
-            >
+            <span class="text-sm font-semibold text-text-sub">요청 품목 {{ planRequestItems.length }}건</span>
+            <span class="text-lg font-bold text-text-main">합계 {{ formatCurrency(selectedEstimatedAmount) }}</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <Button class="w-full" variant="outline" @click="closeCreateDrawer"
-              >취소</Button
-            >
+            <Button class="w-full" variant="outline" @click="closeCreateDrawer">
+              취소
+            </Button>
             <Button
               class="w-full"
               :disabled="planRequestItems.length === 0 || isCreatingPlan"
@@ -1974,12 +1962,12 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     0;
   const assetItemIds = resolvePurchasePlanCandidateItemIds(ticket);
   const disabledReasons: string[] = [];
+  const isStandard = isStandardPurchaseValue(ticket.isStandard);
 
   if (!ticket.assetType) disabledReasons.push("자산 유형 없음");
   if (!estimatedUnitPrice) disabledReasons.push("예상 단가 없음");
   if (
-    ticket.isStandard !== false &&
-    ticket.isStandard !== 0 &&
+    isStandard &&
     !assetItemIds.assetItemId
   ) {
     disabledReasons.push("자산 품목 ID 없음");
@@ -1996,7 +1984,7 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     assetItemId: assetItemIds.assetItemId,
     tangibleAssetItemId: assetItemIds.tangibleAssetItemId,
     intangibleAssetItemId: assetItemIds.intangibleAssetItemId,
-    isStandard: ticket.isStandard !== false && ticket.isStandard !== 0,
+    isStandard,
     canCreate: disabledReasons.length === 0,
     disabledReason: disabledReasons.join(", "),
   };
@@ -2424,13 +2412,16 @@ function parseAssetItemId(value: string | number | null | undefined) {
 
 function isNonStandardPurchaseItem(item: PurchasePlanItem | null | undefined) {
   if (!item) return false;
-  const value = item.isStandard;
-  if (value === false || value === 0) return true;
+  return !isStandardPurchaseValue(item.isStandard);
+}
+
+function isStandardPurchaseValue(value: unknown) {
+  if (value === false || value === 0) return false;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    return normalized === "false" || normalized === "0";
+    return normalized !== "false" && normalized !== "0";
   }
-  return false;
+  return true;
 }
 
 function hasMappedAssetItem(item: PurchasePlanItem | null | undefined) {
