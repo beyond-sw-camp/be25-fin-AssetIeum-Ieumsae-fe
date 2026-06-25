@@ -1,7 +1,10 @@
 <template>
   <article class="rounded-lg border border-border bg-surface p-5 shadow-sm">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-bold text-text-main">라이프 사이클 진행 현황</h2>
+      <div>
+        <h2 class="text-base font-bold text-text-main">라이프 사이클 진행 현황</h2>
+        <p class="mt-1 text-xs text-text-sub">예정된 HR 이벤트와 처리 상태를 기준으로 진행 상황을 확인합니다.</p>
+      </div>
       <div class="flex flex-wrap gap-2 text-xs font-semibold text-text-sub">
         <span
           v-for="item in summaryItems"
@@ -126,7 +129,7 @@
               <p class="mt-1 text-xs text-text-sub">{{ item.count }}건/{{ item.total }}건</p>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
+              <div class="dashboard-bar-fill h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
             </div>
             <span class="text-right text-sm font-semibold text-text-sub">{{ item.percentage }}%</span>
           </div>
@@ -155,7 +158,7 @@
               <p class="mt-1 text-xs text-text-sub">{{ item.count }}건/{{ item.total }}건</p>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
+              <div class="dashboard-bar-fill h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
             </div>
             <span class="text-right text-sm font-semibold text-text-sub">{{ item.percentage }}%</span>
           </div>
