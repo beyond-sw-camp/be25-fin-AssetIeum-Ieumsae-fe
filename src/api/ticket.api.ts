@@ -418,11 +418,24 @@ async function getDetailFromFirstAvailableEndpoint(
   ticketId: string,
   ticketType?: TicketType,
 ): Promise<ApiResponse<TicketDetail>> {
-  if (!ticketType) {
-    throw new ApiError('티켓 상세 조회에 필요한 티켓 유형이 없습니다.', { status: 400 })
+  if (ticketType) {
+    return getDetailFromEndpoint(TICKET_DETAIL_ENDPOINT_BY_TYPE[ticketType](ticketId))
   }
 
-  return getDetailFromEndpoint(TICKET_DETAIL_ENDPOINT_BY_TYPE[ticketType](ticketId))
+  let lastError: unknown = null
+  for (const buildEndpoint of Object.values(TICKET_DETAIL_ENDPOINT_BY_TYPE)) {
+    try {
+      return await getDetailFromEndpoint(buildEndpoint(ticketId))
+    } catch (error) {
+      lastError = error
+      if (!(error instanceof ApiError) || error.status !== 404) {
+        throw error
+      }
+    }
+  }
+
+  if (lastError instanceof ApiError) throw lastError
+  throw new ApiError('티켓 상세 정보를 찾을 수 없습니다.', { status: 404 })
 }
 
 // ─── 티켓 공통 API ───────────────────────────────────────────────────────────

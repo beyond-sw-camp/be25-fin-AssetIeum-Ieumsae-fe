@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div ref="popoverRoot" class="relative">
     <button
       type="button"
       class="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-sub transition-colors duration-300 hover:bg-surface-secondary"
@@ -29,6 +29,7 @@
             type="button"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary"
             aria-label="새로고침"
+            title="새로고침"
             @click="loadNotifications"
           >
             <RefreshCw :size="16" :class="{ 'animate-spin': isLoading }" />
@@ -36,7 +37,8 @@
           <button
             type="button"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="전체 읽음"
+            aria-label="전체 확인"
+            title="전체 확인"
             :disabled="unreadCount === 0 || isMarkingAll"
             @click="markAllAsRead"
           >
@@ -73,7 +75,7 @@
           :key="notification.notificationId"
           type="button"
           class="block w-full border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-surface-secondary"
-          @click="markAsRead(notification)"
+          @click="handleNotificationClick(notification)"
         >
           <div class="flex items-start gap-3">
             <span
@@ -107,6 +109,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Bell, BellOff, CheckCheck, RefreshCw } from 'lucide-vue-next'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 
 import { ApiError, notificationApi } from '@/api'
 import { useEventSource } from '@/composables/useEventSource'
@@ -120,7 +123,9 @@ const isMarkingAll = ref(false)
 const errorMessage = ref('')
 const notifications = ref<ServerNotification[]>([])
 const unreadCount = ref(0)
+const popoverRoot = ref<HTMLElement | null>(null)
 
+const router = useRouter()
 const eventSource = useEventSource()
 let offNotificationEvent: (() => void) | null = null
 let offMessageEvent: (() => void) | null = null
@@ -132,11 +137,13 @@ const displayUnreadCount = computed(() => (
 onMounted(() => {
   void loadUnreadCount()
   connectRealtimeNotifications()
+  document.addEventListener('click', handleDocumentClick)
 })
 
 onUnmounted(() => {
   offNotificationEvent?.()
   offMessageEvent?.()
+  document.removeEventListener('click', handleDocumentClick)
 })
 
 async function togglePopover() {
@@ -145,6 +152,16 @@ async function togglePopover() {
   if (isOpen.value) {
     await loadNotifications()
   }
+}
+
+function handleDocumentClick(event: MouseEvent) {
+  if (!isOpen.value) return
+
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (popoverRoot.value?.contains(target)) return
+
+  isOpen.value = false
 }
 
 async function loadNotifications() {
@@ -180,6 +197,16 @@ async function markAsRead(notification: ServerNotification) {
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '알림 읽음 처리에 실패했습니다.')
   }
+}
+
+async function handleNotificationClick(notification: ServerNotification) {
+  await markAsRead(notification)
+
+  const routeLocation = resolveNotificationRoute(notification)
+  if (!routeLocation) return
+
+  isOpen.value = false
+  await router.push(routeLocation)
 }
 
 async function markAllAsRead() {
@@ -222,6 +249,35 @@ function handleIncomingNotification(event: { data: ServerNotification }) {
   if (!incoming.isRead) {
     unreadCount.value += 1
   }
+}
+
+function resolveNotificationRoute(notification: ServerNotification): RouteLocationRaw | null {
+  const targetId = normalizeTargetId(notification.targetId)
+  if (!targetId) return null
+
+  const targetType = String(notification.targetType).trim().toUpperCase()
+  const notificationType = String(notification.notificationType).trim().toUpperCase()
+
+  if (targetType === 'TICKET' || notificationType === 'TICKET_STATUS_CHANGED') {
+    return {
+      name: 'TicketDetail',
+      params: { ticketId: targetId },
+    }
+  }
+
+  if (targetType === 'PURCHASE' || targetType === 'PURCHASE_PLAN') {
+    return {
+      name: 'Purchase',
+      query: { planId: targetId },
+    }
+  }
+
+  return null
+}
+
+function normalizeTargetId(value: ServerNotification['targetId']) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
 }
 
 function getTypeLabel(type: NotificationType) {

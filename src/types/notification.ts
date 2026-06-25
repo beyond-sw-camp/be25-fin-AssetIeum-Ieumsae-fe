@@ -11,6 +11,8 @@ export type NotificationType =
 
 export type NotificationTargetType =
   | 'TICKET'
+  | 'PURCHASE'
+  | 'PURCHASE_PLAN'
   | 'ASSET'
   | 'INSPECTION'
   | 'BUDGET'
