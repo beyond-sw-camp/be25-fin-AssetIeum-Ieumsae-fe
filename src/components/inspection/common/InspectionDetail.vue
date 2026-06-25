@@ -3,6 +3,7 @@
     :is-open="isOpen"
     title="전수조사 상세"
     body-class="p-0"
+    :panel-class="'w-[70%]'"
     hide-footer
     @close="emit('close')"
   >
@@ -18,9 +19,21 @@
               {{ inspection.description || '설명이 없습니다.' }}
             </p>
           </div>
-          <span :class="statusBadgeClass(displayStatus)">
-            {{ statusLabel[displayStatus] }}
-          </span>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button
+              v-if="canCloseCurrentInspection"
+              size="sm"
+              variant="outline"
+              :loading="isClosing"
+              :disabled="isLoading || displayStatus === 'CLOSED'"
+              @click="closeInspection"
+            >
+              조사 종료
+            </Button>
+            <span :class="statusBadgeClass(displayStatus)">
+              {{ statusLabel[displayStatus] }}
+            </span>
+          </div>
         </div>
 
         <div class="mt-5 grid gap-3 md:grid-cols-4">
@@ -33,10 +46,24 @@
               {{ tile.label }}
             </p>
             <p class="mt-2 text-lg font-bold text-text-main">
-              {{ tile.value }}
+              <template v-if="tile.lines">
+                <span v-for="line in tile.lines" :key="line" class="block">
+                  {{ line }}
+                </span>
+              </template>
+              <template v-else>
+                {{ tile.value }}
+              </template>
             </p>
           </div>
         </div>
+
+        <p
+          v-if="displayStatus === 'CLOSED'"
+          class="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary"
+        >
+          구매자산팀이 임의로 종료한 전수조사입니다.
+        </p>
       </div>
 
       <div class="flex border-b border-border px-8">
@@ -58,7 +85,7 @@
 
       <div class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
         <section v-if="activeTab === 'overview'" class="space-y-5">
-          <div class="grid gap-3 md:grid-cols-2">
+          <div class="grid gap-3 md:grid-cols-3">
             <div
               v-for="item in overviewItems"
               :key="item.label"
@@ -139,15 +166,6 @@
           />
         </section>
 
-        <InspectionFollowUpPanel
-          v-else
-          :rows="followUpRows"
-          :is-loading="isFollowUpLoading"
-          :submitting-id="submittingFollowUpId"
-          @refresh="loadFollowUpData"
-          @update-status="submitFollowUpStatus"
-        />
-
         <p
           v-if="errorMessage"
           class="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
@@ -165,16 +183,20 @@ import { computed, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
-import InspectionFollowUpPanel, {
-  type InspectionFollowUpPanelRow,
-} from '@/components/inspection/common/InspectionFollowUpPanel.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
-import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
+import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
+import {
+  inspectionFollowUpApi,
+  intangibleInspectionApi,
+  tangibleInspectionApi,
+} from '@/api/inspection.api'
+import { usePermission } from '@/composables'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
+import type { Member } from '@/types/member'
 import type {
   InspectionDetailResponse,
-  InspectionFollowUpResponse,
+  EmployeeInspectionTargetResponse,
   InspectionFollowUpStatus,
   InspectionStatus,
   InspectionUninspectedAssetItem,
@@ -215,10 +237,17 @@ interface UninspectedRow extends Record<string, unknown> {
   memberName: string
 }
 
+interface SummaryTile {
+  label: string
+  value?: string
+  lines?: string[]
+}
+
 const props = defineProps<{
   isOpen: boolean
   inspection: InspectionRow | null
   assetType?: 'tangible' | 'intangible'
+  assignedTargets?: EmployeeInspectionTargetResponse[]
 }>()
 
 const emit = defineEmits<{
@@ -233,26 +262,29 @@ const statusLabel: Record<InspectionStatus, string> = {
   CLOSED: '조사 종료',
 }
 
-const tabs = [
+const { canManageInspection, canCloseInspection } = usePermission()
+
+const allTabs = [
   { label: '개요', value: 'overview' },
   { label: '결과', value: 'results' },
   { label: '미점검 자산', value: 'uninspected' },
-  { label: '후속 처리', value: 'followUp' },
 ] as const
+type InspectionDetailTab = (typeof allTabs)[number]['value']
+const tabs = allTabs
 
 const resultColumns: Column<ResultRow>[] = [
-  { key: 'productName', label: '제품명', width: '20%' },
-  { key: 'assetCode', label: '자산코드', width: '17%' },
-  { key: 'memberName', label: '대상 사용자', width: '15%' },
-  { key: 'followUpRequired', label: '후속처리 여부', width: '16%', align: 'center' },
-  { key: 'responseContent', label: '사용자 응답 내용', width: '32%' },
+  { key: 'productName', label: '제품명', width: '20%', align: 'center' },
+  { key: 'assetCode', label: '자산코드', width: '20%', align: 'center' },
+  { key: 'memberName', label: '대상 사용자', width: '12%', align: 'center' },
+  { key: 'followUpRequired', label: '후속처리 여부', width: '15%', align: 'center' },
+  { key: 'responseContent', label: '사용자 응답 내용', width: '32%', align: 'center' },
 ]
 
 const uninspectedColumns: Column<UninspectedRow>[] = [
-  { key: 'productName', label: '제품명', width: '28%' },
-  { key: 'category', label: '카테고리', width: '22%' },
-  { key: 'assetCode', label: '자산코드', width: '27%' },
-  { key: 'memberName', label: '대상 사용자', width: '23%' },
+  { key: 'productName', label: '제품명', width: '28%', align: 'center' },
+  { key: 'category', label: '카테고리', width: '22%', align: 'center' },
+  { key: 'assetCode', label: '자산코드', width: '27%', align: 'center' },
+  { key: 'memberName', label: '대상 사용자', width: '23%', align: 'center' },
 ]
 
 const resultFilterOptions: DropdownOption[] = [
@@ -261,14 +293,15 @@ const resultFilterOptions: DropdownOption[] = [
   { label: '후속 불필요', value: 'none' },
 ]
 
-const activeTab = ref<(typeof tabs)[number]['value']>('overview')
+const activeTab = ref<InspectionDetailTab>('overview')
 const resultFilter = ref('')
 const detail = ref<InspectionDetailResponse | null>(null)
-const followUps = ref<InspectionFollowUpResponse[]>([])
+const inspectionTargets = ref<EmployeeInspectionTargetResponse[]>([])
+const members = ref<Member[]>([])
+const assetMemberNames = ref<Map<string, string[]>>(new Map())
 const isLoading = ref(false)
-const isFollowUpLoading = ref(false)
+const isClosing = ref(false)
 const errorMessage = ref('')
-const submittingFollowUpId = ref('')
 const inspectionApi = computed(() => (
   props.assetType === 'intangible'
     ? intangibleInspectionApi
@@ -285,6 +318,11 @@ const displayInspectorType = computed(() => (
 ))
 const displayStartDate = computed(() => inspectionInfo.value?.startDate ?? props.inspection?.startDate ?? '')
 const displayEndDate = computed(() => inspectionInfo.value?.endDate ?? props.inspection?.endDate ?? '')
+const canCloseCurrentInspection = computed(() => (
+  canCloseInspection.value
+  && Boolean(props.inspection?.inspectionId)
+  && displayStatus.value !== 'CLOSED'
+))
 
 const resultRows = computed<ResultRow[]>(() => (
   detail.value?.inspectionResults.map((item, index) => ({
@@ -292,7 +330,7 @@ const resultRows = computed<ResultRow[]>(() => (
     followUpId: textValue(item.inspectionFollowUpId, item.followUpId),
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
-    memberName: item.memberName ?? '-',
+    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
     responseContent: item.userResponseContent ?? '',
     followUpRequired: item.followUpRequired,
     actionDetail: textValue(item.actionDetail),
@@ -319,36 +357,16 @@ const respondedCount = computed(() => (
   resultRows.value.length
 ))
 
-const followUpRequiredCount = computed(() => followUpRows.value.length)
-
-const followUpRows = computed<InspectionFollowUpPanelRow[]>(() => {
-  const apiRows = followUps.value.map(toFollowUpRow)
-  if (apiRows.length > 0) return apiRows
-
-  return resultRows.value
-    .filter((row) => row.followUpRequired)
-    .map((row) => ({
-      key: `result-${row.inspectionResultId}`,
-      followUpId: row.followUpId,
-      inspectionResultId: row.inspectionResultId,
-      productName: row.productName,
-      assetCode: row.assetCode,
-      memberName: row.memberName,
-      responseContent: row.responseContent,
-      actionDetail: row.actionDetail,
-      status: row.followUpStatus,
-    }))
-})
+const followUpRequiredCount = computed(() => (
+  resultRows.value.filter((row) => row.followUpRequired).length
+))
 
 const displayStatus = computed<InspectionStatus>(() => resolveInspectionStatus({
   startDate: displayStartDate.value,
   endDate: displayEndDate.value,
   fallbackStatus: inspectionInfo.value?.inspectionStatus ?? props.inspection?.status ?? 'READY',
   unrespondedCount: detail.value ? uninspectedRows.value.length : undefined,
-  followUpCount: detail.value ? followUpRows.value.length : undefined,
-  completedFollowUpCount: detail.value
-    ? followUpRows.value.filter((row) => row.status === 'COMPLETED').length
-    : undefined,
+  followUpCount: detail.value ? followUpRequiredCount.value : undefined,
 }))
 
 const completionRate = computed(() => {
@@ -357,14 +375,20 @@ const completionRate = computed(() => {
   return Math.round((respondedCount.value / totalCount) * 100)
 })
 
-const summaryTiles = computed(() => {
+const summaryTiles = computed<SummaryTile[]>(() => {
   if (!props.inspection) return []
 
   return [
     { label: '대상 자산', value: `${(resultRows.value.length + uninspectedRows.value.length).toLocaleString()}건` },
     { label: '응답 완료', value: `${respondedCount.value.toLocaleString()}건` },
     { label: '후속 필요', value: `${followUpRequiredCount.value.toLocaleString()}건` },
-    { label: '조사 기간', value: `${formatDate(displayStartDate.value)} ~ ${formatDate(displayEndDate.value)}` },
+    {
+      label: '조사 기간',
+      lines: [
+        `${formatDate(displayStartDate.value)} ~`,
+        formatDate(displayEndDate.value),
+      ],
+    },
   ]
 })
 
@@ -404,23 +428,6 @@ function followUpStatusValue(value: unknown): InspectionFollowUpStatus {
   return 'PENDING'
 }
 
-function toFollowUpRow(item: InspectionFollowUpResponse, index: number): InspectionFollowUpPanelRow {
-  const followUpId = textValue(item.inspectionFollowUpId, item.followUpId)
-  const inspectionResultId = textValue(item.inspectionResultId)
-
-  return {
-    key: followUpId || inspectionResultId || `follow-up-${index}`,
-    followUpId,
-    inspectionResultId,
-    productName: textValue(item.productName) || '-',
-    assetCode: textValue(item.assetCode) || '-',
-    memberName: textValue(item.memberName) || '-',
-    responseContent: textValue(item.responseContent),
-    actionDetail: textValue(item.actionDetail),
-    status: followUpStatusValue(item.status ?? item.followUpStatus ?? item.inspectionFollowUpStatus),
-  }
-}
-
 function inspectorTypeLabel(value: InspectionDetailResponse['inspectionInfo']['inspectorType'] | undefined) {
   if (!value) return ''
   return value === 'ASSET_TEAM' ? '자산팀 처리' : '소유자 응답'
@@ -431,8 +438,41 @@ function toUninspectedRow(item: InspectionUninspectedAssetItem): UninspectedRow 
     productName: item.productName ?? '-',
     assetCode: item.assetCode ?? '-',
     category: item.category ?? '-',
-    memberName: item.memberName ?? '-',
+    memberName: resolveTargetMemberName(item.memberName, item.memberId, item.assetCode),
   }
+}
+
+function resolveTargetMemberName(
+  memberName: string | null | undefined,
+  memberId: string | null | undefined,
+  assetCode: string | null | undefined,
+) {
+  const directName = textValue(memberName)
+  if (directName) return directName
+
+  const directMember = memberId
+    ? members.value.find((member) => member.memberId === memberId)
+    : undefined
+  if (directMember?.name) return directMember.name
+
+  const matchedTargets = inspectionTargets.value.filter((target) => (
+    (memberId && target.memberId === memberId)
+    || (assetCode && target.assetCode === assetCode)
+  ))
+  const targetMemberNames = matchedTargets
+    .map((target) => (
+      textValue(target.memberName)
+      || members.value.find((member) => member.memberId === target.memberId)?.name
+      || ''
+    ))
+    .filter((name) => name)
+
+  const targetNames = [...new Set(targetMemberNames)]
+  if (targetNames.length > 0) return targetNames.join(', ')
+
+  return assetCode
+    ? assetMemberNames.value.get(assetCode)?.join(', ') || '-'
+    : '-'
 }
 
 function statusBadgeClass(status: InspectionStatus) {
@@ -458,66 +498,178 @@ async function loadDetailData() {
   errorMessage.value = ''
 
   try {
-    const response = await inspectionApi.value.getDetail(props.inspection.inspectionId)
-    detail.value = response.data
-    await loadFollowUpData()
+    if (!canManageInspection.value) {
+      await loadEmployeeDetailData()
+      return
+    }
+
+    const [detailResult, targetsResult, membersResult, tangibleAssetsResult, intangibleAssetsResult] = await Promise.allSettled([
+      inspectionApi.value.getDetail(props.inspection.inspectionId),
+      inspectionApi.value.getTargets({
+        inspectionId: props.inspection.inspectionId,
+        page: 0,
+        size: 1000,
+      }),
+      memberApi.getList({ page: 0, size: 1000 }),
+      tangibleAssetApi.getList({ page: 0, size: 1000 }),
+      intangibleAssetApi.getList({ page: 0, size: 1000 }),
+    ])
+
+    if (detailResult.status === 'rejected') throw detailResult.reason
+
+    detail.value = detailResult.value.data
+    inspectionTargets.value = targetsResult.status === 'fulfilled'
+      ? targetsResult.value.data.content.filter((target) => (
+        !target.inspectionId
+        || String(target.inspectionId) === props.inspection?.inspectionId
+      ))
+      : []
+    members.value = membersResult.status === 'fulfilled'
+      ? membersResult.value.data.content
+      : []
+    const assetNameMap = new Map<string, Set<string>>()
+    if (tangibleAssetsResult.status === 'fulfilled') {
+      tangibleAssetsResult.value.data.content.forEach((asset) => {
+        addAssetMemberName(
+          assetNameMap,
+          asset.assetCode,
+          textValue(
+            asset.currentUserName,
+            asset.assignedMemberName,
+            asset.memberName,
+            members.value.find((member) => (
+              member.memberId === (asset.memberId ?? asset.assignedMemberId)
+            ))?.name,
+          ),
+        )
+      })
+    }
+    if (intangibleAssetsResult.status === 'fulfilled') {
+      intangibleAssetsResult.value.data.content.forEach((asset) => {
+        addAssetMemberName(
+          assetNameMap,
+          asset.assetCode,
+          textValue(
+            asset.assignedMemberName,
+            members.value.find((member) => member.memberId === asset.assignedMemberId)?.name,
+          ),
+        )
+      })
+    }
+    assetMemberNames.value = new Map(
+      Array.from(assetNameMap, ([assetCode, names]) => [assetCode, [...names]]),
+    )
   } catch {
     detail.value = null
-    followUps.value = []
+    inspectionTargets.value = []
+    members.value = []
+    assetMemberNames.value = new Map()
     errorMessage.value = '전수조사 상세 정보를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }
 }
 
-async function loadFollowUpData() {
-  isFollowUpLoading.value = true
+async function loadEmployeeDetailData() {
+  if (!props.inspection) return
 
-  try {
-    const followUpIds = [
-      ...new Set(
-        (detail.value?.inspectionResults ?? [])
-          .map((item) => textValue(item.inspectionFollowUpId, item.followUpId))
-          .filter((followUpId) => followUpId),
-      ),
-    ]
+  const assignedTargets = props.assignedTargets ?? []
+  const respondedTargets = assignedTargets.filter((target) => (
+    target.isResponded === true || target.responded === true
+  ))
+  const followUpResult = await Promise.allSettled([
+    inspectionFollowUpApi.getMyFollowUps({ page: 0, size: 1000 }),
+  ])
+  const myFollowUps = followUpResult[0]?.status === 'fulfilled'
+    ? followUpResult[0].value.data.content
+    : []
+  const inspectionResults = respondedTargets.map((target) => {
+    const assetCode = textValue(target.assetCode, target.licenseCode)
+    const memberId = textValue(target.memberId)
+    const followUp = myFollowUps.find((item) => (
+      textValue(item.assetCode) === assetCode
+      && (!item.memberId || textValue(item.memberId) === memberId)
+    ))
 
-    if (followUpIds.length === 0) {
-      followUps.value = []
-      return
+    return {
+      inspectionResultId: target.inspectionTargetId,
+      inspectionFollowUpId: followUp?.inspectionFollowUpId,
+      followUpId: followUp?.inspectionFollowUpId,
+      productName: textValue(followUp?.productName, target.productName, target.itemName) || '-',
+      assetCode: assetCode || '-',
+      memberId: target.memberId,
+      memberName: textValue(followUp?.memberName, target.memberName) || '-',
+      followUpRequired: Boolean(followUp),
+      userResponseContent: textValue(followUp?.responseContent),
+      actionDetail: textValue(followUp?.actionDetail),
+      followUpStatus: followUpStatusValue(followUp?.status),
+      status: followUpStatusValue(followUp?.status),
     }
+  })
+  const uninspectedAssets = assignedTargets
+    .filter((target) => target.isResponded !== true && target.responded !== true)
+    .map((target) => ({
+      productName: textValue(target.productName, target.itemName) || '-',
+      assetCode: textValue(target.assetCode, target.licenseCode) || '-',
+      category: textValue(target.category, target.categoryName) || '-',
+      memberId: target.memberId,
+      memberName: target.memberName,
+    }))
 
-    const responses = await Promise.all(
-      followUpIds.map((followUpId) => inspectionApi.value.getFollowUp(followUpId)),
-    )
-    followUps.value = responses.map((response) => response.data)
-  } catch {
-    followUps.value = []
-  } finally {
-    isFollowUpLoading.value = false
+  inspectionTargets.value = assignedTargets
+  members.value = []
+  assetMemberNames.value = new Map()
+  detail.value = {
+    inspectionInfo: {
+      inspectorName: props.inspection.inspectorName,
+      targetName: props.inspection.targetName,
+      inspectorType: 'EMPLOYEE',
+      inspectionStatus: props.inspection.status,
+      startDate: props.inspection.startDate,
+      endDate: props.inspection.endDate,
+    },
+    inspectionResults,
+    uninspectedAssets,
   }
 }
 
-async function submitFollowUpStatus(
-  row: InspectionFollowUpPanelRow,
-  draft: { status: InspectionFollowUpStatus; actionDetail: string },
-) {
-  if (!row.followUpId) return
+async function closeInspection() {
+  if (!props.inspection?.inspectionId || isClosing.value) return
 
-  submittingFollowUpId.value = row.followUpId
+  const shouldClose = window.confirm('이 전수조사를 조건 없이 종료 처리할까요?')
+  if (!shouldClose) return
+
+  isClosing.value = true
   errorMessage.value = ''
 
   try {
-    await inspectionApi.value.updateFollowUpStatus(row.followUpId, {
-      status: draft.status,
-      actionDetail: draft.actionDetail,
-    })
-    await loadFollowUpData()
+    await inspectionApi.value.close(props.inspection.inspectionId)
+    if (detail.value) {
+      detail.value = {
+        ...detail.value,
+        inspectionInfo: {
+          ...detail.value.inspectionInfo,
+          inspectionStatus: 'CLOSED',
+        },
+      }
+    }
     emit('refresh')
   } catch {
-    errorMessage.value = '후속 처리 상태를 변경하지 못했습니다.'
+    errorMessage.value = '전수조사를 종료 처리하지 못했습니다.'
   } finally {
-    submittingFollowUpId.value = ''
+    isClosing.value = false
   }
 }
+
+function addAssetMemberName(
+  map: Map<string, Set<string>>,
+  assetCode: string | null | undefined,
+  memberName: string,
+) {
+  if (!assetCode || !memberName) return
+  const names = map.get(assetCode) ?? new Set<string>()
+  names.add(memberName)
+  map.set(assetCode, names)
+}
+
 </script>

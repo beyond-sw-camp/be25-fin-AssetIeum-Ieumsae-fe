@@ -15,7 +15,7 @@ export interface HrTemplateResponse {
   departmentId?: HrTemplateId
   departmentName?: string
   name?: string
-  items?: HrTemplateItemResponse[]
+  items?: HrTemplateItemResponse[] | null
   createdAt: string
   updatedAt?: string
   deletedAt?: string | null
@@ -45,22 +45,67 @@ export interface HrTemplateItemResponse {
 // HR 이벤트 (HREvent) 타입
 // =====================================================
 
-export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER' | 'LEAVE' | 'RETURN'
-export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CANCELLED'
+export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER'
+export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type HrEventId = string | number
+export type HrEventAssetType = 'TANGIBLE' | 'INTANGIBLE'
+export type HrEventAssetActionType =
+  | 'RETURN_REQUIRED'
+  | 'UNASSIGN_REQUIRED'
+  | 'TRANSFER_REQUIRED'
+  | 'KEEP'
+
+export interface HrEventAssetTargetCreateRequest {
+  assetType: HrEventAssetType
+  assetId: string
+  actionType: HrEventAssetActionType
+  transferMemberId: string | null
+}
 
 export interface HrEventCreateRequest {
   memberId: string
   eventType: HrEventType
   eventDate: string
+  targetDepartmentId: string | null
+  assetTargets: HrEventAssetTargetCreateRequest[] | null
+}
+
+export interface HrEventAssetTargetResponse {
+  hrEventAssetTargetId?: string
+  assetTargetId?: string
+  assetType?: HrEventAssetType
+  assetId?: string
+  assignmentId?: string | null
+  productName?: string | null
+  assetCode?: string | null
+  actionType?: HrEventAssetActionType
+  targetActionType?: HrEventAssetActionType
+  transferMemberId?: string | null
+  transferMemberName?: string | null
+  targetDepartmentId?: string | null
+  targetDepartmentName?: string | null
+  status?: HrEventStatus | string | null
+  targetStatus?: HrEventStatus | string | null
+  hrEventAssetTargetStatus?: HrEventStatus | string | null
+  assetTargetStatus?: HrEventStatus | string | null
+  ticketStatus?: string | null
+  returnTicketStatus?: string | null
+  requestTicketStatus?: string | null
+  assetReturnStatus?: string | null
+  processedAt?: string | null
+  completedAt?: string | null
+  targetProcessedAt?: string | null
+  createdAt?: string
 }
 
 export interface HrEventResponse { 
-  hrEventId: HrEventId
+  hrEventId?: HrEventId
   hrEventNo?: string
   eventNo?: string
   departmentId?: string
   departmentName?: string
+  targetDepartmentId?: string | null
+  targetDepartmentName?: string | null
   memberId?: string
   memberName?: string
   targetMemberId?: string
@@ -73,10 +118,10 @@ export interface HrEventResponse {
   hrEventType?: HrEventType
   eventType?: HrEventType
   eventDate: string
-  executedAt?: string
-  completedAt?: string
-  cancelledAt?: string
-  createdAt: string
+  executedAt?: string | null
+  completedAt?: string | null
+  cancelledAt?: string | null
+  createdAt?: string
   updatedAt?: string
 }
 

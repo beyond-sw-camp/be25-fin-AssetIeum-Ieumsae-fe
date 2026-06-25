@@ -2,6 +2,7 @@
   <InspectionDetail
     :is-open="isOpen"
     :inspection="inspection"
+    :assigned-targets="assignedTargets"
     asset-type="intangible"
     @close="emit('close')"
     @refresh="emit('refresh')"
@@ -10,7 +11,7 @@
 
 <script setup lang="ts">
 import InspectionDetail from '@/components/inspection/common/InspectionDetail.vue'
-import type { InspectionStatus } from '@/types/inspection'
+import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 
 interface IntangibleInspectionRow extends Record<string, unknown> {
   rowKey: string
@@ -31,6 +32,7 @@ interface IntangibleInspectionRow extends Record<string, unknown> {
 defineProps<{
   isOpen: boolean
   inspection: IntangibleInspectionRow | null
+  assignedTargets?: EmployeeInspectionTargetResponse[]
 }>()
 
 const emit = defineEmits<{

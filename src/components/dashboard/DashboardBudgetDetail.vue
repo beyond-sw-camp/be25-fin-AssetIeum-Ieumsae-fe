@@ -55,7 +55,7 @@
           <p v-else class="py-6 text-center text-sm text-text-sub">예산 사용 내역이 없습니다.</p>
         </section>
 
-        <section>
+        <section v-if="canViewBudgetHistories">
           <div class="mb-3 flex items-center justify-between">
             <h4 class="text-sm font-bold text-text-main">예산 집행 장부</h4>
             <span class="text-xs text-text-sub">총 {{ ledgerRows.length.toLocaleString() }}건</span>
@@ -69,11 +69,15 @@
           >
             <template #cell-date="{ value }">{{ formatDate(String(value ?? '')) }}</template>
             <template #cell-amount="{ value }">
-              <span :class="Number(value) < 0 ? 'font-semibold text-danger' : 'font-semibold text-success'">
-                {{ formatSignedCurrency(Number(value)) }}
-              </span>
+              <span class="font-semibold text-text-main">{{ formatCurrency(Number(value ?? 0)) }}</span>
             </template>
-            <template #cell-balance="{ value }">{{ formatCurrency(Number(value ?? 0)) }}</template>
+            <template #cell-usedAmountChange="{ row }">
+              {{ formatAmountChange(row.usedAmountBefore, row.usedAmountAfter) }}
+            </template>
+            <template #cell-holdAmountChange="{ row }">
+              {{ formatAmountChange(row.holdAmountBefore, row.holdAmountAfter) }}
+            </template>
+            <template #cell-totalBudget="{ value }">{{ formatCurrency(Number(value ?? 0)) }}</template>
           </Table>
         </section>
       </div>
@@ -88,17 +92,22 @@ import { RefreshCw } from 'lucide-vue-next'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { budgetApi } from '@/api/budget.api'
 import { dashboardApi } from '@/api/dashboard.api'
-import type { BudgetLedgerItem, DepartmentBudgetDetail } from '@/types'
+import { usePermission } from '@/composables'
+import type { BudgetHistoryItem, BudgetHistoryType, DepartmentBudgetDetail } from '@/types'
 
 interface LedgerRow extends Record<string, unknown> {
   historyId: string
   date: string
   type: string
   usage: string
-  reference: string
   amount: number
-  balance: number
+  usedAmountBefore: number
+  usedAmountAfter: number
+  holdAmountBefore: number
+  holdAmountAfter: number
+  totalBudget: number
 }
 
 const EMPTY_SUMMARY: DepartmentBudgetDetail = {
@@ -123,19 +132,22 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { hasRole } = usePermission()
+const canViewBudgetHistories = computed(() => hasRole('ASSET_MANAGER', 'ASSET_TEAM', 'ADMIN'))
 const currentYear = new Date().getFullYear()
 const summary = ref<DepartmentBudgetDetail>({ ...EMPTY_SUMMARY })
-const ledgerItems = ref<BudgetLedgerItem[]>([])
+const historyItems = ref<BudgetHistoryItem[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 
 const ledgerColumns: Column<LedgerRow>[] = [
-  { key: 'date', label: '일자', width: '14%' },
-  { key: 'type', label: '유형', width: '11%', align: 'center' },
-  { key: 'usage', label: '사용처', width: '27%' },
-  { key: 'reference', label: '연결 문서', width: '18%' },
-  { key: 'amount', label: '금액', width: '15%', align: 'right' },
-  { key: 'balance', label: '잔액', width: '15%', align: 'right' },
+  { key: 'date', label: '일자', width: '12%' },
+  { key: 'type', label: '유형', width: '12%', align: 'center' },
+  { key: 'usage', label: '상세 내용', width: '20%' },
+  { key: 'amount', label: '금액', width: '14%', align: 'right' },
+  { key: 'usedAmountChange', label: '사용 금액', width: '16%', align: 'right' },
+  { key: 'holdAmountChange', label: '집행 대기', width: '16%', align: 'right' },
+  { key: 'totalBudget', label: '총예산', width: '14%', align: 'right' },
 ]
 
 const summaryItems = computed(() => [
@@ -145,14 +157,17 @@ const summaryItems = computed(() => [
   { label: '소진율', value: `${summary.value.usageRate}%` },
 ])
 
-const ledgerRows = computed<LedgerRow[]>(() => ledgerItems.value.map((item) => ({
-  historyId: item.historyId,
-  date: item.date,
-  type: item.type,
-  usage: item.usage || '-',
-  reference: item.ticketNo ?? item.purchasePlanNo ?? '-',
+const ledgerRows = computed<LedgerRow[]>(() => historyItems.value.map((item) => ({
+  historyId: String(item.historyId),
+  date: item.createdAt,
+  type: historyTypeLabel(item.historyType),
+  usage: item.description || '-',
   amount: item.amount,
-  balance: item.balance,
+  usedAmountBefore: item.usedAmountBefore,
+  usedAmountAfter: item.usedAmountAfter,
+  holdAmountBefore: item.holdAmountBefore,
+  holdAmountAfter: item.holdAmountAfter,
+  totalBudget: item.totalBudget,
 })))
 
 watch(
@@ -169,20 +184,28 @@ async function loadDetails() {
   errorMessage.value = ''
 
   try {
-    const [summaryResponse, ledgerResponse] = await Promise.all([
-      dashboardApi.getDepartmentBudgetDetails(props.departmentId, currentYear),
-      dashboardApi.getBudgetLedger({
-        departmentId: props.departmentId,
-        budgetYear: currentYear,
-        page: 0,
-        size: 1000,
-      }),
-    ])
+    const summaryResponse = await dashboardApi.getDepartmentBudgetDetails(props.departmentId, currentYear)
     summary.value = summaryResponse.data
-    ledgerItems.value = ledgerResponse.data.content
+
+    if (canViewBudgetHistories.value) {
+      try {
+        const historyResponse = await budgetApi.getHistories({
+          departmentId: props.departmentId,
+          budgetYear: currentYear,
+          page: 0,
+          size: 1000,
+        })
+        historyItems.value = historyResponse.data.content
+      } catch {
+        historyItems.value = []
+        errorMessage.value = '예산 이력 목록을 불러오지 못했습니다.'
+      }
+    } else {
+      historyItems.value = []
+    }
   } catch {
     summary.value = { ...EMPTY_SUMMARY, departmentName: props.departmentName }
-    ledgerItems.value = []
+    historyItems.value = []
     errorMessage.value = '부서 예산 상세 정보를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
@@ -193,9 +216,19 @@ function formatCurrency(value: number) {
   return `₩ ${Number(value || 0).toLocaleString('ko-KR')}`
 }
 
-function formatSignedCurrency(value: number) {
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${Number(value || 0).toLocaleString('ko-KR')}원`
+function formatAmountChange(before: number, after: number) {
+  return `${Number(before || 0).toLocaleString('ko-KR')} → ${Number(after || 0).toLocaleString('ko-KR')}원`
+}
+
+function historyTypeLabel(type: BudgetHistoryType) {
+  const labels: Record<BudgetHistoryType, string> = {
+    HOLD_INCREASE: '집행 대기',
+    HOLD_DECREASE: '대기 해제',
+    USE_INCREASE: '예산 사용',
+    RECOVERY: '예산 복구',
+    TRANSFER: '예산 이체',
+  }
+  return labels[type]
 }
 
 function formatDate(value: string) {

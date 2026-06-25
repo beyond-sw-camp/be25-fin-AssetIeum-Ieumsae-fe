@@ -106,6 +106,7 @@
           <Input
             id="keyword"
             v-model="searchParams.keyword"
+            class="w-40!"
             placeholder="제품명, 자산코드로 검색"
             autocomplete="off"
             @keyup.enter="handleSearch"

@@ -18,7 +18,7 @@
 
   <div v-else class="mx-auto flex h-dvh min-h-dvh w-full max-w-md max-w-[100dvw] flex-col overflow-x-hidden bg-background text-text-main md:border-x md:border-border">
     <header class="shrink-0 border-b border-border bg-surface px-4 py-4">
-      <div class="flex items-start justify-between gap-3">
+      <div class="flex flex-row items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="text-xs font-bold text-primary">
             MOBILE INSPECTION
@@ -26,11 +26,7 @@
           <h1 class="mt-1 text-xl font-bold text-text-main">
             자산 검수
           </h1>
-          <p class="mt-2 text-sm leading-relaxed text-text-sub">
-            {{ inspectionGuideText }}
-          </p>
         </div>
-
         <button
           v-if="authStore.isAuthenticated"
           type="button"
@@ -48,6 +44,9 @@
           로그인
         </button>
       </div>
+      <p class="w-full mt-2 text-sm leading-relaxed text-text-sub">
+        {{ inspectionGuideText }}
+      </p>
 
       <div
         v-if="isDebugAuth"
@@ -179,6 +178,7 @@
         :target="selectedTarget"
         :submitting="isSubmitting"
         :disabled="isResponseDisabled"
+        :loading-response="isLoadingResponse"
         @submit="handleSubmit"
       />
 
@@ -239,6 +239,7 @@ const targets = ref<MobileInspectionTarget[]>([])
 const selectedTarget = ref<MobileInspectionTarget | null>(null)
 const isLoading = ref(false)
 const isSubmitting = ref(false)
+const isLoadingResponse = ref(false)
 const isSuccess = ref(false)
 const message = ref('')
 const loadError = ref('')
@@ -310,7 +311,7 @@ const isResponseDisabled = computed(() => (
 ))
 const responseAvailabilityText = computed(() => {
   if (!selectedTarget.value) return ''
-  if (selectedTarget.value.isResponded) return '이미 응답이 등록된 자산입니다.'
+  if (selectedTarget.value.isResponded) return ''
   if (selectedTarget.value.inspectionStatus === 'READY') return '전수조사 시작일부터 응답할 수 있습니다.'
   if (selectedTarget.value.inspectionStatus !== 'IN_PROGRESS') return '응답 기간이 종료된 자산입니다.'
   return ''
@@ -388,7 +389,7 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
   return {
     inspectionTargetId: textValue(item.inspectionTargetId),
     inspectionId: textValue(item.inspectionId),
-    assetId: textValue(item.assetId),
+    assetId: textValue(item.assetId, item.tangibleAssetId, item.intangibleAssetId),
     tangibleAssetId: textValue(item.tangibleAssetId),
     intangibleAssetId: textValue(item.intangibleAssetId),
     inspectionStatus: resolveInspectionStatus({
@@ -409,9 +410,36 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
 
 function selectTarget(target: MobileInspectionTarget, options: { preserveMessage?: boolean } = {}) {
   selectedTarget.value = target
-  form.responseContent = target.isResponded ? '이미 응답이 등록된 자산입니다.' : ''
+  form.responseContent = ''
   form.followUpRequests = false
   if (!options.preserveMessage) message.value = ''
+
+  if (target.isResponded) {
+    void loadRegisteredResponse(target.inspectionTargetId)
+  }
+}
+
+async function loadRegisteredResponse(targetId: string) {
+  isLoadingResponse.value = true
+
+  try {
+    const response = await inspectionApi.value.getResponse(targetId)
+    if (selectedTarget.value?.inspectionTargetId !== targetId) return
+
+    form.responseContent = textValue(response.data.responseContent)
+    form.followUpRequests = response.data.followUpRequests === true
+      || response.data.followUpRequests === 1
+  } catch (error) {
+    if (selectedTarget.value?.inspectionTargetId !== targetId) return
+    isSuccess.value = false
+    message.value = error instanceof ApiError
+      ? `등록된 응답을 불러오지 못했습니다. ${error.message}`
+      : '등록된 응답을 불러오지 못했습니다.'
+  } finally {
+    if (selectedTarget.value?.inspectionTargetId === targetId) {
+      isLoadingResponse.value = false
+    }
+  }
 }
 
 async function loadTargets(options: { selectedTargetId?: string; preserveMessage?: boolean } = {}) {
@@ -425,18 +453,29 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
   if (!options.preserveMessage) message.value = ''
 
   try {
-    const responses = isAssetTeamRole(authStore.currentRole)
-      ? await Promise.all([
-          inspectionApi.value.getTargets({ page: 0, size: 100 }),
-          inspectionApi.value.getMyTargets({ page: 0, size: 100 }),
-        ])
-      : [await inspectionApi.value.getMyTargets({ page: 0, size: 100 })]
-    const content = responses.flatMap((response) => (
-      Array.isArray(response.data?.content) ? response.data.content : []
-    ))
+    const currentMemberId = textValue(authStore.user?.memberId)
+    const ownTargetsResponse = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
+    const ownTargets = Array.isArray(ownTargetsResponse.data?.content)
+      ? ownTargetsResponse.data.content
+      : []
+    const inspectorTargets = isAssetTeamRole(authStore.currentRole)
+      ? await inspectionApi.value.getTargets({ page: 0, size: 100 })
+      : null
+    const managedTargets = Array.isArray(inspectorTargets?.data?.content)
+      ? inspectorTargets.data.content
+      : []
     const uniqueTargets = new Map<string, MobileInspectionTarget>()
 
-    content
+    ownTargets
+      .map(toTargetRow)
+      .filter((target) => (
+        target.inspectionTargetId
+        && target.memberId
+        && target.memberId === currentMemberId
+      ))
+      .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
+
+    managedTargets
       .map(toTargetRow)
       .filter((target) => target.inspectionTargetId)
       .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
@@ -451,12 +490,14 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
     } else {
       selectedTarget.value = null
     }
-  } catch {
+  } catch (error) {
     if (targets.value.length === 0) {
       totalElements.value = 0
       selectedTarget.value = null
     }
-    loadError.value = '검수 대상 자산을 불러오지 못했습니다.'
+    loadError.value = error instanceof ApiError
+      ? error.message
+      : '검수 대상 자산을 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }

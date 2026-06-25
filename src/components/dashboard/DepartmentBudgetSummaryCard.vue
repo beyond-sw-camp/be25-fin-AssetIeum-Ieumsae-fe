@@ -8,22 +8,22 @@
   >
     <h2 class="mb-5 text-base font-bold text-text-main">부서 예산 현황</h2>
 
-    <div class="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+    <div class="grid gap-15 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="flex justify-center">
         <div
-          class="relative h-56 w-56 rounded-full border border-text-main/40"
+          class="relative h-50 w-50 rounded-full border border-text-main/30"
           :style="donutStyle"
         >
-          <div class="absolute inset-14 flex flex-col items-center justify-center rounded-full border border-border bg-surface text-center">
+          <div class="absolute inset-13 flex flex-col items-center justify-center rounded-full border border border-text-main/30 bg-surface text-center">
             <span class="text-xs font-semibold text-text-sub">소진율</span>
             <span class="mt-1 text-lg font-bold text-primary">{{ summary.usageRate }}%</span>
           </div>
         </div>
       </div>
 
-      <div class="space-y-3">
-        <div class="rounded-lg border border-border bg-surface px-4 py-3">
-          <h3 class="mb-4 text-sm font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
+      <div class="space-y-3 mr-6">
+        <div class="rounded-lg border border-border bg-surface px-6 py-5">
+          <h3 class="mb-4 text-m font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
           <div class="grid gap-4 text-sm md:grid-cols-4">
             <div>
               <p class="mb-2 font-semibold text-text-main">총 예산</p>
@@ -52,7 +52,7 @@
           </div>
         </div>
 
-        <div class="rounded-lg border border-border bg-surface px-4 py-3">
+        <!-- <div class="rounded-lg border border-border bg-surface px-4 py-3">
           <h3 class="mb-3 text-sm font-bold text-text-main">{{ summary.departmentName }} 예산 사용 내역</h3>
           <div class="space-y-4">
             <div
@@ -72,7 +72,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
@@ -97,7 +97,11 @@ const donutStyle = computed(() => {
   const usageRate = Math.min(Math.max(props.summary.usageRate ?? 0, 0), 100)
 
   return {
-    background: `conic-gradient(var(--color-primary) 0 ${usageRate}%, var(--color-surface-secondary) ${usageRate}% 100%)`,
+    background: `conic-gradient(
+      from 0deg,
+      var(--color-surface-secondary) 0 ${100 - usageRate}%,
+      var(--color-primary) ${100 - usageRate}% 100%
+    )`,
   }
 })
 </script>

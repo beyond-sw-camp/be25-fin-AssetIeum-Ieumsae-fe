@@ -16,11 +16,11 @@
     >
       <template #cell-availability="{ value }">
         <div class="flex items-center justify-center gap-2">
-          <span class="w-10 text-right text-xs font-semibold text-text-main">{{ value }}%</span>
+          <span class="w-10 text-right text-xs font-semibold text-text-main">{{ displayPercent(value) }}%</span>
           <div class="h-1.5 w-14 overflow-hidden rounded-full bg-surface-secondary">
             <div
               class="h-full rounded-full bg-primary"
-              :style="{ width: `${Math.min(Number(value), 100)}%` }"
+              :style="{ width: `${displayPercent(value)}%` }"
             ></div>
           </div>
         </div>
@@ -56,4 +56,10 @@ defineProps<{
   columns: Column<DemandRow>[]
   rows: DemandRow[]
 }>()
+
+function displayPercent(value: unknown) {
+  const percent = Number(value)
+  if (!Number.isFinite(percent)) return 0
+  return Math.min(Math.max(Math.round(percent), 0), 100)
+}
 </script>

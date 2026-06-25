@@ -3,7 +3,7 @@
     <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
       <div>
         <p class="page-subtitle mb-1">
-          ASSET ITEM
+          전수조사 > 무형자산
         </p>
         <h1 class="page-title">
           무형자산 전수조사
@@ -120,7 +120,7 @@
           </template>
 
           <template #cell-inspectorName="{ row }">
-            <span class="text-text-sub">{{ row.inspectorName }}</span>
+            <span class="text-text-main">{{ row.inspectorName }}</span>
           </template>
 
           <template #cell-startDate="{ value: startDate }">
@@ -177,10 +177,11 @@
     />
 
     <IntangibleInspectionDetail
-      v-if="canManageInspection"
       :is-open="Boolean(selectedInspection)"
       :inspection="selectedInspection"
+      :assigned-targets="selectedAssignedTargets"
       @close="selectedInspection = null"
+      @refresh="handleInspectionUpdated"
     />
   </div>
 </template>
@@ -200,6 +201,7 @@ import { usePermission } from '@/composables'
 import { groupMyInspectionTargets } from '@/utils/inspectionTargets'
 import type { DropdownOption } from '@/types'
 import type {
+  EmployeeInspectionTargetResponse,
   InspectionSearchResponse,
   InspectionStatisticsResponse,
   InspectionStatus,
@@ -237,12 +239,13 @@ const STATUS_LABEL: Record<IntangibleInspectionStatus, string> = {
   READY: '진행 전',
   IN_PROGRESS: '진행 중',
   COMPLETED: '완료',
-  CLOSED: '후속 처리 중',
+  CLOSED: '조사 종료',
 }
 
 const { canManageInspection } = usePermission()
 
 const inspections = ref<IntangibleInspectionRow[]>([])
+const employeeTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const statistics = ref<InspectionStatisticsResponse>({})
 const selectedInspection = ref<IntangibleInspectionRow | null>(null)
 const isRegisterDrawerOpen = ref(false)
@@ -266,12 +269,19 @@ const appliedFilters = reactive({
 const canRegisterInspection = computed(() => (
   canManageInspection.value
 ))
+const selectedAssignedTargets = computed(() => (
+  selectedInspection.value
+    ? employeeTargets.value.filter((target) => (
+      String(target.inspectionId) === selectedInspection.value?.inspectionId
+    ))
+    : []
+))
 
 const columns: Column<IntangibleInspectionRow>[] = [
-  { key: 'targetName', label: '조사 대상', width: '18%' },
-  { key: 'executor', label: '조사 방식', width: '16%' },
-  { key: 'status', label: '조사 상태', width: '16%' },
-  { key: 'inspectorName', label: '조사 수행자', width: '22%' },
+  { key: 'targetName', label: '조사 대상', width: '22%', align: 'center' },
+  { key: 'executor', label: '조사 방식', width: '16%', align: 'center' },
+  { key: 'status', label: '조사 상태', width: '16%', align: 'center' },
+  { key: 'inspectorName', label: '조사 담당자', width: '10%', align: 'center' },
   { key: 'startDate', label: '시작일', width: '14%', align: 'center' },
   { key: 'endDate', label: '종료일', width: '14%', align: 'center' },
 ]
@@ -287,7 +297,7 @@ const statusFilterOptions: DropdownOption[] = [
 ]
 
 const inspectorFilterOptions = computed<DropdownOption[]>(() => [
-  { label: '- 조사 수행자 -', value: '' },
+  { label: '- 조사 담당자 -', value: '' },
   ...Array.from(new Set(inspections.value.map((item) => item.inspectorName))).map((name) => ({
     label: name,
     value: name,
@@ -434,7 +444,6 @@ function changePage(page: number) {
 }
 
 function openDetailDrawer(row: IntangibleInspectionRow) {
-  if (!canManageInspection.value) return
   selectedInspection.value = row
 }
 
@@ -448,6 +457,12 @@ function closeRegisterDrawer() {
 
 async function handleInspectionRegistered() {
   await loadInspectionData()
+}
+
+async function handleInspectionUpdated() {
+  const selectedInspectionId = selectedInspection.value?.inspectionId
+  await loadInspectionData()
+  selectedInspection.value = inspections.value.find((item) => item.inspectionId === selectedInspectionId) ?? null
 }
 
 function numberValue(...values: Array<number | null | undefined>) {
@@ -496,6 +511,8 @@ function resolveInspectionStatusByPeriod(
   endDate: string,
   fallbackStatus: IntangibleInspectionStatus,
 ): IntangibleInspectionStatus {
+  if (fallbackStatus === 'CLOSED') return 'CLOSED'
+
   const today = startOfDay(new Date())
   const start = dateTimeValue(startDate)
   const end = dateTimeValue(endDate)
@@ -570,12 +587,14 @@ async function loadInspectionData() {
     if (!canManageInspection.value) {
       const response = await intangibleInspectionApi.getMyTargets({ page: 0, size: 100 })
       const content = Array.isArray(response.data.content) ? response.data.content : []
+      employeeTargets.value = content
       inspections.value = groupMyInspectionTargets(content).map(toInspectionRow)
       statistics.value = {}
       currentPage.value = 0
       return
     }
 
+    employeeTargets.value = []
     const [listResult, statisticsResult] = await Promise.allSettled([
       intangibleInspectionApi.getList({ page: 0, size: 1000 }),
       intangibleInspectionApi.getStatistics(),

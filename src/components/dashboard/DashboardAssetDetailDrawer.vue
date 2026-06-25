@@ -30,11 +30,11 @@
           <Input
             id="dashboard-asset-detail-keyword"
             v-model="keyword"
-            class="w-56"
+            class="w-58!"
             placeholder="자산명, 코드, 사용자 검색"
-            @keyup.enter="loadDetails"
+            @keyup.enter="handleSearch"
           />
-          <Button :loading="isLoading" @click="loadDetails">검색</Button>
+          <Button :loading="isLoading" @click="handleSearch">검색</Button>
         </div>
       </div>
 
@@ -76,19 +76,47 @@
           </template>
         </Table>
       </div>
+
+      <div class="flex shrink-0 items-center justify-between border-t border-border px-5 py-3">
+        <span class="text-xs text-text-sub">{{ rangeText }}</span>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
+            :disabled="currentPage === 0 || isLoading"
+            aria-label="이전 페이지"
+            @click="changePage(currentPage - 1)"
+          >
+            <ChevronLeft :size="15" />
+          </button>
+          <span class="min-w-16 text-center text-xs font-semibold text-text-main">
+            {{ currentPage + 1 }} / {{ totalPages }}
+          </span>
+          <button
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
+            :disabled="currentPage >= totalPages - 1 || isLoading"
+            aria-label="다음 페이지"
+            @click="changePage(currentPage + 1)"
+          >
+            <ChevronRight :size="15" />
+          </button>
+        </div>
+      </div>
     </div>
   </BaseDrawer>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { dashboardApi } from '@/api/dashboard.api'
+import { ApiError } from '@/api/client'
 import type {
   ExpiringAssetDetail,
   OwnedAssetDetail,
@@ -106,6 +134,7 @@ interface DetailRow extends Record<string, unknown> {
   category: string
   owner: string
   department: string
+  ownerDepartment: string
   date: string
   note: number
 }
@@ -116,10 +145,12 @@ const props = withDefaults(defineProps<{
   departmentId?: string
   initialOwnedStatus?: OwnedAssetDetailStatus
   initialAssetType?: ExpiringAssetType
+  showUnassigned?: boolean
 }>(), {
   departmentId: undefined,
   initialOwnedStatus: 'UNASSIGNED',
   initialAssetType: 'ALL',
+  showUnassigned: true,
 })
 
 const emit = defineEmits<{
@@ -139,15 +170,13 @@ const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> 
   { label: '무형자산', value: 'INTANGIBLE' },
 ]
 
-const columns: Column<DetailRow>[] = [
-  { key: 'kind', label: '구분', width: '11%' },
-  { key: 'name', label: '자산명', width: '18%' },
-  { key: 'code', label: '자산코드', width: '15%' },
-  { key: 'category', label: '카테고리/공급자', width: '15%' },
-  { key: 'owner', label: '사용자', width: '12%' },
-  { key: 'department', label: '부서', width: '12%' },
-  { key: 'date', label: '만료/반납 예정일', width: '13%' },
-  { key: 'note', label: '잔여/연체', width: '10%', align: 'center' },
+const baseColumns: Column<DetailRow>[] = [
+  { key: 'name', label: '자산명', width: '18%', align: 'center' },
+  { key: 'code', label: '자산코드', width: '15%', align: 'center' },
+  { key: 'category', label: '카테고리', width: '11%', align: 'center' },
+  { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
+  { key: 'date', label: '만료/반납 예정일', width: '13%', align: 'center' },
+  { key: 'note', label: '잔여/연체', width: '15%', align: 'center' },
 ]
 
 const selectedOwnedStatus = ref<OwnedAssetDetailStatus>('UNASSIGNED')
@@ -155,15 +184,33 @@ const selectedAssetType = ref<ExpiringAssetType>('ALL')
 const keyword = ref('')
 const rows = ref<DetailRow[]>([])
 const totalElements = ref(0)
+const currentPage = ref(0)
+const totalPages = ref(1)
+const pageSize = 20
 const isLoading = ref(false)
 const errorMessage = ref('')
 
 const modeOptions = computed(() => (
-  props.mode === 'owned' ? OWNED_STATUS_OPTIONS : EXPIRING_TYPE_OPTIONS
+  props.mode === 'owned'
+    ? OWNED_STATUS_OPTIONS.filter((option) => props.showUnassigned || option.value !== 'UNASSIGNED')
+    : EXPIRING_TYPE_OPTIONS
 ))
+const columns = computed<Column<DetailRow>[]>(() => {
+  if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
+    return baseColumns.filter((column) => column.key !== 'ownerDepartment')
+  }
+
+  return baseColumns
+})
 const selectedOption = computed(() => (
   props.mode === 'owned' ? selectedOwnedStatus.value : selectedAssetType.value
 ))
+const rangeText = computed(() => {
+  if (totalElements.value === 0) return '0-0건'
+  const start = currentPage.value * pageSize + 1
+  const end = Math.min(start + rows.value.length - 1, totalElements.value)
+  return `${start.toLocaleString()}-${end.toLocaleString()}건`
+})
 
 watch(
   () => [props.isOpen, props.mode, props.initialOwnedStatus, props.initialAssetType],
@@ -172,6 +219,7 @@ watch(
     selectedOwnedStatus.value = props.initialOwnedStatus
     selectedAssetType.value = props.initialAssetType
     keyword.value = ''
+    currentPage.value = 0
     void loadDetails()
   },
 )
@@ -182,6 +230,18 @@ function selectOption(value: string) {
   } else {
     selectedAssetType.value = value as ExpiringAssetType
   }
+  currentPage.value = 0
+  void loadDetails()
+}
+
+function changePage(page: number) {
+  if (page < 0 || page >= totalPages.value || page === currentPage.value) return
+  currentPage.value = page
+  void loadDetails()
+}
+
+function handleSearch() {
+  currentPage.value = 0
   void loadDetails()
 }
 
@@ -197,64 +257,122 @@ async function loadDetails() {
         status: selectedOwnedStatus.value,
         departmentId: props.departmentId,
         keyword: keyword.value.trim() || undefined,
-        page: 0,
-        size: 1000,
+        page: currentPage.value,
+        size: pageSize,
       })
       rows.value = response.data.content.map((item) => toOwnedRow(item, selectedOwnedStatus.value))
       totalElements.value = response.data.totalElements
+      totalPages.value = Math.max(response.data.totalPages, 1)
       return
     }
 
     const assetTypes = selectedAssetType.value === 'ALL'
       ? ['TANGIBLE', 'INTANGIBLE'] as const
       : [selectedAssetType.value]
-    const responses = await Promise.all(
-      assetTypes.map((assetType) => dashboardApi.getExpiringAssetDetails({
-        assetType,
+    if (assetTypes.length === 1) {
+      const response = await dashboardApi.getExpiringAssetDetails({
+        assetType: assetTypes[0],
         departmentId: props.departmentId,
         keyword: keyword.value.trim() || undefined,
-        page: 0,
-        size: 1000,
-      })),
-    )
-    rows.value = responses.flatMap((response) => response.data.content.map(toExpiringRow))
+        page: currentPage.value,
+        size: pageSize,
+      })
+      rows.value = response.data.content.map(toExpiringRow)
+      totalElements.value = response.data.totalElements
+      totalPages.value = Math.max(response.data.totalPages, 1)
+      return
+    }
+
+    const detailGroups = await Promise.all(assetTypes.map(loadAllExpiringDetails))
+    const allRows = detailGroups.flat().map(toExpiringRow)
       .sort((a, b) => a.date.localeCompare(b.date))
-    totalElements.value = responses.reduce((sum, response) => sum + response.data.totalElements, 0)
-  } catch {
+    totalElements.value = allRows.length
+    totalPages.value = Math.max(Math.ceil(allRows.length / pageSize), 1)
+    const start = currentPage.value * pageSize
+    rows.value = allRows.slice(start, start + pageSize)
+  } catch (error) {
     rows.value = []
     totalElements.value = 0
-    errorMessage.value = '자산 상세 정보를 불러오지 못했습니다.'
+    totalPages.value = 1
+    errorMessage.value = error instanceof ApiError && error.status === 403
+      ? '현재 계정에는 자산 상세 조회 권한이 없습니다.'
+      : '자산 상세 정보를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }
 }
 
+async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
+  const params = {
+    assetType,
+    departmentId: props.departmentId,
+    keyword: keyword.value.trim() || undefined,
+    size: 100,
+  }
+  const firstResponse = await dashboardApi.getExpiringAssetDetails({ ...params, page: 0 })
+  const remainingPages = Array.from(
+    { length: Math.max(firstResponse.data.totalPages - 1, 0) },
+    (_, index) => index + 1,
+  )
+  const remainingResponses = await Promise.all(
+    remainingPages.map((page) => dashboardApi.getExpiringAssetDetails({ ...params, page })),
+  )
+
+  return [
+    ...firstResponse.data.content,
+    ...remainingResponses.flatMap((response) => response.data.content),
+  ]
+}
+
 function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): DetailRow {
+  const owner = ownedAssetOwnerText(item, status)
+  const department = textValue(item.departmentName) || '부서 미지정'
+
   return {
     id: item.assetId,
     kind: OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
     name: item.assetName || '-',
     code: item.assetCode || '-',
-    category: item.categoryName || '-',
-    owner: item.renterName || '-',
-    department: item.departmentName || '-',
-    date: item.returnDueDate ?? item.warrantyExpiredAt ?? '',
-    note: item.overdueDays ?? 0,
+    category: textValue(item.categoryOrProvider, item.categoryName) || '-',
+    owner,
+    department,
+    ownerDepartment: ownerDepartmentText(owner, department),
+    date: textValue(item.returnDueDate, item.dueDate, item.warrantyExpiredAt),
+    note: item.overdueDays ?? item.dayCount ?? 0,
   }
 }
 
+function ownedAssetOwnerText(item: OwnedAssetDetail, status: OwnedAssetDetailStatus) {
+  const owner = textValue(item.renterName, item.userName, item.currentUserInfo)
+  if (owner) return owner
+  if (status === 'UNASSIGNED') return '미배정'
+  if (status === 'RENTAL_SCHEDULED') return '대여 예정'
+  return '사용자 없음'
+}
+
 function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
+  const owner = item.userName || '-'
+  const department = item.departmentName || '-'
+
   return {
     id: item.assetId,
     kind: item.assetType === 'TANGIBLE' ? '유형자산' : '무형자산',
     name: item.assetName || '-',
     code: item.assetCode || '-',
     category: item.manufacturer ?? item.issuer ?? '-',
-    owner: item.userName || '-',
-    department: item.departmentName || '-',
+    owner,
+    department,
+    ownerDepartment: ownerDepartmentText(owner, department),
     date: item.expiredAt,
     note: item.remainingDays,
   }
+}
+
+function ownerDepartmentText(owner: string, department: string) {
+  if (owner === '-' && department === '-') return '-'
+  if (owner === '-') return department
+  if (department === '-') return owner
+  return `${owner}(${department})`
 }
 
 function formatDateTime(value: string) {
@@ -269,8 +387,21 @@ function formatDateTime(value: string) {
 }
 
 function noteText(value: number) {
-  if (props.mode === 'owned') return value > 0 ? `${value}일 연체` : '-'
+  if (props.mode === 'owned') {
+    if (selectedOwnedStatus.value === 'OVERDUE') return value > 0 ? `${value}일 연체` : '연체'
+    if (selectedOwnedStatus.value === 'UNASSIGNED') return value > 0 ? `D-${value}` : '-'
+    return value > 0 ? `D-${value}` : '-'
+  }
   if (value === 0) return 'D-Day'
   return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
+}
+
+function textValue(...values: unknown[]) {
+  return values
+    .find((value): value is string | number => (
+      (typeof value === 'string' && value.trim().length > 0)
+      || typeof value === 'number'
+    ))
+    ?.toString() ?? ''
 }
 </script>
