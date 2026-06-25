@@ -1017,21 +1017,23 @@ function resolveMemberId(member: Member) {
 
 function resolveMemberDepartmentId(member: Member) {
   const rawMember = member as Member & Record<string, unknown>
+  const department = toRecord(rawMember.department)
   return toNullableStringId(
     member.departmentId
       ?? rawMember.department_id
-      ?? rawMember.department?.departmentId
-      ?? rawMember.department?.id,
+      ?? department?.departmentId
+      ?? department?.id,
   )
 }
 
 function resolveMemberDepartmentName(member: Member) {
   const rawMember = member as Member & Record<string, unknown>
+  const department = toRecord(rawMember.department)
   const name =
     member.departmentName
     ?? rawMember.department_name
-    ?? rawMember.department?.departmentName
-    ?? rawMember.department?.name
+    ?? department?.departmentName
+    ?? department?.name
   return typeof name === 'string' && name.trim() ? name.trim() : null
 }
 
@@ -1047,15 +1049,17 @@ function uniqueAssignmentCandidates(members: AssignmentCandidateMember[]) {
 function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
-  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
+  const ticket = toRecord(rawItem.ticket)
+  const ticketDepartment = toRecord(rawItem.ticketDepartment)
+  const requestDepartment = toRecord(rawItem.requestDepartment)
   return toNullableStringId(
     item.ticketDepartmentId
       ?? ticket?.ticketDepartmentId
       ?? item.requestDepartmentId
-      ?? rawItem.ticketDepartment?.departmentId
-      ?? rawItem.ticketDepartment?.id
-      ?? rawItem.requestDepartment?.departmentId
-      ?? rawItem.requestDepartment?.id
+      ?? ticketDepartment?.departmentId
+      ?? ticketDepartment?.id
+      ?? requestDepartment?.departmentId
+      ?? requestDepartment?.id
       ?? item.departmentId,
   )
 }
@@ -1063,15 +1067,17 @@ function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
 function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
-  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
+  const ticket = toRecord(rawItem.ticket)
+  const ticketDepartment = toRecord(rawItem.ticketDepartment)
+  const requestDepartment = toRecord(rawItem.requestDepartment)
   const name =
     item.ticketDepartmentName
     ?? ticket?.ticketDepartmentName
     ?? item.requestDepartmentName
-    ?? rawItem.ticketDepartment?.departmentName
-    ?? rawItem.ticketDepartment?.name
-    ?? rawItem.requestDepartment?.departmentName
-    ?? rawItem.requestDepartment?.name
+    ?? ticketDepartment?.departmentName
+    ?? ticketDepartment?.name
+    ?? requestDepartment?.departmentName
+    ?? requestDepartment?.name
     ?? item.departmentName
   return typeof name === 'string' && name.trim() ? name.trim() : null
 }
@@ -1192,6 +1198,10 @@ function toNullableStringId(value: unknown) {
   if (value === null || value === undefined) return null
   const normalized = String(value).trim()
   return normalized || null
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {

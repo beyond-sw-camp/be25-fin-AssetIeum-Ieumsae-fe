@@ -245,8 +245,7 @@ const transferMemberOptions = computed<DropdownOption[]>(() => props.members
   .map((member) => ({ label: `${member.memberNo} · ${member.name}`, value: member.memberId })))
 const actionTypeOptions = computed<DropdownOption[]>(() => {
   const options: DropdownOption[] = [
-    { label: '자산 반납', value: 'RETURN_REQUIRED' },
-    { label: '배정 해제', value: 'UNASSIGN_REQUIRED' },
+    { label: '반납 요청 생성', value: 'RETURN_REQUIRED' },
     { label: '다른 사용자에게 전달', value: 'TRANSFER_REQUIRED' },
   ]
   if (form.eventType === 'DEPARTMENT_TRANSFER') {

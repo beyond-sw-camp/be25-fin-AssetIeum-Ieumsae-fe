@@ -47,11 +47,11 @@ export interface HrTemplateItemResponse {
 
 export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER'
 export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+export type HrEventAssetTargetStatus = 'PENDING' | 'PROCESSED' | 'COMPLETED' | 'CANCELLED'
 export type HrEventId = string | number
 export type HrEventAssetType = 'TANGIBLE' | 'INTANGIBLE'
 export type HrEventAssetActionType =
   | 'RETURN_REQUIRED'
-  | 'UNASSIGN_REQUIRED'
   | 'TRANSFER_REQUIRED'
   | 'KEEP'
 
@@ -84,10 +84,10 @@ export interface HrEventAssetTargetResponse {
   transferMemberName?: string | null
   targetDepartmentId?: string | null
   targetDepartmentName?: string | null
-  status?: HrEventStatus | string | null
-  targetStatus?: HrEventStatus | string | null
-  hrEventAssetTargetStatus?: HrEventStatus | string | null
-  assetTargetStatus?: HrEventStatus | string | null
+  status?: HrEventAssetTargetStatus | string | null
+  targetStatus?: HrEventAssetTargetStatus | string | null
+  hrEventAssetTargetStatus?: HrEventAssetTargetStatus | string | null
+  assetTargetStatus?: HrEventAssetTargetStatus | string | null
   ticketStatus?: string | null
   returnTicketStatus?: string | null
   requestTicketStatus?: string | null

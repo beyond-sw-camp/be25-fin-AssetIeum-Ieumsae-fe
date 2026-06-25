@@ -118,6 +118,7 @@ import Button from '@/components/common/Button.vue'
 import type {
   HrEventAssetActionType,
   HrEventAssetTargetResponse,
+  HrEventAssetTargetStatus,
   HrEventAssetType,
   HrEventStatus,
   HrEventType,
@@ -149,8 +150,7 @@ const emit = defineEmits<{
 }>()
 
 const ACTION_TYPE_LABEL: Record<HrEventAssetActionType, string> = {
-  RETURN_REQUIRED: '자산 반납',
-  UNASSIGN_REQUIRED: '배정 해제',
+  RETURN_REQUIRED: '반납 요청 생성',
   TRANSFER_REQUIRED: '다른 사용자에게 전달',
   KEEP: '동일 사용자 유지',
 }
@@ -165,7 +165,7 @@ function assetTypeLabel(value?: HrEventAssetType) {
   return '-'
 }
 
-function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
+function targetStatusValue(target: HrEventAssetTargetResponse): HrEventAssetTargetStatus {
   const explicitStatus = normalizeStatus(
     target.status
     ?? target.targetStatus
@@ -174,6 +174,7 @@ function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
   )
 
   if (explicitStatus === 'COMPLETED') return 'COMPLETED'
+  if (explicitStatus === 'PROCESSED') return 'PROCESSED'
 
   const ticketStatus = normalizeStatus(
     target.ticketStatus
@@ -185,15 +186,23 @@ function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
   return ticketStatus ?? explicitStatus ?? 'PENDING'
 }
 
-function normalizeStatus(value: unknown): HrEventStatus | null {
+function normalizeStatus(value: unknown): HrEventAssetTargetStatus | null {
   if (typeof value !== 'string') return null
 
   const normalized = value.trim().toUpperCase().replaceAll(' ', '_')
   if (normalized === 'COMPLETED' || normalized === 'COMPLETE' || normalized === 'DONE' || normalized === 'CLOSED') {
     return 'COMPLETED'
   }
-  if (normalized === 'IN_PROGRESS' || normalized === 'PROCESSING' || normalized === 'PROCESS') {
-    return 'IN_PROGRESS'
+  if (
+    normalized === 'PROCESSED'
+    || normalized === 'IN_PROGRESS'
+    || normalized === 'PROCESSING'
+    || normalized === 'PROCESS'
+    || normalized === 'REQUESTED'
+    || normalized === 'DEPARTMENT_APPROVED'
+    || normalized === 'ASSET_APPROVED'
+  ) {
+    return 'PROCESSED'
   }
   if (normalized === 'CANCELLED' || normalized === 'CANCELED') {
     return 'CANCELLED'
@@ -202,7 +211,7 @@ function normalizeStatus(value: unknown): HrEventStatus | null {
     return 'PENDING'
   }
   if (value.includes('완료')) return 'COMPLETED'
-  if (value.includes('처리') || value.includes('진행') || value.includes('실행')) return 'IN_PROGRESS'
+  if (value.includes('처리') || value.includes('진행') || value.includes('실행') || value.includes('요청')) return 'PROCESSED'
   if (value.includes('취소')) return 'CANCELLED'
   if (value.includes('대기')) return 'PENDING'
 
@@ -218,17 +227,17 @@ function targetProcessedAtText(target: HrEventAssetTargetResponse) {
   return processedAt ? formatDateTime(processedAt) : ''
 }
 
-function statusLabel(value?: HrEventStatus) {
-  if (value === 'IN_PROGRESS') return '처리 중'
+function statusLabel(value?: HrEventAssetTargetStatus) {
+  if (value === 'PROCESSED') return '반납/처리 진행 중'
   if (value === 'COMPLETED') return '처리 완료'
   if (value === 'CANCELLED') return '취소'
   return '대기 중'
 }
 
-function statusBadgeClass(value: HrEventStatus) {
+function statusBadgeClass(value: HrEventStatus | HrEventAssetTargetStatus) {
   const base = 'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold'
   if (value === 'COMPLETED') return `${base} bg-success/10 text-success`
-  if (value === 'IN_PROGRESS') return `${base} bg-primary/10 text-primary`
+  if (value === 'IN_PROGRESS' || value === 'PROCESSED') return `${base} bg-primary/10 text-primary`
   if (value === 'CANCELLED') return `${base} bg-danger/10 text-danger`
   return `${base} bg-surface-secondary text-text-sub`
 }
