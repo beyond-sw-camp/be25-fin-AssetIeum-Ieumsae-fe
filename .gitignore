@@ -28,3 +28,7 @@ files/*
 !files/가이드.md
 docs
 AGENTS.md
+
+.env
+.env.*
+!.env.example
