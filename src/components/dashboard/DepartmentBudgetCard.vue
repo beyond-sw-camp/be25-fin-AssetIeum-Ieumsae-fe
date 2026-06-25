@@ -27,11 +27,11 @@
 
       <div class="relative h-4 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-600">
         <div
-          class="absolute inset-y-0 left-0 rounded-full bg-primary-trans"
+          class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
           :style="{ width: `${clampPercent(budgetCommittedPercent)}%` }"
         />
         <div
-          class="absolute inset-y-0 left-0 rounded-full bg-primary"
+          class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
           :style="{ width: `${clampPercent(budgetUsedPercent)}%` }"
         />
       </div>
@@ -78,11 +78,11 @@
         <div class="flex flex-col items-center gap-2">
           <div class="relative h-2.5 w-32 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-600">
             <div
-              class="absolute inset-y-0 left-0 rounded-full bg-primary-trans"
+              class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
               :style="{ width: `${clampPercent(rowCommittedPercent(row))}%` }"
             />
             <div
-              class="absolute inset-y-0 left-0 rounded-full bg-primary"
+              class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
               :style="{ width: `${clampPercent(rowUsedPercent(row))}%` }"
             />
           </div>

@@ -360,6 +360,16 @@
     background: var(--color-primary);
   }
 
+  .dashboard-bar-fill {
+    transform-origin: left center;
+    animation: dashboard-bar-fill 640ms ease-out both;
+    will-change: transform;
+  }
+
+  .dashboard-ring-fill {
+    animation: dashboard-ring-fill 820ms ease-out both;
+  }
+
   .sidebar-item {
     @apply flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition;
     color: var(--color-text-sub);
@@ -374,5 +384,34 @@
     background: var(--color-sidebar-active-bg);
     color: var(--color-sidebar-active-text);
     font-weight: 600;
+  }
+}
+
+@property --dashboard-ring-progress {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+@keyframes dashboard-bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dashboard-ring-fill {
+  from {
+    --dashboard-ring-progress: 0%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-bar-fill,
+  .dashboard-ring-fill {
+    animation: none;
+    will-change: auto;
   }
 }

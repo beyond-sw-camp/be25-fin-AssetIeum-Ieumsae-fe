@@ -129,7 +129,7 @@
               <p class="mt-1 text-xs text-text-sub">{{ item.count }}건/{{ item.total }}건</p>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
+              <div class="dashboard-bar-fill h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
             </div>
             <span class="text-right text-sm font-semibold text-text-sub">{{ item.percentage }}%</span>
           </div>
@@ -158,7 +158,7 @@
               <p class="mt-1 text-xs text-text-sub">{{ item.count }}건/{{ item.total }}건</p>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-              <div class="h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
+              <div class="dashboard-bar-fill h-full rounded-full" :class="item.colorClass" :style="{ width: `${item.percentage}%` }" />
             </div>
             <span class="text-right text-sm font-semibold text-text-sub">{{ item.percentage }}%</span>
           </div>

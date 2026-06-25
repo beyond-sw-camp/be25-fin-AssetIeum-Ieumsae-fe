@@ -14,9 +14,12 @@
     <div class="grid gap-15 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="flex justify-center">
         <div
-          class="relative h-50 w-50 rounded-full border border-text-main/30"
-          :style="donutStyle"
+          class="relative h-50 w-50 rounded-full border border-text-main/30 bg-surface"
         >
+          <div
+            class="dashboard-ring-fill absolute inset-px rounded-full"
+            :style="donutStyle"
+          ></div>
           <div class="absolute inset-13 flex flex-col items-center justify-center rounded-full border border border-text-main/30 bg-surface text-center">
             <span class="text-xs font-semibold text-text-sub">소진율</span>
             <span class="mt-1 text-lg font-bold text-primary">{{ summary.usageRate }}%</span>
@@ -46,7 +49,7 @@
                 <span class="text-sm font-bold text-primary">{{ summary.usageRate }}%</span>
                 <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-secondary">
                   <div
-                    class="h-full rounded-full bg-primary"
+                    class="dashboard-bar-fill h-full rounded-full bg-primary"
                     :style="{ width: `${summary.usageRate}%` }"
                   ></div>
                 </div>
@@ -100,10 +103,11 @@ const donutStyle = computed(() => {
   const usageRate = Math.min(Math.max(props.summary.usageRate ?? 0, 0), 100)
 
   return {
+    '--dashboard-ring-progress': `${usageRate}%`,
     background: `conic-gradient(
       from 0deg,
-      var(--color-surface-secondary) 0 ${100 - usageRate}%,
-      var(--color-primary) ${100 - usageRate}% 100%
+      var(--color-surface-secondary) 0 calc(100% - var(--dashboard-ring-progress)),
+      var(--color-primary) calc(100% - var(--dashboard-ring-progress)) 100%
     )`,
   }
 })

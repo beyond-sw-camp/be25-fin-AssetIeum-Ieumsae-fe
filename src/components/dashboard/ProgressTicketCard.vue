@@ -8,14 +8,16 @@
       <h2 class="m-0 text-sm font-bold leading-5 text-text-main">진행중인 티켓 현황</h2>
       <RefreshCw class="text-primary" :size="18" />
     </div>
-    <div class="mb-5 flex h-3 overflow-hidden rounded-full bg-surface-secondary">
-      <div
-        v-for="item in segments"
-        :key="item.label"
-        class="h-full first:rounded-l-full last:rounded-r-full"
-        :class="item.barClass"
-        :style="{ width: `${item.percent}%` }"
-      ></div>
+    <div class="mb-5 h-3 overflow-hidden rounded-full bg-surface-secondary">
+      <div class="relative h-full">
+        <div
+          v-for="item in layeredSegments"
+          :key="item.label"
+          class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full"
+          :class="item.barClass"
+          :style="{ width: `${item.cumulativePercent}%`, zIndex: item.zIndex }"
+        ></div>
+      </div>
     </div>
     <div class="grid grid-cols-4 gap-2 text-center text-xs">
       <div v-for="item in segments" :key="item.label">
@@ -30,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 
 export interface DashboardSegment {
@@ -39,11 +42,34 @@ export interface DashboardSegment {
   barClass: string
 }
 
-defineProps<{
+interface LayeredDashboardSegment extends DashboardSegment {
+  cumulativePercent: number
+  zIndex: number
+}
+
+const props = defineProps<{
   segments: DashboardSegment[]
 }>()
 
 const emit = defineEmits<{
   click: []
 }>()
+
+const layeredSegments = computed<LayeredDashboardSegment[]>(() => {
+  let cumulativePercent = 0
+
+  return props.segments.map((item, index) => {
+    cumulativePercent += item.percent
+
+    return {
+      ...item,
+      cumulativePercent: clampPercent(cumulativePercent),
+      zIndex: props.segments.length - index,
+    }
+  })
+})
+
+function clampPercent(value: number) {
+  return Math.min(Math.max(value, 0), 100)
+}
 </script>
