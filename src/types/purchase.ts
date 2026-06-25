@@ -132,6 +132,14 @@ export interface PurchasePlanItem {
   isStandard?: boolean
   ticketId?: number | string | null
   ticket_id?: number | string | null
+  ticket?: {
+    ticketRequesterId?: number | string | null
+    ticketRequesterName?: string | null
+    ticketDepartmentId?: number | string | null
+    ticketDepartmentName?: string | null
+    ticketTargetMemberIds?: (number | string | null)[]
+    ticket_target_member_ids?: (number | string | null)[]
+  } | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
   requesterId?: number | string | null

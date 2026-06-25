@@ -88,6 +88,14 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   assetRegisteredCount?: number | null
   registeredQuantity?: number | null
   registeredAssetQuantity?: number | null
+  ticket?: {
+    ticketRequesterId?: number | string | null
+    ticketRequesterName?: string | null
+    ticketDepartmentId?: number | string | null
+    ticketDepartmentName?: string | null
+    ticketTargetMemberIds?: (number | string | null)[]
+    ticket_target_member_ids?: (number | string | null)[]
+  } | null
   ticketId?: number | string | null
   ticket_id?: number | string | null
   ticketRequesterId?: number | string | null
@@ -200,18 +208,20 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     isStandard: normalizePlanItemStandard(item),
     registeredCount: normalizeRegisteredAssetCount(item),
     ticketId: item.ticketId ?? item.ticket_id ?? null,
-    ticketRequesterId: item.ticketRequesterId ?? item.requesterId ?? null,
-    ticketRequesterName: item.ticketRequesterName ?? item.requesterName ?? null,
+    ticketRequesterId: item.ticketRequesterId ?? item.ticket?.ticketRequesterId ?? item.requesterId ?? null,
+    ticketRequesterName: item.ticketRequesterName ?? item.ticket?.ticketRequesterName ?? item.requesterName ?? null,
     assignmentTargetMemberIds: normalizeAssignmentTargetMemberIds(item),
     assignmentTargets: normalizeAssignmentTargets(item),
     ticketDepartmentId: item.ticketDepartmentId
       ?? item.ticket_department_id
+      ?? item.ticket?.ticketDepartmentId
       ?? item.requestDepartmentId
       ?? item.request_department_id
       ?? item.departmentId
       ?? null,
     ticketDepartmentName: item.ticketDepartmentName
       ?? item.ticket_department_name
+      ?? item.ticket?.ticketDepartmentName
       ?? item.requestDepartmentName
       ?? item.request_department_name
       ?? item.departmentName
@@ -235,6 +245,8 @@ function normalizeAssignmentTargetMemberIds(item: PurchasePlanItemResponse) {
     ...(Array.isArray(item.assignment_target_member_ids) ? item.assignment_target_member_ids : []),
     ...(Array.isArray(item.assignmentTargetIds) ? item.assignmentTargetIds : []),
     ...(Array.isArray(item.assignment_target_ids) ? item.assignment_target_ids : []),
+    ...(Array.isArray(item.ticket?.ticketTargetMemberIds) ? item.ticket.ticketTargetMemberIds : []),
+    ...(Array.isArray(item.ticket?.ticket_target_member_ids) ? item.ticket.ticket_target_member_ids : []),
     ...(Array.isArray(item.targetMemberIds) ? item.targetMemberIds : []),
     ...(Array.isArray(item.target_member_ids) ? item.target_member_ids : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),

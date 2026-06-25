@@ -605,24 +605,14 @@
           >
             <div>
               <h2 class="text-sm font-bold text-text-main">
-                티켓 없이 품목 추가
+                표준 품목 추가
               </h2>
               <p class="mt-1 text-xs text-text-muted">
-                구매 계획에 필요한 품목을 직접 입력해 요청 품목에 추가합니다.
+                구매 계획에 필요한 표준 품목을 선택해 요청 품목에 추가합니다.
               </p>
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-              <div v-if="false" class="xl:col-span-2">
-                <Input
-                  id="direct-plan-item-name"
-                  v-model="directItemForm.assetItemId"
-                  label="품목명"
-                  required
-                  placeholder="예: MacBook Pro 14"
-                  :disabled="isCreatingPlan"
-                />
-              </div>
               <div class="space-y-2 text-left">
                 <label class="block px-0.5 text-sm font-semibold text-text-main"
                   >자산 유형</label
@@ -643,12 +633,11 @@
                 </label>
                 <Dropdown
                   id="direct-plan-category"
-                  :model-value="directItemForm.categoryName"
+                  :model-value="directItemForm.categoryId"
                   :options="directCategoryOptions"
                   :disabled="isDirectCategoryDisabled"
                   root-option="분류 선택"
                   category-select-mode="leaf-only"
-                  category-value-mode="label"
                   @update:model-value="handleDirectCategoryChange"
                 />
               </div>
@@ -700,15 +689,6 @@
                     원
                   </span>
                 </div>
-              </div>
-              <div v-if="false" class="md:col-span-2 xl:col-span-4">
-                <Input
-                  id="direct-plan-url"
-                  v-model="directItemForm.externalUrl"
-                  label="구매 링크"
-                  placeholder="https://"
-                  :disabled="isCreatingPlan"
-                />
               </div>
               <div class="flex items-end">
                 <Button
@@ -1131,6 +1111,7 @@ interface PlanRequestItem {
 
 interface DirectItemForm {
   assetItemId: string;
+  categoryId: string;
   categoryName: string;
   assetType: AssetType;
   quantity: string;
@@ -1337,6 +1318,7 @@ const selectedTicketIds = ref<string[]>([]);
 const directPlanItems = ref<DirectPlanItem[]>([]);
 const directItemForm = ref<DirectItemForm>({
   assetItemId: "",
+  categoryId: "",
   categoryName: "",
   assetType: "TANGIBLE",
   quantity: "1",
@@ -1401,7 +1383,7 @@ const isStandardPurchaseItemDisabled = computed(
   () =>
     isCreatingPlan.value ||
     isStandardItemLoading.value ||
-    !directItemForm.value.categoryName,
+    !directItemForm.value.categoryId,
 );
 
 const formattedDirectEstimatedUnitPrice = computed(() =>
@@ -1720,11 +1702,11 @@ watch(
 );
 
 watch(
-  () => [directItemForm.value.assetType, directItemForm.value.categoryName],
+  () => [directItemForm.value.assetType, directItemForm.value.categoryId],
   () => {
     directItemForm.value.assetItemId = "";
     directItemForm.value.estimatedUnitPrice = "";
-    if (!isCreateDrawerOpen.value || !directItemForm.value.categoryName) {
+    if (!isCreateDrawerOpen.value || !directItemForm.value.categoryId) {
       standardPurchaseItems.value = [];
       return;
     }
@@ -1934,8 +1916,8 @@ async function fetchEligibleTickets() {
 }
 
 async function fetchStandardPurchaseItems() {
-  const categoryName = directItemForm.value.categoryName;
-  if (!categoryName) {
+  const categoryId = directItemForm.value.categoryId;
+  if (!categoryId) {
     standardPurchaseItems.value = [];
     return;
   }
@@ -1947,7 +1929,7 @@ async function fetchStandardPurchaseItems() {
       const response = await intangibleItemApi.getList({
         page: 0,
         size: 100,
-        category: categoryName,
+        categoryId,
         isStandard: 1,
       });
       standardPurchaseItems.value = response.data.content
@@ -1959,7 +1941,7 @@ async function fetchStandardPurchaseItems() {
     const response = await tangibleItemApi.getList({
       page: 0,
       size: 100,
-      categoryName,
+      categoryId,
       isStandard: 1,
     });
     standardPurchaseItems.value = response.data.content
@@ -2041,12 +2023,20 @@ function handleStatusSelect(value: string | number) {
 }
 
 function handleDirectCategoryChange(value: string | number) {
-  directItemForm.value.categoryName = String(value);
+  const categoryId = String(value);
+  directItemForm.value.categoryId = categoryId;
+  directItemForm.value.categoryName = categoryLabelById(
+    categoryId,
+    directItemForm.value.assetType === "INTANGIBLE"
+      ? intangibleCategoryGroups.value
+      : tangibleCategoryGroups.value,
+  );
 }
 
 function resetDirectItemForm() {
   directItemForm.value = {
     assetItemId: "",
+    categoryId: "",
     categoryName: "",
     assetType: "TANGIBLE",
     quantity: "1",
@@ -2060,6 +2050,7 @@ function resetDirectItemForm() {
 function handleDirectAssetTypeChange(value: string | number) {
   directItemForm.value.assetType =
     value === "INTANGIBLE" ? "INTANGIBLE" : "TANGIBLE";
+  directItemForm.value.categoryId = "";
   directItemForm.value.categoryName = "";
   directItemForm.value.assetItemId = "";
   standardPurchaseItems.value = [];
@@ -2080,7 +2071,7 @@ function addDirectPlanItem() {
   const quantity = Number(directItemForm.value.quantity);
   const estimatedUnitPrice = Number(directItemForm.value.estimatedUnitPrice);
 
-  if (!directItemForm.value.categoryName) {
+  if (!directItemForm.value.categoryId) {
     directItemError.value = "카테고리를 선택해주세요.";
     return;
   }
@@ -2773,6 +2764,24 @@ function normalizeCategoryChildren(category: PurchaseCategoryTreeNode): Purchase
   return Array.isArray(children)
     ? children.filter((child): child is PurchaseCategoryTreeNode => typeof child === "object" && child !== null)
     : [];
+}
+
+function categoryLabelById(categoryId: string, groups: PurchaseCategoryGroup[]) {
+  for (const group of groups) {
+    if (String(group.categoryId ?? "") === categoryId) return group.mainCategory;
+
+    for (const subCategory of group.subCategories) {
+      if (String(group.subCategoryIds?.[subCategory] ?? "") === categoryId) {
+        return subCategory;
+      }
+    }
+
+    for (const [smallCategory, smallCategoryId] of Object.entries(group.childCategoryIds ?? {})) {
+      if (String(smallCategoryId) === categoryId) return smallCategory;
+    }
+  }
+
+  return "";
 }
 
 function formatCurrency(value: number) {

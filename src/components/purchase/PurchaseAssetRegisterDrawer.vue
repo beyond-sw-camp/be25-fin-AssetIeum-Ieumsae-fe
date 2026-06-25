@@ -1047,9 +1047,12 @@ function uniqueAssignmentCandidates(members: AssignmentCandidateMember[]) {
 function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   return toNullableStringId(
     item.ticketDepartmentId
       ?? item.ticket_department_id
+      ?? ticket?.ticketDepartmentId
+      ?? ticket?.ticket_department_id
       ?? item.requestDepartmentId
       ?? item.request_department_id
       ?? rawItem.ticketDepartment?.departmentId
@@ -1063,9 +1066,12 @@ function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
 function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   const name =
     item.ticketDepartmentName
     ?? item.ticket_department_name
+    ?? ticket?.ticketDepartmentName
+    ?? ticket?.ticket_department_name
     ?? item.requestDepartmentName
     ?? item.request_department_name
     ?? rawItem.ticketDepartment?.departmentName
@@ -1079,12 +1085,15 @@ function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
 function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
   if (!item) return []
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   return uniqueStringValues([
     ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
     ...(Array.isArray(rawItem.assignment_target_member_ids) ? rawItem.assignment_target_member_ids : []),
     ...(Array.isArray(rawItem.assignmentTargetIds) ? rawItem.assignmentTargetIds : []),
     ...(Array.isArray(rawItem.assignment_target_ids) ? rawItem.assignment_target_ids : []),
+    ...(Array.isArray(ticket?.ticketTargetMemberIds) ? ticket.ticketTargetMemberIds : []),
+    ...(Array.isArray(ticket?.ticket_target_member_ids) ? ticket.ticket_target_member_ids : []),
     ...(Array.isArray(rawItem.targetMemberIds) ? rawItem.targetMemberIds : []),
     ...(Array.isArray(rawItem.target_member_ids) ? rawItem.target_member_ids : []),
     ...(Array.isArray(rawItem.assignee_ids) ? rawItem.assignee_ids : []),
@@ -1108,12 +1117,18 @@ function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
 function isLinkedTicketPurchaseItem(item: PurchasePlanItem | null) {
   if (!item) return false
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   const ticketId = item.ticketId ?? item.ticket_id ?? rawItem.ticket_id
   if (ticketId !== null && ticketId !== undefined && String(ticketId).trim()) return true
+  if (ticket && Object.keys(ticket).length > 0) return true
 
   return Boolean(
     item.ticketRequesterId
       ?? rawItem.ticket_requester_id
+      ?? ticket?.ticketRequesterId
+      ?? ticket?.ticket_requester_id
+      ?? ticket?.ticketDepartmentId
+      ?? ticket?.ticket_department_id
       ?? rawItem.purchaseRequestItemId
       ?? rawItem.purchase_request_item_id
       ?? rawItem.purchaseRequestId
