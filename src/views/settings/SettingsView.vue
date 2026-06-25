@@ -57,9 +57,9 @@
           </div>
           <span
             class="w-fit rounded-full px-3 py-1 text-xs font-semibold"
-            :class="isNotificationSubscribed ? 'bg-success/10 text-success' : 'bg-surface text-text-sub'"
+            :class="notificationSubscriptionStatusClass"
           >
-            {{ isNotificationSubscribed ? '구독 중' : '연결 전' }}
+            {{ notificationSubscriptionStatusLabel }}
           </span>
         </div>
       </div>
@@ -90,9 +90,10 @@
         </Button>
         <Button
           :variant="isNotificationSubscribed ? 'outline' : 'primary'"
+          :disabled="isNotificationConnecting"
           @click="connectNotificationSubscription"
         >
-          {{ isNotificationSubscribed ? '다시 연결' : '구독 연결' }}
+          {{ notificationSubscriptionButtonLabel }}
         </Button>
       </div>
     </section>
@@ -279,14 +280,36 @@ const currentPolicySummary = computed(() => {
 })
 
 const isNotificationSubscribed = computed(() => notificationSubscription.isConnected.value)
+const isNotificationConnecting = computed(() => notificationSubscription.isConnecting.value)
+
+const notificationSubscriptionStatusLabel = computed(() => {
+  if (isNotificationSubscribed.value) return '구독 중'
+  if (isNotificationConnecting.value) return '연결 중'
+  return '연결 전'
+})
+
+const notificationSubscriptionStatusClass = computed(() => {
+  if (isNotificationSubscribed.value) return 'bg-success/10 text-success'
+  if (isNotificationConnecting.value) return 'bg-primary/10 text-primary'
+  return 'bg-surface text-text-sub'
+})
+
+const notificationSubscriptionButtonLabel = computed(() => {
+  if (isNotificationConnecting.value) return '연결 중'
+  return isNotificationSubscribed.value ? '다시 연결' : '구독 연결'
+})
 
 const notificationSubscriptionSummary = computed(() => (
   isNotificationSubscribed.value
     ? '실시간 알림을 받을 수 있습니다.'
-    : '실시간 알림 구독이 연결되어 있지 않습니다.'
+    : isNotificationConnecting.value
+      ? '실시간 알림 구독을 연결하고 있습니다.'
+      : '실시간 알림 구독이 연결되어 있지 않습니다.'
 ))
 
 onMounted(() => {
+  connectNotificationSubscription()
+
   if (canManagePurchasePolicy.value) {
     void loadPolicy()
   }

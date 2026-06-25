@@ -113,6 +113,7 @@ import { useRouter, type RouteLocationRaw } from 'vue-router'
 
 import { ApiError, notificationApi } from '@/api'
 import { useEventSource } from '@/composables/useEventSource'
+import { useNotificationStore } from '@/stores'
 import type { NotificationType, ServerNotification } from '@/types'
 
 const MAX_BADGE_COUNT = 99
@@ -127,6 +128,7 @@ const popoverRoot = ref<HTMLElement | null>(null)
 
 const router = useRouter()
 const eventSource = useEventSource()
+const notificationStore = useNotificationStore()
 let offNotificationEvent: (() => void) | null = null
 let offMessageEvent: (() => void) | null = null
 
@@ -182,8 +184,10 @@ async function loadUnreadCount() {
   try {
     const response = await notificationApi.getUnreadCount()
     unreadCount.value = response.data.unreadCount
+    notificationStore.setUnreadCount(response.data.unreadCount)
   } catch {
     unreadCount.value = 0
+    notificationStore.setUnreadCount(0)
   }
 }
 
@@ -194,6 +198,7 @@ async function markAsRead(notification: ServerNotification) {
     await notificationApi.markAsRead(notification.notificationId)
     notification.isRead = true
     unreadCount.value = Math.max(0, unreadCount.value - 1)
+    notificationStore.setUnreadCount(unreadCount.value)
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '알림 읽음 처리에 실패했습니다.')
   }
@@ -220,6 +225,7 @@ async function markAllAsRead() {
       isRead: true,
     }))
     unreadCount.value = 0
+    notificationStore.setUnreadCount(0)
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '전체 알림 읽음 처리에 실패했습니다.')
   } finally {
@@ -252,6 +258,11 @@ function handleIncomingNotification(event: { data: ServerNotification }) {
 
   if (!incoming.isRead && !existingNotification) {
     unreadCount.value += 1
+    notificationStore.setUnreadCount(unreadCount.value)
+  }
+
+  if (!existingNotification) {
+    notificationStore.info(incoming.title, incoming.content)
   }
 }
 
