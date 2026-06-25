@@ -84,30 +84,17 @@ export interface PurchasePlanItem {
   itemId?: number | string
   purchasePlanItemId?: number | string
   purchasePlanItemDetailId?: number | string
-  purchasePlanItemDetailID?: number | string
-  purchase_plan_item_detail_id?: number | string
-  purchasePlanItemDetail_id?: number | string
-  purchasePlanItemID?: number | string
-  purchase_plan_item_id?: number | string
-  purchasePlanItem_id?: number | string
   purchaseItemId?: number | string
-  purchase_item_id?: number | string
   planItemId?: number | string
-  plan_item_id?: number | string
   purchaseRequestItemId?: number | string
-  purchase_request_item_id?: number | string
   purchasePlanId?: number | string
   purchaseId?: number | string
-  purchase_id?: number | string
   planPurchaseItemId?: number | string
-  plan_purchase_item_id?: number | string
   purchasePlanItemNo?: number | string
   itemNo?: number | string
   id?: number | string
   purchasePlanItemStatus?: string | null
-  purchase_plan_item_status?: string | null
   itemStatus?: string | null
-  item_status?: string | null
   status?: string | null
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
@@ -131,14 +118,12 @@ export interface PurchasePlanItem {
   assetType?: AssetType | null
   isStandard?: boolean
   ticketId?: number | string | null
-  ticket_id?: number | string | null
   ticket?: {
     ticketRequesterId?: number | string | null
     ticketRequesterName?: string | null
     ticketDepartmentId?: number | string | null
     ticketDepartmentName?: string | null
     ticketTargetMemberIds?: (number | string | null)[]
-    ticket_target_member_ids?: (number | string | null)[]
   } | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
@@ -158,13 +143,9 @@ export interface PurchasePlanItem {
     departmentName?: string | null
   }[]
   ticketDepartmentId?: number | string | null
-  ticket_department_id?: number | string | null
   requestDepartmentId?: number | string | null
-  request_department_id?: number | string | null
   ticketDepartmentName?: string | null
-  ticket_department_name?: string | null
   requestDepartmentName?: string | null
-  request_department_name?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
   receivedAt?: string | null

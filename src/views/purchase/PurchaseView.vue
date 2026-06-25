@@ -2424,8 +2424,7 @@ function parseAssetItemId(value: string | number | null | undefined) {
 
 function isNonStandardPurchaseItem(item: PurchasePlanItem | null | undefined) {
   if (!item) return false;
-  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
-  const value = item.isStandard ?? rawItem.is_standard;
+  const value = item.isStandard;
   if (value === false || value === 0) return true;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
@@ -2487,18 +2486,9 @@ function getPurchasePlanItemIdentityIds(item: PurchasePlanItem | null | undefine
     getPurchasePlanItemId(item),
     normalizeNullableId(rawItem.purchasePlanItemId),
     normalizeNullableId(rawItem.purchasePlanItemDetailId),
-    normalizeNullableId(rawItem.purchasePlanItemDetailID),
-    normalizeNullableId(rawItem.purchase_plan_item_detail_id),
-    normalizeNullableId(rawItem.purchasePlanItemDetail_id),
-    normalizeNullableId(rawItem.purchasePlanItemID),
-    normalizeNullableId(rawItem.purchase_plan_item_id),
-    normalizeNullableId(rawItem.purchasePlanItem_id),
     normalizeNullableId(rawItem.purchaseItemId),
-    normalizeNullableId(rawItem.purchase_item_id),
     normalizeNullableId(rawItem.planItemId),
-    normalizeNullableId(rawItem.plan_item_id),
     normalizeNullableId(rawItem.planPurchaseItemId),
-    normalizeNullableId(rawItem.plan_purchase_item_id),
     normalizeNullableId(rawItem.itemId),
     normalizeNullableId(rawItem.id),
   ].filter((itemId): itemId is string => Boolean(itemId))));
@@ -2544,9 +2534,7 @@ function resolvePurchaseItemAssetType(item: PurchasePlanItem | null | undefined)
   const rawItem = item as PurchasePlanItem & Record<string, unknown>;
   const rawAssetType =
     item.assetType
-    ?? rawItem.asset_type
     ?? rawItem.assetItemType
-    ?? rawItem.asset_item_type
     ?? rawItem.type;
   if (rawAssetType === "TANGIBLE" || rawAssetType === "INTANGIBLE") {
     return rawAssetType;
@@ -2554,14 +2542,10 @@ function resolvePurchaseItemAssetType(item: PurchasePlanItem | null | undefined)
   if (
     item.intangibleItemId
     || item.intangibleAssetItemId
-    || rawItem.intangible_asset_item_id
-    || rawItem.intangible_item_id
   ) return "INTANGIBLE";
   if (
     item.tangibleItemId
     || item.tangibleAssetItemId
-    || rawItem.tangible_asset_item_id
-    || rawItem.tangible_item_id
   ) return "TANGIBLE";
   return null;
 }
@@ -2602,21 +2586,12 @@ function toStandardIntangiblePurchaseItem(
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
-  const itemId = item?.purchasePlanItemId
+  const itemId = item?.itemId
+    ?? item?.purchasePlanItemId
     ?? item?.purchasePlanItemDetailId
-    ?? item?.purchasePlanItemDetailID
-    ?? item?.purchase_plan_item_detail_id
-    ?? item?.purchasePlanItemDetail_id
-    ?? item?.purchasePlanItemID
-    ?? item?.purchase_plan_item_id
-    ?? item?.purchasePlanItem_id
     ?? item?.purchaseItemId
-    ?? item?.purchase_item_id
     ?? item?.planItemId
-    ?? item?.plan_item_id
-    ?? item?.planPurchaseItemId
-    ?? item?.plan_purchase_item_id
-    ?? item?.itemId;
+    ?? item?.planPurchaseItemId;
   if (itemId === null || itemId === undefined) return null;
   const normalized = String(itemId).trim();
   return normalized || null;
@@ -2626,9 +2601,7 @@ function getPurchasePlanItemStatus(item: PurchasePlanItem | null | undefined) {
   const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
   const status =
     item?.purchasePlanItemStatus
-    ?? item?.purchase_plan_item_status
     ?? item?.itemStatus
-    ?? item?.item_status
     ?? rawItem?.status;
   if (typeof status !== "string") return null;
   const normalized = status.trim().toUpperCase();

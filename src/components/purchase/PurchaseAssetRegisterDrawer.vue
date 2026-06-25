@@ -1050,11 +1050,8 @@ function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
   const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   return toNullableStringId(
     item.ticketDepartmentId
-      ?? item.ticket_department_id
       ?? ticket?.ticketDepartmentId
-      ?? ticket?.ticket_department_id
       ?? item.requestDepartmentId
-      ?? item.request_department_id
       ?? rawItem.ticketDepartment?.departmentId
       ?? rawItem.ticketDepartment?.id
       ?? rawItem.requestDepartment?.departmentId
@@ -1069,11 +1066,8 @@ function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
   const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
   const name =
     item.ticketDepartmentName
-    ?? item.ticket_department_name
     ?? ticket?.ticketDepartmentName
-    ?? ticket?.ticket_department_name
     ?? item.requestDepartmentName
-    ?? item.request_department_name
     ?? rawItem.ticketDepartment?.departmentName
     ?? rawItem.ticketDepartment?.name
     ?? rawItem.requestDepartment?.departmentName
@@ -1089,22 +1083,13 @@ function extractAssignmentTargetMemberIds(item: PurchasePlanItem | null) {
   return uniqueStringValues([
     ...(Array.isArray(item.assignmentTargetMemberIds) ? item.assignmentTargetMemberIds : []),
     ...(Array.isArray(item.assigneeIds) ? item.assigneeIds : []),
-    ...(Array.isArray(rawItem.assignment_target_member_ids) ? rawItem.assignment_target_member_ids : []),
     ...(Array.isArray(rawItem.assignmentTargetIds) ? rawItem.assignmentTargetIds : []),
-    ...(Array.isArray(rawItem.assignment_target_ids) ? rawItem.assignment_target_ids : []),
     ...(Array.isArray(ticket?.ticketTargetMemberIds) ? ticket.ticketTargetMemberIds : []),
-    ...(Array.isArray(ticket?.ticket_target_member_ids) ? ticket.ticket_target_member_ids : []),
     ...(Array.isArray(rawItem.targetMemberIds) ? rawItem.targetMemberIds : []),
-    ...(Array.isArray(rawItem.target_member_ids) ? rawItem.target_member_ids : []),
-    ...(Array.isArray(rawItem.assignee_ids) ? rawItem.assignee_ids : []),
     rawItem.assignmentTargetMemberId,
-    rawItem.assignment_target_member_id,
     rawItem.assignmentTargetId,
-    rawItem.assignment_target_id,
     rawItem.assigneeId,
-    rawItem.assignee_id,
     rawItem.targetMemberId,
-    rawItem.target_member_id,
     ...extractAssignmentTargetRecords(item).flatMap((target) => [
       target.memberId,
       target.assigneeId,
@@ -1118,23 +1103,17 @@ function isLinkedTicketPurchaseItem(item: PurchasePlanItem | null) {
   if (!item) return false
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
   const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
-  const ticketId = item.ticketId ?? item.ticket_id ?? rawItem.ticket_id
+  const ticketId = item.ticketId
   if (ticketId !== null && ticketId !== undefined && String(ticketId).trim()) return true
   if (ticket && Object.keys(ticket).length > 0) return true
 
   return Boolean(
     item.ticketRequesterId
-      ?? rawItem.ticket_requester_id
       ?? ticket?.ticketRequesterId
-      ?? ticket?.ticket_requester_id
       ?? ticket?.ticketDepartmentId
-      ?? ticket?.ticket_department_id
       ?? rawItem.purchaseRequestItemId
-      ?? rawItem.purchase_request_item_id
       ?? rawItem.purchaseRequestId
-      ?? rawItem.purchase_request_id
-      ?? rawItem.requestTicketId
-      ?? rawItem.request_ticket_id,
+      ?? rawItem.requestTicketId,
   )
 }
 
@@ -1150,9 +1129,7 @@ function extractAssignmentTargetRecords(item: PurchasePlanItem | null): Assignme
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
   const source =
     item.assignmentTargets
-    ?? rawItem.assignment_targets
     ?? rawItem.targetMembers
-    ?? rawItem.target_members
     ?? []
   if (!Array.isArray(source)) return []
 
@@ -1165,22 +1142,19 @@ function extractAssignmentTargetRecords(item: PurchasePlanItem | null): Assignme
 
     const record = target as Record<string, unknown>
     return [{
-      targetId: toNullableStringId(record.targetId ?? record.target_id ?? record.id),
-      memberId: toNullableStringId(record.memberId ?? record.member_id),
-      assigneeId: toNullableStringId(record.assigneeId ?? record.assignee_id),
-      targetMemberId: toNullableStringId(record.targetMemberId ?? record.target_member_id),
+      targetId: toNullableStringId(record.targetId ?? record.id),
+      memberId: toNullableStringId(record.memberId),
+      assigneeId: toNullableStringId(record.assigneeId),
+      targetMemberId: toNullableStringId(record.targetMemberId),
       name: String(
         record.name
           ?? record.memberName
-          ?? record.member_name
           ?? record.assigneeName
-          ?? record.assignee_name
           ?? record.targetName
-          ?? record.target_name
           ?? '',
       ).trim() || null,
-      departmentId: toNullableStringId(record.departmentId ?? record.department_id),
-      departmentName: String(record.departmentName ?? record.department_name ?? '').trim() || null,
+      departmentId: toNullableStringId(record.departmentId),
+      departmentName: String(record.departmentName ?? '').trim() || null,
     }]
   })
 }
@@ -1198,9 +1172,7 @@ function resolvePurchaseItemAssetType(item: PurchasePlanItem | null): AssetType 
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
   const rawAssetType =
     item.assetType
-    ?? rawItem.asset_type
     ?? rawItem.assetItemType
-    ?? rawItem.asset_item_type
     ?? rawItem.type
   if (rawAssetType === 'TANGIBLE' || rawAssetType === 'INTANGIBLE') {
     return rawAssetType
@@ -1208,14 +1180,10 @@ function resolvePurchaseItemAssetType(item: PurchasePlanItem | null): AssetType 
   if (
     item.intangibleItemId
     || item.intangibleAssetItemId
-    || rawItem.intangible_asset_item_id
-    || rawItem.intangible_item_id
   ) return 'INTANGIBLE'
   if (
     item.tangibleItemId
     || item.tangibleAssetItemId
-    || rawItem.tangible_asset_item_id
-    || rawItem.tangible_item_id
   ) return 'TANGIBLE'
   return null
 }
@@ -1232,18 +1200,9 @@ function getPurchasePlanItemId(item: PurchasePlanItem | null) {
     item.itemId
     ?? item.purchasePlanItemId
     ?? item.purchasePlanItemDetailId
-    ?? item.purchasePlanItemDetailID
-    ?? item.purchase_plan_item_detail_id
-    ?? item.purchasePlanItemDetail_id
-    ?? item.purchasePlanItemID
-    ?? item.purchase_plan_item_id
-    ?? item.purchasePlanItem_id
     ?? item.purchaseItemId
-    ?? item.purchase_item_id
     ?? item.planItemId
-    ?? item.plan_item_id
     ?? item.planPurchaseItemId
-    ?? item.plan_purchase_item_id
   if (itemId === null || itemId === undefined) return null
   const normalized = String(itemId).trim()
   return normalized || null
