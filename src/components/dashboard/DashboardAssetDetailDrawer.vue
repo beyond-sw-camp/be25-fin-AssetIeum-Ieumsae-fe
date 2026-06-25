@@ -246,6 +246,18 @@ async function loadDetails() {
 
   try {
     if (props.mode === 'owned') {
+      if (selectedOwnedStatus.value === 'RENTED') {
+        const activeRentedDetails = (await loadAllOwnedDetails('RENTED'))
+          .filter((item) => !isOverdueOwnedAsset(item))
+        totalElements.value = activeRentedDetails.length
+        totalPages.value = Math.max(Math.ceil(activeRentedDetails.length / pageSize), 1)
+        const start = currentPage.value * pageSize
+        rows.value = activeRentedDetails
+          .slice(start, start + pageSize)
+          .map((item) => toOwnedRow(item, selectedOwnedStatus.value))
+        return
+      }
+
       const response = await dashboardApi.getOwnedAssetDetails({
         status: selectedOwnedStatus.value,
         departmentId: props.departmentId,
@@ -295,6 +307,28 @@ async function loadDetails() {
   }
 }
 
+async function loadAllOwnedDetails(status: OwnedAssetDetailStatus) {
+  const params = {
+    status,
+    departmentId: props.departmentId,
+    keyword: keyword.value.trim() || undefined,
+    size: 100,
+  }
+  const firstResponse = await dashboardApi.getOwnedAssetDetails({ ...params, page: 0 })
+  const remainingPages = Array.from(
+    { length: Math.max(firstResponse.data.totalPages - 1, 0) },
+    (_, index) => index + 1,
+  )
+  const remainingResponses = await Promise.all(
+    remainingPages.map((page) => dashboardApi.getOwnedAssetDetails({ ...params, page })),
+  )
+
+  return [
+    ...firstResponse.data.content,
+    ...remainingResponses.flatMap((response) => response.data.content),
+  ]
+}
+
 async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
   const params = {
     assetType,
@@ -317,18 +351,37 @@ async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
   ]
 }
 
+function isOverdueOwnedAsset(item: OwnedAssetDetail) {
+  if (typeof item.overdueDays === 'number' && item.overdueDays > 0) return true
+  if (!item.returnDueDate) return false
+
+  const dueDate = startOfDay(item.returnDueDate)
+  const today = startOfDay(new Date())
+  if (!dueDate || !today) return false
+
+  return dueDate.getTime() < today.getTime()
+}
+
 function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): DetailRow {
   return {
     id: item.assetId,
     kind: OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
     name: item.assetName || '-',
     code: item.assetCode || '-',
-    category: item.categoryName || '-',
-    owner: item.renterName || '-',
-    department: item.departmentName || '-',
-    date: item.returnDueDate ?? item.warrantyExpiredAt ?? '',
-    note: item.overdueDays ?? 0,
+    category: textValue(item.categoryOrProvider, item.categoryName) || '-',
+    owner: ownedAssetOwnerText(item, status),
+    department: textValue(item.departmentName) || '부서 미지정',
+    date: textValue(item.returnDueDate, item.dueDate, item.warrantyExpiredAt),
+    note: item.overdueDays ?? item.dayCount ?? 0,
   }
+}
+
+function ownedAssetOwnerText(item: OwnedAssetDetail, status: OwnedAssetDetailStatus) {
+  const owner = textValue(item.renterName, item.userName, item.currentUserInfo)
+  if (owner) return owner
+  if (status === 'UNASSIGNED') return '미배정'
+  if (status === 'RENTAL_SCHEDULED') return '대여 예정'
+  return '사용자 없음'
 }
 
 function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
@@ -345,6 +398,13 @@ function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
   }
 }
 
+function startOfDay(value: string | Date) {
+  const date = value instanceof Date ? new Date(value) : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
 function formatDateTime(value: string) {
   if (!value) return '-'
   const date = new Date(value)
@@ -357,8 +417,21 @@ function formatDateTime(value: string) {
 }
 
 function noteText(value: number) {
-  if (props.mode === 'owned') return value > 0 ? `${value}일 연체` : '-'
+  if (props.mode === 'owned') {
+    if (selectedOwnedStatus.value === 'OVERDUE') return value > 0 ? `${value}일 연체` : '연체'
+    if (selectedOwnedStatus.value === 'UNASSIGNED') return value > 0 ? `D-${value}` : '-'
+    return value > 0 ? `D-${value}` : '-'
+  }
   if (value === 0) return 'D-Day'
   return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
+}
+
+function textValue(...values: unknown[]) {
+  return values
+    .find((value): value is string | number => (
+      (typeof value === 'string' && value.trim().length > 0)
+      || typeof value === 'number'
+    ))
+    ?.toString() ?? ''
 }
 </script>

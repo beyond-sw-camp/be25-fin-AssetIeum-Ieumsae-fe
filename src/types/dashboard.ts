@@ -29,17 +29,25 @@ export interface ExpiringAssetSummary {
 export type OwnedAssetDetailStatus = 'UNASSIGNED' | 'RENTAL_SCHEDULED' | 'RENTED' | 'OVERDUE'
 
 export interface OwnedAssetDetail {
+  assetType?: 'TANGIBLE' | 'INTANGIBLE'
   assetId: string
   assetName: string
   categoryName?: string | null
+  categoryOrProvider?: string | null
   assetCode?: string | null
   warrantyExpiredAt?: string | null
   departmentId?: string | null
   departmentName?: string | null
   renterId?: string | null
   renterName?: string | null
+  userId?: string | null
+  userName?: string | null
+  currentUserInfo?: string | null
   usedStartedAt?: string | null
   returnDueDate?: string | null
+  dueDate?: string | null
+  dayCount?: number | null
+  dayStatusLabel?: string | null
   overdueDays?: number | null
 }
 
@@ -145,8 +153,9 @@ export interface HrLifecycleEvent {
   eventType: string
   memberName: string
   departmentName: string
-  eventDate: string
+  eventDate: string | number[]
   dDay?: number
+  dday?: number
   status: string
 }
 

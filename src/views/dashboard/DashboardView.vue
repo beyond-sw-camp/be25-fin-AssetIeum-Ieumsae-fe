@@ -202,12 +202,16 @@ const progressTicketSegments = computed(() => toSegments([
   { label: '처리 완료', count: ticketProgress.value.completed, barClass: 'bg-success' },
 ]))
 
+const activeRentedAssetCount = computed(() => (
+  Math.max(ownedAssets.value.rented - ownedAssets.value.overdue, 0)
+))
+
 const holdingAssetSegments = computed(() => toSegments([
   ...(isAssetOperator.value
     ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
     : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
-  { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
+  { label: '대여 중', count: activeRentedAssetCount.value, barClass: 'bg-success' },
   { label: '연체', count: ownedAssets.value.overdue, barClass: 'bg-danger' },
 ]))
 
@@ -230,9 +234,14 @@ const demandRows = computed<DemandRow[]>(() => assetDemands.value
     expectedDemand: item.expectedDemand,
     currentStock: item.currentInventory,
     returnExpected: item.scheduledReturn,
-    availability: item.availabilityRate,
+    availability: clampPercent(item.availabilityRate),
     status: item.status,
   })))
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(Math.max(Math.round(value), 0), 100)
+}
 
 const budgetRows = computed<BudgetRow[]>(() => (
   budgetOverview.value?.departmentBudgets.content.map((item) => ({
