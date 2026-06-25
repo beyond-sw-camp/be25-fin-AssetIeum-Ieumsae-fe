@@ -57,9 +57,7 @@
               >
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-xl font-semibold text-text-muted"
-                      >#{{ selectedPlan.planNo }}</span
-                    >
+                    <span class="text-xl font-semibold text-text-muted">#{{ selectedPlan.planNo }}</span>
                     <span class="text-text-muted">|</span>
                     <h1 class="text-2xl font-bold text-text-main">
                       {{ purchasePlanTitle }}
@@ -176,13 +174,13 @@
                   </template>
 
                   <Table
-                    :columns="planItemColumns"
+                    :columns="displayPlanItemColumns"
                     :rows="selectedPlanItems"
                     row-key="itemId"
                     empty-text="구매 품목이 없습니다."
                     class="rounded-none! border-0! [&_table]:min-w-[1100px]"
                   >
-                    <template #cell-category="{ value }">
+                    <template #cell-categoryName="{ value }">
                       <span class="text-text-sub">{{ value || "-" }}</span>
                     </template>
 
@@ -202,7 +200,7 @@
 
                     <template #cell-isStandard="{ row }">
                       <span>{{
-                        row.isStandard === false ? "비표준" : "표준"
+                        isNonStandardPurchaseItem(row) ? "비표준" : "표준"
                       }}</span>
                     </template>
 
@@ -238,7 +236,11 @@
                           @click.stop="openAssetRegisterDrawer(row)"
                         >
                           <BoxIcon :size="13" />
-                          자산 등록
+                          {{
+                            shouldRegisterPlanItemBeforeAsset(row)
+                              ? "품목 등록"
+                              : "자산 등록"
+                          }}
                         </Button>
                       </div>
                       <div
@@ -262,7 +264,7 @@
                         class="min-w-[5.75rem] whitespace-nowrap px-3!"
                         :disabled="
                           !canConfirmDelivery(row) ||
-                          isConfirmingPurchaseItem(row)
+                            isConfirmingPurchaseItem(row)
                         "
                         :loading="isConfirmingPurchaseItem(row)"
                         @click.stop="confirmDelivery(row)"
@@ -541,25 +543,25 @@
             :rows="eligibleTickets"
             row-key="ticketId"
             empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
-            class="h-full max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
+            class="max-h-[400px] overflow-y-auto max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
             @row-click="handleEligibleTicketRowClick"
           >
             <template #cell-select="{ row }">
-              <input
-                type="checkbox"
-                class="pointer-events-none h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                :checked="selectedTicketIds.includes(row.ticketId)"
-                :disabled="!row.canCreate"
-                :title="
-                  row.canCreate ? '구매 계획 대상 선택' : row.disabledReason
-                "
-                :aria-label="
-                  row.canCreate
-                    ? `${row.ticket.ticketNo} 선택`
-                    : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`
-                "
-                tabindex="-1"
-              />
+              <div
+                role="checkbox"
+                :aria-checked="selectedTicketIds.includes(row.ticketId)"
+                :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
+                :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
+                class="flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-200"
+                :class="[
+                  selectedTicketIds.includes(row.ticketId)
+                    ? 'border-primary bg-primary text-white shadow-sm'
+                    : 'border-border bg-surface text-transparent',
+                  !row.canCreate && 'opacity-40 cursor-not-allowed border-border bg-surface-secondary text-transparent'
+                ]"
+              >
+                <Check :size="14" :stroke-width="3" />
+              </div>
             </template>
 
             <template #cell-ticketNo="{ row }">
@@ -601,28 +603,16 @@
           >
             <div>
               <h2 class="text-sm font-bold text-text-main">
-                티켓 없이 품목 추가
+                표준 품목 추가
               </h2>
               <p class="mt-1 text-xs text-text-muted">
-                구매 계획에 필요한 품목을 직접 입력해 요청 품목에 추가합니다.
+                구매 계획에 필요한 표준 품목을 선택해 요청 품목에 추가합니다.
               </p>
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-              <div class="xl:col-span-2">
-                <Input
-                  id="direct-plan-item-name"
-                  v-model="directItemForm.itemName"
-                  label="품목명"
-                  required
-                  placeholder="예: MacBook Pro 14"
-                  :disabled="isCreatingPlan"
-                />
-              </div>
               <div class="space-y-2 text-left">
-                <label class="block px-0.5 text-sm font-semibold text-text-main"
-                  >자산 유형</label
-                >
+                <label class="block px-0.5 text-sm font-semibold text-text-main">자산 유형</label>
                 <Dropdown
                   :model-value="directItemForm.assetType"
                   :options="ASSET_TYPE_OPTIONS"
@@ -639,10 +629,27 @@
                 </label>
                 <Dropdown
                   id="direct-plan-category"
-                  :model-value="directItemForm.categoryName"
+                  :model-value="directItemForm.categoryId"
                   :options="directCategoryOptions"
                   :disabled="isDirectCategoryDisabled"
+                  root-option="분류 선택"
+                  category-select-mode="leaf-only"
                   @update:model-value="handleDirectCategoryChange"
+                />
+              </div>
+              <div class="space-y-2 text-left xl:col-span-2">
+                <label
+                  for="direct-plan-standard-item"
+                  class="block px-0.5 text-sm font-semibold text-text-main"
+                >
+                  표준 품목
+                </label>
+                <Dropdown
+                  id="direct-plan-standard-item"
+                  :model-value="directItemForm.assetItemId"
+                  :options="standardPurchaseItemOptions"
+                  :disabled="isStandardPurchaseItemDisabled"
+                  @update:model-value="handleDirectStandardItemChange"
                 />
               </div>
               <Input
@@ -679,15 +686,6 @@
                   </span>
                 </div>
               </div>
-              <div class="md:col-span-2 xl:col-span-5">
-                <Input
-                  id="direct-plan-url"
-                  v-model="directItemForm.externalUrl"
-                  label="구매 링크"
-                  placeholder="https://"
-                  :disabled="isCreatingPlan"
-                />
-              </div>
               <div class="flex items-end">
                 <Button
                   class="w-full"
@@ -711,9 +709,7 @@
               <h2 class="text-sm font-bold text-text-main">
                 구매계획 요청 품목
               </h2>
-              <span class="text-xs font-semibold text-text-muted"
-                >총 {{ planRequestItems.length }}건</span
-              >
+              <span class="text-xs font-semibold text-text-muted">총 {{ planRequestItems.length }}건</span>
             </div>
 
             <div
@@ -723,7 +719,7 @@
               승인 완료 티켓을 선택하거나 직접 품목을 추가해주세요.
             </div>
 
-            <div v-else class="overflow-x-auto rounded-xl border border-border">
+            <div v-else class="max-h-[300px] overflow-y-auto overflow-x-auto rounded-xl border border-border">
               <div class="min-w-[820px]">
                 <div
                   class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
@@ -754,13 +750,11 @@
                   <span
                     class="truncate font-semibold text-text-main"
                     :title="item.itemName"
-                    >{{ item.itemName }}</span
-                  >
+                  >{{ item.itemName }}</span>
                   <span
                     class="truncate text-text-sub"
                     :title="item.categoryName || '-'"
-                    >{{ item.categoryName || "-" }}</span
-                  >
+                  >{{ item.categoryName || "-" }}</span>
                   <span class="text-center">{{ item.quantity }}</span>
                   <span class="text-right">{{
                     formatCurrency(item.estimatedUnitPrice)
@@ -773,7 +767,7 @@
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-30"
                     :disabled="!item.canRemove || isCreatingPlan"
                     :aria-label="`${item.itemName} 삭제`"
-                    @click="removeDirectPlanItem(item.id)"
+                    @click="removePlanRequestItem(item.id)"
                   >
                     <Trash2 :size="15" />
                   </button>
@@ -787,17 +781,13 @@
           <div
             class="mb-4 flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3"
           >
-            <span class="text-sm font-semibold text-text-sub"
-              >요청 품목 {{ planRequestItems.length }}건</span
-            >
-            <span class="text-lg font-bold text-text-main"
-              >합계 {{ formatCurrency(selectedEstimatedAmount) }}</span
-            >
+            <span class="text-sm font-semibold text-text-sub">요청 품목 {{ planRequestItems.length }}건</span>
+            <span class="text-lg font-bold text-text-main">합계 {{ formatCurrency(selectedEstimatedAmount) }}</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <Button class="w-full" variant="outline" @click="closeCreateDrawer"
-              >취소</Button
-            >
+            <Button class="w-full" variant="outline" @click="closeCreateDrawer">
+              취소
+            </Button>
             <Button
               class="w-full"
               :disabled="planRequestItems.length === 0 || isCreatingPlan"
@@ -812,6 +802,191 @@
     </BaseDrawer>
 
     <!-- 자산 등록 패널 -->
+    <BaseDrawer
+      :is-open="isActualAmountDrawerOpen"
+      title="실제 결제금액 등록"
+      panel-class="w-full max-w-md"
+      body-class="space-y-4 p-6"
+      @close="closeActualAmountDrawer"
+    >
+      <div class="space-y-4">
+        <p class="text-sm font-semibold text-text-sub">
+          실제 결제금액을 입력하면 구매 계획이 납품 확인 단계로 변경됩니다.
+        </p>
+        <div class="w-full space-y-2 text-left">
+          <label
+            for="purchase-actual-amount"
+            class="flex items-center gap-0.5 px-0.5 text-sm font-semibold text-text-main"
+          >
+            실제 결제금액
+            <span class="font-bold text-primary">*</span>
+          </label>
+          <div class="relative">
+            <input
+              id="purchase-actual-amount"
+              :value="actualAmountInput"
+              inputmode="numeric"
+              placeholder="0"
+              :disabled="isStatusSaving"
+              :aria-invalid="Boolean(actualAmountError)"
+              aria-describedby="purchase-actual-amount-error"
+              class="w-full rounded-xl border border-border bg-surface px-4 py-3 pr-10 text-sm font-medium text-text-main outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
+              :class="actualAmountError && 'border-danger focus:border-danger focus:ring-danger/20'"
+              @input="handleActualAmountInput"
+              @keydown.enter.prevent="submitActualAmount"
+            />
+            <span
+              class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted"
+            >
+              원
+            </span>
+          </div>
+          <p
+            v-if="actualAmountError"
+            id="purchase-actual-amount-error"
+            class="mt-0.5 px-0.5 text-xs font-medium text-danger"
+            role="alert"
+          >
+            {{ actualAmountError }}
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="grid grid-cols-2 gap-2">
+          <Button
+            class="w-full"
+            variant="outline"
+            :disabled="isStatusSaving"
+            @click="closeActualAmountDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            class="w-full"
+            :loading="isStatusSaving"
+            @click="submitActualAmount"
+          >
+            실제 결제금액 등록
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
+    <BaseDrawer
+      :is-open="isPlanItemRegisterDrawerOpen"
+      title="구매 품목 등록"
+      panel-class="w-full max-w-lg"
+      body-class="space-y-4 p-6"
+      @close="closePlanItemRegisterDrawer"
+    >
+      <div class="space-y-4">
+        <div class="rounded-xl border border-border bg-surface-secondary px-4 py-3">
+          <p class="text-sm font-bold text-text-main">
+            {{ planItemRegisterTarget?.itemName ?? "비표준 품목" }}
+          </p>
+          <p class="mt-1 text-xs font-semibold text-text-muted">
+            {{ planItemRegisterAssetType === "INTANGIBLE" ? "무형자산" : "유형자산" }}
+            · 자산 등록 전 품목 정보를 먼저 등록합니다.
+          </p>
+        </div>
+
+        <div class="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-left">
+          <p class="text-xs font-semibold text-text-muted">자산 유형</p>
+          <p class="mt-1 text-sm font-bold text-text-main">
+            {{ planItemRegisterAssetType === "INTANGIBLE" ? "무형자산" : "유형자산" }}
+          </p>
+        </div>
+
+        <div class="space-y-2 text-left">
+          <label
+            for="purchase-plan-item-category"
+            class="block px-0.5 text-sm font-semibold text-text-main"
+          >
+            카테고리 <span class="text-primary">*</span>
+          </label>
+          <Dropdown
+            id="purchase-plan-item-category"
+            :model-value="planItemRegisterForm.categoryId"
+            :options="planItemRegisterCategoryOptions"
+            :disabled="isPlanItemRegistering"
+            root-option="카테고리 선택"
+            category-select-mode="leaf-only"
+            @update:model-value="(value) => planItemRegisterForm.categoryId = String(value)"
+          />
+        </div>
+
+        <template v-if="planItemRegisterAssetType === 'INTANGIBLE'">
+          <Input
+            id="purchase-plan-item-provider"
+            v-model="planItemRegisterForm.provider"
+            label="제공사"
+            required
+            placeholder="예: Microsoft"
+            :disabled="isPlanItemRegistering"
+          />
+          <div class="space-y-2 text-left">
+            <label
+              for="purchase-plan-item-license-type"
+              class="block px-0.5 text-sm font-semibold text-text-main"
+            >
+              라이선스 유형 <span class="text-primary">*</span>
+            </label>
+            <Dropdown
+              id="purchase-plan-item-license-type"
+              :model-value="planItemRegisterForm.licenseType"
+              :options="LICENSE_TYPE_OPTIONS"
+              :disabled="isPlanItemRegistering"
+              @update:model-value="(value) => planItemRegisterForm.licenseType = String(value) as 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <Input
+            id="purchase-plan-item-manufacturer"
+            v-model="planItemRegisterForm.manufacturer"
+            label="제조사"
+            required
+            placeholder="예: Samsung"
+            :disabled="isPlanItemRegistering"
+          />
+          <Input
+            id="purchase-plan-item-model-name"
+            v-model="planItemRegisterForm.modelName"
+            label="모델명"
+            required
+            placeholder="예: NT960XGK"
+            :disabled="isPlanItemRegistering"
+          />
+        </template>
+
+        <p v-if="planItemRegisterError" class="text-xs font-semibold text-danger">
+          {{ planItemRegisterError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="grid grid-cols-2 gap-2">
+          <Button
+            class="w-full"
+            variant="outline"
+            :disabled="isPlanItemRegistering"
+            @click="closePlanItemRegisterDrawer"
+          >
+            취소
+          </Button>
+          <Button
+            class="w-full"
+            :loading="isPlanItemRegistering"
+            @click="submitPlanItemRegister"
+          >
+            품목 등록
+          </Button>
+        </div>
+      </template>
+    </BaseDrawer>
+
     <PurchaseAssetRegisterDrawer
       :is-open="isAssetRegisterDrawerOpen"
       :plan="selectedPlan"
@@ -828,6 +1003,7 @@
 import {
   ArrowLeft,
   Box as BoxIcon,
+  Check,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -842,7 +1018,7 @@ import {
   ShoppingCart,
   Trash2,
 } from "lucide-vue-next";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -862,20 +1038,22 @@ import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
-import { useAuthStore } from "@/stores";
 import type {
   AssetType,
   Department,
   DropdownOption,
   IntangibleCategoryGroup,
+  IntangibleItem,
   Member,
   PurchasePlanCandidateTicket,
   PurchasePlanCreateItem,
   PurchasePlanDetail,
   PurchasePlanItem,
+  PurchasePlanItemRegisterRequest,
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
+  TangibleAssetItem,
   TangibleCategoryGroup,
 } from "@/types";
 
@@ -888,6 +1066,8 @@ interface EligibleTicket {
   quantity: number;
   estimatedUnitPrice: number;
   assetItemId: string | null;
+  tangibleAssetItemId: string | null;
+  intangibleAssetItemId: string | null;
   isStandard: boolean;
   canCreate: boolean;
   disabledReason: string;
@@ -895,6 +1075,7 @@ interface EligibleTicket {
 
 interface DirectPlanItem {
   localId: string;
+  assetItemId: string;
   itemName: string;
   categoryName: string;
   assetType: AssetType;
@@ -917,13 +1098,31 @@ interface PlanRequestItem {
 }
 
 interface DirectItemForm {
-  itemName: string;
+  assetItemId: string;
+  categoryId: string;
   categoryName: string;
   assetType: AssetType;
   quantity: string;
   estimatedUnitPrice: string;
   externalUrl: string;
 }
+
+interface PlanItemRegisterForm {
+  assetType: AssetType;
+  categoryId: string;
+  manufacturer: string;
+  modelName: string;
+  provider: string;
+  licenseType: "SUBSCRIPTION" | "PERPETUAL" | "TERM";
+}
+
+type StandardPurchaseItem = {
+  assetItemId: string;
+  itemName: string;
+  categoryName: string;
+  assetType: AssetType;
+  estimatedUnitPrice: number | null;
+};
 
 interface FooterStatusAction {
   key?: string;
@@ -943,6 +1142,12 @@ const PAGE_SIZE_OPTIONS: DropdownOption[] = [
 const ASSET_TYPE_OPTIONS: DropdownOption[] = [
   { label: "유형자산", value: "TANGIBLE" },
   { label: "무형자산", value: "INTANGIBLE" },
+];
+
+const LICENSE_TYPE_OPTIONS: DropdownOption[] = [
+  { label: "구독형", value: "SUBSCRIPTION" },
+  { label: "영구", value: "PERPETUAL" },
+  { label: "기간형", value: "TERM" },
 ];
 
 const STATUS_FILTER_OPTIONS: DropdownOption[] = [
@@ -999,7 +1204,7 @@ const columns: Column<PurchasePlanListItem>[] = [
 ];
 
 const planItemColumns: Column<PurchasePlanItem>[] = [
-  { key: "category", label: "분류", width: "11%", align: "center" },
+  { key: "categoryName", label: "카테고리", width: "11%", align: "center" },
   { key: "itemName", label: "품목명", width: "20%", align: "center" },
   {
     key: "ticketRequesterName",
@@ -1043,7 +1248,6 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
 };
 
 const { hasRole } = usePermission();
-const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const canChangeStatus = computed(() =>
@@ -1079,19 +1283,38 @@ const nextStatus = ref<PurchasePlanStatus | "">("");
 const isStatusSaving = ref(false);
 const pendingReviewStatus = ref<PurchasePlanStatus | null>(null);
 const isConfirmingItem = ref<number | string | null>(null);
+const isActualAmountDrawerOpen = ref(false);
+const actualAmountInput = ref("");
+const actualAmountError = ref("");
+const isPlanItemRegisterDrawerOpen = ref(false);
+const planItemRegisterTarget = ref<PurchasePlanItem | null>(null);
+const isPlanItemRegistering = ref(false);
+const planItemRegisterError = ref("");
+const registeredPlanItemIds = ref<Set<string>>(new Set());
+const planItemRegisterForm = ref<PlanItemRegisterForm>({
+  assetType: "TANGIBLE",
+  categoryId: "",
+  manufacturer: "",
+  modelName: "",
+  provider: "",
+  licenseType: "SUBSCRIPTION",
+});
 
 const isCreateDrawerOpen = ref(false);
 const eligibleTickets = ref<EligibleTicket[]>([]);
 const selectedTicketIds = ref<string[]>([]);
 const directPlanItems = ref<DirectPlanItem[]>([]);
 const directItemForm = ref<DirectItemForm>({
-  itemName: "",
+  assetItemId: "",
+  categoryId: "",
   categoryName: "",
   assetType: "TANGIBLE",
   quantity: "1",
   estimatedUnitPrice: "",
   externalUrl: "",
 });
+const standardPurchaseItems = ref<StandardPurchaseItem[]>([]);
+const isStandardItemLoading = ref(false);
 const directItemError = ref("");
 const isEligibleLoading = ref(false);
 const eligibleError = ref("");
@@ -1105,24 +1328,51 @@ const requesterOptions = computed<DropdownOption[]>(() => [
   })),
 ]);
 
-const tangibleCategoryOptions = computed(() =>
-  categoryGroupsToOptions(tangibleCategoryGroups.value),
+const planItemRegisterAssetType = computed<AssetType>(() =>
+  resolvePurchaseItemAssetType(planItemRegisterTarget.value)
+    ?? planItemRegisterForm.value.assetType,
 );
 
-const intangibleCategoryOptions = computed(() =>
-  categoryGroupsToOptions(intangibleCategoryGroups.value),
+const planItemRegisterCategoryOptions = computed(() => [
+  ...(planItemRegisterAssetType.value === "INTANGIBLE"
+    ? intangibleCategoryGroups.value
+    : tangibleCategoryGroups.value),
+]);
+
+const directCategoryOptions = computed(() =>
+  directItemForm.value.assetType === "INTANGIBLE"
+    ? intangibleCategoryGroups.value
+    : tangibleCategoryGroups.value,
 );
-
-const directCategoryOptions = computed<DropdownOption[]>(() => {
-  const categories =
-    directItemForm.value.assetType === "INTANGIBLE"
-      ? intangibleCategoryOptions.value
-      : tangibleCategoryOptions.value;
-
-  return [{ label: "분류 선택", value: "" }, ...categories];
-});
 
 const isDirectCategoryDisabled = computed(() => isCreatingPlan.value);
+
+const selectedStandardPurchaseItem = computed(
+  () =>
+    standardPurchaseItems.value.find(
+      (item) => item.assetItemId === directItemForm.value.assetItemId,
+    ) ?? null,
+);
+
+const standardPurchaseItemOptions = computed<DropdownOption[]>(() => [
+  {
+    label: isStandardItemLoading.value
+      ? "표준 품목 불러오는 중"
+      : "표준 품목 선택",
+    value: "",
+  },
+  ...standardPurchaseItems.value.map((item) => ({
+    label: item.itemName,
+    value: item.assetItemId,
+  })),
+]);
+
+const isStandardPurchaseItemDisabled = computed(
+  () =>
+    isCreatingPlan.value ||
+    isStandardItemLoading.value ||
+    !directItemForm.value.categoryId,
+);
 
 const formattedDirectEstimatedUnitPrice = computed(() =>
   formatNumberInput(directItemForm.value.estimatedUnitPrice),
@@ -1157,7 +1407,7 @@ const statCards = computed(() => [
 
 const selectedEligibleTickets = computed(() =>
   eligibleTickets.value.filter((item) =>
-    selectedTicketIds.value.includes(item.ticket.ticketId),
+    selectedTicketIds.value.includes(item.ticketId),
   ),
 );
 
@@ -1174,7 +1424,7 @@ const planRequestItems = computed<PlanRequestItem[]>(() => [
       quantity: item.quantity,
       estimatedUnitPrice: item.estimatedUnitPrice,
       estimatedAmount: item.estimatedUnitPrice * item.quantity,
-      canRemove: false,
+      canRemove: true,
     })),
   ...directPlanItems.value.map((item) => ({
     id: item.localId,
@@ -1210,9 +1460,15 @@ const statusActionOptions = computed<DropdownOption[]>(() => {
   const currentStatus = displayPlanStatus(selectedPlan.value);
   const allowedNextStatuses =
     PURCHASE_PLAN_STATUS_TRANSITIONS[currentStatus] ?? [];
-  return STATUS_ALL_OPTIONS.filter((opt) =>
-    allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
-  );
+  return STATUS_ALL_OPTIONS
+    .filter((opt) =>
+      allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
+    )
+    .map((option) =>
+      currentStatus === "ORDERED" && option.value === "DELIVERED"
+        ? { ...option, label: "실제 결제금액 등록" }
+        : option,
+    );
 });
 
 const footerStatusActions = computed<FooterStatusAction[]>(() => {
@@ -1251,10 +1507,10 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   if (currentStatus === "ORDERED") {
     return [
       {
-        key: "status-delivered",
+        key: "register-actual-amount",
         action: "change-status",
         status: "DELIVERED",
-        label: "납품확인",
+        label: "실제 결제금액 등록",
         variant: "outline",
         className:
           "border-primary! bg-white! text-primary! hover:bg-primary/5!",
@@ -1305,6 +1561,40 @@ const purchasePlanTitle = computed(() => {
 
 const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
 
+const selectedPlanDeliveryDate = computed(() => {
+  if (!selectedPlan.value) return null;
+  const itemDeliveryDates = selectedPlanItems.value
+    .map((item) => item.receivedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+
+  return (
+    selectedPlan.value.receivedAt ??
+    selectedPlan.value.deliveredAt ??
+    itemDeliveryDates.at(-1) ??
+    null
+  );
+});
+
+const hasTicketLinkedPlanItem = computed(() =>
+  selectedPlanItems.value.some(
+    (item) =>
+      item.ticketId ||
+      item.ticketRequesterId ||
+      item.ticketDepartmentId,
+  ),
+);
+
+const displayPlanItemColumns = computed(() => {
+  if (hasTicketLinkedPlanItem.value) return planItemColumns;
+  return planItemColumns.filter(
+    (column) =>
+      !["ticketRequesterName", "ticketDepartmentName"].includes(
+        String(column.key),
+      ),
+  );
+});
+
 const purchasePlanInfoItems = computed(() => {
   if (!selectedPlan.value) return [];
 
@@ -1328,11 +1618,8 @@ const purchaseExecutionInfoItems = computed(() => {
     (sum, item) => sum + item.quantity,
     0,
   );
-  const deliveredCount = selectedPlanItems.value.filter(
-    (item) => item.receivedAt,
-  ).length;
   const standardCount = selectedPlanItems.value.filter(
-    (item) => item.isStandard !== false,
+    (item) => !isNonStandardPurchaseItem(item),
   ).length;
   const actualAmount =
     selectedPlan.value.actualAmount == null
@@ -1346,7 +1633,10 @@ const purchaseExecutionInfoItems = computed(() => {
     },
     { label: "실제 집행 금액", value: actualAmount },
     { label: "총 수량", value: `${totalQuantity}개` },
-    { label: "납품 확인", value: `${deliveredCount}건` },
+    {
+      label: "납품 확인일",
+      value: formatDateTime(selectedPlanDeliveryDate.value ?? ""),
+    },
     { label: "표준 품목", value: `${standardCount}건` },
     {
       label: "비표준 품목",
@@ -1397,6 +1687,28 @@ watch(
     void fetchPlanDetail(nextPlanId);
   },
   { immediate: true },
+);
+
+watch(
+  () => [directItemForm.value.assetType, directItemForm.value.categoryId],
+  () => {
+    directItemForm.value.assetItemId = "";
+    directItemForm.value.estimatedUnitPrice = "";
+    if (!isCreateDrawerOpen.value || !directItemForm.value.categoryId) {
+      standardPurchaseItems.value = [];
+      return;
+    }
+    void fetchStandardPurchaseItems();
+  },
+);
+
+watch(
+  () => directItemForm.value.assetItemId,
+  () => {
+    const item = selectedStandardPurchaseItem.value;
+    directItemForm.value.estimatedUnitPrice =
+      item?.estimatedUnitPrice == null ? "" : String(item.estimatedUnitPrice);
+  },
 );
 
 onMounted(() => {
@@ -1470,15 +1782,13 @@ async function fetchPurchaseCategoryOptions() {
   ]);
 
   if (tangibleResult.status === "fulfilled") {
-    tangibleCategoryGroups.value = tangibleResult.value.data;
+    tangibleCategoryGroups.value = normalizeCategoryGroups(tangibleResult.value.data);
   } else {
     tangibleCategoryGroups.value = [];
   }
 
   if (intangibleResult.status === "fulfilled") {
-    intangibleCategoryGroups.value = normalizeIntangibleCategoryGroups(
-      intangibleResult.value.data,
-    );
+    intangibleCategoryGroups.value = normalizeCategoryGroups(intangibleResult.value.data);
   } else {
     intangibleCategoryGroups.value = [];
   }
@@ -1486,18 +1796,10 @@ async function fetchPurchaseCategoryOptions() {
 
 async function fetchAssetRegisterReferenceData() {
   try {
-    const [departmentResult, memberResult] = await Promise.allSettled([
-      departmentApi.getList({ size: 999 }),
-      memberApi.getList({ size: 999, status: "ACTIVE" }),
-    ]);
+    const departmentResult = await departmentApi.getList({ size: 999 });
 
-    if (departmentResult.status === "fulfilled") {
-      departments.value = departmentResult.value.data.content;
-    }
-
-    if (memberResult.status === "fulfilled") {
-      members.value = memberResult.value.data.content;
-    }
+    departments.value = departmentResult.data.content;
+    members.value = [];
   } catch {
     departments.value = [];
     members.value = [];
@@ -1601,6 +1903,49 @@ async function fetchEligibleTickets() {
   }
 }
 
+async function fetchStandardPurchaseItems() {
+  const categoryId = directItemForm.value.categoryId;
+  if (!categoryId) {
+    standardPurchaseItems.value = [];
+    return;
+  }
+
+  isStandardItemLoading.value = true;
+
+  try {
+    if (directItemForm.value.assetType === "INTANGIBLE") {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 100,
+        categoryId,
+        isStandard: 1,
+      });
+      standardPurchaseItems.value = response.data.content
+        .map(toStandardIntangiblePurchaseItem)
+        .filter((item): item is StandardPurchaseItem => Boolean(item));
+      return;
+    }
+
+    const response = await tangibleItemApi.getList({
+      page: 0,
+      size: 100,
+      categoryId,
+      isStandard: 1,
+    });
+    standardPurchaseItems.value = response.data.content
+      .map(toStandardTangiblePurchaseItem)
+      .filter((item): item is StandardPurchaseItem => Boolean(item));
+  } catch (error) {
+    standardPurchaseItems.value = [];
+    directItemError.value = getErrorMessage(
+      error,
+      "표준 품목 목록을 불러오지 못했습니다.",
+    );
+  } finally {
+    isStandardItemLoading.value = false;
+  }
+}
+
 function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
   const itemName =
     ticket.itemName ||
@@ -1615,11 +1960,18 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     ticket.purchasePrice ??
     ticket.unitPrice ??
     0;
-  const assetItemId = parseAssetItemId(ticket.assetItemId);
+  const assetItemIds = resolvePurchasePlanCandidateItemIds(ticket);
   const disabledReasons: string[] = [];
+  const isStandard = isStandardPurchaseValue(ticket.isStandard);
 
   if (!ticket.assetType) disabledReasons.push("자산 유형 없음");
   if (!estimatedUnitPrice) disabledReasons.push("예상 단가 없음");
+  if (
+    isStandard &&
+    !assetItemIds.assetItemId
+  ) {
+    disabledReasons.push("자산 품목 ID 없음");
+  }
 
   return {
     ticketId: ticket.ticketId,
@@ -1629,8 +1981,10 @@ function toEligibleTicket(ticket: PurchasePlanCandidateTicket): EligibleTicket {
     assetType: ticket.assetType,
     quantity,
     estimatedUnitPrice,
-    assetItemId,
-    isStandard: ticket.isStandard !== false && ticket.isStandard !== 0,
+    assetItemId: assetItemIds.assetItemId,
+    tangibleAssetItemId: assetItemIds.tangibleAssetItemId,
+    intangibleAssetItemId: assetItemIds.intangibleAssetItemId,
+    isStandard,
     canCreate: disabledReasons.length === 0,
     disabledReason: disabledReasons.join(", "),
   };
@@ -1657,25 +2011,41 @@ function handleStatusSelect(value: string | number) {
 }
 
 function handleDirectCategoryChange(value: string | number) {
-  directItemForm.value.categoryName = String(value);
+  const categoryId = String(value);
+  directItemForm.value.categoryId = categoryId;
+  directItemForm.value.categoryName = categoryLabelById(
+    categoryId,
+    directItemForm.value.assetType === "INTANGIBLE"
+      ? intangibleCategoryGroups.value
+      : tangibleCategoryGroups.value,
+  );
 }
 
 function resetDirectItemForm() {
   directItemForm.value = {
-    itemName: "",
+    assetItemId: "",
+    categoryId: "",
     categoryName: "",
     assetType: "TANGIBLE",
     quantity: "1",
     estimatedUnitPrice: "",
     externalUrl: "",
   };
+  standardPurchaseItems.value = [];
   directItemError.value = "";
 }
 
 function handleDirectAssetTypeChange(value: string | number) {
   directItemForm.value.assetType =
     value === "INTANGIBLE" ? "INTANGIBLE" : "TANGIBLE";
+  directItemForm.value.categoryId = "";
   directItemForm.value.categoryName = "";
+  directItemForm.value.assetItemId = "";
+  standardPurchaseItems.value = [];
+}
+
+function handleDirectStandardItemChange(value: string | number) {
+  directItemForm.value.assetItemId = String(value);
 }
 
 function handleDirectEstimatedUnitPriceInput(event: Event) {
@@ -1685,13 +2055,17 @@ function handleDirectEstimatedUnitPriceInput(event: Event) {
 
 function addDirectPlanItem() {
   directItemError.value = "";
-  const itemName = directItemForm.value.itemName.trim();
-  const categoryName = directItemForm.value.categoryName.trim();
+  const selectedItem = selectedStandardPurchaseItem.value;
   const quantity = Number(directItemForm.value.quantity);
   const estimatedUnitPrice = Number(directItemForm.value.estimatedUnitPrice);
 
-  if (!itemName) {
-    directItemError.value = "품목명을 입력해주세요.";
+  if (!directItemForm.value.categoryId) {
+    directItemError.value = "카테고리를 선택해주세요.";
+    return;
+  }
+
+  if (!selectedItem) {
+    directItemError.value = "표준 품목을 선택해주세요.";
     return;
   }
 
@@ -1709,21 +2083,29 @@ function addDirectPlanItem() {
     ...directPlanItems.value,
     {
       localId: `direct-${Date.now()}-${directPlanItems.value.length}`,
-      itemName,
-      categoryName,
-      assetType: directItemForm.value.assetType,
+      assetItemId: selectedItem.assetItemId,
+      itemName: selectedItem.itemName,
+      categoryName: selectedItem.categoryName,
+      assetType: selectedItem.assetType,
       quantity,
       estimatedUnitPrice,
-      externalUrl: directItemForm.value.externalUrl.trim() || null,
+      externalUrl: null,
     },
   ];
   resetDirectItemForm();
 }
 
-function removeDirectPlanItem(localId: string) {
-  directPlanItems.value = directPlanItems.value.filter(
-    (item) => item.localId !== localId,
-  );
+function removePlanRequestItem(id: string) {
+  if (id.startsWith("ticket-")) {
+    const ticketId = id.replace("ticket-", "");
+    selectedTicketIds.value = selectedTicketIds.value.filter(
+      (tid) => tid !== ticketId,
+    );
+  } else {
+    directPlanItems.value = directPlanItems.value.filter(
+      (item) => item.localId !== id,
+    );
+  }
 }
 
 async function createPlan() {
@@ -1732,7 +2114,7 @@ async function createPlan() {
   const ticketItems: PurchasePlanCreateItem[] = selectedEligibleTickets.value
     .filter((item) => item.canCreate && item.assetType)
     .map((item) => ({
-      ticketId: item.ticket.ticketId,
+      ticketId: item.ticketId,
       productName: item.itemName,
       assetType: item.assetType!,
       assetItemId: item.assetItemId,
@@ -1745,24 +2127,13 @@ async function createPlan() {
 
   const directItems: PurchasePlanCreateItem[] = directPlanItems.value.map(
     (item) => {
-      const requester = authStore.user;
-
       return {
         ticketId: null,
         productName: item.itemName,
         assetType: item.assetType,
-        assetItemId: null,
-        categoryName: item.categoryName,
-        requesterId: requester?.memberId ?? null,
-        requesterName: requester?.name ?? null,
-        departmentId: requester?.departmentId ?? null,
-        departmentName: requester?.departmentName ?? null,
-        ticketRequesterId: requester?.memberId ?? null,
-        ticketRequesterName: requester?.name ?? null,
-        ticketDepartmentId: requester?.departmentId ?? null,
-        ticketDepartmentName: requester?.departmentName ?? null,
+        assetItemId: item.assetItemId,
         quantity: item.quantity,
-        isStandard: 0,
+        isStandard: 1,
         estimatedUnitPrice: item.estimatedUnitPrice,
         estimatedAmount: item.estimatedUnitPrice * item.quantity,
         externalUrl: item.externalUrl,
@@ -1798,6 +2169,11 @@ async function createPlan() {
 }
 
 async function reviewPlan(status: PurchasePlanStatus) {
+  if (status === "DELIVERED") {
+    openActualAmountDrawer();
+    return;
+  }
+
   pendingReviewStatus.value = status;
   await changeStatus(status);
   pendingReviewStatus.value = null;
@@ -1816,11 +2192,11 @@ async function handleFooterAction(action: FooterStatusAction) {
 
 function changeSelectedStatus() {
   if (!nextStatus.value) return;
-  changeStatus(nextStatus.value);
+  void reviewPlan(nextStatus.value);
 }
 
 async function changeStatus(status: PurchasePlanStatus) {
-  if (!selectedPlanId.value) return;
+  if (!selectedPlanId.value) return false;
   isStatusSaving.value = true;
 
   try {
@@ -1830,11 +2206,106 @@ async function changeStatus(status: PurchasePlanStatus) {
     nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
+    return true;
   } catch (error) {
     detailError.value = getErrorMessage(error, "상태 변경에 실패했습니다.");
+    return false;
   } finally {
     isStatusSaving.value = false;
   }
+}
+
+function openActualAmountDrawer() {
+  actualAmountInput.value = formatAmountInput(
+    selectedPlan.value?.actualAmount ?? selectedPlan.value?.estimatedAmount,
+  );
+  actualAmountError.value = "";
+  isActualAmountDrawerOpen.value = true;
+}
+
+function closeActualAmountDrawer() {
+  if (isStatusSaving.value) return;
+  isActualAmountDrawerOpen.value = false;
+  actualAmountError.value = "";
+}
+
+async function submitActualAmount() {
+  const actualAmount = parseAmountInput(actualAmountInput.value);
+  if (!Number.isFinite(actualAmount) || actualAmount <= 0) {
+    actualAmountError.value = "실제 결제금액을 입력해주세요.";
+    return;
+  }
+  if (!selectedPlanId.value) return;
+
+  actualAmountError.value = "";
+  pendingReviewStatus.value = "DELIVERED";
+  isStatusSaving.value = true;
+
+  try {
+    await purchaseApi.updatePurchaseResult(selectedPlanId.value, {
+      actualAmount,
+    });
+    await purchaseApi.changePlanStatus(selectedPlanId.value, {
+      status: "DELIVERED",
+    });
+    nextStatus.value = "";
+    await fetchPlanDetail(selectedPlanId.value);
+    await refreshList();
+    isActualAmountDrawerOpen.value = false;
+  } catch (error) {
+    detailError.value = getErrorMessage(
+      error,
+      "실제 결제금액 등록에 실패했습니다.",
+    );
+  } finally {
+    pendingReviewStatus.value = null;
+    isStatusSaving.value = false;
+  }
+}
+
+function handleActualAmountInput(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const cursor = target.selectionStart ?? target.value.length;
+  const digitCountBeforeCursor = target.value
+    .slice(0, cursor)
+    .replace(/[^\d]/g, "").length;
+
+  actualAmountInput.value = formatAmountInput(parseAmountInput(target.value));
+  actualAmountError.value = "";
+
+  void nextTick(() => {
+    const nextCursor = findFormattedCursorPosition(
+      actualAmountInput.value,
+      digitCountBeforeCursor,
+    );
+    target.setSelectionRange(nextCursor, nextCursor);
+  });
+}
+
+function parseAmountInput(value: string) {
+  const digits = value.replace(/[^\d]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function formatAmountInput(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("ko-KR").format(value);
+}
+
+function findFormattedCursorPosition(value: string, digitCount: number) {
+  if (digitCount <= 0) return 0;
+
+  let seenDigits = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (/\d/.test(value[index])) {
+      seenDigits += 1;
+    }
+    if (seenDigits >= digitCount) {
+      return index + 1;
+    }
+  }
+
+  return value.length;
 }
 
 async function confirmDelivery(item: PurchasePlanItem) {
@@ -1857,25 +2328,36 @@ function canConfirmDelivery(item: PurchasePlanItem) {
   if (
     !canChangeStatus.value ||
     getPurchasePlanItemId(item) == null ||
-    item.receivedAt
+    isPurchaseItemDeliverySettled(item)
   )
     return false;
   if (!selectedPlan.value) return false;
 
-  const confirmableStatuses: PurchasePlanStatus[] = ["ORDERED"];
+  const confirmableStatuses: PurchasePlanStatus[] = ["DELIVERED"];
   return confirmableStatuses.includes(displayPlanStatus(selectedPlan.value));
 }
 
 function canRegisterAssetFromItem(item: PurchasePlanItem) {
-  void item;
   if (!selectedPlan.value) return false;
-  return displayPlanStatus(selectedPlan.value) === "DELIVERED";
+  const registerableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
+  return (
+    isPurchasePlanItemReceived(item) &&
+    registerableStatuses.includes(displayPlanStatus(selectedPlan.value))
+  );
 }
 
 function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
   if (item.receivedAt) return true;
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED" || itemStatus === "ASSET_REGISTERED") return true;
   if (!selectedPlan.value) return false;
   return displayPlanStatus(selectedPlan.value) === "COMPLETED";
+}
+
+function isPurchasePlanItemReceived(item: PurchasePlanItem) {
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus) return itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED";
+  return Boolean(item.receivedAt);
 }
 
 function isConfirmingPurchaseItem(item: PurchasePlanItem) {
@@ -1928,10 +2410,198 @@ function parseAssetItemId(value: string | number | null | undefined) {
   return normalized || null;
 }
 
+function isNonStandardPurchaseItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  return !isStandardPurchaseValue(item.isStandard);
+}
+
+function isStandardPurchaseValue(value: unknown) {
+  if (value === false || value === 0) return false;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized !== "false" && normalized !== "0";
+  }
+  return true;
+}
+
+function hasMappedAssetItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Boolean(
+    parseAssetItemId(item.assetItemId)
+      ?? parseAssetItemId(item.tangibleAssetItemId)
+      ?? parseAssetItemId(item.intangibleAssetItemId)
+      ?? parseAssetItemId(item.tangibleItemId)
+      ?? parseAssetItemId(item.intangibleItemId)
+      ?? parseAssetItemId(rawItem.asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.tangible_asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.intangible_asset_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.tangible_item_id as string | number | null | undefined)
+      ?? parseAssetItemId(rawItem.intangible_item_id as string | number | null | undefined),
+  );
+}
+
+function shouldRegisterPlanItemBeforeAsset(item: PurchasePlanItem | null | undefined) {
+  return (
+    isNonStandardPurchaseItem(item) &&
+    !hasMappedAssetItem(item) &&
+    !isRegisteredPlanItem(item)
+  );
+}
+
+function isRegisteredPlanItem(item: PurchasePlanItem | null | undefined) {
+  if (!item) return false;
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus === "ITEM_REGISTERED" || itemStatus === "ASSET_REGISTERED") {
+    return true;
+  }
+  if (getPurchasePlanItemIdentityIds(item).some((itemId) => registeredPlanItemIds.value.has(itemId))) {
+    return true;
+  }
+
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Boolean(
+    rawItem.isItemRegistered
+      ?? rawItem.itemRegistered
+      ?? rawItem.is_item_registered
+      ?? rawItem.item_registered
+      ?? rawItem.registeredAt
+      ?? rawItem.registered_at,
+  );
+}
+
+function getPurchasePlanItemIdentityIds(item: PurchasePlanItem | null | undefined) {
+  if (!item) return [];
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Array.from(new Set([
+    getPurchasePlanItemId(item),
+    normalizeNullableId(rawItem.purchasePlanItemId),
+    normalizeNullableId(rawItem.purchasePlanItemDetailId),
+    normalizeNullableId(rawItem.purchaseItemId),
+    normalizeNullableId(rawItem.planItemId),
+    normalizeNullableId(rawItem.planPurchaseItemId),
+    normalizeNullableId(rawItem.itemId),
+    normalizeNullableId(rawItem.id),
+  ].filter((itemId): itemId is string => Boolean(itemId))));
+}
+
+function markRegisteredPlanItemsInSelectedPlan(registeredIds: Set<string>) {
+  selectedPlan.value?.items.forEach((item) => {
+    if (!getPurchasePlanItemIdentityIds(item).some((itemId) => registeredIds.has(itemId))) return;
+
+    const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+    item.purchasePlanItemStatus = "ITEM_REGISTERED";
+    item.itemStatus = "ITEM_REGISTERED";
+    item.status = "ITEM_REGISTERED";
+    rawItem.isItemRegistered = true;
+    rawItem.itemRegistered = true;
+  });
+}
+
+function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket) {
+  const assetItemId = parseAssetItemId(ticket.assetItemId);
+  const tangibleAssetItemId = parseAssetItemId(ticket.tangibleAssetItemId);
+  const intangibleAssetItemId = parseAssetItemId(ticket.intangibleAssetItemId);
+
+  if (ticket.assetType === "INTANGIBLE") {
+    const resolvedIntangibleItemId = intangibleAssetItemId ?? assetItemId;
+    return {
+      assetItemId: assetItemId ?? resolvedIntangibleItemId,
+      tangibleAssetItemId: null,
+      intangibleAssetItemId: resolvedIntangibleItemId,
+    };
+  }
+
+  const resolvedTangibleItemId = tangibleAssetItemId ?? assetItemId;
+  return {
+    assetItemId: assetItemId ?? resolvedTangibleItemId,
+    tangibleAssetItemId: resolvedTangibleItemId,
+    intangibleAssetItemId: null,
+  };
+}
+
+function resolvePurchaseItemAssetType(item: PurchasePlanItem | null | undefined) {
+  if (!item) return null;
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  const rawAssetType =
+    item.assetType
+    ?? rawItem.assetItemType
+    ?? rawItem.type;
+  if (rawAssetType === "TANGIBLE" || rawAssetType === "INTANGIBLE") {
+    return rawAssetType;
+  }
+  if (
+    item.intangibleItemId
+    || item.intangibleAssetItemId
+  ) return "INTANGIBLE";
+  if (
+    item.tangibleItemId
+    || item.tangibleAssetItemId
+  ) return "TANGIBLE";
+  return null;
+}
+
+function toStandardTangiblePurchaseItem(
+  item: TangibleAssetItem,
+): StandardPurchaseItem | null {
+  const assetItemId = parseAssetItemId(
+    item.assetItemId ?? item.tangibleAssetItemId ?? item.itemId,
+  );
+  if (!assetItemId) return null;
+
+  return {
+    assetItemId,
+    itemName: item.productName || item.name || "-",
+    categoryName: item.categoryName || item.category || "-",
+    assetType: "TANGIBLE",
+    estimatedUnitPrice:
+      Number.isFinite(Number(item.purchasePrice)) && Number(item.purchasePrice) > 0
+        ? Number(item.purchasePrice)
+        : null,
+  };
+}
+
+function toStandardIntangiblePurchaseItem(
+  item: IntangibleItem,
+): StandardPurchaseItem | null {
+  const assetItemId = parseAssetItemId(item.assetItemId ?? item.itemId ?? item.id);
+  if (!assetItemId) return null;
+
+  return {
+    assetItemId,
+    itemName: item.productName || "-",
+    categoryName: item.category || "-",
+    assetType: "INTANGIBLE",
+    estimatedUnitPrice: null,
+  };
+}
+
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
-  const itemId = item?.itemId ?? item?.purchasePlanItemId ?? item?.id;
+  const itemId = item?.itemId
+    ?? item?.purchasePlanItemId
+    ?? item?.purchasePlanItemDetailId
+    ?? item?.purchaseItemId
+    ?? item?.planItemId
+    ?? item?.planPurchaseItemId;
   if (itemId === null || itemId === undefined) return null;
   const normalized = String(itemId).trim();
+  return normalized || null;
+}
+
+function getPurchasePlanItemStatus(item: PurchasePlanItem | null | undefined) {
+  const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
+  const status =
+    item?.purchasePlanItemStatus
+    ?? item?.itemStatus
+    ?? rawItem?.status;
+  if (typeof status !== "string") return null;
+  const normalized = status.trim().toUpperCase();
+  return normalized || null;
+}
+
+function normalizeNullableId(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
   return normalized || null;
 }
 
@@ -1945,52 +2615,30 @@ function formatNumberInput(value: string) {
   return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function categoryGroupsToOptions(groups: unknown): DropdownOption[] {
-  return [...new Set(collectCategoryNames(groups))].map((name) => ({
-    label: name,
-    value: name,
-  }));
-}
+type PurchaseCategoryGroup = TangibleCategoryGroup | IntangibleCategoryGroup;
 
-function collectCategoryNames(value: unknown): string[] {
-  if (typeof value === "string") {
-    const name = value.trim();
-    return name ? [name] : [];
-  }
+type PurchaseCategoryTreeNode = {
+  categoryId?: string | number | null;
+  tangibleAssetCategoryId?: string | number | null;
+  intangibleAssetCategoryId?: string | number | null;
+  tangibleCategoryId?: string | number | null;
+  intangibleCategoryId?: string | number | null;
+  assetCategoryId?: string | number | null;
+  id?: string | number | null;
+  uuid?: string | number | null;
+  mainCategory?: string | null;
+  name?: string | null;
+  categoryName?: string | null;
+  children?: PurchaseCategoryTreeNode[] | null;
+  subCategories?: string[] | PurchaseCategoryTreeNode[] | null;
+  childCategories?: Record<string, string[]> | null;
+  subCategoryIds?: Record<string, string> | null;
+  childCategoryIds?: Record<string, string> | null;
+};
 
-  if (Array.isArray(value)) {
-    return value.flatMap(collectCategoryNames);
-  }
-
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-
-  const category = value as Record<string, unknown>;
-  const names = [
-    ...collectCategoryNames(category.mainCategory),
-    ...collectCategoryNames(category.name),
-    ...collectCategoryNames(category.categoryName),
-    ...collectCategoryNames(category.children),
-    ...collectCategoryNames(category.subCategories),
-  ];
-
-  if (
-    category.childCategories &&
-    typeof category.childCategories === "object"
-  ) {
-    Object.entries(category.childCategories).forEach(([name, children]) => {
-      names.push(...collectCategoryNames(name));
-      names.push(...collectCategoryNames(children));
-    });
-  }
-
-  return names;
-}
-
-function normalizeIntangibleCategoryGroups(
-  categories: IntangibleCategoryGroup[] | string[],
-): IntangibleCategoryGroup[] {
+function normalizeCategoryGroups(
+  categories: PurchaseCategoryGroup[] | PurchaseCategoryTreeNode[] | string[],
+): PurchaseCategoryGroup[] {
   if (!categories.length) return [];
 
   if (typeof categories[0] === "string") {
@@ -2000,7 +2648,104 @@ function normalizeIntangibleCategoryGroups(
     }));
   }
 
-  return categories as IntangibleCategoryGroup[];
+  return (categories as PurchaseCategoryTreeNode[])
+    .map((category) => {
+      if (
+        category.mainCategory
+        && Array.isArray(category.subCategories)
+        && category.subCategories.every((subCategory) => typeof subCategory === "string")
+      ) {
+        return {
+          categoryId: normalizeCategoryId(category),
+          mainCategory: category.mainCategory,
+          subCategories: category.subCategories,
+          childCategories: category.childCategories ?? {},
+          subCategoryIds: category.subCategoryIds ?? {},
+          childCategoryIds: category.childCategoryIds ?? {},
+        };
+      }
+
+      const mainCategory = normalizeCategoryName(category);
+      const children = normalizeCategoryChildren(category);
+      const subCategories: string[] = [];
+      const childCategories: Record<string, string[]> = {};
+      const subCategoryIds: Record<string, string> = {};
+      const childCategoryIds: Record<string, string> = {};
+
+      children.forEach((middleCategory) => {
+        const middleName = normalizeCategoryName(middleCategory);
+        if (!middleName) return;
+
+        subCategories.push(middleName);
+        subCategoryIds[middleName] = normalizeCategoryId(middleCategory);
+
+        const smallCategories = normalizeCategoryChildren(middleCategory)
+          .map((smallCategory) => {
+            const smallName = normalizeCategoryName(smallCategory);
+            if (smallName) childCategoryIds[smallName] = normalizeCategoryId(smallCategory);
+            return smallName;
+          })
+          .filter(Boolean);
+
+        if (smallCategories.length > 0) {
+          childCategories[middleName] = smallCategories;
+          subCategories.push(...smallCategories);
+        }
+      });
+
+      return {
+        categoryId: normalizeCategoryId(category),
+        mainCategory,
+        subCategories,
+        childCategories,
+        subCategoryIds,
+        childCategoryIds,
+      };
+    })
+    .filter((category) => category.mainCategory);
+}
+
+function normalizeCategoryId(category: PurchaseCategoryTreeNode) {
+  const id = category.categoryId
+    ?? category.tangibleAssetCategoryId
+    ?? category.intangibleAssetCategoryId
+    ?? category.tangibleCategoryId
+    ?? category.intangibleCategoryId
+    ?? category.assetCategoryId
+    ?? category.id
+    ?? category.uuid
+    ?? "";
+
+  return String(id);
+}
+
+function normalizeCategoryName(category: PurchaseCategoryTreeNode) {
+  return String(category.mainCategory ?? category.name ?? category.categoryName ?? "").trim();
+}
+
+function normalizeCategoryChildren(category: PurchaseCategoryTreeNode): PurchaseCategoryTreeNode[] {
+  const children = category.children ?? category.subCategories ?? [];
+  return Array.isArray(children)
+    ? children.filter((child): child is PurchaseCategoryTreeNode => typeof child === "object" && child !== null)
+    : [];
+}
+
+function categoryLabelById(categoryId: string, groups: PurchaseCategoryGroup[]) {
+  for (const group of groups) {
+    if (String(group.categoryId ?? "") === categoryId) return group.mainCategory;
+
+    for (const subCategory of group.subCategories) {
+      if (String(group.subCategoryIds?.[subCategory] ?? "") === categoryId) {
+        return subCategory;
+      }
+    }
+
+    for (const [smallCategory, smallCategoryId] of Object.entries(group.childCategoryIds ?? {})) {
+      if (String(smallCategoryId) === categoryId) return smallCategory;
+    }
+  }
+
+  return "";
 }
 
 function formatCurrency(value: number) {
@@ -2064,7 +2809,115 @@ async function handlePurchaseAssetRegistered() {
   await refreshList();
 }
 
+function openPlanItemRegisterDrawer(item: PurchasePlanItem) {
+  const assetType = resolvePurchaseItemAssetType(item) ?? "TANGIBLE";
+  planItemRegisterTarget.value = item;
+  planItemRegisterError.value = "";
+  planItemRegisterForm.value = {
+    assetType,
+    categoryId: normalizeNullableId(item.categoryId) ?? "",
+    manufacturer: "",
+    modelName: "",
+    provider: "",
+    licenseType: "SUBSCRIPTION",
+  };
+  isPlanItemRegisterDrawerOpen.value = true;
+  void fetchPurchaseCategoryOptions();
+}
+
+function closePlanItemRegisterDrawer() {
+  if (isPlanItemRegistering.value) return;
+  isPlanItemRegisterDrawerOpen.value = false;
+  planItemRegisterTarget.value = null;
+  planItemRegisterError.value = "";
+}
+
+async function submitPlanItemRegister() {
+  const planId = selectedPlan.value?.planId ?? selectedPlanId.value;
+  const targetItem = planItemRegisterTarget.value;
+  const itemId = getPurchasePlanItemId(targetItem);
+  const assetType =
+    resolvePurchaseItemAssetType(targetItem) ?? planItemRegisterForm.value.assetType;
+
+  if (!planId) {
+    planItemRegisterError.value = "구매계획 ID를 확인할 수 없습니다.";
+    return;
+  }
+  if (!targetItem) {
+    planItemRegisterError.value = "등록할 구매 품목을 확인할 수 없습니다.";
+    return;
+  }
+  if (!itemId) {
+    planItemRegisterError.value =
+      "구매계획 품목 ID를 확인할 수 없습니다. 상세조회 응답에 itemId 또는 purchasePlanItemId가 필요합니다.";
+    return;
+  }
+  if (!assetType) {
+    planItemRegisterError.value = "자산 유형을 선택해주세요.";
+    return;
+  }
+  if (!planItemRegisterForm.value.categoryId) {
+    planItemRegisterError.value = "카테고리를 선택해주세요.";
+    return;
+  }
+  const manufacturer = planItemRegisterForm.value.manufacturer.trim();
+  const modelName = planItemRegisterForm.value.modelName.trim();
+  const provider = planItemRegisterForm.value.provider.trim();
+
+  if (assetType === "TANGIBLE" && (!manufacturer || !modelName)) {
+    planItemRegisterError.value = "유형자산은 제조사와 모델명을 입력해주세요.";
+    return;
+  }
+  if (assetType === "INTANGIBLE" && (!provider || !planItemRegisterForm.value.licenseType)) {
+    planItemRegisterError.value = "무형자산은 제공사와 라이선스 유형을 입력해주세요.";
+    return;
+  }
+
+  planItemRegisterError.value = "";
+  isPlanItemRegistering.value = true;
+
+  try {
+    const registerBody: PurchasePlanItemRegisterRequest = {
+      categoryId: planItemRegisterForm.value.categoryId,
+      isStandard: false,
+      ...(assetType === "TANGIBLE"
+        ? { manufacturer, modelName }
+        : {
+            provider,
+            licenseType: planItemRegisterForm.value.licenseType,
+          }),
+    };
+
+    await purchaseApi.registerPlanItem(planId, itemId, registerBody);
+
+    const nextRegisteredIds = new Set([
+      ...registeredPlanItemIds.value,
+      String(itemId),
+      ...getPurchasePlanItemIdentityIds(targetItem),
+    ]);
+    registeredPlanItemIds.value = nextRegisteredIds;
+    markRegisteredPlanItemsInSelectedPlan(nextRegisteredIds);
+    isPlanItemRegisterDrawerOpen.value = false;
+    planItemRegisterTarget.value = null;
+    await fetchPlanDetail(planId);
+    markRegisteredPlanItemsInSelectedPlan(nextRegisteredIds);
+    await refreshList();
+  } catch (error) {
+    planItemRegisterError.value = getErrorMessage(
+      error,
+      "구매계획 품목 등록에 실패했습니다.",
+    );
+  } finally {
+    isPlanItemRegistering.value = false;
+  }
+}
+
 function openAssetRegisterDrawer(item: PurchasePlanItem) {
+  if (shouldRegisterPlanItemBeforeAsset(item)) {
+    openPlanItemRegisterDrawer(item);
+    return;
+  }
+
   assetRegisterTargetItem.value = item;
   isAssetRegisterDrawerOpen.value = true;
   void fetchAssetRegisterReferenceData();

@@ -21,6 +21,7 @@ import type {
   PurchasePlanAssetRegisterRequest,
   PurchasePlanCreateRequest,
   PurchasePlanDetail,
+  PurchasePlanItemRegisterRequest,
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
@@ -1423,6 +1424,23 @@ function findPurchasePlan(planId: number) {
   return purchasePlans.find((plan) => plan.planId === planId && !plan.deletedAt)
 }
 
+function findMockCategoryName(categoryId: string) {
+  for (const group of tangibleCategoryGroups) {
+    if (group.categoryId === categoryId) return group.mainCategory
+    const subCategory = Object.entries(group.subCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0]
+    if (subCategory) return subCategory
+    const childCategory = Object.entries(group.childCategoryIds ?? {})
+      .find(([, id]) => id === categoryId)?.[0]
+    if (childCategory) return childCategory
+  }
+
+  const intangibleItem = intangibleItems.find((item) => item.categoryId === categoryId)
+  if (intangibleItem?.category) return intangibleItem.category
+
+  return categoryId
+}
+
 async function handlePurchasePlanAssetRegister(
   planId: number,
   itemId: string | null,
@@ -1440,8 +1458,12 @@ async function handlePurchasePlanAssetRegister(
     }, { status: 404 })
   }
 
+  const targetItem = itemId
+    ? plan.items.find((planItem) => String(planItem.itemId) === itemId)
+    : null
+
   if (itemId) {
-    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+    const item = targetItem
 
     if (!item) {
       return HttpResponse.json({
@@ -1483,6 +1505,9 @@ async function handlePurchasePlanAssetRegister(
   }
 
   plan.updatedAt = new Date().toISOString()
+  if (targetItem) {
+    targetItem.registeredCount = (targetItem.registeredCount ?? 0) + uniqueCodes.length
+  }
 
   return HttpResponse.json(ok({
     planId,
@@ -2626,6 +2651,40 @@ export const handlers = [
 
   http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/intangible-assets`, async ({ params, request }) => {
     return handlePurchasePlanAssetRegister(Number(params.planId), String(params.itemId), request)
+  }),
+
+  http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId`, async ({ params, request }) => {
+    const planId = Number(params.planId)
+    const itemId = String(params.itemId)
+    const plan = findPurchasePlan(planId)
+    const body = await request.json() as PurchasePlanItemRegisterRequest
+
+    if (!plan) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_NOT_FOUND',
+        message: '구매 계획을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    const item = plan.items.find((planItem) => String(planItem.itemId) === itemId)
+
+    if (!item) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'PURCHASE_PLAN_ITEM_NOT_FOUND',
+        message: '구매 계획 품목을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    item.category = findMockCategoryName(body.categoryId)
+    item.isStandard = body.isStandard
+    item.assetItemId = item.assetItemId ?? `${item.assetType === 'INTANGIBLE' ? 'int' : 'tan'}-${itemId}`
+    plan.updatedAt = new Date().toISOString()
+
+    return HttpResponse.json(ok(null, '구매 계획 품목이 등록되었습니다.'))
   }),
 
   http.post(`${API_PREFIX}/purchase-plans/:planId/items/:itemId/assets`, async ({ params, request }) => {

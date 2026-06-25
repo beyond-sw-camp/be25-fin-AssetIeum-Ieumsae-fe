@@ -43,6 +43,8 @@ export interface TicketDetail {
   status: TicketStatus
   detailStatus?: string | null
   // TODO: API 명세/백엔드 확인 필요 - 구매 계획 기능 확정 후 실제 응답 필드명에 맞춰 정리
+  linkedPurchaseId?: string | null
+  linkedPurchaseNo?: string | null
   linkedPurchasePlanId?: string | null
   purchasePlanId?: string | null
   linkedPurchasePlanNo?: string | null
@@ -172,6 +174,8 @@ export interface PurchasePlanCandidateTicket {
   quantity: number
   estimatedUnitPrice: number
   assetItemId?: string | number | null
+  tangibleAssetItemId?: string | number | null
+  intangibleAssetItemId?: string | number | null
   isStandard?: number | boolean | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
@@ -576,11 +580,29 @@ export interface TicketEvidenceUploadResponse {
 }
 
 export interface DirectPurchaseAssetAssignRequest {
-  itemId?: string
-  assetItemId?: string
   productName: string
   manufacturer: string
   modelName: string
+}
+
+export interface DirectPurchaseAssignedAsset {
+  assetId: string
+  assetCode: string
+  assignmentId: string
+  serialNumber?: string | null
+  licenseCode?: string | null
+  assigneeId: string
+  assigneeName: string
+  departmentId: string
+  departmentName: string
+}
+
+export interface DirectPurchaseRegisteredAsset {
+  assetId: string
+  assetCode: string
+  serialNumber?: string | null
+  licenseCode?: string | null
+  assignedSeatCount: number
 }
 
 export interface DirectPurchaseAssetAssignResponse {
@@ -593,12 +615,12 @@ export interface DirectPurchaseAssetAssignResponse {
   assetType?: AssetType
   itemId?: string
   itemName?: string
-  assetIds?: string[]
-  assetCodes?: string[]
-  assignmentIds?: string[]
   assetId?: string
   assetCode?: string
   assignmentId?: string
+  quantity?: number
+  assets?: DirectPurchaseAssignedAsset[]
+  registeredAssets?: DirectPurchaseRegisteredAsset[]
   actualPrice?: number
   confirmationStatus?: string
 }

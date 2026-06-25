@@ -68,8 +68,12 @@
           >
             <button
               type="button"
-              class="min-w-0 flex-1 px-4 py-2 text-left"
-              @click.stop="selectOption(getCategoryValue(group))"
+              :class="[
+                'min-w-0 flex-1 px-4 py-2 text-left',
+                isCategorySelectable(group) || isGroupSelected(group) ? '' : 'cursor-default text-text-muted',
+                !isCategorySelectable(group) && isGroupSelected(group) ? 'cursor-default' : '',
+              ]"
+              @click.stop="handlePanelGroupSelect(group)"
             >
               <span class="block truncate">{{ group.mainCategory }}</span>
             </button>
@@ -98,13 +102,17 @@
               <div
                 :class="[
                   'flex items-center text-sm hover:bg-surface-secondary transition-colors',
-                  modelValue === subCategory || isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main'
+                  isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main'
                 ]"
               >
                 <button
                   type="button"
-                  class="min-w-0 flex-1 px-3 py-2 text-left"
-                  @click.stop="selectOption(getSubCategoryValue(group, subCategory))"
+                  :class="[
+                    'min-w-0 flex-1 px-3 py-2 text-left',
+                    isSubCategorySelectable(group, subCategory) || isSubCategorySelected(group, subCategory) ? '' : 'cursor-default text-text-muted',
+                    !isSubCategorySelectable(group, subCategory) && isSubCategorySelected(group, subCategory) ? 'cursor-default' : '',
+                  ]"
+                  @click.stop="handlePanelSubCategorySelect(group, subCategory)"
                 >
                   <span class="block truncate">{{ subCategory }}</span>
                 </button>
@@ -134,7 +142,7 @@
                     type="button"
                     :class="[
                       'w-full flex items-center px-3 py-2 text-sm hover:bg-surface-secondary transition-colors',
-                      String(modelValue) === smallCategory || String(modelValue) === group.childCategoryIds?.[smallCategory] ? 'text-primary font-semibold' : 'text-text-main'
+                      isCategoryValueSelected(smallCategory) || isCategoryValueSelected(group.childCategoryIds?.[smallCategory]) ? 'text-primary font-semibold' : 'text-text-main'
                     ]"
                     @click.stop="selectOption(getSmallCategoryValue(group, smallCategory))"
                   >
@@ -156,9 +164,11 @@
             type="button"
             :class="[
               'w-full flex items-center justify-start gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors',
-              isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main'
+              isGroupSelected(group) ? 'text-primary font-semibold' : 'text-text-main',
+              isCategorySelectable(group) || isGroupSelected(group) ? '' : 'cursor-default text-text-muted',
+              !isCategorySelectable(group) && isGroupSelected(group) ? 'cursor-default' : '',
             ]"
-            @click.stop="selectOption(getCategoryValue(group))"
+            @click.stop="handlePanelGroupSelect(group)"
           >
             <span class="truncate">{{ group.mainCategory }}</span>
           </button>
@@ -181,9 +191,11 @@
                 type="button"
                 :class="[
                   'w-full flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-surface-secondary transition-colors whitespace-nowrap',
-                  modelValue === subCategory || isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main'
+                  isSubCategorySelected(group, subCategory) ? 'text-primary font-semibold' : 'text-text-main',
+                  isSubCategorySelectable(group, subCategory) || isSubCategorySelected(group, subCategory) ? '' : 'cursor-default text-text-muted',
+                  !isSubCategorySelectable(group, subCategory) && isSubCategorySelected(group, subCategory) ? 'cursor-default' : '',
                 ]"
-                @click.stop="selectOption(getSubCategoryValue(group, subCategory))"
+                @click.stop="handleSubCategorySelect(group, subCategory)"
               >
                 <span class="truncate">{{ subCategory }}</span>
               </button>
@@ -200,7 +212,7 @@
                   :key="smallCategory"
                   :class="[
                     'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer truncate',
-                    String(modelValue) === smallCategory || String(modelValue) === group.childCategoryIds?.[smallCategory] ? 'text-primary font-semibold' : 'text-text-main'
+                    isCategoryValueSelected(smallCategory) || isCategoryValueSelected(group.childCategoryIds?.[smallCategory]) ? 'text-primary font-semibold' : 'text-text-main'
                   ]"
                   @click="selectOption(getSmallCategoryValue(group, smallCategory))"
                 >
@@ -222,12 +234,12 @@ import { ChevronDown } from 'lucide-vue-next'
 import type { DropdownOption } from '@/types'
 
 interface CategoryGroup {
-  categoryId?: string
+  categoryId?: string | number
   mainCategory: string
   subCategories: string[]
   childCategories?: Record<string, string[]>
-  subCategoryIds?: Record<string, string>
-  childCategoryIds?: Record<string, string>
+  subCategoryIds?: Record<string, string | number>
+  childCategoryIds?: Record<string, string | number>
 }
 
 type DropdownOptionSource = string | DropdownOption | CategoryGroup
@@ -241,6 +253,8 @@ interface Props {
   menuDirection?: 'up' | 'down'
   menuStrategy?: 'absolute' | 'fixed'
   submenuDirection?: 'left' | 'right'
+  categorySelectMode?: 'all' | 'leaf-only'
+  categoryValueMode?: 'id' | 'label'
   disabled?: boolean
 }
 
@@ -251,6 +265,8 @@ const props = withDefaults(defineProps<Props>(), {
   menuDirection: 'down',
   menuStrategy: 'absolute',
   submenuDirection: 'right',
+  categorySelectMode: 'all',
+  categoryValueMode: 'id',
   disabled: false,
 })
 
@@ -353,6 +369,14 @@ const selectedTextClass = computed(() => {
     : 'text-text-main'
 })
 
+const categoryValueText = (value: string | number | undefined | null) => (
+  value === undefined || value === null ? '' : String(value)
+)
+
+const isCategoryValueSelected = (value: string | number | undefined | null) => (
+  categoryValueText(props.modelValue) === categoryValueText(value)
+)
+
 const isPlaceholderRootOption = computed(() => {
   const rootOption = props.rootOption.trim()
   if (!rootOption) return false
@@ -361,12 +385,11 @@ const isPlaceholderRootOption = computed(() => {
 })
 
 const isGroupSelected = (group: CategoryGroup) => {
-  const selectedValue = String(props.modelValue)
-  return selectedValue === group.mainCategory
-    || selectedValue === group.categoryId
-    || group.subCategories.includes(selectedValue)
-    || Object.values(group.subCategoryIds ?? {}).includes(selectedValue)
-    || Object.values(group.childCategoryIds ?? {}).includes(selectedValue)
+  return isCategoryValueSelected(group.mainCategory)
+    || isCategoryValueSelected(group.categoryId)
+    || group.subCategories.some(isCategoryValueSelected)
+    || Object.values(group.subCategoryIds ?? {}).some(isCategoryValueSelected)
+    || Object.values(group.childCategoryIds ?? {}).some(isCategoryValueSelected)
 }
 
 const getSmallCategorySet = (group: CategoryGroup) => (
@@ -386,44 +409,60 @@ const hasSmallCategories = (group: CategoryGroup) => (
   Object.values(group.childCategories ?? {}).some((categories) => categories.length > 0)
 )
 
+const usesLeafOnlyCategorySelect = computed(() => props.categorySelectMode === 'leaf-only')
+
+const isCategorySelectable = (group: CategoryGroup) => (
+  !usesLeafOnlyCategorySelect.value
+  || getMiddleCategories(group).length === 0
+)
+
+const isSubCategorySelectable = (group: CategoryGroup, subCategory: string) => (
+  !usesLeafOnlyCategorySelect.value
+  || getSmallCategories(group, subCategory).length === 0
+)
+
 const isSubCategorySelected = (group: CategoryGroup, subCategory: string) => {
-  const selectedValue = String(props.modelValue)
-  return selectedValue === subCategory
-    || selectedValue === group.subCategoryIds?.[subCategory]
-    || getSmallCategories(group, subCategory).includes(selectedValue)
+  return isCategoryValueSelected(subCategory)
+    || isCategoryValueSelected(group.subCategoryIds?.[subCategory])
+    || getSmallCategories(group, subCategory).some(isCategoryValueSelected)
     || getSmallCategories(group, subCategory).some((smallCategory) => (
-      selectedValue === group.childCategoryIds?.[smallCategory]
+      isCategoryValueSelected(group.childCategoryIds?.[smallCategory])
     ))
 }
 
 const getCategoryValue = (group: CategoryGroup) => (
-  group.categoryId ?? group.mainCategory
+  props.categoryValueMode === 'label'
+    ? group.mainCategory
+    : group.categoryId ?? group.mainCategory
 )
 
 const getSubCategoryValue = (group: CategoryGroup, subCategory: string) => (
-  group.subCategoryIds?.[subCategory] ?? subCategory
+  props.categoryValueMode === 'label'
+    ? subCategory
+    : group.subCategoryIds?.[subCategory] ?? subCategory
 )
 
 const getSmallCategoryValue = (group: CategoryGroup, smallCategory: string) => (
-  group.childCategoryIds?.[smallCategory] ?? smallCategory
+  props.categoryValueMode === 'label'
+    ? smallCategory
+    : group.childCategoryIds?.[smallCategory] ?? smallCategory
 )
 
 const getSelectedCategoryLabel = () => {
-  const selectedValue = String(props.modelValue)
   if (isSimpleOptions.value) return ''
 
   for (const group of categoryOptions.value) {
-    if (selectedValue === group.mainCategory || selectedValue === group.categoryId) {
+    if (isCategoryValueSelected(group.mainCategory) || isCategoryValueSelected(group.categoryId)) {
       return group.mainCategory
     }
 
     for (const subCategory of getMiddleCategories(group)) {
-      if (selectedValue === subCategory || selectedValue === group.subCategoryIds?.[subCategory]) {
+      if (isCategoryValueSelected(subCategory) || isCategoryValueSelected(group.subCategoryIds?.[subCategory])) {
         return subCategory
       }
 
       for (const smallCategory of getSmallCategories(group, subCategory)) {
-        if (selectedValue === smallCategory || selectedValue === group.childCategoryIds?.[smallCategory]) {
+        if (isCategoryValueSelected(smallCategory) || isCategoryValueSelected(group.childCategoryIds?.[smallCategory])) {
           return smallCategory
         }
       }
@@ -503,6 +542,30 @@ const togglePanelGroup = (groupName: string) => {
 
 const togglePanelSubCategory = (subCategory: string) => {
   activeSubCategory.value = activeSubCategory.value === subCategory ? null : subCategory
+}
+
+const handlePanelGroupSelect = (group: CategoryGroup) => {
+  if (!isCategorySelectable(group)) {
+    togglePanelGroup(group.mainCategory)
+    return
+  }
+
+  selectOption(getCategoryValue(group))
+}
+
+const handlePanelSubCategorySelect = (group: CategoryGroup, subCategory: string) => {
+  if (!isSubCategorySelectable(group, subCategory)) {
+    activeGroup.value = group.mainCategory
+    togglePanelSubCategory(subCategory)
+    return
+  }
+
+  selectOption(getSubCategoryValue(group, subCategory))
+}
+
+const handleSubCategorySelect = (group: CategoryGroup, subCategory: string) => {
+  if (!isSubCategorySelectable(group, subCategory)) return
+  selectOption(getSubCategoryValue(group, subCategory))
 }
 
 const isPanelGroupExpanded = (group: CategoryGroup) => (

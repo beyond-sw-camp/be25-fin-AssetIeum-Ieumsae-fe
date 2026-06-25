@@ -16,6 +16,8 @@ export interface PurchasePlanCreateItem {
   productName: string
   assetType: AssetType
   assetItemId?: string | null
+  tangibleAssetItemId?: string | null
+  intangibleAssetItemId?: string | null
   categoryName?: string
   requesterId?: number | string | null
   requesterName?: string | null
@@ -61,6 +63,8 @@ export interface PurchasePlanListItem {
   itemSummary?: string | null
 }
 
+export type PurchasePlanSearchResponse = PurchasePlanListItem
+
 export interface PurchasePlanStatistics {
   totalCount: number
   approvalWaitingCount: number
@@ -79,33 +83,77 @@ export interface PurchasePlanListFilter {
 export interface PurchasePlanItem {
   itemId?: number | string
   purchasePlanItemId?: number | string
+  purchasePlanItemDetailId?: number | string
   purchaseItemId?: number | string
   planItemId?: number | string
   purchaseRequestItemId?: number | string
+  purchasePlanId?: number | string
+  purchaseId?: number | string
+  planPurchaseItemId?: number | string
+  purchasePlanItemNo?: number | string
+  itemNo?: number | string
   id?: number | string
+  purchasePlanItemStatus?: string | null
+  itemStatus?: string | null
+  status?: string | null
   assetItemId?: number | string | null
   tangibleItemId?: number | string | null
   intangibleItemId?: number | string | null
+  tangibleAssetItemId?: number | string | null
+  intangibleAssetItemId?: number | string | null
   category: string
+  categoryId?: number | string | null
+  categoryName?: string | null
   itemName: string
   productName?: string | null
   name?: string | null
   quantity: number
   estimatedUnitPrice: number
   totalAmount: number
-  assetType?: AssetType
+  registeredCount?: number | null
+  registeredAssetCount?: number | null
+  assetRegisteredCount?: number | null
+  registeredQuantity?: number | null
+  registeredAssetQuantity?: number | null
+  assetType?: AssetType | null
   isStandard?: boolean
   ticketId?: number | string | null
+  ticket?: {
+    ticketRequesterId?: number | string | null
+    ticketRequesterName?: string | null
+    ticketDepartmentId?: number | string | null
+    ticketDepartmentName?: string | null
+    ticketTargetMemberIds?: (number | string | null)[]
+  } | null
   ticketRequesterId?: number | string | null
   ticketRequesterName?: string | null
   requesterId?: number | string | null
   requesterName?: string | null
+  assignmentTargetMemberIds?: (number | string | null)[]
+  assigneeIds?: (number | string | null)[]
+  assignmentTargets?: {
+    targetId?: number | string | null
+    memberId?: number | string | null
+    assigneeId?: number | string | null
+    targetMemberId?: number | string | null
+    name?: string | null
+    memberName?: string | null
+    assigneeName?: string | null
+    departmentId?: number | string | null
+    departmentName?: string | null
+  }[]
   ticketDepartmentId?: number | string | null
+  requestDepartmentId?: number | string | null
   ticketDepartmentName?: string | null
+  requestDepartmentName?: string | null
   departmentId?: number | string | null
   departmentName?: string | null
   receivedAt?: string | null
+  actualAmount?: number | null
+  actualUnitPrice?: number | null
 }
+
+export type PurchasePlanItemDetailResponse = PurchasePlanItem
 
 export interface PurchasePlanDetail {
   planId: number | string
@@ -117,6 +165,8 @@ export interface PurchasePlanDetail {
   deletedAt?: string | null
   estimatedAmount: number
   actualAmount: number | null
+  receivedAt?: string | null
+  deliveredAt?: string | null
   requesterId?: number | string | null
   requesterName?: string | null
   items: PurchasePlanItem[]
@@ -126,12 +176,25 @@ export interface PurchasePlanStatusChangeRequest {
   status: PurchasePlanStatus
 }
 
+export interface PurchasePlanPurchaseResultRequest {
+  actualAmount: number
+}
+
+export interface PurchasePlanItemRegisterRequest {
+  categoryId: string
+  manufacturer?: string
+  modelName?: string
+  provider?: string
+  licenseType?: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
+  isStandard: boolean
+}
+
 /** 구매 계획 자산 등록 요청 - 유형자산 */
 export interface PurchasePlanTangibleAssetRegisterRequest {
-  usageType: 'TEMPORARY' | 'PERMANENT'
-  assetUsageType: 'PERSONAL' | 'DEPARTMENT' | string
+  usageType?: 'TEMPORARY' | 'PERMANENT'
+  assetUsageType?: 'PERSONAL' | 'DEPARTMENT' | string
   serialNumbers: string[]
-  memberIds: (string | null)[]
+  memberIds?: (string | null)[]
   location: string
   purchaseDate: string
   purchasePrice: number
@@ -144,14 +207,13 @@ export interface PurchasePlanTangibleAssetRegisterRequest {
 
 /** 구매 계획 자산 등록 요청 - 무형자산 */
 export interface PurchasePlanIntangibleAssetRegisterRequest {
-  licenseCodes: string[]
-  memberIds: string[][]
+  licenseCodes?: string[]
+  memberIds?: string[][]
   purchaseDate: string
   purchasePrice: number
   purchaseVendor: string
-  licenseType: 'SUBSCRIPTION' | 'PERPETUAL' | 'TERM'
   seatCount: number
-  isAutoRenewal: boolean
+  isAutoRenewal: boolean | 0 | 1
   billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
   startedAt?: string | null
   expiredAt?: string | null
