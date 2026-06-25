@@ -2370,14 +2370,14 @@ function canRegisterAssetFromItem(item: PurchasePlanItem) {
 function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
   if (item.receivedAt) return true;
   const itemStatus = getPurchasePlanItemStatus(item);
-  if (itemStatus === "RECEIVED" || itemStatus === "ASSET_REGISTERED") return true;
+  if (itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED" || itemStatus === "ASSET_REGISTERED") return true;
   if (!selectedPlan.value) return false;
   return displayPlanStatus(selectedPlan.value) === "COMPLETED";
 }
 
 function isPurchasePlanItemReceived(item: PurchasePlanItem) {
   const itemStatus = getPurchasePlanItemStatus(item);
-  if (itemStatus) return itemStatus === "RECEIVED";
+  if (itemStatus) return itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED";
   return Boolean(item.receivedAt);
 }
 
@@ -2470,6 +2470,10 @@ function shouldRegisterPlanItemBeforeAsset(item: PurchasePlanItem | null | undef
 
 function isRegisteredPlanItem(item: PurchasePlanItem | null | undefined) {
   if (!item) return false;
+  const itemStatus = getPurchasePlanItemStatus(item);
+  if (itemStatus === "ITEM_REGISTERED" || itemStatus === "ASSET_REGISTERED") {
+    return true;
+  }
   if (getPurchasePlanItemIdentityIds(item).some((itemId) => registeredPlanItemIds.value.has(itemId))) {
     return true;
   }
@@ -2514,6 +2518,9 @@ function markRegisteredPlanItemsInSelectedPlan(registeredIds: Set<string>) {
     if (!getPurchasePlanItemIdentityIds(item).some((itemId) => registeredIds.has(itemId))) return;
 
     const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+    item.purchasePlanItemStatus = "ITEM_REGISTERED";
+    item.itemStatus = "ITEM_REGISTERED";
+    item.status = "ITEM_REGISTERED";
     rawItem.isItemRegistered = true;
     rawItem.itemRegistered = true;
   });
