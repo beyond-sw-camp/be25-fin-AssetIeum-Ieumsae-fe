@@ -10,7 +10,12 @@
         class="shrink-0"
       />
 
-      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background p-4 transition-colors duration-300">
+      <main
+        :class="[
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background p-4 transition-colors duration-300',
+          usesContainedPageScroll ? 'overflow-y-hidden' : 'overflow-y-auto',
+        ]"
+      >
         <RouterView />
       </main>
     </div>
@@ -19,6 +24,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   BarChart3,
   Building2,
@@ -41,6 +47,7 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
+const route = useRoute()
 const permission = usePermission()
 const {
   canManageCompany,
@@ -60,10 +67,16 @@ const canViewOperationReports = computed(() =>
   permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
 )
 
+const usesContainedPageScroll = computed(() => (
+  route.path === '/tickets'
+  || route.path.startsWith('/tickets/')
+))
+
 const navItems = computed(() => {
   if (canManagePlatform.value) {
     return [
       { name: 'system-companies', to: '/system/companies', label: '회사 관리', icon: Building, show: true },
+      { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: true },
     ]
   }
 
@@ -125,7 +138,7 @@ const navItems = computed(() => {
         { name: 'activity-logs', to: '/activity', label: '활동로그', show: canViewLogs.value },
       ],
     },
-    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: canManageCompany.value },
+    { name: 'settings', to: '/settings', label: '설정', icon: SettingsIcon, show: true },
   ]
 
   return menuConfig
