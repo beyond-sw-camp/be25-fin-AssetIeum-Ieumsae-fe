@@ -61,6 +61,9 @@ const createInspectionApi = (basePath: string) => ({
   create: (body: InspectionCreateRequest) =>
     api.post<InspectionResponse>(basePath, toInspectionCreateBody(body)),
 
+  close: (inspectionId: string | number) =>
+    api.patch<InspectionResponse>(`${basePath}/${inspectionId}/close`, {}),
+
   createResponse: (targetId: string | number, body: InspectionResponseCreateRequest) =>
     api.post<InspectionResponseCreateResponse>(
       `/inspections/targets/${targetId}/result`,

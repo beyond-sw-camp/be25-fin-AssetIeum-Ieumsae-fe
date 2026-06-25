@@ -42,12 +42,12 @@
           이동 부서
           <span class="text-primary">*</span>
         </label>
-        <Dropdown
-          id="hr-event-target-department"
+        <DepartmentTreeSelect
           v-model="form.targetDepartmentId"
-          :options="targetDepartmentOptions"
-          root-option="이동할 부서를 선택하세요"
-          menu-strategy="fixed"
+          :departments="departments ?? []"
+          placeholder="이동할 부서를 선택하세요"
+          :expand-all-on-open="false"
+          keep-open-on-parent-select
         />
       </div>
 
@@ -154,6 +154,7 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import { intangibleAssetApi, tangibleAssetApi } from '@/api/asset.api'
 import Button from '@/components/common/Button.vue'
+import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import type { Department, DropdownOption, IntangibleAsset, Member, TangibleAsset } from '@/types'
@@ -233,11 +234,6 @@ const eventTypeOptions = computed<DropdownOption[]>(() => (
 ))
 
 const selectedMember = computed(() => props.members.find((member) => member.memberId === form.memberId))
-const targetDepartmentOptions = computed<DropdownOption[]>(() => (
-  (props.departments ?? [])
-    .filter((department) => department.departmentId !== selectedMember.value?.departmentId)
-    .map((department) => ({ label: department.name, value: department.departmentId }))
-))
 const requiresAssetTargets = computed(() => (
   form.eventType === 'OFFBOARDING' || form.eventType === 'DEPARTMENT_TRANSFER'
 ))
@@ -264,7 +260,10 @@ const isCreateReady = computed(() => Boolean(
   && form.eventType
   && form.eventDate
   && (form.eventType !== 'ONBOARDING' || Boolean(props.template?.items?.length))
-  && (form.eventType !== 'DEPARTMENT_TRANSFER' || form.targetDepartmentId)
+  && (form.eventType !== 'DEPARTMENT_TRANSFER' || (
+    form.targetDepartmentId
+    && form.targetDepartmentId !== selectedMember.value?.departmentId
+  ))
   && (!requiresAssetTargets.value || (
     assetTargets.value.some((target) => target.isSelected)
     && assetTargets.value.filter((target) => target.isSelected).every((target) => target.assetId)
