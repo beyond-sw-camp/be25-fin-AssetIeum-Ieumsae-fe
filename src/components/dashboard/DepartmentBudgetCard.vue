@@ -1,26 +1,27 @@
 <template>
   <div class="rounded-xl border border-border bg-surface p-6 shadow-sm">
-    <h2 class="mb-8 text-xl font-bold text-text-main">부서별 예산 현황</h2>
+    <div class="mb-5">
+      <h2 class="text-base font-bold text-text-main">부서별 예산 현황</h2>
+      <p class="mt-1 text-xs text-text-sub">부서별 가용 예산과 집행 대기, 실제 사용 금액을 확인합니다.</p>
+    </div>
 
     <div class="mb-7 rounded-xl border border-border bg-surface p-4">
-      <div class="mb-6 text-sm font-bold text-text-main">전사 예산 총괄</div>
+      <div class="text-sm font-bold text-text-main">전사 예산 총괄</div>
 
-      <div class="mb-4 flex flex-col gap-2 items-end lg:flex-row lg:justify-between">
-        <div class="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-semibold text-text-sub">
-          <div class="flex gap-4 text-xs font-semibold text-text-sub">
-            <span class="inline-flex items-center gap-1.5">
-              <span class="h-2.5 w-2.5 rounded-full bg-slate-100 ring-1 ring-border dark:bg-slate-600"></span>
-              전체 예산 
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="h-2.5 w-2.5 rounded-full bg-primary-trans"></span>
-              집행 대기 
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="h-2.5 w-2.5 rounded-full bg-primary"></span>
-              실제 사용 
-            </span>
-          </div>
+      <div class="mb-4 flex flex-col gap-2 items-end">
+        <div class="flex gap-4 text-xs font-semibold text-text-sub">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-slate-100 ring-1 ring-border dark:bg-slate-600"></span>
+            전체 예산 
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-primary-trans"></span>
+            집행 대기 
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-primary"></span>
+            실제 사용 
+          </span>
         </div>
       </div>
 
@@ -114,7 +115,7 @@ const budgetColumns: Column<BudgetRow>[] = [
   { key: 'held', label: '집행 대기', width: '17%', align: 'center' },
   { key: 'used', label: '실제 사용', width: '17%', align: 'center' },
   { key: 'limit', label: '총 예산', width: '17%', align: 'center' },
-  { key: 'percent', label: 'Progress', width: '14%', align: 'center' },
+  { key: 'percent', label: '가용률', width: '14%', align: 'center' },
 ]
 
 const props = defineProps<{

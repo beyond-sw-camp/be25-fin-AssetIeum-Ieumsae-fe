@@ -6,7 +6,10 @@
     ]"
     @click="interactive && emit('click')"
   >
-    <h2 class="mb-5 text-base font-bold text-text-main">부서 예산 현황</h2>
+    <div class="mb-5">
+      <h2 class="text-base font-bold text-text-main">부서 예산 현황</h2>
+      <p class="mt-1 text-xs text-text-sub">소속 부서의 예산 사용 금액과 잔여 예산을 확인합니다.</p>
+    </div>
 
     <div class="grid gap-15 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="flex justify-center">
