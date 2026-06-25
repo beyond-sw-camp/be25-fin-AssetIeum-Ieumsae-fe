@@ -1,6 +1,6 @@
 <template>
-  <div class="flex min-h-full flex-col">
-    <div class="flex-1 space-y-6 p-6 pb-8">
+  <div class="flex h-full min-h-0 flex-col">
+    <div class="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 pb-8">
       <div class="grid grid-cols-3 gap-2 rounded-lg bg-surface-secondary p-1">
         <button
           v-for="option in modeOptions"
@@ -159,7 +159,7 @@
       </p>
     </div>
 
-    <div class="sticky bottom-0 z-10 flex gap-2 border-t border-border bg-surface px-6 py-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
+    <div class="flex shrink-0 gap-2 border-t border-border bg-surface px-6 py-4 shadow-[0_-8px_20px_rgba(15,23,42,0.08)]">
       <Button variant="outline" class="flex-1" :disabled="isSubmitting" @click="resetForm">
         초기화
       </Button>

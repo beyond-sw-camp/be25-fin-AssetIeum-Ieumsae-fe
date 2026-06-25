@@ -10,7 +10,12 @@
         class="shrink-0"
       />
 
-      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background p-4 transition-colors duration-300">
+      <main
+        :class="[
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background p-4 transition-colors duration-300',
+          usesContainedPageScroll ? 'overflow-y-hidden' : 'overflow-y-auto',
+        ]"
+      >
         <RouterView />
       </main>
     </div>
@@ -19,6 +24,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   BarChart3,
   Building2,
@@ -41,6 +47,7 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
 
 const collapsed = ref(false)
+const route = useRoute()
 const permission = usePermission()
 const {
   canManageCompany,
@@ -59,6 +66,11 @@ const {
 const canViewOperationReports = computed(() =>
   permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
 )
+
+const usesContainedPageScroll = computed(() => (
+  route.path === '/tickets'
+  || route.path.startsWith('/tickets/')
+))
 
 const navItems = computed(() => {
   if (canManagePlatform.value) {
