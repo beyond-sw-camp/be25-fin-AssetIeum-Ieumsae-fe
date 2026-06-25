@@ -78,7 +78,7 @@
                   :model-value="tangibleForm.usageType"
                   :options="TANGIBLE_USAGE_TYPE_OPTIONS"
                   :disabled="isSubmitting"
-                  @update:model-value="(value) => tangibleForm.usageType = String(value)"
+                  @update:model-value="handleTangibleUsageTypeChange"
                 />
               </div>
               <div class="space-y-2">
@@ -103,7 +103,7 @@
                 v-model="tangibleForm.returnDueDate"
                 type="date"
                 label="반납 예정일"
-                :disabled="isSubmitting"
+                :disabled="isSubmitting || isPermanentTangibleUsage"
               />
             </template>
 
@@ -485,6 +485,7 @@ const defaultPurchasePrice = computed(() => {
 })
 const rowsToSubmit = computed(() => assetRows.value.filter((row) => row.status !== 'success'))
 const canSubmit = computed(() => Boolean(props.item) && rowsToSubmit.value.length > 0 && !isSubmitting.value)
+const isPermanentTangibleUsage = computed(() => tangibleForm.usageType === 'PERMANENT')
 const submitButtonText = computed(() => (
   isSubmitting.value ? '등록 중' : `${rowsToSubmit.value.length}개 자산 등록`
 ))
@@ -554,6 +555,12 @@ watch(intangibleSeatCount, (seatCount) => {
   })
 })
 
+watch(() => tangibleForm.usageType, (usageType) => {
+  if (usageType === 'PERMANENT') {
+    tangibleForm.returnDueDate = ''
+  }
+})
+
 function resetForm() {
   errorMessage.value = ''
   const purchaseDate = toDateInputValue(deliveryConfirmedAt.value)
@@ -578,6 +585,13 @@ function resetForm() {
 
   assetRows.value = createRows(purchaseQuantity.value)
   applyDefaultAssignments()
+}
+
+function handleTangibleUsageTypeChange(value: string | number) {
+  tangibleForm.usageType = String(value)
+  if (tangibleForm.usageType === 'PERMANENT') {
+    tangibleForm.returnDueDate = ''
+  }
 }
 
 async function fetchDepartmentAssignableMembers(departmentId: string | null) {
@@ -879,7 +893,11 @@ async function submitPurchasePlanAssets(
       assetUsageType: tangibleForm.assetUsageType,
       departmentId: toNullableStringId(requestDepartmentId.value),
       usedStartedAt: tangibleForm.usedStartedAt ? toLocalDateTime(tangibleForm.usedStartedAt) : null,
-      returnDueDate: tangibleForm.returnDueDate ? toLocalDateTime(tangibleForm.returnDueDate) : null,
+      returnDueDate: isPermanentTangibleUsage.value
+        ? null
+        : tangibleForm.returnDueDate
+          ? toLocalDateTime(tangibleForm.returnDueDate)
+          : null,
     } satisfies PurchasePlanTangibleAssetRegisterRequest
   } else {
     const { licenseCodes, memberIds } = toIntangibleAssetRowsPayload(rowsToSubmit.value)

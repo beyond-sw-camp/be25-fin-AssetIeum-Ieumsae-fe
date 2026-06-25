@@ -2470,8 +2470,9 @@ function shouldRegisterPlanItemBeforeAsset(item: PurchasePlanItem | null | undef
 
 function isRegisteredPlanItem(item: PurchasePlanItem | null | undefined) {
   if (!item) return false;
-  const itemId = getPurchasePlanItemId(item);
-  if (itemId && registeredPlanItemIds.value.has(itemId)) return true;
+  if (getPurchasePlanItemIdentityIds(item).some((itemId) => registeredPlanItemIds.value.has(itemId))) {
+    return true;
+  }
 
   const rawItem = item as PurchasePlanItem & Record<string, unknown>;
   return Boolean(
@@ -2482,6 +2483,40 @@ function isRegisteredPlanItem(item: PurchasePlanItem | null | undefined) {
       ?? rawItem.registeredAt
       ?? rawItem.registered_at,
   );
+}
+
+function getPurchasePlanItemIdentityIds(item: PurchasePlanItem | null | undefined) {
+  if (!item) return [];
+  const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+  return Array.from(new Set([
+    getPurchasePlanItemId(item),
+    normalizeNullableId(rawItem.purchasePlanItemId),
+    normalizeNullableId(rawItem.purchasePlanItemDetailId),
+    normalizeNullableId(rawItem.purchasePlanItemDetailID),
+    normalizeNullableId(rawItem.purchase_plan_item_detail_id),
+    normalizeNullableId(rawItem.purchasePlanItemDetail_id),
+    normalizeNullableId(rawItem.purchasePlanItemID),
+    normalizeNullableId(rawItem.purchase_plan_item_id),
+    normalizeNullableId(rawItem.purchasePlanItem_id),
+    normalizeNullableId(rawItem.purchaseItemId),
+    normalizeNullableId(rawItem.purchase_item_id),
+    normalizeNullableId(rawItem.planItemId),
+    normalizeNullableId(rawItem.plan_item_id),
+    normalizeNullableId(rawItem.planPurchaseItemId),
+    normalizeNullableId(rawItem.plan_purchase_item_id),
+    normalizeNullableId(rawItem.itemId),
+    normalizeNullableId(rawItem.id),
+  ].filter((itemId): itemId is string => Boolean(itemId))));
+}
+
+function markRegisteredPlanItemsInSelectedPlan(registeredIds: Set<string>) {
+  selectedPlan.value?.items.forEach((item) => {
+    if (!getPurchasePlanItemIdentityIds(item).some((itemId) => registeredIds.has(itemId))) return;
+
+    const rawItem = item as PurchasePlanItem & Record<string, unknown>;
+    rawItem.isItemRegistered = true;
+    rawItem.itemRegistered = true;
+  });
 }
 
 function resolvePurchasePlanCandidateItemIds(ticket: PurchasePlanCandidateTicket) {
@@ -2875,10 +2910,17 @@ async function submitPlanItemRegister() {
 
     await purchaseApi.registerPlanItem(planId, itemId, registerBody);
 
-    registeredPlanItemIds.value = new Set([...registeredPlanItemIds.value, String(itemId)]);
+    const nextRegisteredIds = new Set([
+      ...registeredPlanItemIds.value,
+      String(itemId),
+      ...getPurchasePlanItemIdentityIds(targetItem),
+    ]);
+    registeredPlanItemIds.value = nextRegisteredIds;
+    markRegisteredPlanItemsInSelectedPlan(nextRegisteredIds);
     isPlanItemRegisterDrawerOpen.value = false;
     planItemRegisterTarget.value = null;
     await fetchPlanDetail(planId);
+    markRegisteredPlanItemsInSelectedPlan(nextRegisteredIds);
     await refreshList();
   } catch (error) {
     planItemRegisterError.value = getErrorMessage(
