@@ -1,6 +1,6 @@
 <template>
   <VChart
-    class="h-80 w-full"
+    class="h-full min-h-72 w-full"
     :option="chartOption"
     autoresize
   />

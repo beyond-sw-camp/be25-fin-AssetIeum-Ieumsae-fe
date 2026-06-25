@@ -17,38 +17,14 @@
         class="rounded-lg border border-border bg-surface p-8 text-center shadow-sm"
       >
         <ShieldAlert :size="32" class="mx-auto mb-3 text-danger" />
-        <p class="text-base font-semibold text-text-main">운영 리포트 조회 권한이 없습니다.</p>
-        <p class="mt-1 text-sm text-text-sub">구매자산팀과 구매자산관리자만 접근할 수 있습니다.</p>
+        <p class="text-lg font-semibold text-text-main">운영 리포트 조회 권한이 없습니다.</p>
+        <p class="mt-1 text-base text-text-sub">구매자산팀과 구매자산관리자만 접근할 수 있습니다.</p>
       </div>
 
       <template v-else>
-        <section class="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
-          <div class="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-            <label class="block">
-              <span class="mb-2 block text-sm font-semibold text-text-main">시작일</span>
-              <input
-                v-model="filters.startDate"
-                type="date"
-                class="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label class="block">
-              <span class="mb-2 block text-sm font-semibold text-text-main">종료일</span>
-              <input
-                v-model="filters.endDate"
-                type="date"
-                class="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <Button :loading="isRefreshing" @click="refreshAll">
-              조회
-            </Button>
-          </div>
-        </section>
-
         <div
           v-if="loadError"
-          class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger"
+          class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-base font-semibold text-danger"
         >
           {{ loadError }}
         </div>
@@ -57,8 +33,8 @@
           v-if="summaryTiles.length > 0 || departmentChartItems.length > 0"
           class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm"
         >
-          <div class="grid gap-6 xl:grid-cols-[22rem_1fr]">
-            <div v-if="summaryTiles.length > 0" class="grid content-start gap-4">
+          <div class="grid items-stretch gap-5 xl:grid-cols-[21rem_minmax(0,1fr)]">
+            <div v-if="summaryTiles.length > 0" class="grid h-full gap-3">
               <SummaryTile
                 v-for="tile in summaryTiles"
                 :key="tile.label"
@@ -68,12 +44,13 @@
               />
             </div>
 
-            <div v-if="departmentChartItems.length > 0" class="min-h-80 rounded-lg border border-border bg-surface p-4">
+            <div v-if="departmentChartItems.length > 0" class="flex min-h-80 flex-col rounded-lg border border-border bg-surface p-4">
               <div class="mb-2 flex items-center justify-between">
-                <h2 class="text-sm font-bold text-text-main">부서별 미반납 현황</h2>
-                <span class="text-xs font-semibold text-text-sub">상위 {{ departmentChartItems.length }}개 부서</span>
+                <h2 class="text-base font-bold text-text-main">부서별 미반납 현황</h2>
+                <span class="text-sm font-semibold text-text-sub">상위 {{ departmentChartItems.length }}개 부서</span>
               </div>
               <GroupedBarChart
+                class="min-h-0 flex-1"
                 :items="departmentChartItems"
                 primary-label="미반납 자산 수"
                 secondary-label="반납 지연 건수"
@@ -82,7 +59,7 @@
           </div>
         </section>
 
-        <NumberedReportSection v-if="userRows.length > 0" number="1" title="사용자별 반복 지연 분석">
+        <NumberedReportSection v-if="userRows.length > 0" title="사용자별 반복 지연 분석">
           <template #description>
             같은 사용자가 반복적으로 반납을 지연시키는 현황을 조회합니다.
           </template>
@@ -96,55 +73,87 @@
           />
         </NumberedReportSection>
 
-        <NumberedReportSection v-if="recoveryMetricCards.length > 0" number="2" title="자산 회수 프로세스 분석">
-          <template #description>
-            회수 요청 생성, 회수 완료, 평균 회수 소요 기간, 회수 지연 기간을 조회합니다.
-          </template>
-
-          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              v-for="metric in recoveryMetricCards"
-              :key="metric.label"
-              :tone="metric.tone"
-              :label="metric.label"
-              :badge="metric.badge"
-              :value="metric.value"
-              :caption="metric.caption"
-            />
-          </div>
-        </NumberedReportSection>
-
-        <NumberedReportSection v-if="purchaseMetricCards.length > 0 || purchaseRows.length > 0" number="3" title="자산 구매 분석">
-          <template #description>
-            신규 구매 수량과 부서별 구매 요청, 승인, 완료, 누적 구매 수량을 조회합니다.
-          </template>
-
-          <div class="grid gap-4 xl:grid-cols-[16rem_1fr_24rem]">
-            <MetricCard
-              v-for="metric in purchaseMetricCards"
-              :key="metric.label"
-              :tone="metric.tone"
-              :label="metric.label"
-              :badge="metric.badge"
-              :value="metric.value"
-              :caption="metric.caption"
-            />
-
-            <Table
-              v-if="purchaseRows.length > 0"
-              :columns="purchaseColumns"
-              :rows="purchaseRows"
-              :loading="purchaseLoading"
-              row-key="departmentId"
-              empty-text="부서별 구매 요청 데이터가 없습니다."
-            />
-
-            <div v-if="purchaseQuantityChartItems.length > 0" class="rounded-lg border border-border bg-surface p-4 shadow-sm">
-              <h3 class="mb-3 text-sm font-bold text-text-main">부서별 누적 구매 수량</h3>
-              <HorizontalBarChart :items="purchaseQuantityChartItems" unit="개" />
+        <section class="mt-5 space-y-5">
+          <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+            <div class="mb-4">
+              <h2 class="text-base font-extrabold text-text-main">기간별 운영 분석</h2>
+              <p class="mt-1 text-sm font-semibold text-text-sub">
+                선택한 기간은 회수 프로세스 분석과 자산 구매 분석에만 적용됩니다.
+              </p>
+            </div>
+            <div class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+              <Input
+                id="operation-report-start-date"
+                v-model="filters.startDate"
+                type="date"
+                label="시작일"
+                placeholder="시작일 선택"
+              />
+              <Input
+                id="operation-report-end-date"
+                v-model="filters.endDate"
+                type="date"
+                label="종료일"
+                placeholder="종료일 선택"
+              />
+              <Button :loading="datedReportsLoading" @click="refreshDatedReports">
+                기간 조회
+              </Button>
             </div>
           </div>
-        </NumberedReportSection>
+
+          <NumberedReportSection v-if="recoveryMetricCards.length > 0" title="자산 회수 프로세스 분석">
+            <template #description>
+              회수 요청 생성, 회수 완료, 평균 회수 소요 기간, 회수 지연 기간을 조회합니다.
+            </template>
+
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                v-for="metric in recoveryMetricCards"
+                :key="metric.label"
+                :tone="metric.tone"
+                :label="metric.label"
+                :badge="metric.badge"
+                :value="metric.value"
+                :caption="metric.caption"
+                :change-rate="metric.changeRate"
+              />
+            </div>
+          </NumberedReportSection>
+
+          <NumberedReportSection v-if="purchaseMetricCards.length > 0 || purchaseRows.length > 0" title="자산 구매 분석">
+            <template #description>
+              신규 구매 수량과 부서별 구매 요청, 승인, 완료, 누적 구매 수량을 조회합니다.
+            </template>
+
+            <div class="grid gap-5 xl:grid-cols-[16rem_minmax(0,1fr)_24rem]">
+              <MetricCard
+                v-for="metric in purchaseMetricCards"
+                :key="metric.label"
+                :tone="metric.tone"
+                :label="metric.label"
+                :badge="metric.badge"
+                :value="metric.value"
+                :caption="metric.caption"
+                :change-rate="metric.changeRate"
+              />
+
+              <Table
+                v-if="purchaseRows.length > 0"
+                :columns="purchaseColumns"
+                :rows="purchaseRows"
+                :loading="purchaseLoading"
+                row-key="departmentId"
+                empty-text="부서별 구매 요청 데이터가 없습니다."
+              />
+
+              <div v-if="purchaseQuantityChartItems.length > 0" class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+                <h3 class="mb-3 text-base font-bold text-text-main">부서별 누적 구매 수량</h3>
+                <HorizontalBarChart :items="purchaseQuantityChartItems" unit="개" />
+              </div>
+            </div>
+          </NumberedReportSection>
+        </section>
       </template>
     </main>
   </div>
@@ -156,6 +165,7 @@ import { RefreshCw, ShieldAlert } from 'lucide-vue-next'
 
 import { ApiError, reportApi } from '@/api'
 import Button from '@/components/common/Button.vue'
+import Input from '@/components/common/Input.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import GroupedBarChart, { type GroupedBarItem } from '@/components/report/GroupedBarChart.vue'
 import HorizontalBarChart from '@/components/report/HorizontalBarChart.vue'
@@ -180,6 +190,7 @@ interface MetricCardModel {
   caption: string
   badge: string
   tone: MetricTone
+  changeRate?: number
 }
 
 interface SummaryTileModel {
@@ -227,6 +238,10 @@ const purchaseColumns: Column<TableRow>[] = [
 
 const isRefreshing = computed(() =>
   unreturnedLoading.value || recoveryLoading.value || purchaseLoading.value,
+)
+
+const datedReportsLoading = computed(() =>
+  recoveryLoading.value || purchaseLoading.value,
 )
 
 const summaryTiles = computed<SummaryTileModel[]>(() => {
@@ -295,33 +310,37 @@ const recoveryMetricCards = computed<MetricCardModel[]>(() => {
       hasNumber(report.returnRequestCreatedCount),
       '회수 요청 생성',
       `${formatNumber(report.returnRequestCreatedCount ?? 0)}건`,
-      formatChangeRate(report.returnRequestCreatedChangeRate),
+      '이전 기간 대비',
       '요청',
       'blue',
+      report.returnRequestCreatedChangeRate,
     ),
     createMetricCard(
       hasNumber(report.returnCompletedCount),
       '회수 완료 처리',
       `${formatNumber(report.returnCompletedCount ?? 0)}건`,
-      formatChangeRate(report.returnCompletedChangeRate),
+      '이전 기간 대비',
       '완료',
       'green',
+      report.returnCompletedChangeRate,
     ),
     createMetricCard(
       hasNumber(report.averageRecoveryDays),
       '평균 회수 소요 기간',
       formatDays(report.averageRecoveryDays ?? 0),
-      formatChangeRate(report.averageRecoveryDaysChangeRate),
+      '이전 기간 대비',
       '평균',
       'amber',
+      report.averageRecoveryDaysChangeRate,
     ),
     createMetricCard(
       hasNumber(report.totalRecoveryDelayDays),
       '회수 지연 기간 합계',
       formatDays(report.totalRecoveryDelayDays ?? 0),
-      formatChangeRate(report.totalRecoveryDelayDaysChangeRate),
+      '이전 기간 대비',
       '지연',
       'red',
+      report.totalRecoveryDelayDaysChangeRate,
     ),
   ].filter((card): card is MetricCardModel => card !== null)
 })
@@ -337,9 +356,10 @@ const purchaseMetricCards = computed<MetricCardModel[]>(() => {
   return [{
     label: '신규 구매 수량',
     value: `${formatNumber(report.newPurchaseQuantity)}개`,
-    caption: formatChangeRate(report.newPurchaseQuantityChangeRate),
+    caption: '이전 기간 대비',
     badge: '신규',
     tone: 'purple',
+    changeRate: report.newPurchaseQuantityChangeRate,
   }]
 })
 
@@ -371,6 +391,17 @@ async function refreshAll() {
   loadError.value = ''
   await Promise.all([
     loadUnreturnedReport(),
+    loadRecoveryReport(),
+    loadPurchaseReport(),
+  ])
+}
+
+async function refreshDatedReports() {
+  if (!canViewOperationReports.value) return
+  if (!isValidDateRange()) return
+
+  loadError.value = ''
+  await Promise.all([
     loadRecoveryReport(),
     loadPurchaseReport(),
   ])
@@ -425,8 +456,8 @@ function getDateFilterParams() {
   if (!filters.startDate || !filters.endDate) return {}
 
   return {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
+    startDate: toStartDateTime(filters.startDate),
+    endDate: toEndDateTime(filters.endDate),
   }
 }
 
@@ -451,6 +482,7 @@ function createMetricCard(
   caption: string,
   badge: string,
   tone: MetricTone,
+  changeRate?: number,
 ) {
   if (!shouldShow) return null
 
@@ -460,11 +492,20 @@ function createMetricCard(
     caption,
     badge,
     tone,
+    changeRate,
   }
 }
 
 function hasNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function toStartDateTime(value: string) {
+  return `${value}T00:00:00`
+}
+
+function toEndDateTime(value: string) {
+  return `${value}T23:59:59`
 }
 
 function formatNumber(value: number) {
@@ -475,13 +516,6 @@ function formatRate(value: number) {
   return `${new Intl.NumberFormat('ko-KR', {
     maximumFractionDigits: 1,
   }).format(value)}%`
-}
-
-function formatChangeRate(value: number | undefined) {
-  if (!hasNumber(value)) return '이전 기간 대비 -'
-
-  const sign = value > 0 ? '+' : ''
-  return `이전 기간 대비 ${sign}${formatRate(value)}`
 }
 
 function formatDays(value: number) {
