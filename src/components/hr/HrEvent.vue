@@ -35,7 +35,7 @@
       <section class="card m-1 flex min-h-24 items-center justify-between border border-border bg-surface p-5">
         <div>
           <p class="text-xs font-semibold text-text-sub">
-            이달의 자동화 실행 완료
+            이달 완료된 이벤트
           </p>
           <p class="mt-3 text-2xl font-bold text-text-main">
             {{ completedThisMonthCount }}
@@ -100,6 +100,7 @@
           row-key="rowKey"
           :loading="isLoading"
           empty-text="등록된 HR 이벤트가 없습니다."
+          @row-click="openEventDetail"
           @sort="handleSort"
         >
           <template #cell-eventNo="{ value }">
@@ -125,29 +126,11 @@
 
           <template #cell-action="{ row }">
             <Button
-              v-if="row.status === 'IN_PROGRESS'"
-              size="sm"
-              :disabled="isActing"
-              :loading="actingEventId === row.hrEventId"
-              @click.stop="handleCompleteEvent(row)"
-            >
-              완료 처리
-            </Button>
-            <Button
-              v-else-if="row.status === 'PENDING'"
               variant="outline"
               size="sm"
-              disabled
+              @click.stop="openEventDetail(row)"
             >
-              실행 대기
-            </Button>
-            <Button
-              v-else
-              variant="outline"
-              size="sm"
-              @click.stop="handleViewTickets(row)"
-            >
-              생성된 티켓 보기
+              상세 보기
             </Button>
           </template>
 
@@ -223,17 +206,31 @@
       <HrEventRegister
         ref="registerRef"
         :members="members"
+        :departments="departments"
+        :template="template"
         :is-loading-members="isLoadingMembers"
         :is-creating="isCreating"
         :error-message="formErrorMessage"
         @submit="handleCreateEvent"
       />
     </BaseDrawer>
+
+    <HrEventDetail
+      :is-open="isDetailDrawerOpen"
+      :event="selectedEvent"
+      :targets="selectedEventTargets"
+      :is-loading="isLoadingTargets"
+      :is-completing="selectedEvent ? actingEventId === selectedEvent.hrEventId : false"
+      :error-message="detailErrorMessage"
+      @close="closeEventDetail"
+      @refresh="loadSelectedEventTargets"
+      @complete="handleSelectedEventComplete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -246,20 +243,24 @@ import {
 
 import { hrApi } from '@/api/hr.api'
 import { memberApi } from '@/api/member.api'
+import { departmentApi } from '@/api/department.api'
+import { intangibleAssetApi } from '@/api/asset.api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { useAuthStore } from '@/stores'
-import type { DropdownOption, Member, PageResponse } from '@/types'
+import type { Department, DropdownOption, Member, PageResponse } from '@/types'
 import type {
   HrEventId,
+  HrEventAssetTargetResponse,
   HrEventResponse,
   HrEventStatus,
   HrEventType,
   HrTemplateResponse,
 } from '@/types/hr'
 import HrEventRegister, { type HrEventRegisterSubmitPayload } from './HrEventRegister.vue'
+import HrEventDetail from './HrEventDetail.vue'
 
 interface HrEventRow extends Record<string, unknown> {
   rowKey: string
@@ -306,8 +307,6 @@ const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
   OFFBOARDING: '퇴사',
   DEPARTMENT_TRANSFER: '부서 이동',
-  LEAVE: '휴직',
-  RETURN: '복직',
 }
 
 const STATUS_LABEL: Record<HrEventStatus, string> = {
@@ -336,15 +335,21 @@ const eventColumns = computed<Column<HrEventRow>[]>(() => [
 
 const authStore = useAuthStore()
 const isRegisterDrawerOpen = ref(false)
+const isDetailDrawerOpen = ref(false)
 const isLoading = ref(false)
 const isLoadingMembers = ref(false)
 const isCreating = ref(false)
 const actingEventId = ref<HrEventId | null>(null)
 const errorMessage = ref('')
 const formErrorMessage = ref('')
+const detailErrorMessage = ref('')
 const events = ref<HrEventResponse[]>([])
+const selectedEvent = ref<HrEventRow | null>(null)
+const selectedEventTargets = ref<HrEventAssetTargetResponse[]>([])
+const isLoadingTargets = ref(false)
 const eventDateSortOrder = ref<EventDateSortOrder>('ASC')
 const members = ref<Member[]>([])
+const departments = ref<Department[]>([])
 const template = ref<HrTemplateResponse | null>(null)
 const pendingSummaryCount = ref(0)
 const completedThisMonthSummaryCount = ref(0)
@@ -423,7 +428,7 @@ function toEventRow(event: HrEventResponse): HrEventRow {
 
   return {
     rowKey: String(eventId),
-    hrEventId: eventId,
+    hrEventId: eventId ?? '-',
     eventNo: event.hrEventNo ?? event.eventNo ?? '-',
     targetMemberName: event.memberName ?? event.targetMemberName ?? '-',
     eventType,
@@ -470,6 +475,15 @@ async function loadEvents() {
   }
 }
 
+async function refreshSelectedEventFromList() {
+  const event = selectedEvent.value
+  if (!event) return
+
+  await loadEvents()
+  const refreshedEvent = eventRows.value.find((row) => row.hrEventId === event.hrEventId)
+  if (refreshedEvent) selectedEvent.value = refreshedEvent
+}
+
 async function loadEventSummary() {
   try {
     const [pendingResponse, completedResponse] = await Promise.all([
@@ -505,6 +519,16 @@ async function loadMembers() {
     errorMessage.value = '이벤트 대상자 목록을 불러오지 못했습니다.'
   } finally {
     isLoadingMembers.value = false
+  }
+}
+
+async function loadDepartments() {
+  try {
+    const response = await departmentApi.getList({ page: 0, size: 999 })
+    departments.value = response.data.content
+  } catch (error) {
+    console.error('HR 이벤트 부서 목록 조회 실패', error)
+    departments.value = []
   }
 }
 
@@ -672,6 +696,8 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
       memberId: getMemberId(selectedMember),
       eventType: payload.eventType,
       eventDate: toLocalDateTime(payload.eventDate),
+      targetDepartmentId: payload.targetDepartmentId,
+      assetTargets: payload.assetTargets,
     })
     handleCloseDrawer()
     await loadEvents()
@@ -684,7 +710,8 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
 }
 
 async function handleCompleteEvent(row: HrEventRow) {
-  if (isActing.value) return
+  if (row.status !== 'IN_PROGRESS' || isActing.value) return
+  if (!window.confirm('이 HR 이벤트와 모든 처리 대상을 완료할까요?')) return
 
   actingEventId.value = row.hrEventId
   errorMessage.value = ''
@@ -718,9 +745,98 @@ async function handleDeleteEvent(row: HrEventRow) {
   }
 }
 
-// TODO: 티켓 연결 필요 
-function handleViewTickets(row: HrEventRow) {
-  errorMessage.value = `${row.eventNo} 이벤트로 생성된 티켓 조회 화면은 API 명세/백엔드 확인이 필요합니다.`
+function openEventDetail(row: HrEventRow) {
+  selectedEvent.value = row
+  selectedEventTargets.value = []
+  detailErrorMessage.value = ''
+  isDetailDrawerOpen.value = true
+  void loadSelectedEventTargets()
+}
+
+function closeEventDetail() {
+  isDetailDrawerOpen.value = false
+  selectedEvent.value = null
+  selectedEventTargets.value = []
+  detailErrorMessage.value = ''
+}
+
+async function loadSelectedEventTargets() {
+  if (!selectedEvent.value) return
+
+  isLoadingTargets.value = true
+  detailErrorMessage.value = ''
+
+  try {
+    await refreshSelectedEventFromList()
+    const response = await hrApi.getEventTargets(selectedEvent.value.hrEventId)
+    selectedEventTargets.value = await enrichIntangibleTargetNames(response.data)
+  } catch (error) {
+    console.error('HR 이벤트 처리 대상 조회 실패', error)
+    selectedEventTargets.value = []
+    detailErrorMessage.value = 'HR 이벤트 자산 처리 대상을 불러오지 못했습니다.'
+  } finally {
+    isLoadingTargets.value = false
+  }
+}
+
+async function enrichIntangibleTargetNames(targets: HrEventAssetTargetResponse[]) {
+  const needsProductNames = targets.some((target) => (
+    target.assetType === 'INTANGIBLE'
+    && target.assetCode
+    && (!target.productName || target.productName === target.assetCode)
+  ))
+
+  if (!needsProductNames) return targets
+
+  try {
+    const response = await intangibleAssetApi.getList({ page: 0, size: 1000 })
+    const productNamesByAssetCode = new Map(
+      response.data.content.map((asset) => {
+        return [
+          asset.assetCode,
+          firstText(
+            recordField(asset, 'productName'),
+            asset.assetItemName,
+            recordField(asset, 'itemName'),
+          ),
+        ] as const
+      }),
+    )
+
+    return targets.map((target) => {
+      if (target.assetType !== 'INTANGIBLE' || !target.assetCode) return target
+      const productName = productNamesByAssetCode.get(target.assetCode)
+      return productName ? { ...target, productName } : target
+    })
+  } catch (error) {
+    console.error('HR 이벤트 무형자산 제품명 목록 조회 실패', error)
+    return targets
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function recordField(value: unknown, key: string) {
+  return isRecord(value) ? value[key] : undefined
+}
+
+function firstText(...values: unknown[]) {
+  return values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim()
+}
+
+async function handleSelectedEventComplete() {
+  const event = selectedEvent.value
+  if (!event) return
+
+  await handleCompleteEvent(event)
+  await loadSelectedEventTargets()
+}
+
+function handleWindowFocus() {
+  if (!isDetailDrawerOpen.value || isLoadingTargets.value) return
+  void loadSelectedEventTargets()
 }
 
 function movePage(page: number) {
@@ -787,8 +903,14 @@ function isCurrentMonth(date: Date | null) {
 }
 
 onMounted(async () => {
+  window.addEventListener('focus', handleWindowFocus)
   await loadTemplate()
+  void loadDepartments()
   void loadMembers()
   void loadEvents()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', handleWindowFocus)
 })
 </script>

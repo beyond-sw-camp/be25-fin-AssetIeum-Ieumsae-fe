@@ -106,6 +106,7 @@
           <Input
             id="keyword"
             v-model="searchParams.keyword"
+            class="w-40!"
             placeholder="제품명, 자산코드로 검색"
             autocomplete="off"
             @keyup.enter="handleSearch"
@@ -1035,7 +1036,7 @@ const loadRegisterReferenceData = async () => {
   const [itemsResult, departmentsResult, membersResult] = await Promise.allSettled([
     intangibleItemApi.getList({ page: 0, size: 999 }),
     departmentApi.getList({ size: 999 }),
-    memberApi.getList({ size: 999 }),
+    memberApi.getList({ size: 999, status: 'ACTIVE' }),
   ])
 
   if (itemsResult.status === 'fulfilled') {

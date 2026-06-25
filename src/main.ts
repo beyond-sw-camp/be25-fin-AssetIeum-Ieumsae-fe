@@ -38,14 +38,14 @@ const pinia = createPinia()
 
 function showFatalError(error: unknown) {
   const root = document.getElementById('app')
-  let rawMessage = ''
+  let rawMessage: string
   
   if (error instanceof Error) {
     rawMessage = error.stack || error.message
   } else if (typeof error === 'object' && error !== null) {
     try {
       rawMessage = JSON.stringify(error, null, 2)
-    } catch (e) {
+    } catch {
       rawMessage = String(error)
     }
   } else {

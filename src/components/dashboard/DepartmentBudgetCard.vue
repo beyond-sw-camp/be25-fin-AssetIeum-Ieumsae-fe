@@ -25,7 +25,6 @@
       :rows="budgetRows"
       row-key="department"
       empty-text="부서별 예산 정보가 없습니다."
-      @row-click="emit('select-department', $event)"
     >
       <template #cell-department="{ value }">
         <span class="font-bold text-text-main">{{ value }}</span>
@@ -79,10 +78,6 @@ defineProps<{
   totalBudgetUsed: number
   totalBudgetLimit: number
   budgetUsagePercent: number
-}>()
-
-const emit = defineEmits<{
-  'select-department': [row: BudgetRow]
 }>()
 
 const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100)

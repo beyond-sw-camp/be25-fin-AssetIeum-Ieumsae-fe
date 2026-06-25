@@ -145,7 +145,15 @@
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
                     <dd class="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-text-main">
-                      <span>{{ item.value }}</span>
+                      <span v-if="!item.linkTo">{{ item.value }}</span>
+                      <RouterLink
+                        v-if="item.linkTo"
+                        :to="item.linkTo"
+                        class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                      >
+                        <span>바로가기</span>
+                        <ChevronRight :size="12" />
+                      </RouterLink>
                       <button
                         v-if="item.actionLabel"
                         type="button"
@@ -593,6 +601,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  ChevronRight,
   PackageCheck,
   RefreshCw,
   ReceiptText,
@@ -634,6 +643,7 @@ import type {
 import {
   formatCurrency,
   formatDate,
+  getDirectPurchaseConfirmationStatusLabel,
   getTicketDetailStatusLabel,
   getTicketStatusLabel,
   getTicketTypeLabel,
@@ -841,6 +851,9 @@ const directPurchasePaymentConfirmationStatus = computed(() => (
   directPurchasePaymentResult.value?.confirmationStatus
     ?? ticket.value?.directPurchaseConfirmationStatus
     ?? null
+))
+const directPurchasePaymentConfirmationStatusLabel = computed(() => (
+  getDirectPurchaseConfirmationStatusLabel(directPurchasePaymentConfirmationStatus.value)
 ))
 const directPurchaseEvidenceFileName = computed(() => (
   ticket.value?.directPurchaseEvidenceFileName ?? ''
@@ -1061,7 +1074,7 @@ const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
     },
     {
       label: '확인 상태',
-      value: directPurchasePaymentConfirmationStatus.value ?? '-',
+      value: directPurchasePaymentConfirmationStatusLabel.value,
     },
     ...(ticket.value.assetType === 'TANGIBLE' ? [
       { label: '시리얼 번호', value: serialNumberText },
@@ -1218,7 +1231,8 @@ const linkedPurchasePlanId = computed(() => {
   const detail = ticket.value
   if (!detail) return ''
 
-  return detail.linkedPurchasePlanId
+  return detail.linkedPurchaseId
+    ?? detail.linkedPurchasePlanId
     ?? detail.purchasePlanId
     ?? ''
 })
@@ -1226,7 +1240,8 @@ const linkedPurchasePlanDisplayName = computed(() => {
   const detail = ticket.value
   if (!detail) return ''
 
-  return detail.linkedPurchasePlanNo
+  return detail.linkedPurchaseNo
+    ?? detail.linkedPurchasePlanNo
     ?? detail.purchasePlanNo
     ?? linkedPurchasePlanId.value
 })
@@ -1325,6 +1340,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
   switch (ticket.value.ticketType) {
     case 'PURCHASE_REQUEST':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1334,6 +1351,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'RENTAL':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1342,6 +1361,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'MAINTENANCE_REQUEST':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'maintenanceReason', label: '요청 내용' },
@@ -1352,6 +1373,7 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
     case 'PURCHASE_RETURN':
       return [
         { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'assetStatus', label: '자산 상태' },
@@ -1359,6 +1381,8 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
       ]
     case 'RENTAL_EXTENSION':
       return [
+        { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'previousDueDate', label: '기존 반납 예정일' },
@@ -1369,6 +1393,7 @@ const requestDetailColumns = computed<RequestDetailColumn[]>(() => {
     default:
       return [
         { key: 'assetType', label: '자산 구분' },
+        { key: 'requestedUsageType', label: '사용 구분' },
         { key: 'category', label: '자산 분류' },
         { key: 'itemName', label: '품목명' },
         { key: 'quantity', label: '수량' },
@@ -1388,6 +1413,7 @@ const requestDetailRows = computed<Array<Record<string, string>>>(() => {
 
   return [{
     assetType: assetTypeLabel(ticket.value.assetType),
+    requestedUsageType: requestedUsageTypeLabel(ticket.value.requestedUsageType),
     category: ticket.value.categoryName ?? '-',
     itemName: requestItemName(ticket.value),
     quantity: quantity === null || quantity === undefined ? '-' : String(quantity),
@@ -1425,6 +1451,7 @@ const requestDetailReason = computed<RequestDetailReason | null>(() => {
 function hasRequestDetailData(detail: TicketDetail): boolean {
   return [
     detail.assetType,
+    detail.requestedUsageType,
     detail.categoryName,
     detail.requestedItemName,
     detail.requestedItemDetail,
@@ -1460,8 +1487,6 @@ function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseA
   if (!productName || productName === '-' || !manufacturer || !modelName) return null
 
   return {
-    itemId: detail.assetItemId ?? undefined,
-    assetItemId: detail.assetItemId ?? undefined,
     productName,
     manufacturer,
     modelName,
@@ -1471,6 +1496,12 @@ function directPurchaseAssetAssignPayload(detail: TicketDetail): DirectPurchaseA
 function assetTypeLabel(assetType: AssetType | null | undefined): string {
   if (assetType === 'TANGIBLE') return '유형자산'
   if (assetType === 'INTANGIBLE') return '무형자산'
+  return '-'
+}
+
+function requestedUsageTypeLabel(usageType: TicketDetail['requestedUsageType']): string {
+  if (usageType === 'DEPARTMENT') return '공용 자산'
+  if (usageType === 'PERSONAL') return '개인 자산'
   return '-'
 }
 
@@ -2030,8 +2061,6 @@ async function handleDirectPurchaseItemRegistrationSubmit(payload: DirectPurchas
 
   try {
     await ticketApi.assignDirectPurchaseAsset(ticket.value.ticketId, {
-      itemId: payload.itemId,
-      assetItemId: payload.itemId,
       productName: payload.productName,
       manufacturer: payload.manufacturer,
       modelName: payload.modelName,

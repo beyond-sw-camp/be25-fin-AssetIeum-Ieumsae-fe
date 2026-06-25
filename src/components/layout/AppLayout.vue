@@ -10,7 +10,7 @@
         class="shrink-0"
       />
 
-      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background p-4 transition-colors duration-300">
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background p-4 transition-colors duration-300">
         <RouterView />
       </main>
     </div>
@@ -51,6 +51,7 @@ const {
   canViewHrWorkflow,
   canViewMyTickets,
   canViewInspection,
+  canViewMyInspectionFollowUps,
   canViewLogs,
   canManagePlatform,
 } = permission
@@ -92,7 +93,7 @@ const navItems = computed(() => {
       name: 'serviceDesk',
       label: '서비스 데스크',
       icon: Ticket,
-      show: canViewMyTickets.value,
+      show: canViewMyTickets.value || canManageTickets.value,
       children: [
         { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
         { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },
@@ -107,6 +108,7 @@ const navItems = computed(() => {
       children: [
         { name: 'tangible', to: '/inspections/tangible', label: '유형자산', show: canViewInspection.value },
         { name: 'intangible', to: '/inspections/intangible', label: '무형자산', show: canViewInspection.value },
+        { name: 'follow-ups', to: '/inspections/follow-ups/my', label: '내 후속처리', show: canViewMyInspectionFollowUps.value },
       ],
     },
     { name: 'purchase', to: '/purchase', label: '구매 프로세스', icon: ShoppingCart, show: canPurchase.value },

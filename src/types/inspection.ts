@@ -137,12 +137,15 @@ export interface InspectionFollowUpResponse {
   inspectionFollowUpId?: string | number
   followUpId?: string | number
   inspectionResultId?: string | number
-  actionDetail?: string
+  inspectionId?: string | number
+  inspectionTargetId?: string | number
+  actionDetail?: string | null
   productName?: string | null
   assetCode?: string | null
   responseContent?: string | null
   memberId?: string | null
   memberName?: string | null
+  processorId?: string | number | null 
   processedBy?: string | number
   processorName?: string | null
   status?: InspectionFollowUpStatus
@@ -151,6 +154,26 @@ export interface InspectionFollowUpResponse {
   processedAt?: string | null
   createdAt?: string
   updatedAt?: string
+}
+
+export interface InspectionFollowUpSearchRequest {
+  status?: InspectionFollowUpStatus
+  keyword?: string
+  page?: number
+  size?: number
+}
+
+export interface InspectionFollowUpSearchResponse {
+  inspectionFollowUpId: string
+  inspectorId: string
+  inspectorName: string
+  memberId: string | null
+  memberName: string | null
+  productName: string | null
+  assetCode: string | null
+  responseContent: string | null
+  actionDetail: string | null
+  status: InspectionFollowUpStatus
 }
 
 export interface InspectionFollowUpStatusUpdateRequest {

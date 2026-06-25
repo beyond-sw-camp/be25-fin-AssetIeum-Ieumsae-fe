@@ -154,7 +154,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { RefreshCw, ShieldAlert } from 'lucide-vue-next'
 
-import { reportApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import GroupedBarChart, { type GroupedBarItem } from '@/components/report/GroupedBarChart.vue'
@@ -163,23 +162,18 @@ import MetricCard from '@/components/report/MetricCard.vue'
 import NumberedReportSection from '@/components/report/NumberedReportSection.vue'
 import SummaryTile from '@/components/report/SummaryTile.vue'
 import { usePermission } from '@/composables'
-import { useAuthStore } from '@/stores'
 import type {
   DepartmentOverdueReportItem,
   PurchaseRequestReportItem,
   RepeatedOverdueUserReportItem,
-  ReturnRequestReportItem,
-  ReturnRequestReportResponse,
   ReturnRequestReportSummary,
 } from '@/types'
 
 type TableRow = Record<string, string | number>
 
-const authStore = useAuthStore()
 const permission = usePermission()
 
 const canViewOperationReports = computed(() => permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'))
-const companyId = computed(() => authStore.user?.companyId ?? '')
 
 const overdueLoading = ref(false)
 const usersLoading = ref(false)
@@ -200,11 +194,6 @@ const userItems = ref<RepeatedOverdueUserReportItem[]>([
   { memberName: '박◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 5, totalOverdueDays: 24, latestOverdueDate: '2026-06-12' },
   { memberName: '이◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 3, totalOverdueDays: 14, latestOverdueDate: '2026-06-03' },
   { memberName: '최◌◌', departmentName: '플랫폼개발본부', delayedReturnCount: 2, totalOverdueDays: 9, latestOverdueDate: '2026-05-28' },
-])
-const returnItems = ref<ReturnRequestReportItem[]>([
-  { departmentName: '프론트엔드팀', createdCount: 16, completedCount: 11, averageProcessingDays: 3, overdueDays: 12 },
-  { departmentName: '플랫폼개발본부', createdCount: 9, completedCount: 7, averageProcessingDays: 2, overdueDays: 5 },
-  { departmentName: '구매자산팀', createdCount: 4, completedCount: 4, averageProcessingDays: 1, overdueDays: 0 },
 ])
 const purchaseItems = ref<PurchaseRequestReportItem[]>([
   { departmentName: '프론트엔드팀', requestCount: 22, cumulativeQuantity: 41, approvedCount: 16, completedCount: 9 },
@@ -238,12 +227,6 @@ const purchaseColumns: Column<TableRow>[] = [
 const isRefreshing = computed(() =>
   overdueLoading.value || usersLoading.value || returnLoading.value || purchaseLoading.value,
 )
-
-const requestParams = computed(() => ({
-  companyId: companyId.value || undefined,
-  page: 0,
-  size: 10,
-}))
 
 const totalUnreturnedAssets = computed(() =>
   overdueItems.value.reduce((sum, item) => sum + pickNumber(item.unreturnedAssetCount, item.overdueAssetCount, item.assetCount), 0),
@@ -311,82 +294,7 @@ const purchaseQuantityChartItems = computed(() =>
   })),
 )
 
-async function loadOverdueAssets() {
-  // overdueLoading.value = true
-  // overdueError.value = ''
-  // try {
-  //   const response = await reportApi.getOverdueAssets(requestParams.value)
-  //   overdueItems.value = response.data.content
-  // } catch (error) {
-  //   overdueError.value = getErrorMessage(error)
-  // } finally {
-  //   overdueLoading.value = false
-  // }
-}
-
-async function loadRepeatedOverdueUsers() {
-  // usersLoading.value = true
-  // usersError.value = ''
-  // try {
-  //   const response = await reportApi.getRepeatedOverdueUsers({
-  //     ...requestParams.value,
-  //     minOverdueCount: 2,
-  //   })
-  //   userItems.value = response.data.content
-  // } catch (error) {
-  //   usersError.value = getErrorMessage(error)
-  // } finally {
-  //   usersLoading.value = false
-  // }
-}
-
-async function loadReturnRequests() {
-  // returnLoading.value = true
-  // returnError.value = ''
-  // try {
-  //   const response = await reportApi.getReturnRequests(requestParams.value)
-  //   const data = response.data
-  //   returnSummaryRaw.value = data.summary ?? buildSummaryFromReturnItems(data)
-  //   returnItems.value = data.content ?? data.items ?? []
-  // } catch (error) {
-  //   returnError.value = getErrorMessage(error)
-  // } finally {
-  //   returnLoading.value = false
-  // }
-}
-
-async function loadPurchaseRequests() {
-  // purchaseLoading.value = true
-  // purchaseError.value = ''
-  // try {
-  //   const response = await reportApi.getPurchaseRequests(requestParams.value)
-  //   purchaseItems.value = response.data.content
-  // } catch (error) {
-  //   purchaseError.value = getErrorMessage(error)
-  // } finally {
-  //   purchaseLoading.value = false
-  // }
-}
-
-async function refreshAll() {
-  // if (!canViewOperationReports.value) return
-  // await Promise.all([
-  //   loadOverdueAssets(),
-  //   loadRepeatedOverdueUsers(),
-  //   loadReturnRequests(),
-  //   loadPurchaseRequests(),
-  // ])
-}
-
-function buildSummaryFromReturnItems(data: ReturnRequestReportResponse): ReturnRequestReportSummary {
-  const items = data.content ?? data.items ?? []
-  return items.reduce<ReturnRequestReportSummary>((summary, item) => ({
-    createdCount: pickNumber(summary.createdCount) + pickNumber(item.createdCount, item.requestedCount),
-    completedCount: pickNumber(summary.completedCount) + pickNumber(item.completedCount),
-    averageProcessingDays: pickNumber(summary.averageProcessingDays, item.averageProcessingDays),
-    overdueDays: pickNumber(summary.overdueDays) + pickNumber(item.overdueDays),
-  }), {})
-}
+function refreshAll() {}
 
 function pickNumber(...values: Array<number | undefined>) {
   return values.find((value) => typeof value === 'number' && Number.isFinite(value)) ?? 0
@@ -402,11 +310,6 @@ function formatDays(value: number) {
 
 function shortenLabel(value: string) {
   return value.replace('개발', '').replace('본부', '').replace('팀', '팀')
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message
-  return '운영 리포트 데이터를 불러오지 못했습니다.'
 }
 
 onMounted(() => {

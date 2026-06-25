@@ -13,7 +13,16 @@
       QR을 스캔하거나 목록에서 자산을 선택해주세요.
     </div>
 
-    <label class="flex min-w-0 items-start gap-3 text-sm font-semibold text-text-main">
+    <p v-if="target?.isResponded" class="text-sm font-bold text-text-main">
+      등록한 응답
+    </p>
+
+    <div
+      v-if="loadingResponse"
+      class="h-24 animate-pulse rounded-lg bg-surface-secondary"
+    />
+
+    <label v-else class="flex min-w-0 items-start gap-3 text-sm font-semibold text-text-main">
       <input
         :checked="followUpRequests"
         type="checkbox"
@@ -22,22 +31,26 @@
         @change="emit('update:followUpRequests', ($event.target as HTMLInputElement).checked)"
       >
       <span class="min-w-0">
-        확인 필요
+        {{ target?.isResponded ? '후속 처리 요청' : '확인 필요' }}
         <span class="block text-xs font-normal text-text-sub">
-          정보가 다르거나 실제 상태가 맞지 않으면 선택해주세요.
+          {{ target?.isResponded
+            ? '응답 등록 시 요청한 후속 처리 여부입니다.'
+            : '정보가 다르거나 실제 상태가 맞지 않으면 선택해주세요.' }}
         </span>
       </span>
     </label>
 
     <textarea
+      v-if="!loadingResponse"
       :value="responseContent"
       class="min-h-24 w-full resize-none rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-surface-secondary disabled:text-text-muted"
-      placeholder="예: 현재 사용 중이며 이상 없습니다."
+      :placeholder="target?.isResponded ? '등록된 응답 내용이 없습니다.' : '예: 현재 사용 중이며 이상 없습니다.'"
       :disabled="disabled"
       @input="emit('update:responseContent', ($event.target as HTMLTextAreaElement).value)"
     />
 
     <Button
+      v-if="!target?.isResponded"
       class="w-full"
       type="submit"
       :disabled="disabled || !responseContent.trim() || submitting"
@@ -58,6 +71,7 @@ defineProps<{
   followUpRequests: boolean
   submitting?: boolean
   disabled?: boolean
+  loadingResponse?: boolean
 }>()
 
 const emit = defineEmits<{
