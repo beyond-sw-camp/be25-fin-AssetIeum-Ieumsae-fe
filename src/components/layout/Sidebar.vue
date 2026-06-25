@@ -100,7 +100,7 @@
     </aside>
 
     <button
-      class="absolute -right-4 top-10 z-50 flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-text-main shadow-md transition-colors"
+      class="absolute -right-4 top-202 z-50 flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-text-main shadow-md transition-colors"
       @click="collapsed = !collapsed"
     >
       <ChevronLeft v-if="!collapsed" :size="16" />

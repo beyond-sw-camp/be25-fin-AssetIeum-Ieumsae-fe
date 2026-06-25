@@ -15,6 +15,18 @@ export interface DepartmentBudget {
   updatedAt: string
 }
 
+export interface BudgetListItem {
+  budgetId: string
+  budgetYear: number
+  departmentId: string | null
+  departmentName: string | null
+  totalAmount: number
+  heldAmount: number
+  usedAmount: number
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface BudgetSetRequest {
   departmentId: string
   totalBudget: number

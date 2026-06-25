@@ -46,7 +46,7 @@
               </div>
               <div class="mt-2 h-2 overflow-hidden rounded-full bg-surface-secondary">
                 <div
-                  class="h-full rounded-full bg-primary"
+                  class="dashboard-bar-fill h-full rounded-full bg-primary"
                   :style="{ width: `${clampPercent(usage.percentage)}%` }"
                 />
               </div>

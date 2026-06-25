@@ -19,7 +19,7 @@
           <span class="w-10 text-right text-xs font-semibold text-text-main">{{ displayPercent(value) }}%</span>
           <div class="h-1.5 w-14 overflow-hidden rounded-full bg-surface-secondary">
             <div
-              class="h-full rounded-full bg-primary"
+              class="dashboard-bar-fill h-full rounded-full bg-primary"
               :style="{ width: `${displayPercent(value)}%` }"
             ></div>
           </div>
