@@ -1,159 +1,181 @@
 <template>
-  <section class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-    <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 pb-8">
-      <header class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p class="page-subtitle mb-1">운영 리포트</p>
-          <h1 class="page-title">자산 운영 변화 리포트</h1>
-        </div>
-        <div>
-          <Button variant="outline" :loading="isRefreshing" @click="refreshAll">
-            <RefreshCw :size="16" />
-            새로고침
-          </Button>
-        </div>
-      </header>
+  <div class="flex h-full flex-col overflow-hidden bg-background text-text-main">
+    <header class="page-header flex shrink-0 flex-col gap-3 px-3 pt-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="page-subtitle mb-1">운영 리포트</p>
+        <h1 class="page-title">자산 운영 변화 리포트</h1>
+      </div>
+      <Button variant="outline" :loading="isRefreshing" @click="refreshAll">
+        <RefreshCw :size="15" />
+        새로고침
+      </Button>
+    </header>
 
+    <main class="flex-1 overflow-y-auto px-3 pb-6">
       <div
         v-if="!canViewOperationReports"
-        class="rounded-xl border border-border bg-surface p-8 text-center shadow-sm"
+        class="rounded-lg border border-border bg-surface p-8 text-center shadow-sm"
       >
         <ShieldAlert :size="32" class="mx-auto mb-3 text-danger" />
         <p class="text-base font-semibold text-text-main">운영 리포트 조회 권한이 없습니다.</p>
-        <p class="mt-1 text-sm text-text-sub">구매자산팀과 구매자산팀장만 접근할 수 있습니다.</p>
+        <p class="mt-1 text-sm text-text-sub">구매자산팀과 구매자산관리자만 접근할 수 있습니다.</p>
       </div>
 
       <template v-else>
-        <section class="rounded-xl border border-border bg-surface p-7 shadow-sm">
-          <div class="grid gap-6 lg:grid-cols-[20rem_1fr]">
-            <div class="grid content-center gap-5">
+        <section class="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <div class="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-text-main">시작일</span>
+              <input
+                v-model="filters.startDate"
+                type="date"
+                class="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-text-main">종료일</span>
+              <input
+                v-model="filters.endDate"
+                type="date"
+                class="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-main outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </label>
+            <Button :loading="isRefreshing" @click="refreshAll">
+              조회
+            </Button>
+          </div>
+        </section>
+
+        <div
+          v-if="loadError"
+          class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger"
+        >
+          {{ loadError }}
+        </div>
+
+        <section class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm">
+          <div class="grid gap-6 xl:grid-cols-[22rem_1fr]">
+            <div class="grid content-start gap-4">
               <SummaryTile
                 label="전체 미반납 자산 수"
-                caption="전체 부서 대상"
-                :value="`${formatNumber(totalUnreturnedAssets)}건`"
+                caption="전체 부서 기준"
+                :value="`${formatNumber(unreturnedReport?.totalUnreturnedAssetCount ?? 0)}건`"
               />
               <SummaryTile
                 label="전체 반납 지연 건수"
-                caption="반납 예정일 초과 건"
-                :value="`${formatNumber(totalDelayedReturns)}건`"
+                caption="반납 예정일 초과"
+                :value="`${formatNumber(unreturnedReport?.overdueReturnCount ?? 0)}건`"
+              />
+              <SummaryTile
+                label="반복 지연 사용자"
+                :caption="`전체 사용자 대비 ${formatRate(unreturnedReport?.repeatDelayedUserRate ?? 0)}`"
+                :value="`${formatNumber(unreturnedReport?.repeatDelayedUserCount ?? 0)}명`"
               />
             </div>
 
-            <div class="min-h-80">
+            <div class="min-h-80 rounded-lg border border-border bg-surface p-4">
+              <div class="mb-2 flex items-center justify-between">
+                <h2 class="text-sm font-bold text-text-main">부서별 미반납 현황</h2>
+                <span class="text-xs font-semibold text-text-sub">상위 {{ departmentChartItems.length }}개 부서</span>
+              </div>
               <GroupedBarChart
                 :items="departmentChartItems"
                 primary-label="미반납 자산 수"
                 secondary-label="반납 지연 건수"
               />
-              <p v-if="overdueError" class="mt-2 text-xs font-semibold text-danger">{{ overdueError }}</p>
             </div>
           </div>
         </section>
 
-        <NumberedReportSection number="1" title="사용자별 반복 지연 현황">
+        <NumberedReportSection number="1" title="사용자별 반복 지연 분석">
           <template #description>
-            동일한 사용자가 상습적으로 반납을 지연시키는 사용자별 반복 지연 현황을 분석하고 목록을 조회할 수 있습니다.
+            같은 사용자가 반복적으로 반납을 지연시키는 현황을 조회합니다.
           </template>
 
-          <div class="grid gap-4 lg:grid-cols-[11rem_1fr]">
-            <MetricCard
-              tone="blue"
-              label="상습 지연 사용자 수"
-              :value="`${formatNumber(repeatedUserCount)}명`"
-              caption="전체 사용자 대비 8.5%"
-            />
-
-            <div class="rounded-lg border border-border bg-surface p-3">
-              <div class="mb-2 flex items-center justify-between">
-                <h3 class="text-sm font-bold text-text-main">상습 지연 사용자 TOP 5</h3>
-                <Button variant="outline" size="sm" disabled>엑셀 다운로드</Button>
-              </div>
-              <Table
-                :columns="userColumns"
-                :rows="userTopRows"
-                :loading="usersLoading"
-                row-key="rank"
-                empty-text="사용자별 반복 지연 데이터가 없습니다."
-              />
-              <p v-if="usersError" class="mt-2 text-xs font-semibold text-danger">{{ usersError }}</p>
-            </div>
-          </div>
+          <Table
+            :columns="userColumns"
+            :rows="userRows"
+            :loading="unreturnedLoading"
+            row-key="rank"
+            empty-text="반복 지연 사용자 데이터가 없습니다."
+          />
         </NumberedReportSection>
 
-        <NumberedReportSection number="2" title="회수 요청 및 처리 현황">
+        <NumberedReportSection number="2" title="자산 회수 프로세스 분석">
           <template #description>
-            회수 요청 생성 수, 회수 완료 처리 수, 평균 회수 소요 기간, 회수 지연 기간 현황을 조회할 수 있습니다.
+            회수 요청 생성, 회수 완료, 평균 회수 소요 기간, 회수 지연 기간을 조회합니다.
           </template>
 
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               tone="blue"
-              label="회수 요청 생성 수"
-              :value="`${formatNumber(returnSummary.created)}건`"
-              caption="전 기간 대비 ▲ 12.5%"
+              label="회수 요청 생성"
+              badge="요청"
+              :value="`${formatNumber(recoveryReport?.returnRequestCreatedCount ?? 0)}건`"
+              :caption="formatChangeRate(recoveryReport?.returnRequestCreatedChangeRate)"
             />
             <MetricCard
               tone="green"
-              label="회수 완료 처리 수"
-              :value="`${formatNumber(returnSummary.completed)}건`"
-              caption="전 기간 대비 ▲ 8.3%"
+              label="회수 완료 처리"
+              badge="완료"
+              :value="`${formatNumber(recoveryReport?.returnCompletedCount ?? 0)}건`"
+              :caption="formatChangeRate(recoveryReport?.returnCompletedChangeRate)"
             />
             <MetricCard
               tone="amber"
               label="평균 회수 소요 기간"
-              :value="formatDays(returnSummary.averageDays)"
-              caption="전 기간 대비 ▼ 0.7일"
+              badge="평균"
+              :value="formatDays(recoveryReport?.averageRecoveryDays ?? 0)"
+              :caption="formatChangeRate(recoveryReport?.averageRecoveryDaysChangeRate)"
             />
             <MetricCard
               tone="red"
-              label="회수 지연 기간 (합계)"
-              :value="formatDays(returnSummary.delayedDays)"
-              caption="전 기간 대비 ▲ 15.2%"
+              label="회수 지연 기간 합계"
+              badge="지연"
+              :value="formatDays(recoveryReport?.totalRecoveryDelayDays ?? 0)"
+              :caption="formatChangeRate(recoveryReport?.totalRecoveryDelayDaysChangeRate)"
             />
           </div>
-          <p v-if="returnError" class="mt-2 text-xs font-semibold text-danger">{{ returnError }}</p>
         </NumberedReportSection>
 
-        <NumberedReportSection number="3" title="신규 구매 및 부서별 구매 요청 현황">
+        <NumberedReportSection number="3" title="자산 구매 분석">
           <template #description>
-            특정 기간 동안 새로 구매하여 자산 시스템에 등록된 신규 구매 수량과 부서별 구매 요청 현황 및 누적 수량을 조회할 수 있습니다.
+            신규 구매 수량과 부서별 구매 요청, 승인, 완료, 누적 구매 수량을 조회합니다.
           </template>
 
-          <div class="grid gap-4 xl:grid-cols-[11rem_1fr_23rem]">
+          <div class="grid gap-4 xl:grid-cols-[16rem_1fr_24rem]">
             <MetricCard
               tone="purple"
               label="신규 구매 수량"
-              :value="`${formatNumber(totalPurchaseQuantity)}개`"
-              caption="전 기간 대비 ▲ 14.7%"
+              badge="신규"
+              :value="`${formatNumber(purchaseReport?.newPurchaseQuantity ?? 0)}개`"
+              :caption="formatChangeRate(purchaseReport?.newPurchaseQuantityChangeRate)"
             />
 
-            <div class="rounded-lg border border-border bg-surface p-3">
-              <h3 class="mb-2 text-sm font-bold text-text-main">부서별 구매 요청 현황</h3>
-              <Table
-                :columns="purchaseColumns"
-                :rows="purchaseTopRows"
-                :loading="purchaseLoading"
-                row-key="departmentName"
-                empty-text="부서별 구매 요청 데이터가 없습니다."
-              />
-            </div>
+            <Table
+              :columns="purchaseColumns"
+              :rows="purchaseRows"
+              :loading="purchaseLoading"
+              row-key="departmentId"
+              empty-text="부서별 구매 요청 데이터가 없습니다."
+            />
 
-            <div class="rounded-lg border border-border bg-surface p-4">
+            <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
               <h3 class="mb-3 text-sm font-bold text-text-main">부서별 누적 구매 수량</h3>
               <HorizontalBarChart :items="purchaseQuantityChartItems" unit="개" />
             </div>
           </div>
-          <p v-if="purchaseError" class="mt-2 text-xs font-semibold text-danger">{{ purchaseError }}</p>
         </NumberedReportSection>
       </template>
-    </div>
-  </section>
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RefreshCw, ShieldAlert } from 'lucide-vue-next'
 
+import { ApiError, reportApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import GroupedBarChart, { type GroupedBarItem } from '@/components/report/GroupedBarChart.vue'
@@ -163,153 +185,224 @@ import NumberedReportSection from '@/components/report/NumberedReportSection.vue
 import SummaryTile from '@/components/report/SummaryTile.vue'
 import { usePermission } from '@/composables'
 import type {
-  DepartmentOverdueReportItem,
-  PurchaseRequestReportItem,
-  RepeatedOverdueUserReportItem,
-  ReturnRequestReportSummary,
+  DepartmentPurchaseRequest,
+  PurchaseRequestsReport,
+  RecoveryReport,
+  TopDelayedUser,
+  UnreturnedAssetsReport,
 } from '@/types'
 
 type TableRow = Record<string, string | number>
 
-const permission = usePermission()
+const DEFAULT_TOP_USER_LIMIT = 5
+const DEFAULT_PAGE_SIZE = 10
 
+const permission = usePermission()
 const canViewOperationReports = computed(() => permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'))
 
-const overdueLoading = ref(false)
-const usersLoading = ref(false)
-const returnLoading = ref(false)
-const purchaseLoading = ref(false)
-const overdueError = ref('')
-const usersError = ref('')
-const returnError = ref('')
-const purchaseError = ref('')
-
-// TODO: API 명세 확정 후 실제 API 데이터로 교체
-const overdueItems = ref<DepartmentOverdueReportItem[]>([
-  { departmentName: '프론트엔드팀', unreturnedAssetCount: 18, delayedReturnCount: 7, totalOverdueDays: 46 },
-  { departmentName: '플랫폼개발본부', unreturnedAssetCount: 13, delayedReturnCount: 4, totalOverdueDays: 28 },
-  { departmentName: '구매자산팀', unreturnedAssetCount: 6, delayedReturnCount: 2, totalOverdueDays: 11 },
-])
-const userItems = ref<RepeatedOverdueUserReportItem[]>([
-  { memberName: '박◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 5, totalOverdueDays: 24, latestOverdueDate: '2026-06-12' },
-  { memberName: '이◌◌', departmentName: '프론트엔드팀', delayedReturnCount: 3, totalOverdueDays: 14, latestOverdueDate: '2026-06-03' },
-  { memberName: '최◌◌', departmentName: '플랫폼개발본부', delayedReturnCount: 2, totalOverdueDays: 9, latestOverdueDate: '2026-05-28' },
-])
-const purchaseItems = ref<PurchaseRequestReportItem[]>([
-  { departmentName: '프론트엔드팀', requestCount: 22, cumulativeQuantity: 41, approvedCount: 16, completedCount: 9 },
-  { departmentName: '플랫폼개발본부', requestCount: 14, cumulativeQuantity: 27, approvedCount: 10, completedCount: 7 },
-  { departmentName: '구매자산팀', requestCount: 7, cumulativeQuantity: 13, approvedCount: 5, completedCount: 4 },
-])
-const returnSummaryRaw = ref<ReturnRequestReportSummary>({
-  createdCount: 29,
-  completedCount: 22,
-  averageProcessingDays: 2,
-  overdueDays: 17,
+const filters = reactive({
+  startDate: '',
+  endDate: '',
 })
+
+const unreturnedLoading = ref(false)
+const recoveryLoading = ref(false)
+const purchaseLoading = ref(false)
+const loadError = ref('')
+
+const unreturnedReport = ref<UnreturnedAssetsReport | null>(null)
+const recoveryReport = ref<RecoveryReport | null>(null)
+const purchaseReport = ref<PurchaseRequestsReport | null>(null)
 
 const userColumns: Column<TableRow>[] = [
   { key: 'rank', label: '순위', align: 'center', width: '4rem' },
   { key: 'memberName', label: '사용자' },
   { key: 'departmentName', label: '소속 부서' },
   { key: 'delayCount', label: '지연 건수', align: 'right' },
-  { key: 'averageDays', label: '평균 지연 기간', align: 'right' },
-  { key: 'latestOverdueDate', label: '최근 지연일' },
+  { key: 'averageDelayDays', label: '평균 지연 기간', align: 'right' },
+  { key: 'recentDelayedAt', label: '최근 지연 일시' },
 ]
 
 const purchaseColumns: Column<TableRow>[] = [
   { key: 'departmentName', label: '부서' },
-  { key: 'requestCount', label: '구매 요청 수', align: 'right' },
-  { key: 'approvedCount', label: '구매 승인 수', align: 'right' },
-  { key: 'completedCount', label: '구매 완료 수', align: 'right' },
-  { key: 'quantity', label: '누적 구매 수량', align: 'right' },
+  { key: 'purchaseRequestCount', label: '구매 요청', align: 'right' },
+  { key: 'purchaseApprovedCount', label: '구매 승인', align: 'right' },
+  { key: 'purchaseCompletedCount', label: '구매 완료', align: 'right' },
+  { key: 'accumulatedPurchaseQuantity', label: '누적 수량', align: 'right' },
 ]
 
 const isRefreshing = computed(() =>
-  overdueLoading.value || usersLoading.value || returnLoading.value || purchaseLoading.value,
-)
-
-const totalUnreturnedAssets = computed(() =>
-  overdueItems.value.reduce((sum, item) => sum + pickNumber(item.unreturnedAssetCount, item.overdueAssetCount, item.assetCount), 0),
-)
-
-const totalDelayedReturns = computed(() =>
-  overdueItems.value.reduce((sum, item) => sum + pickNumber(item.delayedReturnCount, item.overdueCount), 0),
-)
-
-const repeatedUserCount = computed(() => userItems.value.length)
-
-const returnSummary = computed(() => {
-  const summary = returnSummaryRaw.value
-  return {
-    created: pickNumber(summary.createdCount, summary.requestedCount),
-    completed: pickNumber(summary.completedCount),
-    averageDays: pickNumber(summary.averageProcessingDays, summary.averageReturnDays),
-    delayedDays: pickNumber(summary.overdueDays, summary.delayedDays),
-  }
-})
-
-const totalPurchaseQuantity = computed(() =>
-  purchaseItems.value.reduce((sum, item) => sum + pickNumber(item.cumulativeQuantity, item.totalQuantity), 0),
+  unreturnedLoading.value || recoveryLoading.value || purchaseLoading.value,
 )
 
 const departmentChartItems = computed<GroupedBarItem[]>(() =>
-  overdueItems.value.slice(0, 10).map((item) => ({
-    label: shortenLabel(item.departmentName ?? item.name ?? '-'),
-    primary: pickNumber(item.unreturnedAssetCount, item.overdueAssetCount, item.assetCount),
-    secondary: pickNumber(item.delayedReturnCount, item.overdueCount),
+  (unreturnedReport.value?.departmentUnreturnedAssets ?? [])
+    .slice(0, 10)
+    .map((item) => ({
+      label: item.departmentName ?? '-',
+      primary: item.unreturnedAssetCount ?? 0,
+      secondary: item.overdueReturnCount ?? 0,
+    })),
+)
+
+const userRows = computed<TableRow[]>(() =>
+  (unreturnedReport.value?.topDelayedUsers ?? []).map((item: TopDelayedUser, index) => ({
+    rank: item.rank ?? index + 1,
+    memberName: item.memberName ?? '-',
+    departmentName: item.departmentName ?? '-',
+    delayCount: `${formatNumber(item.delayCount ?? 0)}건`,
+    averageDelayDays: formatDays(item.averageDelayDays ?? 0),
+    recentDelayedAt: formatDateTime(item.recentDelayedAt),
   })),
 )
 
-const userTopRows = computed<TableRow[]>(() =>
-  [...userItems.value]
-    .sort((a, b) => pickNumber(b.delayedReturnCount, b.overdueCount) - pickNumber(a.delayedReturnCount, a.overdueCount))
-    .slice(0, 5)
-    .map((item, index) => ({
-      rank: index + 1,
-      memberName: item.memberName ?? item.name ?? '-',
-      departmentName: item.departmentName ?? '-',
-      delayCount: `${formatNumber(pickNumber(item.delayedReturnCount, item.overdueCount))}건`,
-      averageDays: formatDays(Math.round(pickNumber(item.totalOverdueDays) / Math.max(pickNumber(item.delayedReturnCount, item.overdueCount), 1))),
-      latestOverdueDate: item.latestOverdueDate ?? '-',
-    })),
+const purchaseItems = computed<DepartmentPurchaseRequest[]>(() =>
+  purchaseReport.value?.departmentPurchaseRequests.content ?? [],
 )
 
-const purchaseTopRows = computed<TableRow[]>(() =>
-  [...purchaseItems.value]
-    .sort((a, b) => pickNumber(b.cumulativeQuantity, b.totalQuantity) - pickNumber(a.cumulativeQuantity, a.totalQuantity))
-    .slice(0, 5)
-    .map((item) => ({
-      departmentName: item.departmentName ?? item.name ?? '-',
-      requestCount: `${formatNumber(pickNumber(item.requestCount, item.purchaseRequestCount))}건`,
-      approvedCount: `${formatNumber(pickNumber(item.approvedCount))}건`,
-      completedCount: `${formatNumber(pickNumber(item.completedCount))}건`,
-      quantity: `${formatNumber(pickNumber(item.cumulativeQuantity, item.totalQuantity))}개`,
-    })),
+const purchaseRows = computed<TableRow[]>(() =>
+  purchaseItems.value.map((item, index) => ({
+    departmentId: item.departmentId ?? `department-${index}`,
+    departmentName: item.departmentName ?? '-',
+    purchaseRequestCount: `${formatNumber(item.purchaseRequestCount ?? 0)}건`,
+    purchaseApprovedCount: `${formatNumber(item.purchaseApprovedCount ?? 0)}건`,
+    purchaseCompletedCount: `${formatNumber(item.purchaseCompletedCount ?? 0)}건`,
+    accumulatedPurchaseQuantity: `${formatNumber(item.accumulatedPurchaseQuantity ?? 0)}개`,
+  })),
 )
 
 const purchaseQuantityChartItems = computed(() =>
-  purchaseTopRows.value.map((row) => ({
-    label: String(row.departmentName),
-    value: Number(String(row.quantity).replace(/[^\d]/g, '')) || 0,
-  })),
+  purchaseItems.value
+    .slice(0, 8)
+    .map((item) => ({
+      label: item.departmentName ?? '-',
+      value: item.accumulatedPurchaseQuantity ?? 0,
+    })),
 )
 
-function refreshAll() {}
+async function refreshAll() {
+  if (!canViewOperationReports.value) return
+  if (!isValidDateRange()) return
 
-function pickNumber(...values: Array<number | undefined>) {
-  return values.find((value) => typeof value === 'number' && Number.isFinite(value)) ?? 0
+  loadError.value = ''
+  await Promise.all([
+    loadUnreturnedReport(),
+    loadRecoveryReport(),
+    loadPurchaseReport(),
+  ])
+}
+
+async function loadUnreturnedReport() {
+  unreturnedLoading.value = true
+
+  try {
+    const response = await reportApi.getUnreturnedAssets({
+      topDelayedUserLimit: DEFAULT_TOP_USER_LIMIT,
+    })
+    unreturnedReport.value = response.data
+  } catch (error) {
+    loadError.value = getErrorMessage(error, '미반납 자산 리포트를 불러오지 못했습니다.')
+  } finally {
+    unreturnedLoading.value = false
+  }
+}
+
+async function loadRecoveryReport() {
+  recoveryLoading.value = true
+
+  try {
+    const response = await reportApi.getRecovery(getDateFilterParams())
+    recoveryReport.value = response.data
+  } catch (error) {
+    loadError.value = getErrorMessage(error, '회수 프로세스 리포트를 불러오지 못했습니다.')
+  } finally {
+    recoveryLoading.value = false
+  }
+}
+
+async function loadPurchaseReport() {
+  purchaseLoading.value = true
+
+  try {
+    const response = await reportApi.getPurchaseRequests({
+      ...getDateFilterParams(),
+      page: 0,
+      size: DEFAULT_PAGE_SIZE,
+    })
+    purchaseReport.value = response.data
+  } catch (error) {
+    loadError.value = getErrorMessage(error, '구매 분석 리포트를 불러오지 못했습니다.')
+  } finally {
+    purchaseLoading.value = false
+  }
+}
+
+function getDateFilterParams() {
+  if (!filters.startDate || !filters.endDate) return {}
+
+  return {
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  }
+}
+
+function isValidDateRange() {
+  if (Boolean(filters.startDate) !== Boolean(filters.endDate)) {
+    loadError.value = '시작일과 종료일을 함께 입력해주세요.'
+    return false
+  }
+
+  if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+    loadError.value = '시작일은 종료일보다 늦을 수 없습니다.'
+    return false
+  }
+
+  return true
 }
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
 
-function formatDays(value: number) {
-  return value > 0 ? `${formatNumber(value)}일` : '-'
+function formatRate(value: number) {
+  return `${new Intl.NumberFormat('ko-KR', {
+    maximumFractionDigits: 1,
+  }).format(value)}%`
 }
 
-function shortenLabel(value: string) {
-  return value.replace('개발', '').replace('본부', '').replace('팀', '팀')
+function formatChangeRate(value: number | undefined) {
+  if (value === undefined || value === null) return '이전 기간 대비 -'
+
+  const sign = value > 0 ? '+' : ''
+  return `이전 기간 대비 ${sign}${formatRate(value)}`
+}
+
+function formatDays(value: number) {
+  if (!value) return '-'
+  return `${new Intl.NumberFormat('ko-KR', {
+    maximumFractionDigits: 1,
+  }).format(value)}일`
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) return error.message || fallback
+  if (error instanceof Error) return error.message || fallback
+  return fallback
 }
 
 onMounted(() => {

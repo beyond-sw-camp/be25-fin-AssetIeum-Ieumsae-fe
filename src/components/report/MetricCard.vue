@@ -1,8 +1,13 @@
 <template>
-  <div :class="['rounded-lg bg-gradient-to-br p-5', toneClass]">
-    <p class="text-sm font-bold text-text-main">{{ label }}</p>
-    <p class="mt-3 text-3xl font-extrabold">{{ value }}</p>
-    <p class="mt-5 text-xs font-bold text-text-sub">{{ caption }}</p>
+  <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <p class="text-sm font-bold text-text-main">{{ label }}</p>
+      <span :class="['rounded-md px-2 py-1 text-xs font-bold', toneClass]">
+        {{ badge }}
+      </span>
+    </div>
+    <p class="mt-4 text-3xl font-extrabold text-text-main">{{ value }}</p>
+    <p class="mt-3 text-xs font-semibold text-text-sub">{{ caption }}</p>
   </div>
 </template>
 
@@ -13,16 +18,18 @@ const props = withDefaults(defineProps<{
   label: string
   value: string
   caption: string
+  badge?: string
   tone?: 'blue' | 'green' | 'amber' | 'red' | 'purple'
 }>(), {
+  badge: '지표',
   tone: 'blue',
 })
 
 const toneClass = computed(() => ({
-  blue: 'from-blue-50 to-blue-100 text-blue-600',
-  green: 'from-green-50 to-green-100 text-green-600',
-  amber: 'from-amber-50 to-amber-100 text-amber-600',
-  red: 'from-red-50 to-red-100 text-red-600',
-  purple: 'from-purple-50 to-purple-100 text-purple-600',
+  blue: 'bg-blue-50 text-blue-700',
+  green: 'bg-green-50 text-green-700',
+  amber: 'bg-amber-50 text-amber-700',
+  red: 'bg-red-50 text-red-700',
+  purple: 'bg-purple-50 text-purple-700',
 }[props.tone]))
 </script>
