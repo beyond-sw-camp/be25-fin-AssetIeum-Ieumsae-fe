@@ -162,6 +162,7 @@
             <Input
               id="keyword"
               v-model="searchParams.keyword"
+              class="w-40!"
               placeholder="제품명, 제공사 등으로 검색"
               autocomplete="off"
               @keyup.enter="handleSearch"
