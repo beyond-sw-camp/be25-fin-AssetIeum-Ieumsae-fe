@@ -501,12 +501,8 @@ const requestDepartmentName = computed(() => (
   resolveTicketRequestDepartmentName(props.item) ?? requester.value?.departmentName ?? '-'
 ))
 const assignableMembers = computed(() => {
-  const requestDeptId = toNullableStringId(requestDepartmentId.value)
-  if (!requestDeptId) return []
-  return departmentAssignableMembers.value.filter((member) => (
-    (!member.status || member.status === 'ACTIVE')
-    && resolveMemberDepartmentId(member) === requestDeptId
-  ))
+  if (!toNullableStringId(requestDepartmentId.value)) return []
+  return departmentAssignableMembers.value.filter((member) => Boolean(resolveMemberId(member)))
 })
 const ticketAssignmentTargetIds = computed(() => extractAssignmentTargetMemberIds(props.item))
 const hasLinkedTicket = computed(() => isLinkedTicketPurchaseItem(props.item))
@@ -517,7 +513,8 @@ const assignmentCandidateMembers = computed<AssignmentCandidateMember[]>(() => {
   const departmentMembers = assignableMembers.value.map(toAssignmentCandidateMember)
   const missingTargetMembers = ticketAssignmentTargetIds.value.flatMap((memberId) => {
     if (departmentMembers.some((member) => member.memberId === memberId)) return []
-    const member = props.members.find((item) => String(item.memberId) === memberId)
+    const member = departmentAssignableMembers.value.find((item) => resolveMemberId(item) === memberId)
+      ?? props.members.find((item) => resolveMemberId(item) === memberId)
     if (member) return [toAssignmentCandidateMember(member)]
     const target = findAssignmentTargetInfo(props.item, memberId)
     return [{
@@ -603,7 +600,8 @@ async function fetchDepartmentAssignableMembers(departmentId: string | null) {
     const memberMap = new Map<string, Member>()
 
     firstPage.content.forEach((member) => {
-      memberMap.set(String(member.memberId), member)
+      const memberId = resolveMemberId(member)
+      if (memberId) memberMap.set(memberId, member)
     })
 
     if (totalPages > 1) {
@@ -621,7 +619,8 @@ async function fetchDepartmentAssignableMembers(departmentId: string | null) {
 
       restResponses.forEach((response) => {
         response.data.content.forEach((member) => {
-          memberMap.set(String(member.memberId), member)
+          const memberId = resolveMemberId(member)
+          if (memberId) memberMap.set(memberId, member)
         })
       })
     }
@@ -969,8 +968,9 @@ function assignmentCandidateLabel(member: AssignmentCandidateMember) {
 }
 
 function toAssignmentCandidateMember(member: Member): AssignmentCandidateMember {
+  const memberId = resolveMemberId(member) ?? String(member.memberId)
   return {
-    memberId: String(member.memberId),
+    memberId,
     memberNo: member.memberNo ?? null,
     name: resolveMemberName(member),
     departmentId: resolveMemberDepartmentId(member),
@@ -981,7 +981,20 @@ function toAssignmentCandidateMember(member: Member): AssignmentCandidateMember 
 function resolveMemberName(member: Member) {
   const rawMember = member as Member & Record<string, unknown>
   const name = member.name ?? rawMember.memberName ?? rawMember.member_name
-  return typeof name === 'string' && name.trim() ? name.trim() : String(member.memberId)
+  return typeof name === 'string' && name.trim() ? name.trim() : resolveMemberId(member) ?? '-'
+}
+
+function resolveMemberId(member: Member) {
+  const rawMember = member as Member & Record<string, unknown>
+  return toNullableStringId(
+    member.memberId
+      ?? rawMember.member_id
+      ?? rawMember.id
+      ?? rawMember.userId
+      ?? rawMember.user_id
+      ?? rawMember.employeeId
+      ?? rawMember.employee_id,
+  )
 }
 
 function resolveMemberDepartmentId(member: Member) {
@@ -1182,7 +1195,6 @@ function toNullableStringId(value: unknown) {
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {
   if (!item) return null
-  const rawItem = item as PurchasePlanItem & Record<string, unknown>
   const itemId =
     item.itemId
     ?? item.purchasePlanItemId
@@ -1197,17 +1209,8 @@ function getPurchasePlanItemId(item: PurchasePlanItem | null) {
     ?? item.purchase_item_id
     ?? item.planItemId
     ?? item.plan_item_id
-    ?? item.purchaseRequestItemId
-    ?? item.purchase_request_item_id
     ?? item.planPurchaseItemId
     ?? item.plan_purchase_item_id
-    ?? item.purchasePlanItemNo
-    ?? item.itemNo
-    ?? rawItem.purchasePlanDetailItemId
-    ?? rawItem.purchase_plan_detail_item_id
-    ?? rawItem.purchasePlanItemDetailNo
-    ?? rawItem.purchase_plan_item_detail_no
-    ?? item.id
   if (itemId === null || itemId === undefined) return null
   const normalized = String(itemId).trim()
   return normalized || null

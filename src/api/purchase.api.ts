@@ -433,10 +433,7 @@ function pickPurchasePlanItemId(item: PurchasePlanItemResponse) {
     ?? item.plan_item_id
     ?? item.planPurchaseItemId
     ?? item.plan_purchase_item_id
-    ?? item.purchasePlanItemNo
     ?? item.itemId
-    ?? item.itemNo
-    ?? item.id
 }
 
 function normalizePlanDetail(data: PurchasePlanDetailResponse): PurchasePlanDetail {

@@ -271,11 +271,7 @@
                         :loading="isConfirmingPurchaseItem(row)"
                         @click.stop="confirmDelivery(row)"
                       >
-                        {{
-                          shouldRegisterPlanItemBeforeAsset(row)
-                            ? "품목 등록"
-                            : "납품 확인"
-                        }}
+                        납품 확인
                       </Button>
                     </template>
                   </Table>
@@ -837,14 +833,14 @@
     <!-- 자산 등록 패널 -->
     <BaseDrawer
       :is-open="isActualAmountDrawerOpen"
-      title="납품 확인"
+      title="실제 결제금액 등록"
       panel-class="w-full max-w-md"
       body-class="space-y-4 p-6"
       @close="closeActualAmountDrawer"
     >
       <div class="space-y-4">
         <p class="text-sm font-semibold text-text-sub">
-          실제 결제금액을 입력하면 납품 확인 상태로 변경됩니다.
+          실제 결제금액을 입력하면 구매 계획이 납품 확인 단계로 변경됩니다.
         </p>
         <div class="w-full space-y-2 text-left">
           <label
@@ -900,7 +896,7 @@
             :loading="isStatusSaving"
             @click="submitActualAmount"
           >
-            납품 확인
+            실제 결제금액 등록
           </Button>
         </div>
       </template>
@@ -924,23 +920,11 @@
           </p>
         </div>
 
-        <div class="space-y-2 text-left">
-          <label
-            for="purchase-plan-item-asset-type"
-            class="block px-0.5 text-sm font-semibold text-text-main"
-          >
-            자산 유형 <span class="text-primary">*</span>
-          </label>
-          <Dropdown
-            id="purchase-plan-item-asset-type"
-            :model-value="planItemRegisterAssetType"
-            :options="ASSET_TYPE_OPTIONS"
-            :disabled="isPlanItemRegistering || !!resolvePurchaseItemAssetType(planItemRegisterTarget)"
-            @update:model-value="(value) => {
-              planItemRegisterForm.assetType = value as AssetType;
-              planItemRegisterForm.categoryId = '';
-            }"
-          />
+        <div class="rounded-lg border border-border bg-surface-secondary px-3 py-2 text-left">
+          <p class="text-xs font-semibold text-text-muted">자산 유형</p>
+          <p class="mt-1 text-sm font-bold text-text-main">
+            {{ planItemRegisterAssetType === "INTANGIBLE" ? "무형자산" : "유형자산" }}
+          </p>
         </div>
 
         <div class="space-y-2 text-left">
@@ -964,6 +948,7 @@
             id="purchase-plan-item-provider"
             v-model="planItemRegisterForm.provider"
             label="제공사"
+            required
             placeholder="예: Microsoft"
             :disabled="isPlanItemRegistering"
           />
@@ -972,7 +957,7 @@
               for="purchase-plan-item-license-type"
               class="block px-0.5 text-sm font-semibold text-text-main"
             >
-              라이선스 유형
+              라이선스 유형 <span class="text-primary">*</span>
             </label>
             <Dropdown
               id="purchase-plan-item-license-type"
@@ -989,6 +974,7 @@
             id="purchase-plan-item-manufacturer"
             v-model="planItemRegisterForm.manufacturer"
             label="제조사"
+            required
             placeholder="예: Samsung"
             :disabled="isPlanItemRegistering"
           />
@@ -996,6 +982,7 @@
             id="purchase-plan-item-model-name"
             v-model="planItemRegisterForm.modelName"
             label="모델명"
+            required
             placeholder="예: NT960XGK"
             :disabled="isPlanItemRegistering"
           />
@@ -1089,6 +1076,7 @@ import type {
   PurchasePlanCreateItem,
   PurchasePlanDetail,
   PurchasePlanItem,
+  PurchasePlanItemRegisterRequest,
   PurchasePlanListItem,
   PurchasePlanStatistics,
   PurchasePlanStatus,
@@ -1509,9 +1497,15 @@ const statusActionOptions = computed<DropdownOption[]>(() => {
   const currentStatus = displayPlanStatus(selectedPlan.value);
   const allowedNextStatuses =
     PURCHASE_PLAN_STATUS_TRANSITIONS[currentStatus] ?? [];
-  return STATUS_ALL_OPTIONS.filter((opt) =>
-    allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
-  );
+  return STATUS_ALL_OPTIONS
+    .filter((opt) =>
+      allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
+    )
+    .map((option) =>
+      currentStatus === "ORDERED" && option.value === "DELIVERED"
+        ? { ...option, label: "실제 결제금액 등록" }
+        : option,
+    );
 });
 
 const footerStatusActions = computed<FooterStatusAction[]>(() => {
@@ -1550,10 +1544,10 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   if (currentStatus === "ORDERED") {
     return [
       {
-        key: "status-delivered",
+        key: "register-actual-amount",
         action: "change-status",
         status: "DELIVERED",
-        label: "납품확인",
+        label: "실제 결제금액 등록",
         variant: "outline",
         className:
           "border-primary! bg-white! text-primary! hover:bg-primary/5!",
@@ -2345,11 +2339,6 @@ function findFormattedCursorPosition(value: string, digitCount: number) {
 }
 
 async function confirmDelivery(item: PurchasePlanItem) {
-  if (shouldRegisterPlanItemBeforeAsset(item)) {
-    openPlanItemRegisterDrawer(item);
-    return;
-  }
-
   const itemId = getPurchasePlanItemId(item);
   if (!selectedPlanId.value || itemId == null) return;
   isConfirmingItem.value = itemId;
@@ -2374,7 +2363,7 @@ function canConfirmDelivery(item: PurchasePlanItem) {
     return false;
   if (!selectedPlan.value) return false;
 
-  const confirmableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
+  const confirmableStatuses: PurchasePlanStatus[] = ["DELIVERED"];
   return confirmableStatuses.includes(displayPlanStatus(selectedPlan.value));
 }
 
@@ -2589,7 +2578,6 @@ function toStandardIntangiblePurchaseItem(
 }
 
 function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
-  const rawItem = item as PurchasePlanItem & Record<string, unknown> | null | undefined;
   const itemId = item?.purchasePlanItemId
     ?? item?.purchasePlanItemDetailId
     ?? item?.purchasePlanItemDetailID
@@ -2604,14 +2592,7 @@ function getPurchasePlanItemId(item: PurchasePlanItem | null | undefined) {
     ?? item?.plan_item_id
     ?? item?.planPurchaseItemId
     ?? item?.plan_purchase_item_id
-    ?? item?.purchasePlanItemNo
-    ?? rawItem?.purchasePlanDetailItemId
-    ?? rawItem?.purchase_plan_detail_item_id
-    ?? rawItem?.purchasePlanItemDetailNo
-    ?? rawItem?.purchase_plan_item_detail_no
-    ?? item?.itemId
-    ?? item?.itemNo
-    ?? item?.id;
+    ?? item?.itemId;
   if (itemId === null || itemId === undefined) return null;
   const normalized = String(itemId).trim();
   return normalized || null;
@@ -2868,31 +2849,35 @@ async function submitPlanItemRegister() {
     planItemRegisterError.value = "카테고리를 선택해주세요.";
     return;
   }
+  const manufacturer = planItemRegisterForm.value.manufacturer.trim();
+  const modelName = planItemRegisterForm.value.modelName.trim();
+  const provider = planItemRegisterForm.value.provider.trim();
+
+  if (assetType === "TANGIBLE" && (!manufacturer || !modelName)) {
+    planItemRegisterError.value = "유형자산은 제조사와 모델명을 입력해주세요.";
+    return;
+  }
+  if (assetType === "INTANGIBLE" && (!provider || !planItemRegisterForm.value.licenseType)) {
+    planItemRegisterError.value = "무형자산은 제공사와 라이선스 유형을 입력해주세요.";
+    return;
+  }
 
   planItemRegisterError.value = "";
   isPlanItemRegistering.value = true;
 
   try {
-    await purchaseApi.registerPlanItem(planId, itemId, {
+    const registerBody: PurchasePlanItemRegisterRequest = {
       categoryId: planItemRegisterForm.value.categoryId,
-      manufacturer:
-        assetType === "TANGIBLE"
-          ? planItemRegisterForm.value.manufacturer.trim() || undefined
-          : undefined,
-      modelName:
-        assetType === "TANGIBLE"
-          ? planItemRegisterForm.value.modelName.trim() || undefined
-          : undefined,
-      provider:
-        assetType === "INTANGIBLE"
-          ? planItemRegisterForm.value.provider.trim() || undefined
-          : undefined,
-      licenseType:
-        assetType === "INTANGIBLE"
-          ? planItemRegisterForm.value.licenseType
-          : undefined,
       isStandard: false,
-    });
+      ...(assetType === "TANGIBLE"
+        ? { manufacturer, modelName }
+        : {
+            provider,
+            licenseType: planItemRegisterForm.value.licenseType,
+          }),
+    };
+
+    await purchaseApi.registerPlanItem(planId, itemId, registerBody);
 
     registeredPlanItemIds.value = new Set([...registeredPlanItemIds.value, String(itemId)]);
     isPlanItemRegisterDrawerOpen.value = false;
