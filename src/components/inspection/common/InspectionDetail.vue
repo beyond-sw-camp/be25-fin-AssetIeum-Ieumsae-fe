@@ -19,9 +19,21 @@
               {{ inspection.description || '설명이 없습니다.' }}
             </p>
           </div>
-          <span :class="statusBadgeClass(displayStatus)">
-            {{ statusLabel[displayStatus] }}
-          </span>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button
+              v-if="canCloseCurrentInspection"
+              size="sm"
+              variant="outline"
+              :loading="isClosing"
+              :disabled="isLoading || displayStatus === 'CLOSED'"
+              @click="closeInspection"
+            >
+              조사 종료
+            </Button>
+            <span :class="statusBadgeClass(displayStatus)">
+              {{ statusLabel[displayStatus] }}
+            </span>
+          </div>
         </div>
 
         <div class="mt-5 grid gap-3 md:grid-cols-4">
@@ -45,6 +57,13 @@
             </p>
           </div>
         </div>
+
+        <p
+          v-if="displayStatus === 'CLOSED'"
+          class="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary"
+        >
+          구매자산팀이 임의로 종료한 전수조사입니다.
+        </p>
       </div>
 
       <div class="flex border-b border-border px-8">
@@ -243,7 +262,7 @@ const statusLabel: Record<InspectionStatus, string> = {
   CLOSED: '조사 종료',
 }
 
-const { canManageInspection } = usePermission()
+const { canManageInspection, canCloseInspection } = usePermission()
 
 const allTabs = [
   { label: '개요', value: 'overview' },
@@ -281,6 +300,7 @@ const inspectionTargets = ref<EmployeeInspectionTargetResponse[]>([])
 const members = ref<Member[]>([])
 const assetMemberNames = ref<Map<string, string[]>>(new Map())
 const isLoading = ref(false)
+const isClosing = ref(false)
 const errorMessage = ref('')
 const inspectionApi = computed(() => (
   props.assetType === 'intangible'
@@ -298,6 +318,11 @@ const displayInspectorType = computed(() => (
 ))
 const displayStartDate = computed(() => inspectionInfo.value?.startDate ?? props.inspection?.startDate ?? '')
 const displayEndDate = computed(() => inspectionInfo.value?.endDate ?? props.inspection?.endDate ?? '')
+const canCloseCurrentInspection = computed(() => (
+  canCloseInspection.value
+  && Boolean(props.inspection?.inspectionId)
+  && displayStatus.value !== 'CLOSED'
+))
 
 const resultRows = computed<ResultRow[]>(() => (
   detail.value?.inspectionResults.map((item, index) => ({
@@ -605,6 +630,34 @@ async function loadEmployeeDetailData() {
     },
     inspectionResults,
     uninspectedAssets,
+  }
+}
+
+async function closeInspection() {
+  if (!props.inspection?.inspectionId || isClosing.value) return
+
+  const shouldClose = window.confirm('이 전수조사를 조건 없이 종료 처리할까요?')
+  if (!shouldClose) return
+
+  isClosing.value = true
+  errorMessage.value = ''
+
+  try {
+    await inspectionApi.value.close(props.inspection.inspectionId)
+    if (detail.value) {
+      detail.value = {
+        ...detail.value,
+        inspectionInfo: {
+          ...detail.value.inspectionInfo,
+          inspectionStatus: 'CLOSED',
+        },
+      }
+    }
+    emit('refresh')
+  } catch {
+    errorMessage.value = '전수조사를 종료 처리하지 못했습니다.'
+  } finally {
+    isClosing.value = false
   }
 }
 

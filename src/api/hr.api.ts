@@ -2,6 +2,7 @@ import api from './client'
 import type {
   HrEventId,
   HrEventCreateRequest,
+  HrEventAssetTargetResponse,
   HrEventResponse,
   HrEventSearchRequest,
   HrTemplateCreateRequest,
@@ -43,6 +44,12 @@ export const hrApi = {
     return api.post<HrEventResponse>(
       '/hr-events',
       payload,
+    )
+  },
+
+  getEventTargets(eventId: HrEventId) {
+    return api.get<HrEventAssetTargetResponse[]>(
+      `/hr-events/${encodeURIComponent(String(eventId))}/targets`,
     )
   },
 

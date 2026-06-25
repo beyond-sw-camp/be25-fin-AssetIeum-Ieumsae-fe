@@ -70,10 +70,14 @@ const props = withDefaults(defineProps<{
   departments: Department[]
   placeholder?: string
   disabled?: boolean
+  expandAllOnOpen?: boolean
+  keepOpenOnParentSelect?: boolean
 }>(), {
   modelValue: null,
   placeholder: '부서 선택',
   disabled: false,
+  expandAllOnOpen: true,
+  keepOpenOnParentSelect: false,
 })
 
 const emit = defineEmits<{
@@ -193,7 +197,7 @@ const expandAllParents = () => {
 const toggleOpen = () => {
   if (props.disabled) return
   isOpen.value = !isOpen.value
-  if (isOpen.value) {
+  if (isOpen.value && props.expandAllOnOpen) {
     expandAllParents()
   }
 }
@@ -212,6 +216,10 @@ const toggleDepartment = (departmentId: string) => {
 
 const selectDepartment = (department: DepartmentNode) => {
   emit('update:modelValue', department.departmentId)
+  if (props.keepOpenOnParentSelect && department.children.length) {
+    toggleDepartment(department.departmentId)
+    return
+  }
   isOpen.value = false
 }
 

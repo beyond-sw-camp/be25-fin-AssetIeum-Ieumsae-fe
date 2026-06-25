@@ -230,9 +230,14 @@ const demandRows = computed<DemandRow[]>(() => assetDemands.value
     expectedDemand: item.expectedDemand,
     currentStock: item.currentInventory,
     returnExpected: item.scheduledReturn,
-    availability: item.availabilityRate,
+    availability: clampPercent(item.availabilityRate),
     status: item.status,
   })))
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(Math.max(Math.round(value), 0), 100)
+}
 
 const budgetRows = computed<BudgetRow[]>(() => (
   budgetOverview.value?.departmentBudgets.content.map((item) => ({

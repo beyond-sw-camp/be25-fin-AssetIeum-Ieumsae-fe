@@ -181,6 +181,7 @@
       :inspection="selectedInspection"
       :assigned-targets="selectedAssignedTargets"
       @close="selectedInspection = null"
+      @refresh="handleInspectionUpdated"
     />
   </div>
 </template>
@@ -452,6 +453,12 @@ function closeRegisterDrawer() {
 
 async function handleInspectionRegistered() {
   await loadInspectionData()
+}
+
+async function handleInspectionUpdated() {
+  const selectedInspectionId = selectedInspection.value?.inspectionId
+  await loadInspectionData()
+  selectedInspection.value = inspections.value.find((item) => item.inspectionId === selectedInspectionId) ?? null
 }
 
 function numberValue(...values: Array<number | null | undefined>) {
