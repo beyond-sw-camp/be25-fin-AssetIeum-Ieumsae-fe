@@ -73,10 +73,15 @@ export interface HrEventCreateRequest {
 export interface HrEventAssetTargetResponse {
   hrEventAssetTargetId?: string
   assetTargetId?: string
+  ticketId?: string | number | null
+  ticketNo?: string | null
+  ticketType?: string | null
   assetType?: HrEventAssetType
   assetId?: string
+  assetItemId?: string | number | null
   assignmentId?: string | null
   productName?: string | null
+  requestedItemName?: string | null
   assetCode?: string | null
   actionType?: HrEventAssetActionType
   targetActionType?: HrEventAssetActionType
@@ -89,6 +94,9 @@ export interface HrEventAssetTargetResponse {
   hrEventAssetTargetStatus?: HrEventAssetTargetStatus | string | null
   assetTargetStatus?: HrEventAssetTargetStatus | string | null
   ticketStatus?: string | null
+  currentStatus?: string | null
+  detailStatus?: string | null
+  assetRequestStatus?: string | null
   returnTicketStatus?: string | null
   requestTicketStatus?: string | null
   assetReturnStatus?: string | null

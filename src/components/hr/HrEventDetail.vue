@@ -52,7 +52,7 @@
           처리 대상을 불러오는 중입니다.
         </div>
         <div
-          v-else-if="event.eventType === 'ONBOARDING' && onboardingTemplateItems.length > 0"
+          v-else-if="targets.length === 0 && event.eventType === 'ONBOARDING' && onboardingTemplateItems.length > 0"
           class="divide-y divide-border rounded-lg border border-border bg-surface"
         >
           <article
@@ -66,8 +66,8 @@
                 {{ templateAssetTypeLabel(item.assetType) }} · 요청 수량 {{ item.quantity }}개
               </p>
             </div>
-            <span class="inline-flex shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-              요청 예정
+            <span class="inline-flex shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-text-sub">
+              티켓 생성 대기
             </span>
           </article>
         </div>
@@ -89,16 +89,20 @@
         >
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="font-bold text-text-main">{{ target.productName || '-' }}</p>
+              <p class="font-bold text-text-main">{{ targetProductName(target) }}</p>
               <p class="mt-1 text-xs text-text-sub">
-                {{ target.assetCode || '-' }} · {{ assetTypeLabel(target.assetType) }}
+                {{ targetMetaText(target) }}
               </p>
             </div>
-            <span :class="statusBadgeClass(targetStatusValue(target))">
-              {{ statusLabel(targetStatusValue(target)) }}
+            <span :class="targetStatusBadgeClass(target)">
+              {{ targetStatusLabel(target) }}
             </span>
           </div>
           <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div v-if="target.ticketNo">
+              <dt class="text-xs font-semibold text-text-muted">연결 티켓</dt>
+              <dd class="mt-1 font-semibold text-text-main">{{ target.ticketNo }}</dd>
+            </div>
             <div>
               <dt class="text-xs font-semibold text-text-muted">처리 방식</dt>
               <dd class="mt-1 font-semibold text-text-main">
@@ -146,6 +150,7 @@ import type {
   HrTemplateAssetType,
   HrTemplateResponse,
 } from '@/types/hr'
+import { getTicketStatusLabel, normalizeTicketStatus } from '@/utils/labels'
 
 export interface HrEventDetailRow {
   eventNo: string
@@ -197,6 +202,20 @@ function templateAssetTypeLabel(value?: HrTemplateAssetType) {
   return '-'
 }
 
+function targetProductName(target: HrEventAssetTargetResponse) {
+  return target.productName || target.requestedItemName || '-'
+}
+
+function targetMetaText(target: HrEventAssetTargetResponse) {
+  const parts = [
+    target.ticketNo ? `티켓 ${target.ticketNo}` : null,
+    target.assetCode,
+    assetTypeLabel(target.assetType),
+  ].filter((part): part is string => Boolean(part && part !== '-'))
+
+  return parts.length > 0 ? parts.join(' · ') : '-'
+}
+
 function targetStatusValue(target: HrEventAssetTargetResponse): HrEventAssetTargetStatus {
   const explicitStatus = normalizeStatus(
     target.status
@@ -216,6 +235,49 @@ function targetStatusValue(target: HrEventAssetTargetResponse): HrEventAssetTarg
   )
 
   return ticketStatus ?? explicitStatus ?? 'PENDING'
+}
+
+function targetTicketStatusValue(target: HrEventAssetTargetResponse) {
+  return firstStatusText(
+    target.ticketStatus,
+    target.currentStatus,
+    target.detailStatus,
+    target.assetRequestStatus,
+    target.requestTicketStatus,
+    target.returnTicketStatus,
+    target.assetReturnStatus,
+  )
+}
+
+function firstStatusText(...values: unknown[]) {
+  return values.find((value): value is string => (
+    typeof value === 'string' && value.trim().length > 0
+  ))?.trim() ?? ''
+}
+
+function targetStatusLabel(target: HrEventAssetTargetResponse) {
+  const ticketStatus = targetTicketStatusValue(target)
+  if (ticketStatus) return getTicketStatusLabel(ticketStatus)
+
+  return statusLabel(targetStatusValue(target))
+}
+
+function targetStatusBadgeClass(target: HrEventAssetTargetResponse) {
+  const ticketStatus = targetTicketStatusValue(target)
+  if (!ticketStatus) return statusBadgeClass(targetStatusValue(target))
+
+  const normalizedStatus = normalizeTicketStatus(ticketStatus)
+  const base = 'inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold'
+  if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'COLLECTED') {
+    return `${base} bg-success/10 text-success`
+  }
+  if (normalizedStatus === 'IN_PROGRESS' || normalizedStatus === 'ASSET_APPROVED' || normalizedStatus === 'DEPARTMENT_APPROVED') {
+    return `${base} bg-primary/10 text-primary`
+  }
+  if (normalizedStatus === 'ASSET_REJECTED' || normalizedStatus === 'DEPARTMENT_REJECTED' || normalizedStatus === 'CANCELLED') {
+    return `${base} bg-danger/10 text-danger`
+  }
+  return `${base} bg-primary/10 text-primary`
 }
 
 function normalizeStatus(value: unknown): HrEventAssetTargetStatus | null {
