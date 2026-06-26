@@ -398,8 +398,7 @@ function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {
 
 function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
   const value = (item as unknown as Record<string, unknown>).isStandard
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value !== 0
+  if (value === false || value === 0) return false
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase()
     if (normalized === 'false' || normalized === '0') return false
