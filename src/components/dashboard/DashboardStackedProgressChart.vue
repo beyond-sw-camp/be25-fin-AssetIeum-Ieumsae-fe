@@ -101,16 +101,7 @@ const chartOption = computed<ChartOption>(() => ({
       },
       z: index + 1,
     }))
-    : [{
-      name: '데이터 없음',
-      type: 'bar',
-      data: [100],
-      barWidth: 12,
-      itemStyle: {
-        borderRadius: 999,
-        color: '#F3F4F6',
-      },
-    }],
+    : [],
 }))
 
 function clampPercent(value: number) {

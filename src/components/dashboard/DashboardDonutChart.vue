@@ -57,6 +57,27 @@ const chartOption = computed<ChartOption>(() => ({
     {
       type: 'pie',
       radius: ['64%', '86%'],
+      silent: true,
+      animation: false,
+      label: {
+        show: false,
+      },
+      labelLine: {
+        show: false,
+      },
+      data: [
+        {
+          name: '배경',
+          value: 100,
+          itemStyle: {
+            color: '#F3F4F6',
+          },
+        },
+      ],
+    },
+    {
+      type: 'pie',
+      radius: ['64%', '86%'],
       avoidLabelOverlap: true,
       silent: false,
       label: {
@@ -74,10 +95,10 @@ const chartOption = computed<ChartOption>(() => ({
           },
         },
         {
-          name: '잔여',
+          name: '',
           value: remainingValue.value,
           itemStyle: {
-            color: '#F3F4F6',
+            color: 'transparent',
           },
         },
       ],

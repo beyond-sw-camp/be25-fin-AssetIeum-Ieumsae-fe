@@ -1,9 +1,11 @@
 <template>
-  <VChart
-    class="h-2 w-16"
-    :option="chartOption"
-    autoresize
-  />
+  <div class="h-2 w-16 overflow-hidden rounded-full bg-surface-secondary">
+    <VChart
+      class="h-full w-full"
+      :option="chartOption"
+      autoresize
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -30,7 +32,6 @@ use([
 ])
 
 const normalizedValue = computed(() => clampPercent(props.value))
-const remainingValue = computed(() => Math.max(100 - normalizedValue.value, 0))
 
 const chartOption = computed<ChartOption>(() => ({
   animationDuration: 350,
@@ -54,18 +55,12 @@ const chartOption = computed<ChartOption>(() => ({
     {
       name: '가용률',
       type: 'bar',
-      stack: 'total',
       data: [normalizedValue.value],
       barWidth: 6,
-      color: '#f97316',
-    },
-    {
-      name: '잔여',
-      type: 'bar',
-      stack: 'total',
-      data: [remainingValue.value],
-      barWidth: 6,
-      color: '#F3F4F6',
+      itemStyle: {
+        borderRadius: 999,
+        color: '#f97316',
+      },
     },
   ],
 }))
