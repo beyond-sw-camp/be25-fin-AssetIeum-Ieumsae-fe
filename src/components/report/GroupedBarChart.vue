@@ -1,6 +1,6 @@
 <template>
   <VChart
-    class="h-80 w-full"
+    class="h-full min-h-72 w-full"
     :option="chartOption"
     autoresize
   />
@@ -53,7 +53,7 @@ use([
 ])
 
 const chartOption = computed<ChartOption>(() => ({
-  color: ['#3B9BF4', '#45C980'],
+  color: ['#3B82F6', '#10B981'],
   tooltip: {
     trigger: 'axis',
     axisPointer: {

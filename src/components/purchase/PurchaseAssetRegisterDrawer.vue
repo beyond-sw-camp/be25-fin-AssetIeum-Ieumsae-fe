@@ -1017,7 +1017,7 @@ function resolveMemberId(member: Member) {
 
 function resolveMemberDepartmentId(member: Member) {
   const rawMember = member as Member & Record<string, unknown>
-  const department = toRecord(rawMember.department)
+  const department = rawMember.department as Record<string, unknown> | null | undefined
   return toNullableStringId(
     member.departmentId
       ?? rawMember.department_id
@@ -1028,7 +1028,7 @@ function resolveMemberDepartmentId(member: Member) {
 
 function resolveMemberDepartmentName(member: Member) {
   const rawMember = member as Member & Record<string, unknown>
-  const department = toRecord(rawMember.department)
+  const department = rawMember.department as Record<string, unknown> | null | undefined
   const name =
     member.departmentName
     ?? rawMember.department_name
@@ -1049,9 +1049,9 @@ function uniqueAssignmentCandidates(members: AssignmentCandidateMember[]) {
 function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
-  const ticket = toRecord(rawItem.ticket)
-  const ticketDepartment = toRecord(rawItem.ticketDepartment)
-  const requestDepartment = toRecord(rawItem.requestDepartment)
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
+  const ticketDepartment = rawItem.ticketDepartment as Record<string, unknown> | null | undefined
+  const requestDepartment = rawItem.requestDepartment as Record<string, unknown> | null | undefined
   return toNullableStringId(
     item.ticketDepartmentId
       ?? ticket?.ticketDepartmentId
@@ -1067,9 +1067,9 @@ function resolveTicketRequestDepartmentId(item: PurchasePlanItem | null) {
 function resolveTicketRequestDepartmentName(item: PurchasePlanItem | null) {
   if (!item) return null
   const rawItem = item as PurchasePlanItem & Record<string, unknown>
-  const ticket = toRecord(rawItem.ticket)
-  const ticketDepartment = toRecord(rawItem.ticketDepartment)
-  const requestDepartment = toRecord(rawItem.requestDepartment)
+  const ticket = rawItem.ticket as Record<string, unknown> | null | undefined
+  const ticketDepartment = rawItem.ticketDepartment as Record<string, unknown> | null | undefined
+  const requestDepartment = rawItem.requestDepartment as Record<string, unknown> | null | undefined
   const name =
     item.ticketDepartmentName
     ?? ticket?.ticketDepartmentName

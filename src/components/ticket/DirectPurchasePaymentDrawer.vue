@@ -127,7 +127,6 @@
           <div>
             <p class="text-sm font-semibold text-text-main">
               영수증 증빙
-              <span class="text-xs font-semibold text-text-muted">(선택)</span>
             </p>
             <input
               ref="fileInput"
