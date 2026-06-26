@@ -127,7 +127,6 @@
           <div>
             <p class="text-sm font-semibold text-text-main">
               영수증 증빙
-              <span class="text-xs font-semibold text-text-muted">(선택)</span>
             </p>
             <input
               ref="fileInput"
@@ -380,6 +379,7 @@ const ACCEPTED_FILE_TYPES = new Set([
   'image/png',
 ])
 const ACCEPTED_FILE_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png']
+const MAX_UPLOAD_FILE_SIZE = 10 * 1024 * 1024
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const actualPrice = ref('')
@@ -487,6 +487,11 @@ function isAcceptedFile(file: File) {
 
 function selectFile(file: File | undefined) {
   if (!file) return
+  if (file.size > MAX_UPLOAD_FILE_SIZE) {
+    selectedFile.value = null
+    validationErrorMessage.value = '증빙 파일은 10MB 이하만 업로드할 수 있습니다.'
+    return
+  }
   if (!isAcceptedFile(file)) {
     selectedFile.value = null
     validationErrorMessage.value = 'PDF, JPG, PNG 형식의 증빙 파일만 업로드할 수 있습니다.'

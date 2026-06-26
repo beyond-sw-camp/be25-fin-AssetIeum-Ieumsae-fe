@@ -1,4 +1,5 @@
 import type { AssetType, PageResponse } from './common'
+import type { FileMetadata } from './file'
 
 export type PurchasePlanStatus =
   | 'REQUESTED'
@@ -151,6 +152,7 @@ export interface PurchasePlanItem {
   receivedAt?: string | null
   actualAmount?: number | null
   actualUnitPrice?: number | null
+  evidenceFiles?: FileMetadata[]
 }
 
 export type PurchasePlanItemDetailResponse = PurchasePlanItem

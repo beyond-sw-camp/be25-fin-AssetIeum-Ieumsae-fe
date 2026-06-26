@@ -280,7 +280,95 @@
                     <FileWarning :size="18" class="text-text-muted" />
                   </template>
 
+                  <input
+                    ref="planEvidenceInputRef"
+                    type="file"
+                    class="sr-only"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    :disabled="isPlanEvidenceActionRunning"
+                    @change="handlePlanEvidenceFileChange"
+                  />
+                  <div class="space-y-3">
+                    <div
+                      v-for="item in selectedPlanItems"
+                      :key="`evidence-${getPurchasePlanItemId(item) ?? item.itemId ?? item.itemName}`"
+                      class="rounded-xl border border-border bg-surface px-4 py-3"
+                    >
+                      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div class="min-w-0">
+                          <p class="truncate text-sm font-bold text-text-main">
+                            {{ item.itemName || "-" }}
+                          </p>
+                          <p class="mt-1 text-xs font-semibold text-text-muted">
+                            {{ item.categoryName || item.category || "-" }}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="shrink-0"
+                          :loading="uploadingPlanEvidenceItemId === getPurchasePlanItemId(item)"
+                          :disabled="isPlanEvidenceActionRunning || !getPurchasePlanItemId(item)"
+                          @click.stop="openPlanEvidenceUpload(item)"
+                        >
+                          <UploadCloud :size="14" />
+                          업로드
+                        </Button>
+                      </div>
+
+                      <div
+                        v-if="item.evidenceFiles?.length"
+                        class="mt-3 divide-y divide-border rounded-lg border border-border bg-surface-secondary/40"
+                      >
+                        <div
+                          v-for="file in item.evidenceFiles"
+                          :key="String(file.fileId)"
+                          class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                        >
+                          <a
+                            :href="file.fileUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="min-w-0 text-sm font-semibold text-primary hover:underline"
+                            @click.stop
+                          >
+                            <span class="block truncate">{{ file.originalFilename }}</span>
+                            <span class="mt-0.5 block text-xs font-medium text-text-muted">
+                              {{ formatFileSize(file.fileSize) }} · {{ formatDateTime(file.uploadedAt || "") }}
+                            </span>
+                          </a>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            class="shrink-0 text-danger! hover:bg-danger/5!"
+                            :loading="deletingPlanEvidenceFileId === String(file.fileId)"
+                            :disabled="isPlanEvidenceActionRunning"
+                            @click.stop="deletePlanEvidenceFile(file)"
+                          >
+                            <Trash2 :size="14" />
+                            삭제
+                          </Button>
+                        </div>
+                      </div>
+                      <p
+                        v-else
+                        class="mt-3 rounded-lg border border-dashed border-border bg-surface-secondary/40 px-3 py-2 text-xs font-semibold text-text-muted"
+                      >
+                        등록된 증빙 파일이 없습니다.
+                      </p>
+                    </div>
+
+                    <p
+                      v-if="planEvidenceError"
+                      class="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger"
+                      role="alert"
+                    >
+                      {{ planEvidenceError }}
+                    </p>
+                  </div>
+
                   <div
+                    v-if="false"
                     class="rounded-xl border border-dashed border-border bg-surface-secondary/40 px-4 py-3"
                   >
                     <p class="text-sm leading-6 text-text-sub">
@@ -1017,6 +1105,7 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  UploadCloud,
 } from "lucide-vue-next";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -1042,6 +1131,7 @@ import type {
   AssetType,
   Department,
   DropdownOption,
+  FileMetadata,
   IntangibleCategoryGroup,
   IntangibleItem,
   Member,
@@ -1246,6 +1336,8 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
   orderedCount: 0,
   completedCount: 0,
 };
+const EVIDENCE_FILE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+const MAX_EVIDENCE_FILE_SIZE = 10 * 1024 * 1024;
 
 const { hasRole } = usePermission();
 const route = useRoute();
@@ -1291,6 +1383,11 @@ const planItemRegisterTarget = ref<PurchasePlanItem | null>(null);
 const isPlanItemRegistering = ref(false);
 const planItemRegisterError = ref("");
 const registeredPlanItemIds = ref<Set<string>>(new Set());
+const planEvidenceInputRef = ref<HTMLInputElement | null>(null);
+const planEvidenceTargetItem = ref<PurchasePlanItem | null>(null);
+const uploadingPlanEvidenceItemId = ref<string | null>(null);
+const deletingPlanEvidenceFileId = ref<string | null>(null);
+const planEvidenceError = ref("");
 const planItemRegisterForm = ref<PlanItemRegisterForm>({
   assetType: "TANGIBLE",
   categoryId: "",
@@ -1560,6 +1657,9 @@ const purchasePlanTitle = computed(() => {
 });
 
 const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
+const isPlanEvidenceActionRunning = computed(() => (
+  Boolean(uploadingPlanEvidenceItemId.value || deletingPlanEvidenceFileId.value)
+));
 
 const selectedPlanDeliveryDate = computed(() => {
   if (!selectedPlan.value) return null;
@@ -1822,6 +1922,75 @@ async function fetchPlanDetail(planId: number | string) {
   } finally {
     isDetailLoading.value = false;
   }
+}
+
+function openPlanEvidenceUpload(item: PurchasePlanItem) {
+  const itemId = getPurchasePlanItemId(item);
+  if (!itemId || isPlanEvidenceActionRunning.value) return;
+
+  planEvidenceError.value = "";
+  planEvidenceTargetItem.value = item;
+  if (planEvidenceInputRef.value) {
+    planEvidenceInputRef.value.value = "";
+    planEvidenceInputRef.value.click();
+  }
+}
+
+async function handlePlanEvidenceFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  const targetItem = planEvidenceTargetItem.value;
+  const itemId = getPurchasePlanItemId(targetItem);
+  const planId = selectedPlan.value?.planId ?? selectedPlanId.value;
+
+  if (!file || !targetItem || !itemId || !planId) return;
+
+  const validationMessage = validateEvidenceFile(file);
+  if (validationMessage) {
+    planEvidenceError.value = validationMessage;
+    input.value = "";
+    return;
+  }
+
+  uploadingPlanEvidenceItemId.value = itemId;
+  planEvidenceError.value = "";
+
+  try {
+    await purchaseApi.uploadPlanItemEvidence(planId, itemId, file);
+    await fetchPlanDetail(planId);
+  } catch (error) {
+    planEvidenceError.value = getErrorMessage(error, "증빙 파일 업로드에 실패했습니다.");
+  } finally {
+    uploadingPlanEvidenceItemId.value = null;
+    planEvidenceTargetItem.value = null;
+    input.value = "";
+  }
+}
+
+async function deletePlanEvidenceFile(file: FileMetadata) {
+  if (isPlanEvidenceActionRunning.value) return;
+  const planId = selectedPlan.value?.planId ?? selectedPlanId.value;
+  if (!planId) return;
+
+  deletingPlanEvidenceFileId.value = String(file.fileId);
+  planEvidenceError.value = "";
+
+  try {
+    await purchaseApi.deletePlanItemEvidenceFile(file.fileId);
+    await fetchPlanDetail(planId);
+  } catch (error) {
+    planEvidenceError.value = getErrorMessage(error, "증빙 파일 삭제에 실패했습니다.");
+  } finally {
+    deletingPlanEvidenceFileId.value = null;
+  }
+}
+
+function validateEvidenceFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  const isAllowedExtension = EVIDENCE_FILE_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
+  if (!isAllowedExtension) return "PDF, JPG, PNG 형식의 증빙 파일만 업로드할 수 있습니다.";
+  if (file.size > MAX_EVIDENCE_FILE_SIZE) return "증빙 파일은 10MB 이하만 업로드할 수 있습니다.";
+  return "";
 }
 
 function handleSearch() {
@@ -2774,6 +2943,14 @@ function formatDateTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatFileSize(value: number | null | undefined) {
+  const bytes = Number(value ?? 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "-";
+  const kilobytes = bytes / 1024;
+  if (kilobytes < 1024) return `${Math.max(1, Math.round(kilobytes))} KB`;
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

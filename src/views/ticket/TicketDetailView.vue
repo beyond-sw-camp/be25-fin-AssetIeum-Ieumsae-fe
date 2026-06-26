@@ -358,7 +358,8 @@ const canRegisterDirectPurchasePayment = computed(() => (
     && ticket.value.ticketType === 'PURCHASE_REQUEST'
     && ticket.value.requestMethod === 'DIRECT_PURCHASE'
     && isRequester.value
-    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status)
+    && ticket.value.directPurchaseConfirmationStatus !== 'CONFIRMED',
   )
 ))
 

@@ -6,6 +6,7 @@ import type {
   DepartmentCreateRequest,
   DepartmentUpdateRequest,
   DirectPurchaseRequestCreate,
+  FileMetadata,
   IntangibleAsset,
   IntangibleAssetCreateRequest,
   LoginRequest,
@@ -891,6 +892,12 @@ const ticketDepartmentRejectionReasons = new Map<string, string>()
 const ticketAssetRejectionReasons = new Map<string, string>()
 const ticketCanceledAt = new Map<string, string>()
 const ticketEvidenceFiles = new Map<string, string>()
+let mockFileSequence = 1
+const mockFiles = new Map<string, FileMetadata[]>()
+
+function mockFileKey(targetType: string | null | undefined, targetId: string | null | undefined) {
+  return `${targetType || 'UNLINKED'}:${targetId || 'UNLINKED'}`
+}
 
 for (const ticketId of ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212']) {
   ticketApproverIds.set(ticketId, mockMemberId(3))
@@ -1394,6 +1401,7 @@ function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
         ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
         ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
         ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
+        evidenceFiles: mockFiles.get(mockFileKey('PURCHASE_PLAN_ITEM', String(item.itemId))) ?? item.evidenceFiles ?? [],
       }
     }),
   }
@@ -2416,6 +2424,86 @@ function toIntangibleAvailableAssignedAsset(assignment: MockIntangibleAssetAssig
 }
 
 export const handlers = [
+  http.post(`${API_PREFIX}/files`, async ({ request }) => {
+    const formData = await request.formData()
+    const file = formData.get('file')
+    const targetType = String(formData.get('targetType') ?? '').trim()
+    const targetId = String(formData.get('targetId') ?? '').trim()
+
+    if (!(file instanceof File) || file.size === 0) {
+      return HttpResponse.json({
+        status: 400,
+        errorCode: 'INVALID_FILE',
+        message: '업로드할 파일을 선택해주세요.',
+        data: null,
+      }, { status: 400 })
+    }
+
+    const uploadedAt = new Date().toISOString()
+    const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() ?? null : null
+    const metadata: FileMetadata = {
+      fileId: mockFileSequence++,
+      fileUrl: `/mock/files/${targetType.toLowerCase() || 'file'}/${crypto.randomUUID?.() ?? Date.now()}-${file.name}`,
+      originalFilename: file.name,
+      fileSize: file.size,
+      extension,
+      uploadedAt,
+    }
+    const key = mockFileKey(targetType, targetId)
+    mockFiles.set(key, [...(mockFiles.get(key) ?? []), metadata])
+
+    if (targetType === 'TICKET' && targetId) {
+      ticketEvidenceFiles.set(targetId, file.name)
+      const requestDetail = ticketDetailData.get(targetId) ?? {}
+      ticketDetailData.set(targetId, {
+        ...requestDetail,
+        directPurchaseEvidenceFileName: file.name,
+        directPurchaseEvidenceUploadedAt: uploadedAt,
+        directPurchaseEvidenceUrl: metadata.fileUrl,
+        proofFileUrl: metadata.fileUrl,
+        proofFileUploadedAt: uploadedAt,
+      })
+    }
+
+    return HttpResponse.json(ok(metadata, '파일 업로드에 성공했습니다.'))
+  }),
+
+  http.get(`${API_PREFIX}/files`, ({ request }) => {
+    const url = new URL(request.url)
+    const targetType = url.searchParams.get('targetType')
+    const targetId = url.searchParams.get('targetId')
+
+    if (targetType || targetId) {
+      return HttpResponse.json(ok(mockFiles.get(mockFileKey(targetType, targetId)) ?? []))
+    }
+
+    return HttpResponse.json(ok(Array.from(mockFiles.values()).flat()))
+  }),
+
+  http.delete(`${API_PREFIX}/files/:fileId`, ({ params }) => {
+    const fileId = String(params.fileId)
+    let deleted = false
+
+    for (const [key, files] of mockFiles.entries()) {
+      const nextFiles = files.filter((file) => String(file.fileId) !== fileId)
+      if (nextFiles.length !== files.length) {
+        deleted = true
+        mockFiles.set(key, nextFiles)
+      }
+    }
+
+    if (!deleted) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'FILE_NOT_FOUND',
+        message: '파일을 찾을 수 없습니다.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    return HttpResponse.json(ok(null, '파일 삭제에 성공했습니다.'))
+  }),
+
   http.get(`${API_PREFIX}/purchase-plans`, ({ request }) => {
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? 0)
