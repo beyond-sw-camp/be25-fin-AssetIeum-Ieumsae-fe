@@ -1,0 +1,53 @@
+import type { InspectionStatus } from '@/types/inspection'
+
+interface ResolveInspectionStatusOptions {
+  startDate: string
+  endDate: string
+  fallbackStatus: InspectionStatus
+  unrespondedCount?: number
+  followUpCount?: number
+  completedFollowUpCount?: number
+  today?: Date
+}
+
+function startOfDay(date: Date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function parseDate(value: string) {
+  if (!value) return null
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+export function resolveInspectionStatus({
+  startDate,
+  endDate,
+  fallbackStatus,
+  unrespondedCount,
+  today = new Date(),
+}: ResolveInspectionStatusOptions): InspectionStatus {
+  if (fallbackStatus === 'CLOSED') return 'CLOSED'
+
+  const start = parseDate(startDate)
+  const end = parseDate(endDate)
+
+  if (!start || !end) return fallbackStatus
+
+  const currentDay = startOfDay(today)
+  const startDay = startOfDay(start)
+  const endDay = startOfDay(end)
+
+  if (currentDay < startDay) return 'READY'
+  if (currentDay <= endDay) return 'IN_PROGRESS'
+
+  if (unrespondedCount === undefined) {
+    return fallbackStatus === 'COMPLETED' ? fallbackStatus : 'IN_PROGRESS'
+  }
+
+  if (unrespondedCount > 0) return 'IN_PROGRESS'
+  return 'COMPLETED'
+}

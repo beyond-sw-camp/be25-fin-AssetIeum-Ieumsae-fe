@@ -1,0 +1,88 @@
+// =====================================================
+// 공통 API 응답 타입
+// =====================================================
+
+export interface ApiResponse<T = null> {
+  status: number
+  errorCode: string | null
+  message: string
+  data: T
+}
+
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface DropdownOption {
+  label: string
+  value: string | number
+}
+
+// =====================================================
+// 권한(Role) 타입
+// =====================================================
+
+export type Role =
+  | 'SUPER_ADMIN'      // 플랫폼 시스템 관리자
+  | 'ADMIN'            // 회사 최고 관리자
+  | 'DEPARTMENT_MANAGER' // 부서책임자
+  | 'ASSET_TEAM'       // 구매자산팀
+  | 'ASSET_MANAGER'    // 구매자산팀 관리자
+  | 'EMPLOYEE'         // 사원
+
+// =====================================================
+// 자산 공통 상태
+// =====================================================
+
+export type AssetType = 'TANGIBLE' | 'INTANGIBLE'
+
+export type TangibleAssetStatus =
+  | 'AVAILABLE'        // 사용가능
+  | 'IN_USE'           // 사용중
+  | 'REPAIR_REQUESTED' // 수리요청
+  | 'REPAIRING'        // 수리중
+  | 'RETURN_REQUESTED' // 반납요청
+  | 'DISPOSED'         // 폐기완료
+
+export type IntangibleAssetStatus =
+  | 'AVAILABLE'            // 사용가능
+  | 'IN_USE'               // 사용중
+  | 'EXPIRING_SOON'        // 만료예정
+  | 'EXPIRED'              // 만료
+  | 'TERMINATION_REQUESTED'// 해지요청
+  | 'TERMINATED'           // 해지
+  | 'CANCELLED'             // 해지완료
+
+// =====================================================
+// 티켓 타입 / 상태
+// =====================================================
+
+export type TicketType =
+  | 'ASSET_REQUEST'          // 표준 자산 요청
+  | 'RENTAL'                 // 대여 요청
+  | 'RENTAL_EXTENSION'       // 대여 연장
+  | 'MAINTENANCE_REQUEST'    // 유지보수 요청
+  | 'ASSET_RETURN'           // 반납/해지 요청
+  | 'PURCHASE_REQUEST'       // 구매/직접 구매 요청
+  | 'PURCHASE_RETURN'        // 반품 요청
+
+export type TicketStatus =
+  | 'REQUESTED'              // 접수 대기
+  | 'DEPARTMENT_APPROVED'    // 부서 승인
+  | 'DEPARTMENT_REJECTED'    // 부서 반려
+  | 'ASSET_APPROVED'         // 구매자산팀 승인
+  | 'ASSET_REJECTED'         // 구매자산팀 반려
+  | 'IN_PROGRESS'            // 처리 중
+  | 'COLLECTED'              // 회수 완료
+  | 'COMPLETED'              // 처리 완료
+  | 'CANCELLED'              // 취소
+
+// =====================================================
+// 사원 상태
+// =====================================================
+
+export type MemberStatus = 'ACTIVE' | 'RESIGNED' | 'ON_LEAVE'

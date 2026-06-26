@@ -1,0 +1,402 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores'
+import type { Role } from '@/types'
+
+// =====================================================
+// 라우트 메타 타입 확장
+// =====================================================
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    roles?: Role[]           // 접근 가능한 역할 목록
+    title?: string           // 페이지 타이틀
+  }
+}
+
+// =====================================================
+// 라우트 정의
+// =====================================================
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    // ─── 인증 불필요 ───────────────────────────────
+    {
+      path: '/login',
+      name: 'Login',
+      component: () => import('@/views/auth/LoginView.vue'),
+      meta: { requiresAuth: false, title: '로그인' },
+    },
+    {
+      path: '/mobile/login',
+      name: 'MobileLogin',
+      component: () => import('@/views/inspection/mobile/MobileLoginView.vue'),
+      meta: { requiresAuth: false, title: '모바일 로그인' },
+    },
+    {
+      path: '/mobile/inspections',
+      name: 'MobileInspection',
+      component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
+      meta: {
+        requiresAuth: true,
+        title: '모바일 자산 검수',
+        roles: ['EMPLOYEE', 'ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'],
+      },
+    },
+    // ─── 인증 필요 (공통 레이아웃) ─────────────────
+    {
+      path: '/',
+      component: () => import('@/components/layout/AppLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        // 대시보드 (역할별 분기)
+        {
+          path: '',
+          name: 'Dashboard',
+          component: () => import('@/views/dashboard/DashboardView.vue'),
+          meta: { title: '대시보드' },
+        },
+
+        // ─── 조직도 ─────────────────────────────────
+        {
+          path: 'system/companies',
+          name: 'SystemCompanies',
+          component: () => import('@/views/system/SystemAdminView.vue'),
+          meta: { title: '회사 관리', roles: ['SUPER_ADMIN'] },
+        },
+        {
+          path: 'organization',
+          name: 'Organization',
+          component: () => import('@/views/organization/OrganizationView.vue'),
+          meta: { title: '조직도', roles: ['ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'] },
+        },
+
+        // ─── 사원 관리 ───────────────────────────────
+        {
+          path: 'members',
+          children: [
+            {
+              path: '',
+              name: 'MemberList',
+              component: () => import('@/views/member/MemberListView.vue'),
+              meta: { title: '사원 목록', roles: ['ADMIN'] },
+            },
+          ],
+        },
+
+        // ─── 티켓 ────────────────────────────────────
+        {
+          path: 'tickets',
+          children: [
+            {
+              path: '',
+              name: 'TicketList',
+              component: () => import('@/views/ticket/TicketListView.vue'),
+              meta: {
+                title: '나의 요청',
+              },
+            },
+            {
+              path: 'create',
+              name: 'TicketCreate',
+              redirect: { name: 'TicketList', query: { create: '1' } },
+              meta: { title: '새 요청', roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'manage',
+              name: 'TicketManagement',
+              component: () => import('@/views/ticket/TicketManagementView.vue'),
+              meta: {
+                title: '티켓 관리',
+                roles: ['ADMIN', 'DEPARTMENT_MANAGER', 'ASSET_TEAM', 'ASSET_MANAGER'],
+              },
+            },
+            {
+              path: ':ticketId',
+              name: 'TicketDetail',
+              component: () => import('@/views/ticket/TicketDetailView.vue'),
+              meta: { title: '티켓 상세' },
+            },
+          ],
+        },
+        
+        // ─── 유형자산 ────────────────────────────────
+        {
+          path: 'assets/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetList',
+              component: () => import('@/views/asset/tangible/TangibleAssetListView.vue'),
+              meta: { title: '유형자산 목록' },
+            },
+          ],
+        },
+
+        // ─── 유형자산 품목 ────────────────────────────────
+        {
+          path: 'item/tangible',
+          children: [
+            {
+              path: '',
+              name: 'TangibleAssetItemList',
+              component: () => import('@/views/item/tangible/TangibleItemListView.vue'),
+              meta: {title: '유형자산 품목 목록'}
+            }
+          ]
+        }, 
+
+        // ─── 무형자산 품목 ────────────────────────────────
+        {
+          path: 'item/intangible',
+          children: [
+            {
+              path: '',
+              name: 'IntangibleItemList',
+              component: () => import('@/views/item/intangible/IntangibleItemListView.vue'),
+              meta: {title: '무형자산 품목 목록'}
+            }
+          ]
+        },
+
+        // ─── 무형자산 ────────────────────────────────
+        {
+          path: 'assets/intangible',
+          children: [
+            {
+              path: '',
+              name: 'IntangibleAssetList',
+              component: () => import('@/views/asset/intangible/IntangibleAssetListView.vue'),
+              meta: { title: '무형자산 목록' },
+            },
+            {
+              path: ':assetId',
+              name: 'IntangibleAssetDetail',
+              component: () => import('@/components/asset/intangible/IntangibleAssetDetailView.vue'),
+              meta: { title: '무형자산 상세' },
+            },
+          ],
+        },
+
+        // ─── 전수조사 ────────────────────────────────
+        {
+          path: 'inspections',
+          children: [
+            {
+              path: 'tangible',
+              name: 'TangibleInspection',
+              component: () => import('@/views/inspection/tangible/TangibleInspectionView.vue'),
+              meta: { title: '유형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
+            },
+            {
+              path: 'tangible/respond',
+              redirect: { name: 'TangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'mobile',
+              redirect: { name: 'MobileInspection' },
+            },
+            {
+              path: 'intangible',
+              name: 'IntangibleInspection',
+              component: () => import('@/views/inspection/intangible/IntangibleInspectionView.vue'),
+              meta: { title: '무형자산 전수조사', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER', 'EMPLOYEE'] },
+            },
+            {
+              path: 'intangible/respond',
+              redirect: { name: 'IntangibleInspection' },
+              meta: { roles: ['EMPLOYEE'] },
+            },
+            {
+              path: 'follow-ups/my',
+              name: 'MyInspectionFollowUp',
+              component: () => import('@/views/inspection/followup/MyInspectionFollowUpView.vue'),
+              meta: {
+                title: '내 후속처리',
+                roles: ['ASSET_TEAM', 'ASSET_MANAGER'],
+              },
+            },
+          ],
+        },
+
+        // ─── HR 워크플로우 ────────────────────────────────
+        {
+          path: 'hrworkflows',
+          name: 'Hrworkflows',
+          component: () => import('@/views/hr/HrWorkflowView.vue'),
+          meta: { title: 'HR 워크플로우', roles: ['ASSET_MANAGER', 'DEPARTMENT_MANAGER', 'ADMIN'] },
+        },
+
+        // ─── 구매 관리 ───────────────────────────────
+        {
+          path: 'purchase',
+          name: 'Purchase',
+          component: () => import('@/views/purchase/PurchaseView.vue'),
+          meta: { title: '구매 계획', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+        },
+
+        // ─── 로그 ─────────────────────────────────────
+        {
+          path: 'reports/operations',
+          name: 'OperationReport',
+          // TODO: AWS S3/CloudFront 배포 전 성능 점검 시 ECharts 청크 크기 최적화 검토.
+          // 현재 라우트 단위 lazy import는 적용되어 있으며, 필요하면 차트 컴포넌트/echarts vendor chunk를 추가 분리한다.
+          component: () => import('@/views/report/OperationReportView.vue'),
+          meta: {
+            title: '운영 리포트',
+            roles: ['ASSET_TEAM', 'ASSET_MANAGER'],
+          },
+        },
+        {
+          path: 'logs',
+          children: [
+            {
+              path: '/audit',
+              name: 'AuditLog',
+              component: () => import('@/views/log/LogView.vue'),
+              meta: { title: '감사로그', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+            },
+            {
+              path: '/activity',
+              name: 'ActivityLog',
+              component: () => import('@/views/log/LogView.vue'),
+              meta: { title: '활동로그', roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'] },
+            },
+          ]
+        },
+
+        // ─── 내 정보 ─────────────────────────────────
+        {
+          path: 'profile',
+          name: 'Profile',
+          component: () => import('@/views/profile/ProfileView.vue'),
+          meta: { title: '내 정보' },
+        },
+        {
+          path: 'settings',
+          name: 'Settings',
+          component: () => import('@/views/settings/SettingsView.vue'),
+          meta: { title: '설정' },
+        },
+        {
+          path: 'settings/purchase-policy',
+          name: 'PurchasePolicySettings',
+          component: () => import('@/views/settings/SettingsView.vue'),
+          meta: { title: '구매 운영 정책', roles: ['ADMIN'] },
+        },
+        {
+          path: 'settings/password',
+          name: 'PasswordChange',
+          component: () => import('@/views/auth/PasswordChangeView.vue'),
+          meta: { title: '비밀번호 변경' },
+        },
+      ],
+    },
+
+    // 404
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('@/views/error/NotFoundView.vue'),
+    },
+  ],
+})
+
+// =====================================================
+// 네비게이션 가드
+// =====================================================
+
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+
+  // 타이틀 업데이트
+  document.title = to.meta.title ? `${to.meta.title} | 자산이음` : '자산이음'
+
+  // 인증 불필요 페이지
+  if (to.meta.requiresAuth === false) {
+    if (to.name === 'Login' && isMobileViewport()) {
+      return auth.isAuthenticated && canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'MobileLogin', query: to.query }
+    }
+
+    if (auth.isAuthenticated && to.name === 'MobileLogin') {
+      return canUseMobileInspectionRole(auth.currentRole)
+        ? { name: 'MobileInspection' }
+        : { name: 'Dashboard' }
+    }
+
+    if (auth.isAuthenticated && to.name === 'Login') {
+      return { name: 'Dashboard' }
+    }
+    return true
+  }
+
+  // 미인증 → 로그인 페이지로
+  if (!auth.isAuthenticated) {
+    if (to.path.startsWith('/mobile')) {
+      return { name: 'MobileLogin', query: { redirect: to.fullPath } }
+    }
+
+    return { name: 'Login', query: { redirect: to.fullPath } }
+  }
+
+  // 역할 체크
+  if (to.name === 'Dashboard' && auth.currentRole === 'SUPER_ADMIN') {
+    return { name: 'SystemCompanies' }
+  }
+
+  if (
+    (to.name === 'TicketList' || to.name === 'TicketCreate' || to.name === 'TicketDetail')
+    && (auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN')
+  ) {
+    return auth.currentRole === 'SUPER_ADMIN'
+      ? { name: 'SystemCompanies' }
+      : { name: 'TicketManagement' }
+  }
+
+  if (
+    to.name === 'Purchase'
+    && auth.currentRole === 'SUPER_ADMIN'
+  ) {
+    return { name: 'SystemCompanies' }
+  }
+
+  if (
+    to.name === 'MyInspectionFollowUp'
+    && (auth.currentRole === 'ADMIN' || auth.currentRole === 'SUPER_ADMIN')
+  ) {
+    return auth.currentRole === 'SUPER_ADMIN'
+      ? { name: 'SystemCompanies' }
+      : { name: 'Dashboard' }
+  }
+
+  if (to.meta.roles && to.meta.roles.length > 0) {
+    const canAccessAllPages = auth.currentRole === 'ADMIN'
+    if (!canAccessAllPages && (!auth.currentRole || !to.meta.roles.includes(auth.currentRole))) {
+      return { name: 'Dashboard' } // 권한 없으면 대시보드로
+    }
+  }
+
+  if (to.name === 'Dashboard' && canUseMobileInspectionRole(auth.currentRole) && isMobileViewport()) {
+    return { name: 'MobileInspection' }
+  }
+
+  return true
+})
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+}
+
+function canUseMobileInspectionRole(role: Role | null) {
+  return role === 'EMPLOYEE'
+    || role === 'ASSET_TEAM'
+    || role === 'ASSET_MANAGER'
+    || role === 'ADMIN'
+}
+
+export default router
