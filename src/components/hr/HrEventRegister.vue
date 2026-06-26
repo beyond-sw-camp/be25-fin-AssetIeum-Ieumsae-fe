@@ -58,7 +58,7 @@
         </div>
         <div
           v-if="!template?.items?.length"
-          class="rounded-lg border border-warning/30 bg-warning/5 px-4 py-4 text-sm text-warning"
+          class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-sm text-primary"
         >
           현재 부서에 등록된 입사 자산 템플릿이 없습니다.
         </div>
@@ -88,35 +88,36 @@
         <div v-else-if="assetTargets.length === 0" class="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-muted">
           대상자에게 배정된 자산이 없습니다.
         </div>
-        <article
-          v-for="target in assetTargets"
-          v-else
-          :key="`${target.assetType}-${target.assetId}`"
-          class="rounded-lg border border-border bg-surface p-4"
-        >
-          <div class="flex items-start gap-3">
-            <input
-              v-model="target.isSelected"
-              type="checkbox"
-              class="mt-1 h-4 w-4 accent-primary"
-              :aria-label="`${target.productName} 처리 대상 선택`"
-            />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-bold text-text-main">{{ target.productName }}</p>
-              <p class="mt-1 text-xs text-text-sub">{{ target.assetCode }} · {{ assetTypeLabel(target.assetType) }}</p>
+        <template v-else>
+          <article
+            v-for="target in assetTargets"
+            :key="`${target.assetType}-${target.assetId}`"
+            class="rounded-lg border border-border bg-surface p-4"
+          >
+            <div class="flex items-start gap-3">
+              <input
+                v-model="target.isSelected"
+                type="checkbox"
+                class="mt-1 h-4 w-4 accent-primary"
+                :aria-label="`${target.productName} 처리 대상 선택`"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-text-main">{{ target.productName }}</p>
+                <p class="mt-1 text-xs text-text-sub">{{ target.assetCode }} · {{ assetTypeLabel(target.assetType) }}</p>
+              </div>
             </div>
-          </div>
-          <div v-if="target.isSelected" class="mt-3 space-y-3 pl-7">
-            <Dropdown v-model="target.actionType" :options="actionTypeOptions" menu-strategy="fixed" />
-            <Dropdown
-              v-if="target.actionType === 'TRANSFER_REQUIRED'"
-              v-model="target.transferMemberId"
-              :options="transferMemberOptions"
-              root-option="전달받을 사원을 선택하세요"
-              menu-strategy="fixed"
-            />
-          </div>
-        </article>
+            <div v-if="target.isSelected" class="mt-3 space-y-3 pl-7">
+              <Dropdown v-model="target.actionType" :options="actionTypeOptions" menu-strategy="fixed" />
+              <Dropdown
+                v-if="target.actionType === 'TRANSFER_REQUIRED'"
+                v-model="target.transferMemberId"
+                :options="transferMemberOptions"
+                root-option="전달받을 사원을 선택하세요"
+                menu-strategy="fixed"
+              />
+            </div>
+          </article>
+        </template>
       </div>
 
       <Input
@@ -425,12 +426,14 @@ function assetTypeLabel(assetType: HrEventAssetType) {
   return assetType === 'TANGIBLE' ? '유형자산' : '무형자산'
 }
 
-function firstText(...values: Array<string | null | undefined>) {
-  return values.find((value): value is string => Boolean(value?.trim()))?.trim() ?? '-'
+function firstText(...values: unknown[]) {
+  return values.find((value): value is string => (
+    typeof value === 'string' && value.trim().length > 0
+  ))?.trim() ?? '-'
 }
 
 function assetStatusValue(asset: TangibleAsset | IntangibleAsset) {
-  const record = asset as Record<string, unknown>
+  const record = asset as unknown as Record<string, unknown>
   return firstText(
     record.status as string | null | undefined,
     record.tangibleAssetStatus as string | null | undefined,
