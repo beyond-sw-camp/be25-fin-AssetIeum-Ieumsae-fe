@@ -19,14 +19,14 @@
           <Dropdown
             v-model="statusFilter"
             :options="statusOptions"
-            class="w-36"
+            class="w-40!"
             menu-strategy="fixed"
             menu-align="right"
           />
           <Input
             id="my-follow-up-keyword"
             v-model="keyword"
-            class="w-56"
+            class="w-40!"
             placeholder="제품명, 자산코드 검색"
             @keyup.enter="handleSearch"
           />
