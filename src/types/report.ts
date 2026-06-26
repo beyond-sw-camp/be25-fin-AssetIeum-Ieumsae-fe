@@ -1,112 +1,67 @@
 import type { PageResponse } from './common'
 
-export type ReportAssignmentType = 'ASSIGNED' | 'RENTAL'
-export type ReportAssignmentStatus = 'ACTIVE' | 'ENDED'
-export type ReportUsageType = 'ASSIGNED' | 'RENTAL'
-export type ReportReturnStatus = 'RETURN_REQUESTED' | 'IN_USE' | 'AVAILABLE'
-
-export interface ReportBaseFilter {
-  companyId?: string
-  departmentId?: string
+export interface OperationReportFilter {
   startDate?: string
   endDate?: string
+}
+
+export interface UnreturnedAssetsReportFilter {
+  topDelayedUserLimit?: number
+}
+
+export interface PurchaseRequestsReportFilter extends OperationReportFilter {
   page?: number
   size?: number
 }
 
-export type DepartmentOverdueReportFilter = ReportBaseFilter
-
-export interface RepeatedOverdueUserReportFilter extends ReportBaseFilter {
-  memberId?: string
-  assignmentType?: ReportAssignmentType
-  assignmentStatus?: ReportAssignmentStatus
-  minOverdueCount?: number
-}
-
-export interface ReturnRequestReportFilter extends ReportBaseFilter {
-  currentUserId?: string
-  usageType?: ReportUsageType
-  status?: ReportReturnStatus
-}
-
-export interface PurchaseRequestReportFilter extends ReportBaseFilter {
-  requesterId?: string
-  approverId?: string
-  assigneeId?: string
-  ticketType?: string
-  status?: string
-}
-
-// TODO: API 명세/백엔드 확인 필요 - 운영 리포트 응답 schema가 비어 있어 표시용 alias를 허용한다.
-export interface DepartmentOverdueReportItem {
+export interface DepartmentUnreturnedAsset {
   departmentId?: string
   departmentName?: string
-  name?: string
   unreturnedAssetCount?: number
-  overdueAssetCount?: number
-  assetCount?: number
-  delayedReturnCount?: number
-  overdueCount?: number
-  totalOverdueDays?: number
+  overdueReturnCount?: number
 }
 
-export interface RepeatedOverdueUserReportItem {
+export interface TopDelayedUser {
+  rank?: number
   memberId?: string
-  memberNo?: string
   memberName?: string
-  name?: string
+  departmentName?: string
+  delayCount?: number
+  averageDelayDays?: number
+  recentDelayedAt?: string
+}
+
+export interface UnreturnedAssetsReport {
+  totalUnreturnedAssetCount: number
+  overdueReturnCount: number
+  departmentUnreturnedAssets: DepartmentUnreturnedAsset[]
+  repeatDelayedUserCount: number
+  repeatDelayedUserRate: number
+  topDelayedUsers: TopDelayedUser[]
+}
+
+export interface RecoveryReport {
+  returnRequestCreatedCount: number
+  returnRequestCreatedChangeRate: number
+  returnCompletedCount: number
+  returnCompletedChangeRate: number
+  averageRecoveryDays: number
+  averageRecoveryDaysChangeRate: number
+  totalRecoveryDelayDays: number
+  totalRecoveryDelayDaysChangeRate: number
+}
+
+export interface DepartmentPurchaseRequest {
   departmentId?: string
   departmentName?: string
-  delayedReturnCount?: number
-  overdueCount?: number
-  totalOverdueDays?: number
-  latestOverdueDate?: string
-}
-
-export interface ReturnRequestReportSummary {
-  createdCount?: number
-  requestedCount?: number
-  completedCount?: number
-  averageProcessingDays?: number
-  averageReturnDays?: number
-  overdueDays?: number
-  delayedDays?: number
-}
-
-export interface ReturnRequestReportItem {
-  departmentId?: string
-  departmentName?: string
-  createdCount?: number
-  requestedCount?: number
-  completedCount?: number
-  averageProcessingDays?: number
-  overdueDays?: number
-}
-
-export interface ReturnRequestReportResponse {
-  summary?: ReturnRequestReportSummary
-  content?: ReturnRequestReportItem[]
-  items?: ReturnRequestReportItem[]
-  page?: number
-  size?: number
-  totalElements?: number
-  totalPages?: number
-}
-
-export interface PurchaseRequestReportItem {
-  departmentId?: string
-  departmentName?: string
-  name?: string
-  requestCount?: number
   purchaseRequestCount?: number
-  cumulativeQuantity?: number
-  totalQuantity?: number
-  approvedCount?: number
-  completedCount?: number
-  estimatedAmount?: number
-  actualAmount?: number
+  purchaseApprovedCount?: number
+  purchaseCompletedCount?: number
+  accumulatedPurchaseQuantity?: number
 }
 
-export type DepartmentOverdueReportResponse = PageResponse<DepartmentOverdueReportItem>
-export type RepeatedOverdueUserReportResponse = PageResponse<RepeatedOverdueUserReportItem>
-export type PurchaseRequestReportResponse = PageResponse<PurchaseRequestReportItem>
+export interface PurchaseRequestsReport {
+  newPurchaseQuantity: number
+  newPurchaseQuantityChangeRate: number
+  departmentPurchaseRequests: PageResponse<DepartmentPurchaseRequest>
+}
