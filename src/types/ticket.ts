@@ -106,6 +106,8 @@ export interface TicketDetail {
   directPurchaseEvidenceFileName?: string | null
   directPurchaseEvidenceUploadedAt?: string | null
   directPurchaseEvidenceUrl?: string | null
+  proofFileUrl?: string | null
+  proofFileUploadedAt?: string | null
   directPurchaseConfirmationStatus?: string | null
   returnReason?: string | null
   returnResult?: string | null
@@ -550,6 +552,7 @@ export interface TicketActualAmountResponse {
   billingCycle?: string | null
   expectedTotalPrice?: number | null
   proofFileUrl?: string | null
+  ProofURL?: string | null
   proofFileUploadedAt?: string | null
   confirmationStatus?: string | null
   updatedAt: string
@@ -575,6 +578,10 @@ export interface DirectPurchasePaymentRequest {
 export interface TicketEvidenceUploadResponse {
   ticketId: string
   directPurchaseEvidenceFileName?: string | null
+  directPurchaseEvidenceUrl?: string | null
+  directPurchaseEvidenceUploadedAt?: string | null
+  proofFileUrl?: string | null
+  proofFileUploadedAt?: string | null
   purchaseDate: string
   updatedAt: string
 }

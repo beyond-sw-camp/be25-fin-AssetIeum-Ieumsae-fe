@@ -1,4 +1,5 @@
 import api, { ApiError } from './client'
+import { fileApi } from './file.api'
 import type {
   TicketListItem,
   PurchasePlanCandidateTicket,
@@ -38,7 +39,6 @@ import type {
   DirectPurchaseAssetAssignRequest,
   DirectPurchaseAssetAssignResponse,
   TicketComment,
-  TicketEvidenceUploadResponse,
   TicketStatus,
   TicketType,
   TicketCommentDeleteResponse,
@@ -203,10 +203,13 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
       ?? null,
     quantity: rawDetail.quantity ?? null,
     actualAmount: pickNumber(rawDetail, ['actualAmount', 'actualPrice']) ?? null,
-    directPurchaseEvidenceUrl: pickString(rawDetail, ['directPurchaseEvidenceUrl', 'proofFileUrl']) ?? null,
+    directPurchaseEvidenceUrl: pickString(
+      rawDetail,
+      ['directPurchaseEvidenceUrl', 'proofFileUrl', 'ProofURL', 'proofUrl', 'fileUrl'],
+    ) ?? null,
     directPurchaseEvidenceUploadedAt: pickString(
       rawDetail,
-      ['directPurchaseEvidenceUploadedAt', 'proofFileUploadedAt'],
+      ['directPurchaseEvidenceUploadedAt', 'proofFileUploadedAt', 'uploadedAt'],
     ) ?? null,
     directPurchaseEvidenceFileName: rawDetail.directPurchaseEvidenceFileName
       ?? pickString(rawDetail, ['proofFileName'])
@@ -290,6 +293,28 @@ function normalizeTicketDetail(rawDetail: TicketDetailResponse): TicketDetail {
     canceledAt: rawDetail.canceledAt ?? (rawDetail.cancelledAt as string | null | undefined) ?? null,
     requestedAt: rawDetail.requestedAt ?? pickString(rawDetail, ['createdAt']) ?? '',
     updatedAt: rawDetail.updatedAt ?? pickString(rawDetail, ['processedAt']) ?? '',
+  }
+}
+
+function normalizeActualAmountResponse(
+  response: ApiResponse<TicketActualAmountResponse & Record<string, unknown>>,
+): ApiResponse<TicketActualAmountResponse> {
+  const proofFileUrl = pickString(
+    response.data,
+    ['proofFileUrl', 'ProofURL', 'proofUrl', 'directPurchaseEvidenceUrl', 'fileUrl'],
+  ) ?? null
+  const proofFileUploadedAt = pickString(
+    response.data,
+    ['proofFileUploadedAt', 'directPurchaseEvidenceUploadedAt', 'uploadedAt'],
+  ) ?? null
+
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      proofFileUrl,
+      proofFileUploadedAt,
+    },
   }
 }
 
@@ -556,39 +581,44 @@ export const ticketApi = {
     }),
 
   /** 구매 증빙 업로드 */
-  uploadEvidence: (ticketId: string, file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.upload<TicketEvidenceUploadResponse>(`/tickets/${ticketId}/evidences`, formData)
-  },
+  uploadEvidence: (ticketId: string, file: File) =>
+    fileApi.upload({ file, targetType: 'TICKET', targetId: ticketId }),
 
   /** 실제 결제 금액 입력 */
   setActualPrice: (ticketId: string, body: DirectPurchasePaymentRequest) =>
     api.post<TicketActualAmountResponse>(`/tickets/${ticketId}/actual-amount`, body),
 
-  setDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
-    api.post<TicketActualAmountResponse>(
+  setDirectPurchaseResult: async (ticketId: string, body: DirectPurchasePaymentRequest) => {
+    const response = await api.post<TicketActualAmountResponse & Record<string, unknown>>(
       `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
       body,
-    ),
+    )
+    return normalizeActualAmountResponse(response)
+  },
 
   /** 댓글 목록 조회 */
-  getDirectPurchaseResult: (ticketId: string) =>
-    api.get<TicketActualAmountResponse>(
+  getDirectPurchaseResult: async (ticketId: string) => {
+    const response = await api.get<TicketActualAmountResponse & Record<string, unknown>>(
       `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
-    ),
+    )
+    return normalizeActualAmountResponse(response)
+  },
 
-  updateDirectPurchaseResult: (ticketId: string, body: DirectPurchasePaymentRequest) =>
-    api.put<TicketActualAmountResponse>(
+  updateDirectPurchaseResult: async (ticketId: string, body: DirectPurchasePaymentRequest) => {
+    const response = await api.put<TicketActualAmountResponse & Record<string, unknown>>(
       `/tickets/purchase-requests/${ticketId}/direct-purchase-result`,
       body,
-    ),
+    )
+    return normalizeActualAmountResponse(response)
+  },
 
-  confirmDirectPurchaseResult: (ticketId: string) =>
-    api.patch<TicketActualAmountResponse>(
+  confirmDirectPurchaseResult: async (ticketId: string) => {
+    const response = await api.patch<TicketActualAmountResponse & Record<string, unknown>>(
       `/tickets/purchase-requests/${ticketId}/direct-purchase-result/confirm`,
       {},
-    ),
+    )
+    return normalizeActualAmountResponse(response)
+  },
 
   assignDirectPurchaseAsset: (ticketId: string, body: DirectPurchaseAssetAssignRequest) =>
     api.post<DirectPurchaseAssetAssignResponse>(

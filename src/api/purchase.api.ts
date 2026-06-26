@@ -1,4 +1,5 @@
 import { api } from './client'
+import { fileApi } from './file.api'
 import type {
   PurchasePlanCreateRequest,
   PurchasePlanCreateResponse,
@@ -98,6 +99,7 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   targetMembers?: unknown[]
   tangibleAssetItemId?: number | string | null
   intangibleAssetItemId?: number | string | null
+  evidenceFiles?: unknown
 }
 
 type PurchasePlanListItemResponse = PurchasePlanListItem & {
@@ -168,6 +170,7 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
     receivedAt: item.receivedAt ?? null,
     actualAmount,
     actualUnitPrice,
+    evidenceFiles: normalizeFileMetadataList(item.evidenceFiles),
     isStandard: normalizePlanItemStandard(item),
     registeredCount: normalizeRegisteredAssetCount(item),
     ticketId: item.ticketId ?? null,
@@ -186,6 +189,33 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
       ?? item.departmentName
       ?? null,
   }
+}
+
+function normalizeFileMetadataList(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((file) => {
+    if (!file || typeof file !== 'object') return []
+    const record = file as Record<string, unknown>
+    const fileId = record.fileId
+    const fileUrl = normalizeString(record.fileUrl)
+    const originalFilename = normalizeString(record.originalFilename)
+      ?? normalizeString(record.fileName)
+      ?? normalizeString(record.filename)
+      ?? '-'
+    const fileSize = toNullableNumber(record.fileSize) ?? 0
+
+    if (fileId === null || fileId === undefined || !fileUrl) return []
+
+    return [{
+      fileId: String(fileId),
+      fileUrl,
+      originalFilename,
+      fileSize,
+      extension: normalizeString(record.extension),
+      uploadedAt: normalizeString(record.uploadedAt),
+    }]
+  })
 }
 
 function normalizePlanItemStatus(item: PurchasePlanItemResponse) {
@@ -367,7 +397,7 @@ function normalizeRegisteredAssetCount(item: PurchasePlanItemResponse) {
 }
 
 function normalizePlanItemStandard(item: PurchasePlanItemResponse) {
-  const value = item.isStandard
+  const value = (item as unknown as Record<string, unknown>).isStandard
   if (value === false || value === 0) return false
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase()
@@ -527,6 +557,17 @@ export const purchaseApi = {
       body,
     )
   },
+
+  uploadPlanItemEvidence: (planId: number | string, itemId: number | string, file: File) => {
+    void planId
+    return fileApi.upload({ file, targetType: 'PURCHASE_PLAN_ITEM', targetId: itemId })
+  },
+
+  getPlanItemEvidenceFiles: (itemId: number | string) =>
+    fileApi.getFiles({ targetType: 'PURCHASE_PLAN_ITEM', targetId: itemId }),
+
+  deletePlanItemEvidenceFile: (fileId: number | string) =>
+    fileApi.deleteFile(fileId),
 
   getPolicy: () =>
     api.get<PurchasePolicy>('/purchase-policies'),
