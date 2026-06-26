@@ -363,8 +363,10 @@ async function loadAssignedAssets(memberId: string, eventType: HrEventType) {
 
     assetTargets.value = [
       ...tangibleResponse.data.content
+        .filter(isInUseAsset)
         .map((asset) => toTangibleDraft(asset, defaultAction)),
       ...intangibleResponse.data.content
+        .filter(isInUseAsset)
         .map((asset) => toIntangibleDraft(asset, defaultAction)),
     ]
   } catch (error) {
@@ -425,6 +427,31 @@ function assetTypeLabel(assetType: HrEventAssetType) {
 
 function firstText(...values: Array<string | null | undefined>) {
   return values.find((value): value is string => Boolean(value?.trim()))?.trim() ?? '-'
+}
+
+function assetStatusValue(asset: TangibleAsset | IntangibleAsset) {
+  const record = asset as Record<string, unknown>
+  return firstText(
+    record.status as string | null | undefined,
+    record.tangibleAssetStatus as string | null | undefined,
+    record.tangibleAssetstatus as string | null | undefined,
+    record.intangibleAssetStatus as string | null | undefined,
+    record.assetStatus as string | null | undefined,
+  )
+}
+
+function isInUseAsset(asset: TangibleAsset | IntangibleAsset) {
+  const normalizedStatus = assetStatusValue(asset)
+    .replaceAll('-', '_')
+    .replaceAll(' ', '_')
+    .toUpperCase()
+
+  return normalizedStatus === 'IN_USE'
+    || normalizedStatus === 'INUSE'
+    || normalizedStatus === 'USED'
+    || normalizedStatus === 'ASSIGNED'
+    || normalizedStatus === '사용중'
+    || normalizedStatus === '사용_중'
 }
 
 function normalizeId(value: string | number | null | undefined) {
