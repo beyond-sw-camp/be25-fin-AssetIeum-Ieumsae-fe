@@ -23,16 +23,22 @@
 
       <template v-else>
         <div
-          v-if="loadError"
+          v-if="visibleErrors.length > 0"
           class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-base font-semibold text-danger"
         >
-          {{ loadError }}
+          <p v-for="error in visibleErrors" :key="error">{{ error }}</p>
         </div>
 
         <section
-          v-if="summaryTiles.length > 0 || departmentChartItems.length > 0"
+          v-if="unreturnedLoading || summaryTiles.length > 0 || departmentChartItems.length > 0"
           class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm"
         >
+          <div
+            v-if="unreturnedLoading && summaryTiles.length === 0 && departmentChartItems.length === 0"
+            class="flex min-h-48 items-center justify-center text-base font-semibold text-text-sub"
+          >
+            운영 리포트 데이터를 불러오는 중입니다.
+          </div>
           <div class="grid items-stretch gap-5 xl:grid-cols-[21rem_minmax(0,1fr)]">
             <div v-if="summaryTiles.length > 0" class="grid h-full gap-3">
               <SummaryTile
@@ -59,7 +65,7 @@
           </div>
         </section>
 
-        <NumberedReportSection v-if="userRows.length > 0" title="사용자별 반복 지연 분석">
+        <NumberedReportSection v-if="unreturnedLoading || userRows.length > 0" title="사용자별 반복 지연 분석">
           <template #description>
             같은 사용자가 반복적으로 반납을 지연시키는 현황을 조회합니다.
           </template>
@@ -102,12 +108,18 @@
             </div>
           </div>
 
-          <NumberedReportSection v-if="recoveryMetricCards.length > 0" title="자산 회수 프로세스 분석">
+          <NumberedReportSection v-if="recoveryLoading || recoveryMetricCards.length > 0" title="자산 회수 프로세스 분석">
             <template #description>
               회수 요청 생성, 회수 완료, 평균 회수 소요 기간, 회수 지연 기간을 조회합니다.
             </template>
 
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div
+              v-if="recoveryLoading && recoveryMetricCards.length === 0"
+              class="flex min-h-36 items-center justify-center rounded-lg border border-border bg-surface-secondary text-base font-semibold text-text-sub"
+            >
+              회수 프로세스 데이터를 불러오는 중입니다.
+            </div>
+            <div v-else class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 v-for="metric in recoveryMetricCards"
                 :key="metric.label"
@@ -121,12 +133,18 @@
             </div>
           </NumberedReportSection>
 
-          <NumberedReportSection v-if="purchaseMetricCards.length > 0 || purchaseRows.length > 0" title="자산 구매 분석">
+          <NumberedReportSection v-if="purchaseLoading || purchaseMetricCards.length > 0 || purchaseRows.length > 0" title="자산 구매 분석">
             <template #description>
               신규 구매 수량과 부서별 구매 요청, 승인, 완료, 누적 구매 수량을 조회합니다.
             </template>
 
-            <div class="grid gap-5 xl:grid-cols-[16rem_minmax(0,1fr)_24rem]">
+            <div
+              v-if="purchaseLoading && purchaseMetricCards.length === 0 && purchaseRows.length === 0"
+              class="flex min-h-36 items-center justify-center rounded-lg border border-border bg-surface-secondary text-base font-semibold text-text-sub"
+            >
+              구매 분석 데이터를 불러오는 중입니다.
+            </div>
+            <div v-else class="grid gap-5 xl:grid-cols-[16rem_minmax(0,1fr)_24rem]">
               <MetricCard
                 v-for="metric in purchaseMetricCards"
                 :key="metric.label"
@@ -214,6 +232,11 @@ const unreturnedLoading = ref(false)
 const recoveryLoading = ref(false)
 const purchaseLoading = ref(false)
 const loadError = ref('')
+const reportErrors = reactive({
+  unreturned: '',
+  recovery: '',
+  purchase: '',
+})
 
 const unreturnedReport = ref<UnreturnedAssetsReport | null>(null)
 const recoveryReport = ref<RecoveryReport | null>(null)
@@ -242,6 +265,15 @@ const isRefreshing = computed(() =>
 
 const datedReportsLoading = computed(() =>
   recoveryLoading.value || purchaseLoading.value,
+)
+
+const visibleErrors = computed(() =>
+  [
+    loadError.value,
+    reportErrors.unreturned,
+    reportErrors.recovery,
+    reportErrors.purchase,
+  ].filter((message): message is string => message.length > 0),
 )
 
 const summaryTiles = computed<SummaryTileModel[]>(() => {
@@ -386,11 +418,18 @@ const purchaseQuantityChartItems = computed(() =>
 
 async function refreshAll() {
   if (!canViewOperationReports.value) return
-  if (!isValidDateRange()) return
 
   loadError.value = ''
+  clearReportErrors()
+  const unreturnedPromise = loadUnreturnedReport()
+
+  if (!isValidDateRange()) {
+    await unreturnedPromise
+    return
+  }
+
   await Promise.all([
-    loadUnreturnedReport(),
+    unreturnedPromise,
     loadRecoveryReport(),
     loadPurchaseReport(),
   ])
@@ -398,17 +437,30 @@ async function refreshAll() {
 
 async function refreshDatedReports() {
   if (!canViewOperationReports.value) return
-  if (!isValidDateRange()) return
 
   loadError.value = ''
+  clearDatedReportErrors()
+  if (!isValidDateRange()) return
+
   await Promise.all([
     loadRecoveryReport(),
     loadPurchaseReport(),
   ])
 }
 
+function clearReportErrors() {
+  reportErrors.unreturned = ''
+  clearDatedReportErrors()
+}
+
+function clearDatedReportErrors() {
+  reportErrors.recovery = ''
+  reportErrors.purchase = ''
+}
+
 async function loadUnreturnedReport() {
   unreturnedLoading.value = true
+  reportErrors.unreturned = ''
 
   try {
     const response = await reportApi.getUnreturnedAssets({
@@ -416,7 +468,7 @@ async function loadUnreturnedReport() {
     })
     unreturnedReport.value = response.data
   } catch (error) {
-    loadError.value = getErrorMessage(error, '미반납 자산 리포트를 불러오지 못했습니다.')
+    reportErrors.unreturned = getErrorMessage(error, '미반납 자산 리포트를 불러오지 못했습니다.')
   } finally {
     unreturnedLoading.value = false
   }
@@ -424,12 +476,13 @@ async function loadUnreturnedReport() {
 
 async function loadRecoveryReport() {
   recoveryLoading.value = true
+  reportErrors.recovery = ''
 
   try {
     const response = await reportApi.getRecovery(getDateFilterParams())
     recoveryReport.value = response.data
   } catch (error) {
-    loadError.value = getErrorMessage(error, '회수 프로세스 리포트를 불러오지 못했습니다.')
+    reportErrors.recovery = getErrorMessage(error, '회수 프로세스 리포트를 불러오지 못했습니다.')
   } finally {
     recoveryLoading.value = false
   }
@@ -437,6 +490,7 @@ async function loadRecoveryReport() {
 
 async function loadPurchaseReport() {
   purchaseLoading.value = true
+  reportErrors.purchase = ''
 
   try {
     const response = await reportApi.getPurchaseRequests({
@@ -446,7 +500,7 @@ async function loadPurchaseReport() {
     })
     purchaseReport.value = response.data
   } catch (error) {
-    loadError.value = getErrorMessage(error, '구매 분석 리포트를 불러오지 못했습니다.')
+    reportErrors.purchase = getErrorMessage(error, '구매 분석 리포트를 불러오지 못했습니다.')
   } finally {
     purchaseLoading.value = false
   }
@@ -483,7 +537,7 @@ function createMetricCard(
   badge: string,
   tone: MetricTone,
   changeRate?: number,
-) {
+): MetricCardModel | null {
   if (!shouldShow) return null
 
   return {

@@ -77,6 +77,12 @@ function animateChangeRate(targetValue: number) {
     window.cancelAnimationFrame(animationFrameId)
   }
 
+  if (shouldReduceMotion()) {
+    animatedChangeRate.value = targetValue
+    animationFrameId = null
+    return
+  }
+
   const startTime = performance.now()
   const startValue = 0
 
@@ -95,6 +101,10 @@ function animateChangeRate(targetValue: number) {
 
   animatedChangeRate.value = startValue
   animationFrameId = window.requestAnimationFrame(step)
+}
+
+function shouldReduceMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 onBeforeUnmount(() => {
