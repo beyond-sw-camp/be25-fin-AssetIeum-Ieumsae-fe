@@ -14,3 +14,8 @@ export interface FileUploadRequest {
   targetType?: FileTargetType
   targetId?: number | string
 }
+
+export interface FileDownloadUrlResponse {
+  downloadUrl: string
+  expiresInSeconds: number
+}

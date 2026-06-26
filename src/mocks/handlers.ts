@@ -2480,6 +2480,27 @@ export const handlers = [
     return HttpResponse.json(ok(Array.from(mockFiles.values()).flat()))
   }),
 
+  http.get(`${API_PREFIX}/files/:fileId/download-url`, ({ params }) => {
+    const fileId = String(params.fileId)
+    const file = Array.from(mockFiles.values())
+      .flat()
+      .find((item) => String(item.fileId) === fileId)
+
+    if (!file) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'FILE_NOT_FOUND',
+        message: '?뚯씪??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    return HttpResponse.json(ok({
+      downloadUrl: file.fileUrl,
+      expiresInSeconds: 300,
+    }))
+  }),
+
   http.delete(`${API_PREFIX}/files/:fileId`, ({ params }) => {
     const fileId = String(params.fileId)
     let deleted = false

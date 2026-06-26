@@ -198,17 +198,17 @@
                   :key="String(file.fileId)"
                   class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
                 >
-                  <a
-                    :href="file.fileUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="min-w-0 text-sm font-semibold text-primary hover:underline"
+                  <button
+                    type="button"
+                    class="min-w-0 text-left text-sm font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="submitting"
+                    @click="openEvidenceFile(file)"
                   >
                     <span class="block truncate">{{ file.originalFilename || extractFilename(file.fileUrl) }}</span>
                     <span class="mt-0.5 block text-xs font-medium text-text-muted">
                       {{ formatFileSize(file.fileSize) }} · {{ formatDate(file.uploadedAt, 'YYYY-MM-DD HH:mm') }}
                     </span>
-                  </a>
+                  </button>
                   <button
                     type="button"
                     class="inline-flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/5 disabled:cursor-not-allowed disabled:opacity-60"
@@ -540,6 +540,20 @@ async function deleteEvidenceFile(file: FileMetadata) {
       : '증빙 파일 삭제에 실패했습니다.'
   } finally {
     deletingEvidenceFileId.value = null
+  }
+}
+
+async function openEvidenceFile(file: FileMetadata) {
+  if (props.submitting) return
+
+  validationErrorMessage.value = ''
+  try {
+    const response = await fileApi.getDownloadUrl(file.fileId)
+    window.open(response.data.downloadUrl, '_blank')
+  } catch (error) {
+    validationErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 다운로드 URL을 조회하지 못했습니다.'
   }
 }
 

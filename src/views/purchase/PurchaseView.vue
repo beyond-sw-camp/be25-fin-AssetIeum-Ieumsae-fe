@@ -326,18 +326,16 @@
                           :key="String(file.fileId)"
                           class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
                         >
-                          <a
-                            :href="file.fileUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="min-w-0 text-sm font-semibold text-primary hover:underline"
-                            @click.stop
+                          <button
+                            type="button"
+                            class="min-w-0 text-left text-sm font-semibold text-primary hover:underline"
+                            @click.stop="openPlanEvidenceFile(file)"
                           >
                             <span class="block truncate">{{ file.originalFilename }}</span>
                             <span class="mt-0.5 block text-xs font-medium text-text-muted">
                               {{ formatFileSize(file.fileSize) }} · {{ formatDateTime(file.uploadedAt || "") }}
                             </span>
-                          </a>
+                          </button>
                           <Button
                             v-if="canManagePlanEvidence"
                             variant="ghost"
@@ -1116,6 +1114,7 @@ import { useRoute, useRouter } from "vue-router";
 import {
   ApiError,
   departmentApi,
+  fileApi,
   intangibleItemApi,
   memberApi,
   purchaseApi,
@@ -1992,6 +1991,16 @@ function openPlanEvidenceDeleteModal(file: FileMetadata) {
   planEvidenceError.value = "";
   planEvidenceFileToDelete.value = file;
   isPlanEvidenceDeleteModalOpen.value = true;
+}
+
+async function openPlanEvidenceFile(file: FileMetadata) {
+  planEvidenceError.value = "";
+  try {
+    const response = await fileApi.getDownloadUrl(file.fileId);
+    window.open(response.data.downloadUrl, "_blank");
+  } catch (error) {
+    planEvidenceError.value = getErrorMessage(error, "증빙 파일 다운로드 URL을 조회하지 못했습니다.");
+  }
 }
 
 function closePlanEvidenceDeleteModal() {

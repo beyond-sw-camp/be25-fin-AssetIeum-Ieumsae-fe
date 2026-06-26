@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { FileMetadata, FileTargetType, FileUploadRequest } from '@/types/file'
+import type { FileDownloadUrlResponse, FileMetadata, FileTargetType, FileUploadRequest } from '@/types/file'
 
 function compactParams(params?: Record<string, unknown>) {
   if (!params) return undefined
@@ -22,6 +22,9 @@ export const fileApi = {
 
   getFiles: (params?: { targetType?: FileTargetType; targetId?: number | string }) =>
     api.get<FileMetadata[]>('/files', compactParams(params)),
+
+  getDownloadUrl: (fileId: number | string) =>
+    api.get<FileDownloadUrlResponse>(`/files/${fileId}/download-url`),
 
   deleteFile: (fileId: number | string) =>
     api.delete<null>(`/files/${fileId}`),
