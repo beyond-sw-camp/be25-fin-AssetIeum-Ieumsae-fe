@@ -219,6 +219,7 @@
       :is-open="isDetailDrawerOpen"
       :event="selectedEvent"
       :targets="selectedEventTargets"
+      :template="template"
       :is-loading="isLoadingTargets"
       :is-completing="selectedEvent ? actingEventId === selectedEvent.hrEventId : false"
       :error-message="detailErrorMessage"

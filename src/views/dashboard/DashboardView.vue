@@ -202,8 +202,8 @@ function toSegments(items: Array<Omit<DashboardSegment, 'percent'>>): DashboardS
 }
 
 const progressTicketSegments = computed(() => toSegments([
-  { label: '접수 대기', count: ticketProgress.value.waitingReceipt, barClass: 'bg-warning' },
-  { label: '접수 완료', count: ticketProgress.value.receiptCompleted, barClass: 'bg-primary' },
+  { label: '접수 대기', count: ticketProgress.value.waitingReceipt, barClass: 'bg-primary' },
+  { label: '접수 완료', count: ticketProgress.value.receiptCompleted, barClass: 'bg-warning' },
   { label: '처리 중', count: ticketProgress.value.processing, barClass: 'bg-danger' },
   { label: '처리 완료', count: ticketProgress.value.completed, barClass: 'bg-success' },
 ]))

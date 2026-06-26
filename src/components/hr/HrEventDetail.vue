@@ -52,6 +52,26 @@
           처리 대상을 불러오는 중입니다.
         </div>
         <div
+          v-else-if="event.eventType === 'ONBOARDING' && onboardingTemplateItems.length > 0"
+          class="divide-y divide-border rounded-lg border border-border bg-surface"
+        >
+          <article
+            v-for="item in onboardingTemplateItems"
+            :key="String(item.hrTemplateItemId ?? item.assetItemId)"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="truncate text-sm font-bold text-text-main">{{ item.productName || '-' }}</p>
+              <p class="mt-1 text-xs text-text-sub">
+                {{ templateAssetTypeLabel(item.assetType) }} · 요청 수량 {{ item.quantity }}개
+              </p>
+            </div>
+            <span class="inline-flex shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              요청 예정
+            </span>
+          </article>
+        </div>
+        <div
           v-else-if="targets.length === 0"
           class="rounded-lg border border-border bg-surface-secondary px-4 py-12 text-center text-sm text-text-muted"
         >
@@ -111,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -122,6 +143,8 @@ import type {
   HrEventAssetType,
   HrEventStatus,
   HrEventType,
+  HrTemplateAssetType,
+  HrTemplateResponse,
 } from '@/types/hr'
 
 export interface HrEventDetailRow {
@@ -134,10 +157,11 @@ export interface HrEventDetailRow {
   statusLabel: string
 }
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean
   event: HrEventDetailRow | null
   targets: HrEventAssetTargetResponse[]
+  template?: HrTemplateResponse | null
   isLoading?: boolean
   isCompleting?: boolean
   errorMessage?: string
@@ -155,11 +179,19 @@ const ACTION_TYPE_LABEL: Record<HrEventAssetActionType, string> = {
   KEEP: '동일 사용자 유지',
 }
 
+const onboardingTemplateItems = computed(() => props.template?.items ?? [])
+
 function actionTypeLabel(value?: HrEventAssetActionType) {
   return value ? ACTION_TYPE_LABEL[value] : '-'
 }
 
 function assetTypeLabel(value?: HrEventAssetType) {
+  if (value === 'TANGIBLE') return '유형자산'
+  if (value === 'INTANGIBLE') return '무형자산'
+  return '-'
+}
+
+function templateAssetTypeLabel(value?: HrTemplateAssetType) {
   if (value === 'TANGIBLE') return '유형자산'
   if (value === 'INTANGIBLE') return '무형자산'
   return '-'

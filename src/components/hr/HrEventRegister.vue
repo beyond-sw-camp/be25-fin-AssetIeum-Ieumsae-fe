@@ -157,6 +157,7 @@ import Button from '@/components/common/Button.vue'
 import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import { useAuthStore } from '@/stores'
 import type { Department, DropdownOption, IntangibleAsset, Member, TangibleAsset } from '@/types'
 import type {
   HrEventAssetActionType,
@@ -190,6 +191,27 @@ interface IntangibleAssetAliases {
   itemName?: string | null
 }
 
+interface MemberAliasRecord {
+  id?: string | number | null
+  memberId?: string | number | null
+  departmentId?: string | number | null
+  department_id?: string | number | null
+  departmentName?: string | null
+  department_name?: string | null
+  departmentNamePath?: string | null
+  department_name_path?: string | null
+  department?: {
+    departmentId?: string | number | null
+    department_id?: string | number | null
+    id?: string | number | null
+    name?: string | null
+    departmentName?: string | null
+    department_name?: string | null
+    departmentNamePath?: string | null
+    department_name_path?: string | null
+  } | null
+}
+
 const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
   OFFBOARDING: '퇴사',
@@ -209,6 +231,7 @@ const emit = defineEmits<{
   submit: [payload: HrEventRegisterSubmitPayload]
 }>()
 
+const authStore = useAuthStore()
 const form = reactive<{
   memberId: string
   eventType: '' | HrEventType
@@ -224,7 +247,11 @@ const assetTargets = ref<AssetTargetDraft[]>([])
 const isLoadingAssets = ref(false)
 const assetErrorMessage = ref('')
 
-const memberOptions = computed<DropdownOption[]>(() => props.members.map((member) => ({
+const currentDepartmentId = computed(() => getMemberDepartmentId(authStore.user as MemberAliasRecord | null))
+const currentDepartmentName = computed(() => getMemberDepartmentName(authStore.user as MemberAliasRecord | null))
+const currentDepartmentPath = computed(() => getMemberDepartmentPath(authStore.user as MemberAliasRecord | null))
+const departmentScopedMembers = computed(() => props.members.filter(isSameDepartmentMember))
+const memberOptions = computed<DropdownOption[]>(() => departmentScopedMembers.value.map((member) => ({
   label: `${member.memberNo} · ${member.name}`,
   value: member.memberId,
 })))
@@ -233,14 +260,14 @@ const eventTypeOptions = computed<DropdownOption[]>(() => (
   Object.entries(EVENT_TYPE_LABEL).map(([value, label]) => ({ label, value }))
 ))
 
-const selectedMember = computed(() => props.members.find((member) => member.memberId === form.memberId))
+const selectedMember = computed(() => departmentScopedMembers.value.find((member) => member.memberId === form.memberId))
 const requiresAssetTargets = computed(() => (
   form.eventType === 'OFFBOARDING' || form.eventType === 'DEPARTMENT_TRANSFER'
 ))
-const transferMemberOptions = computed<DropdownOption[]>(() => props.members
+const transferMemberOptions = computed<DropdownOption[]>(() => departmentScopedMembers.value
   .filter((member) => (
     member.memberId !== form.memberId
-    && member.departmentId === selectedMember.value?.departmentId
+    && getMemberDepartmentId(member as MemberAliasRecord) === getMemberDepartmentId(selectedMember.value as MemberAliasRecord | undefined)
   ))
   .map((member) => ({ label: `${member.memberNo} · ${member.name}`, value: member.memberId })))
 const actionTypeOptions = computed<DropdownOption[]>(() => {
@@ -282,6 +309,17 @@ watch(
       return
     }
     void loadAssignedAssets(memberId, eventType)
+  },
+)
+
+watch(
+  departmentScopedMembers,
+  (members) => {
+    if (form.memberId && !members.some((member) => member.memberId === form.memberId)) {
+      form.memberId = ''
+      assetTargets.value = []
+      assetErrorMessage.value = ''
+    }
   },
 )
 
@@ -387,6 +425,71 @@ function assetTypeLabel(assetType: HrEventAssetType) {
 
 function firstText(...values: Array<string | null | undefined>) {
   return values.find((value): value is string => Boolean(value?.trim()))?.trim() ?? '-'
+}
+
+function normalizeId(value: string | number | null | undefined) {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+function normalizeText(value: string | null | undefined) {
+  return value?.trim() ?? ''
+}
+
+function getMemberDepartmentId(member: MemberAliasRecord | null | undefined) {
+  return normalizeId(
+    member?.departmentId
+    ?? member?.department_id
+    ?? member?.department?.departmentId
+    ?? member?.department?.department_id
+    ?? member?.department?.id,
+  )
+}
+
+function getMemberDepartmentName(member: MemberAliasRecord | null | undefined) {
+  return normalizeText(
+    member?.departmentName
+    ?? member?.department_name
+    ?? member?.department?.departmentName
+    ?? member?.department?.department_name
+    ?? member?.department?.name,
+  )
+}
+
+function getMemberDepartmentPath(member: MemberAliasRecord | null | undefined) {
+  return normalizeText(
+    member?.departmentNamePath
+    ?? member?.department_name_path
+    ?? member?.department?.departmentNamePath
+    ?? member?.department?.department_name_path
+    ?? getMemberDepartmentName(member),
+  )
+}
+
+function isSameDepartmentMember(member: Member) {
+  const memberRecord = member as MemberAliasRecord
+  const memberDepartmentId = getMemberDepartmentId(memberRecord)
+  if (currentDepartmentId.value && memberDepartmentId) {
+    return memberDepartmentId === currentDepartmentId.value
+  }
+
+  const memberDepartmentName = getMemberDepartmentName(memberRecord)
+  if (currentDepartmentName.value && memberDepartmentName) {
+    return memberDepartmentName === currentDepartmentName.value
+  }
+
+  const memberDepartmentPath = getMemberDepartmentPath(memberRecord)
+  if (currentDepartmentName.value && memberDepartmentPath) {
+    return memberDepartmentPath
+      .split('>')
+      .map((part) => part.trim())
+      .includes(currentDepartmentName.value)
+  }
+
+  if (currentDepartmentPath.value && memberDepartmentPath) {
+    return memberDepartmentPath === currentDepartmentPath.value
+  }
+
+  return false
 }
 
 defineExpose({
