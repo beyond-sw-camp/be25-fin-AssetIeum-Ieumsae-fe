@@ -196,20 +196,14 @@ interface MemberAliasRecord {
   id?: string | number | null
   memberId?: string | number | null
   departmentId?: string | number | null
-  department_id?: string | number | null
   departmentName?: string | null
-  department_name?: string | null
   departmentNamePath?: string | null
-  department_name_path?: string | null
   department?: {
     departmentId?: string | number | null
-    department_id?: string | number | null
     id?: string | number | null
     name?: string | null
     departmentName?: string | null
-    department_name?: string | null
     departmentNamePath?: string | null
-    department_name_path?: string | null
   } | null
 }
 
@@ -468,9 +462,7 @@ function normalizeText(value: string | null | undefined) {
 function getMemberDepartmentId(member: MemberAliasRecord | null | undefined) {
   return normalizeId(
     member?.departmentId
-    ?? member?.department_id
     ?? member?.department?.departmentId
-    ?? member?.department?.department_id
     ?? member?.department?.id,
   )
 }
@@ -478,9 +470,7 @@ function getMemberDepartmentId(member: MemberAliasRecord | null | undefined) {
 function getMemberDepartmentName(member: MemberAliasRecord | null | undefined) {
   return normalizeText(
     member?.departmentName
-    ?? member?.department_name
     ?? member?.department?.departmentName
-    ?? member?.department?.department_name
     ?? member?.department?.name,
   )
 }
@@ -488,9 +478,7 @@ function getMemberDepartmentName(member: MemberAliasRecord | null | undefined) {
 function getMemberDepartmentPath(member: MemberAliasRecord | null | undefined) {
   return normalizeText(
     member?.departmentNamePath
-    ?? member?.department_name_path
     ?? member?.department?.departmentNamePath
-    ?? member?.department?.department_name_path
     ?? getMemberDepartmentName(member),
   )
 }
