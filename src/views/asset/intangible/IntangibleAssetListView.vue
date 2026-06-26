@@ -97,9 +97,6 @@
               submenu-direction="left"
               class="w-44 text-text-sub"
             >
-              <template #icon>
-                <Layers :size="16" />
-              </template>
             </Dropdown>
           </div>
 
@@ -184,7 +181,7 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag, Upload } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight, Plus, Tag, Upload } from 'lucide-vue-next'
 import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import type { IntangibleAssetAssignmentResponse } from '@/api/asset.api'
