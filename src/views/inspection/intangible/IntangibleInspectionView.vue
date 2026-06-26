@@ -292,12 +292,12 @@ const pageSizeOptions: DropdownOption[] = [10, 20, 50].map((value) => ({
 }))
 
 const statusFilterOptions: DropdownOption[] = [
-  { label: '- 전체 -', value: '' },
+  { label: '전체', value: '' },
   ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
 ]
 
 const inspectorFilterOptions = computed<DropdownOption[]>(() => [
-  { label: '- 조사 담당자 -', value: '' },
+  { label: '조사 담당자', value: '' },
   ...Array.from(new Set(inspections.value.map((item) => item.inspectorName))).map((name) => ({
     label: name,
     value: name,
