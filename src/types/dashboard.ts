@@ -132,6 +132,8 @@ export interface DepartmentBudgetDetail {
   totalAmount: number
   usedAmount: number
   remainingAmount: number
+  heldAmount?: number | null
+  holdAmount?: number | null
   usageRate: number
   categoryUsages: BudgetCategoryUsage[]
 }

@@ -139,6 +139,7 @@ const EMPTY_DEPARTMENT_BUDGET: DepartmentBudgetDetail = {
   totalAmount: 0,
   usedAmount: 0,
   remainingAmount: 0,
+  heldAmount: 0,
   usageRate: 0,
   categoryUsages: [],
 }
@@ -446,12 +447,48 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
-function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview): DepartmentBudgetDetail {
+function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview | DepartmentBudgetDetail): DepartmentBudgetDetail {
+  const heldAmount = budgetHeldAmount(budget)
+  const remainingAmount = Math.max(budget.totalAmount - budget.usedAmount - heldAmount, 0)
+
   return {
     ...budget,
-    remainingAmount: Math.max(budget.totalAmount - budget.usedAmount, 0),
-    categoryUsages: [],
+    heldAmount,
+    remainingAmount,
+    categoryUsages: 'categoryUsages' in budget ? budget.categoryUsages : [],
   }
+}
+
+function mergeDepartmentBudgetDetail(
+  detail: DepartmentBudgetDetail,
+  overview: DepartmentBudgetOverview | null,
+): DepartmentBudgetDetail {
+  if (!overview) return toDepartmentBudgetDetail(detail)
+
+  return toDepartmentBudgetDetail({
+    ...detail,
+    departmentName: detail.departmentName || overview.departmentName,
+    totalAmount: overview.totalAmount,
+    usedAmount: overview.usedAmount,
+    heldAmount: budgetHeldAmount(overview),
+    holdAmount: overview.holdAmount,
+    usageRate: overview.usageRate,
+  })
+}
+
+function findCurrentDepartmentBudget(budgets: DepartmentBudgetOverview[]) {
+  const departmentId = normalizeComparableText(auth.user?.departmentId)
+  const departmentName = normalizeComparableText(auth.user?.departmentName)
+
+  return budgets.find((budget) => (
+    departmentId && normalizeComparableText(budget.departmentId) === departmentId
+  )) ?? budgets.find((budget) => (
+    departmentName && normalizeComparableText(budget.departmentName) === departmentName
+  )) ?? null
+}
+
+function normalizeComparableText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
 }
 
 async function loadDashboardData() {
@@ -473,20 +510,26 @@ async function loadDashboardData() {
     expiringSummary.value = expiringResponse.data
     assetDemands.value = demandResponse.data.content
     if (isDepartmentManager.value && departmentId) {
-      const [budgetResponse, eventsResponse, statisticsResponse] = await Promise.all([
+      const [budgetResponse, budgetOverviewResponse, eventsResponse, statisticsResponse] = await Promise.all([
         dashboardApi.getDepartmentBudgetDetails(departmentId),
+        dashboardApi.getBudgets({ page: 0, size: 1000 }),
         dashboardApi.getDepartmentHrEvents({ departmentId, page: 0, size: 1000 }),
         dashboardApi.getDepartmentHrStatistics(departmentId),
       ])
-      departmentBudget.value = budgetResponse.data
+      const currentDepartmentBudget = findCurrentDepartmentBudget(
+        budgetOverviewResponse.data.departmentBudgets.content,
+      )
+      departmentBudget.value = mergeDepartmentBudgetDetail(budgetResponse.data, currentDepartmentBudget)
       departmentHrEvents.value = eventsResponse.data.content
       departmentHrStatistics.value = statisticsResponse.data
       return
     }
 
     if (isEmployee.value) {
-      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1 })
-      const employeeBudget = budgetResponse.data.departmentBudgets.content[0]
+      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })
+      const employeeBudget = findCurrentDepartmentBudget(
+        budgetResponse.data.departmentBudgets.content,
+      )
       departmentBudget.value = employeeBudget
         ? toDepartmentBudgetDetail(employeeBudget)
         : {
