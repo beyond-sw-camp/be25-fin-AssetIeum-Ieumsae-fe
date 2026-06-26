@@ -1200,10 +1200,6 @@ function toNullableStringId(value: unknown) {
   return normalized || null
 }
 
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
-}
-
 function getPurchasePlanItemId(item: PurchasePlanItem | null) {
   if (!item) return null
   const itemId =
