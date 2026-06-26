@@ -246,6 +246,7 @@ import { hrApi } from '@/api/hr.api'
 import { memberApi } from '@/api/member.api'
 import { departmentApi } from '@/api/department.api'
 import { intangibleAssetApi } from '@/api/asset.api'
+import { ApiError } from '@/api/client'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
@@ -315,6 +316,12 @@ const STATUS_LABEL: Record<HrEventStatus, string> = {
   IN_PROGRESS: '실행 중',
   COMPLETED: '실행 완료',
   CANCELLED: '취소됨',
+}
+
+function apiErrorMessage(error: unknown, fallbackMessage: string) {
+  if (error instanceof ApiError && error.message) return error.message
+  if (error instanceof Error && error.message) return error.message
+  return fallbackMessage
 }
 
 const eventColumns = computed<Column<HrEventRow>[]>(() => [
@@ -704,7 +711,7 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 등록 실패', error)
-    formErrorMessage.value = 'HR 이벤트를 등록하지 못했습니다.'
+    formErrorMessage.value = apiErrorMessage(error, 'HR 이벤트를 등록하지 못했습니다.')
   } finally {
     isCreating.value = false
   }
@@ -722,7 +729,7 @@ async function handleCompleteEvent(row: HrEventRow) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 완료 처리 실패', error)
-    errorMessage.value = '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.'
+    errorMessage.value = apiErrorMessage(error, '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.')
   } finally {
     actingEventId.value = null
   }
@@ -740,7 +747,7 @@ async function handleDeleteEvent(row: HrEventRow) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 삭제 실패', error)
-    errorMessage.value = '대기 중인 HR 이벤트만 삭제할 수 있습니다.'
+    errorMessage.value = apiErrorMessage(error, '대기 중인 HR 이벤트만 삭제할 수 있습니다.')
   } finally {
     actingEventId.value = null
   }
