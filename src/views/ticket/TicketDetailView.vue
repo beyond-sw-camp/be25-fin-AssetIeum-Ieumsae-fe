@@ -994,13 +994,27 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
     purchasePaymentResult.value = response.data
     purchasePaymentMode.value = 'update'
 
+    let evidenceUploadErrorMessage = ''
     if (file) {
-      await ticketApi.uploadEvidence(ticketId.value, file)
+      try {
+        await ticketApi.uploadEvidence(ticketId.value, file)
+      } catch (error) {
+        evidenceUploadErrorMessage = error instanceof Error
+          ? error.message
+          : '증빙 파일을 업로드하지 못했습니다.'
+      }
     }
 
     await loadTicketDetail()
     isPurchasePaymentDrawerOpen.value = false
-    notificationStore.success(isUpdate ? '직접구매 결과가 수정되었습니다.' : '직접구매 결과가 등록되었습니다.')
+    if (evidenceUploadErrorMessage) {
+      notificationStore.warning(
+        isUpdate ? '직접구매 결과는 수정되었습니다.' : '직접구매 결과는 등록되었습니다.',
+        `증빙 파일 업로드는 실패했습니다. ${evidenceUploadErrorMessage}`,
+      )
+    } else {
+      notificationStore.success(isUpdate ? '직접구매 결과가 수정되었습니다.' : '직접구매 결과가 등록되었습니다.')
+    }
   } catch (error) {
     const message = error instanceof Error
       ? error.message

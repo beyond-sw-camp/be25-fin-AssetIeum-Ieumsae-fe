@@ -11,6 +11,6 @@ export interface FileMetadata {
 
 export interface FileUploadRequest {
   file: File
-  targetType?: FileTargetType | string
+  targetType?: FileTargetType
   targetId?: number | string
 }

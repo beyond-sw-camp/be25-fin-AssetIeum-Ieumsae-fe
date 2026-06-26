@@ -304,11 +304,12 @@
                           </p>
                         </div>
                         <Button
+                          v-if="canManagePlanEvidence"
                           variant="outline"
                           size="sm"
                           class="shrink-0"
                           :loading="uploadingPlanEvidenceItemId === getPurchasePlanItemId(item)"
-                          :disabled="isPlanEvidenceActionRunning || !getPurchasePlanItemId(item)"
+                          :disabled="isPlanEvidenceActionRunning || !canChangePlanEvidence || !getPurchasePlanItemId(item)"
                           @click.stop="openPlanEvidenceUpload(item)"
                         >
                           <UploadCloud :size="14" />
@@ -338,12 +339,13 @@
                             </span>
                           </a>
                           <Button
+                            v-if="canManagePlanEvidence"
                             variant="ghost"
                             size="sm"
                             class="shrink-0 text-danger! hover:bg-danger/5!"
                             :loading="deletingPlanEvidenceFileId === String(file.fileId)"
-                            :disabled="isPlanEvidenceActionRunning"
-                            @click.stop="deletePlanEvidenceFile(file)"
+                            :disabled="isPlanEvidenceActionRunning || !canChangePlanEvidence"
+                            @click.stop="openPlanEvidenceDeleteModal(file)"
                           >
                             <Trash2 :size="14" />
                             삭제
@@ -364,16 +366,6 @@
                       role="alert"
                     >
                       {{ planEvidenceError }}
-                    </p>
-                  </div>
-
-                  <div
-                    v-if="false"
-                    class="rounded-xl border border-dashed border-border bg-surface-secondary/40 px-4 py-3"
-                  >
-                    <p class="text-sm leading-6 text-text-sub">
-                      구매 증빙자료 업로드 API는 추후 개발 예정이라 현재
-                      화면에서는 업로드를 연결하지 않았습니다.
                     </p>
                   </div>
                 </TicketDetailCard>
@@ -1084,6 +1076,17 @@
       @close="closeAssetRegisterDrawer"
       @registered="handlePurchaseAssetRegistered"
     />
+
+    <ConfirmationModal
+      :is-open="isPlanEvidenceDeleteModalOpen"
+      title="증빙 파일 삭제"
+      :message="planEvidenceDeleteMessage"
+      confirm-text="삭제"
+      cancel-text="취소"
+      :loading="Boolean(deletingPlanEvidenceFileId)"
+      @cancel="closePlanEvidenceDeleteModal"
+      @confirm="confirmDeletePlanEvidenceFile"
+    />
   </div>
 </template>
 
@@ -1121,6 +1124,7 @@ import {
 } from "@/api";
 import BaseDrawer from "@/components/common/BaseDrawer.vue";
 import Button from "@/components/common/Button.vue";
+import ConfirmationModal from "@/components/common/ConfirmationModal.vue";
 import Dropdown from "@/components/common/Dropdown.vue";
 import Input from "@/components/common/Input.vue";
 import Table, { type Column } from "@/components/common/Table.vue";
@@ -1337,7 +1341,7 @@ const EMPTY_STATISTICS: PurchasePlanStatistics = {
   completedCount: 0,
 };
 const EVIDENCE_FILE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
-const MAX_EVIDENCE_FILE_SIZE = 10 * 1024 * 1024;
+const EVIDENCE_LOCKED_STATUSES: ReadonlySet<PurchasePlanStatus> = new Set(["COMPLETED", "CANCELLED"]);
 
 const { hasRole } = usePermission();
 const route = useRoute();
@@ -1346,6 +1350,9 @@ const canChangeStatus = computed(() =>
   hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
 );
 const canCreatePurchasePlan = computed(() =>
+  hasRole("ASSET_TEAM", "ASSET_MANAGER"),
+);
+const canManagePlanEvidence = computed(() =>
   hasRole("ASSET_TEAM", "ASSET_MANAGER"),
 );
 
@@ -1388,6 +1395,8 @@ const planEvidenceTargetItem = ref<PurchasePlanItem | null>(null);
 const uploadingPlanEvidenceItemId = ref<string | null>(null);
 const deletingPlanEvidenceFileId = ref<string | null>(null);
 const planEvidenceError = ref("");
+const planEvidenceFileToDelete = ref<FileMetadata | null>(null);
+const isPlanEvidenceDeleteModalOpen = ref(false);
 const planItemRegisterForm = ref<PlanItemRegisterForm>({
   assetType: "TANGIBLE",
   categoryId: "",
@@ -1657,9 +1666,20 @@ const purchasePlanTitle = computed(() => {
 });
 
 const selectedPlanItems = computed(() => selectedPlan.value?.items ?? []);
+const canChangePlanEvidence = computed(() => (
+  Boolean(
+    selectedPlan.value
+    && canManagePlanEvidence.value
+    && !EVIDENCE_LOCKED_STATUSES.has(displayPlanStatus(selectedPlan.value)),
+  )
+));
 const isPlanEvidenceActionRunning = computed(() => (
   Boolean(uploadingPlanEvidenceItemId.value || deletingPlanEvidenceFileId.value)
 ));
+const planEvidenceDeleteMessage = computed(() => {
+  const fileName = planEvidenceFileToDelete.value?.originalFilename ?? "선택한 파일";
+  return `${fileName}을 삭제하시겠습니까? 삭제한 증빙 파일은 복구할 수 없습니다.`;
+});
 
 const selectedPlanDeliveryDate = computed(() => {
   if (!selectedPlan.value) return null;
@@ -1926,7 +1946,7 @@ async function fetchPlanDetail(planId: number | string) {
 
 function openPlanEvidenceUpload(item: PurchasePlanItem) {
   const itemId = getPurchasePlanItemId(item);
-  if (!itemId || isPlanEvidenceActionRunning.value) return;
+  if (!itemId || !canChangePlanEvidence.value || isPlanEvidenceActionRunning.value) return;
 
   planEvidenceError.value = "";
   planEvidenceTargetItem.value = item;
@@ -1967,10 +1987,24 @@ async function handlePlanEvidenceFileChange(event: Event) {
   }
 }
 
-async function deletePlanEvidenceFile(file: FileMetadata) {
-  if (isPlanEvidenceActionRunning.value) return;
+function openPlanEvidenceDeleteModal(file: FileMetadata) {
+  if (!canChangePlanEvidence.value || isPlanEvidenceActionRunning.value) return;
+  planEvidenceError.value = "";
+  planEvidenceFileToDelete.value = file;
+  isPlanEvidenceDeleteModalOpen.value = true;
+}
+
+function closePlanEvidenceDeleteModal() {
+  if (deletingPlanEvidenceFileId.value) return;
+  isPlanEvidenceDeleteModalOpen.value = false;
+  planEvidenceFileToDelete.value = null;
+}
+
+async function confirmDeletePlanEvidenceFile() {
+  if (!canChangePlanEvidence.value || isPlanEvidenceActionRunning.value || !planEvidenceFileToDelete.value) return;
   const planId = selectedPlan.value?.planId ?? selectedPlanId.value;
   if (!planId) return;
+  const file = planEvidenceFileToDelete.value;
 
   deletingPlanEvidenceFileId.value = String(file.fileId);
   planEvidenceError.value = "";
@@ -1982,6 +2016,8 @@ async function deletePlanEvidenceFile(file: FileMetadata) {
     planEvidenceError.value = getErrorMessage(error, "증빙 파일 삭제에 실패했습니다.");
   } finally {
     deletingPlanEvidenceFileId.value = null;
+    isPlanEvidenceDeleteModalOpen.value = false;
+    planEvidenceFileToDelete.value = null;
   }
 }
 
@@ -1989,7 +2025,6 @@ function validateEvidenceFile(file: File) {
   const lowerName = file.name.toLowerCase();
   const isAllowedExtension = EVIDENCE_FILE_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
   if (!isAllowedExtension) return "PDF, JPG, PNG 형식의 증빙 파일만 업로드할 수 있습니다.";
-  if (file.size > MAX_EVIDENCE_FILE_SIZE) return "증빙 파일은 10MB 이하만 업로드할 수 있습니다.";
   return "";
 }
 
