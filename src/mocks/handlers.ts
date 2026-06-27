@@ -1372,7 +1372,7 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
   const itemName = extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName
 
   return {
-    planId: plan.planId,
+    planId: String(plan.planId),
     planNo: plan.planNo,
     estimatedAmount: plan.estimatedAmount,
     itemCount: plan.items.length,
@@ -1381,7 +1381,7 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
     deletedAt: plan.deletedAt ?? null,
     status: plan.status,
     purchaseRequestStatus: plan.purchaseRequestStatus,
-    requesterId: plan.requesterId,
+    requesterId: plan.requesterId == null ? null : String(plan.requesterId),
     requesterName: plan.requesterName,
     itemName,
   }
@@ -1397,14 +1397,18 @@ function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
 
       return {
         ...item,
-        ticketRequesterId: item.ticketRequesterId ?? ticketDetail?.requesterId ?? null,
+        ticketRequesterId: normalizeMockId(item.ticketRequesterId ?? ticketDetail?.requesterId),
         ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
-        ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
+        ticketDepartmentId: normalizeMockId(item.ticketDepartmentId ?? ticketDetail?.departmentId),
         ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
         evidenceFiles: mockFiles.get(mockFileKey('PURCHASE_PLAN_ITEM', String(item.itemId))) ?? item.evidenceFiles ?? [],
       }
     }),
   }
+}
+
+function normalizeMockId(value: string | number | null | undefined) {
+  return value == null ? null : String(value)
 }
 
 function getPurchasePlanStatistics(): PurchasePlanStatistics {
@@ -2608,7 +2612,7 @@ export const handlers = [
           : null
 
         return {
-          itemId: planId * 100 + index + 1,
+          itemId: String(planId * 100 + index + 1),
           category: detail?.categoryName ?? item.categoryName ?? '-',
           itemName: item.productName,
           quantity: item.quantity,
@@ -2617,9 +2621,9 @@ export const handlers = [
           assetType: item.assetType,
           isStandard: item.isStandard,
           ticketId: item.ticketId,
-          ticketRequesterId: detail?.requesterId ?? directRequesterId,
+          ticketRequesterId: normalizeMockId(detail?.requesterId ?? directRequesterId),
           ticketRequesterName: detail?.requesterName ?? directRequesterName,
-          ticketDepartmentId: detail?.departmentId ?? directDepartmentId,
+          ticketDepartmentId: normalizeMockId(detail?.departmentId ?? directDepartmentId),
           ticketDepartmentName: detail?.departmentName ?? directDepartmentName,
           receivedAt: null,
         }
@@ -3068,7 +3072,7 @@ export const handlers = [
       requesterName: ticket.requesterName,
       departmentId: ticket.departmentId,
       departmentName: ticket.departmentName,
-      approverId: departmentApprover ? memberSequence(departmentApprover) : null,
+      approverId: departmentApprover ? String(memberSequence(departmentApprover)) : null,
       approverName: departmentApprover?.name ?? null,
       assigneeId: assignee?.memberId ?? null,
       assigneeName: assignee?.name ?? null,
