@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
-      <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+      <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center gap-2">
           <button
             type="button"
@@ -182,7 +182,7 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                    <dd class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main">
                       {{ item.value }}
                     </dd>
                   </div>
@@ -214,7 +214,7 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                    <dd class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main">
                       {{ item.value }}
                     </dd>
                   </div>
@@ -1648,8 +1648,7 @@ function requestedQuantity(detail: TicketDetail) {
 }
 
 function isNonStandardItem(value: TangibleAssetItem['isStandard'] | IntangibleItem['isStandard']) {
-  if (typeof value === 'boolean') return !value
-  return Number(value) === 0
+  return value === false
 }
 
 function tangibleItemName(item: TangibleAssetItem) {

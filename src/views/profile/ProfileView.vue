@@ -33,7 +33,7 @@
             <component :is="item.icon" :size="16" />
             {{ item.label }}
           </dt>
-          <dd class="break-words text-sm font-bold text-text-main sm:text-right">
+          <dd class="wrap-break-word text-sm font-bold text-text-main sm:text-right">
             {{ item.value }}
           </dd>
         </div>

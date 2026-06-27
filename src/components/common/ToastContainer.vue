@@ -1,6 +1,6 @@
 <template>
   <div
-    class="pointer-events-none fixed right-5 top-20 z-[11000] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-3"
+    class="pointer-events-none fixed right-5 top-20 z-11000 flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-3"
     aria-live="polite"
     aria-atomic="false"
   >

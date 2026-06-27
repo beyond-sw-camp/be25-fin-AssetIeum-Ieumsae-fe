@@ -36,7 +36,7 @@
         </article>
       </section>
 
-      <section class="card relative z-10 flex min-h-[680px] flex-1 flex-col overflow-visible border border-border">
+      <section class="card relative z-10 flex min-h-170 flex-1 flex-col overflow-visible border border-border">
         <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
           <div class="flex shrink-0 items-center gap-2">
             <Dropdown
@@ -108,7 +108,7 @@
           </Button>
         </div>
 
-        <div class="mt-4 flex min-h-[520px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-surface xl:min-h-[600px]">
+        <div class="mt-4 flex min-h-130 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-surface xl:min-h-150">
           <div class="min-h-0 flex-1 overflow-auto">
             <Table
               :columns="columns"
@@ -155,7 +155,7 @@
               <template #cell-management="{ row }">
                 <Button
                   size="sm"
-                  class="min-w-[72px] whitespace-nowrap"
+                  class="min-w-18 whitespace-nowrap"
                   :variant="getManagementButtonVariant(row)"
                   @click.stop="openTicketDetail(row)"
                 >

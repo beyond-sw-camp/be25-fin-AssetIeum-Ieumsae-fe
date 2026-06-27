@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-[10000] flex justify-end">
+  <div v-if="isOpen" class="fixed inset-0 z-10000 flex justify-end">
     <div
       class="fixed inset-0 bg-black/40 transition-opacity"
       @click="emit('close')"

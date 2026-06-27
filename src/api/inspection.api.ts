@@ -61,23 +61,23 @@ const createInspectionApi = (basePath: string) => ({
   create: (body: InspectionCreateRequest) =>
     api.post<InspectionResponse>(basePath, toInspectionCreateBody(body)),
 
-  close: (inspectionId: string | number) =>
+  close: (inspectionId: string) =>
     api.patch<InspectionResponse>(`${basePath}/${inspectionId}/close`, {}),
 
-  createResponse: (targetId: string | number, body: InspectionResponseCreateRequest) =>
+  createResponse: (targetId: string, body: InspectionResponseCreateRequest) =>
     api.post<InspectionResponseCreateResponse>(
       `/inspections/targets/${targetId}/result`,
       toInspectionResponseBody(body),
     ),
 
-  getResponse: (targetId: string | number) =>
+  getResponse: (targetId: string) =>
     api.get<InspectionResponseCreateResponse>(`/inspections/targets/${targetId}/result`),
 
-  getFollowUp: (followUpId: string | number) =>
+  getFollowUp: (followUpId: string) =>
     api.get<InspectionFollowUpResponse>(`/inspections/follow-ups/${followUpId}`),
 
   updateFollowUpStatus: (
-    followUpId: string | number,
+    followUpId: string,
     body: InspectionFollowUpStatusUpdateRequest,
   ) =>
     api.patch<InspectionFollowUpResponse>(
@@ -125,11 +125,11 @@ export const inspectionFollowUpApi = {
       },
     ),
 
-  getFollowUp: (followUpId: string | number) =>
+  getFollowUp: (followUpId: string) =>
     api.get<InspectionFollowUpResponse>(`/inspections/follow-ups/${followUpId}`),
 
   updateFollowUpStatus: (
-    followUpId: string | number,
+    followUpId: string,
     body: InspectionFollowUpStatusUpdateRequest,
   ) =>
     api.patch<InspectionFollowUpResponse>(

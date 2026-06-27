@@ -20,7 +20,7 @@ export interface TicketListItem extends Record<string, unknown> {
   detailStatus?: string | null
   assetType?: AssetType | null
   assetItemId?: string | null
-  isStandard?: number | boolean | null
+  isStandard?: boolean | null
   categoryName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
@@ -66,7 +66,7 @@ export interface TicketDetail {
   requestedUsageType?: RequestedUsageType | null
   assetType?: AssetType | null
   assetItemId?: string | null
-  isStandard?: number | boolean | null
+  isStandard?: boolean | null
   categoryName?: string | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
@@ -178,7 +178,7 @@ export interface PurchasePlanCandidateTicket {
   assetItemId?: string | null
   tangibleAssetItemId?: string | null
   intangibleAssetItemId?: string | null
-  isStandard?: number | boolean | null
+  isStandard?: boolean | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
@@ -278,7 +278,7 @@ export interface RentalAvailableItem {
   name?: string
   manufacturer?: string
   modelName?: string
-  isStandard?: boolean | number
+  isStandard?: boolean
   availableAssetCount?: number
 }
 
