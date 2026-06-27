@@ -1,5 +1,6 @@
 import { api } from './client'
 import { fileApi } from './file.api'
+import type { FileMetadata } from '@/types/file'
 import type {
   PurchasePlanCreateRequest,
   PurchasePlanCreateResponse,
@@ -191,13 +192,13 @@ function normalizePlanItem(item: PurchasePlanItemResponse): PurchasePlanItem {
   }
 }
 
-function normalizeFileMetadataList(value: unknown) {
+function normalizeFileMetadataList(value: unknown): FileMetadata[] {
   if (!Array.isArray(value)) return []
 
   return value.flatMap((file) => {
     if (!file || typeof file !== 'object') return []
     const record = file as Record<string, unknown>
-    const fileId = record.fileId
+    const fileId = toNullableNumber(record.fileId)
     const fileUrl = normalizeString(record.fileUrl)
     const originalFilename = normalizeString(record.originalFilename)
       ?? normalizeString(record.fileName)
@@ -205,10 +206,10 @@ function normalizeFileMetadataList(value: unknown) {
       ?? '-'
     const fileSize = toNullableNumber(record.fileSize) ?? 0
 
-    if (fileId === null || fileId === undefined || !fileUrl) return []
+    if (fileId === null || !fileUrl) return []
 
     return [{
-      fileId: String(fileId),
+      fileId,
       fileUrl,
       originalFilename,
       fileSize,
