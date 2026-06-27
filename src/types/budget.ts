@@ -3,7 +3,7 @@
 // =====================================================
 
 export interface DepartmentBudget {
-  budgetId: number
+  budgetId: string
   departmentId: string
   departmentName: string
   totalBudget: number

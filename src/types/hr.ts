@@ -3,7 +3,7 @@
 // =====================================================
 
 export type HrTemplateAssetType = 'TANGIBLE' | 'INTANGIBLE'
-export type HrTemplateId = string | number
+export type HrTemplateId = string
 
 export interface HrTemplateCreateRequest {
   items: HrTemplateItemCreateRequest[]
@@ -48,7 +48,7 @@ export interface HrTemplateItemResponse {
 export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER'
 export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type HrEventAssetTargetStatus = 'PENDING' | 'PROCESSED' | 'COMPLETED' | 'CANCELLED'
-export type HrEventId = string | number
+export type HrEventId = string
 export type HrEventAssetType = 'TANGIBLE' | 'INTANGIBLE'
 export type HrEventAssetActionType =
   | 'RETURN_REQUIRED'
@@ -73,12 +73,12 @@ export interface HrEventCreateRequest {
 export interface HrEventAssetTargetResponse {
   hrEventAssetTargetId?: string
   assetTargetId?: string
-  ticketId?: string | number | null
+  ticketId?: string | null
   ticketNo?: string | null
   ticketType?: string | null
   assetType?: HrEventAssetType
   assetId?: string
-  assetItemId?: string | number | null
+  assetItemId?: string | null
   assignmentId?: string | null
   productName?: string | null
   requestedItemName?: string | null

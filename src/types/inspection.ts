@@ -71,9 +71,9 @@ export interface InspectionDetailInfo {
 }
 
 export interface InspectionDetailResultItem {
-  inspectionResultId?: string | number
-  inspectionFollowUpId?: string | number | null
-  followUpId?: string | number | null
+  inspectionResultId?: string
+  inspectionFollowUpId?: string | null
+  followUpId?: string | null
   productName: string | null
   assetCode: string | null
   memberId?: string | null
@@ -106,22 +106,22 @@ export interface InspectionStatisticsResponse {
 }
 
 export interface InspectionResultResponse {
-  inspectionResultId?: string | number
-  inspectionId?: string | number
-  inspectionTargetId?: string | number
-  inspectionFollowUpId?: string | number | null
-  followUpId?: string | number | null
-  tangibleAssetId?: string | number
+  inspectionResultId?: string
+  inspectionId?: string
+  inspectionTargetId?: string
+  inspectionFollowUpId?: string | null
+  followUpId?: string | null
+  tangibleAssetId?: string
   assetCode?: string
   serialNumber?: string
   responseContent?: string | null
   inspectionResult?: string | null
   followUpAction?: string | null
-  followUpRequests?: boolean | number
+  followUpRequests?: boolean 
   followUpStatus?: InspectionFollowUpStatus | null
   status?: InspectionFollowUpStatus | null
   actionDetail?: string | null
-  checkedBy?: string | number | null
+  checkedBy?: string | null
   checkedAt?: string | null
   createdAt?: string
   updatedAt?: string
@@ -129,24 +129,24 @@ export interface InspectionResultResponse {
 
 export interface InspectionFollowUpRequest {
   actionDetail: string
-  processedBy?: string | number | null
+  processedBy?: string | null
   status?: InspectionFollowUpStatus
 }
 
 export interface InspectionFollowUpResponse {
-  inspectionFollowUpId?: string | number
-  followUpId?: string | number
-  inspectionResultId?: string | number
-  inspectionId?: string | number
-  inspectionTargetId?: string | number
+  inspectionFollowUpId?: string
+  followUpId?: string
+  inspectionResultId?: string
+  inspectionId?: string
+  inspectionTargetId?: string
   actionDetail?: string | null
   productName?: string | null
   assetCode?: string | null
   responseContent?: string | null
   memberId?: string | null
   memberName?: string | null
-  processorId?: string | number | null 
-  processedBy?: string | number
+  processorId?: string | null 
+  processedBy?: string
   processorName?: string | null
   status?: InspectionFollowUpStatus
   followUpStatus?: InspectionFollowUpStatus
@@ -192,25 +192,25 @@ export interface InspectionResponseCreateBody {
 }
 
 export interface InspectionResponseCreateResponse {
-  inspectionResultId?: string | number
-  inspectionId?: string | number
-  inspectionTargetId?: string | number
+  inspectionResultId?: string
+  inspectionId?: string
+  inspectionTargetId?: string
   responseContent?: string | null
-  followUpRequests?: boolean | number
-  checkedBy?: string | number | null
+  followUpRequests?: boolean
+  checkedBy?: string | null
   checkedAt?: string | null
   createdAt?: string
   updatedAt?: string
 }
 
 export interface EmployeeInspectionTargetResponse {
-  inspectionTargetId?: string | number
-  inspectionId?: string | number
+  inspectionTargetId?: string
+  inspectionId?: string
   inspectionType?: InspectionType
   inspectionStatus?: InspectionStatus
-  tangibleAssetId?: string | number | null
-  intangibleAssetId?: string | number | null
-  assetId?: string | number | null
+  tangibleAssetId?: string | null
+  intangibleAssetId?: string | null
+  assetId?: string | null
   memberId?: string | null
   memberName?: string | null
   assetCode?: string | null
