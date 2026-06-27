@@ -706,7 +706,7 @@ import { formatDate } from '@/utils/labels'
 
 interface SelectableAsset extends AssetRadioItem {
   assetType: AssetType
-  isStandard?: number | boolean | string | null
+  isStandard?: boolean | null
   categoryId?: string
   categoryName?: string
   manufacturer?: string
@@ -1370,7 +1370,7 @@ function numberValue(value: number | string | null | undefined) {
   return undefined
 }
 
-function standardItemValue(value: number | boolean | string | null | undefined) {
+function standardItemValue(value: unknown) {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') return value !== 0
   if (typeof value === 'string') {
@@ -1381,7 +1381,7 @@ function standardItemValue(value: number | boolean | string | null | undefined) 
   return true
 }
 
-function isStandardItem(value: number | boolean | string | null | undefined) {
+function isStandardItem(value: boolean | null | undefined) {
   return standardItemValue(value)
 }
 

@@ -79,7 +79,7 @@
           :loading="isLoading"
           empty-text="조회된 사원이 없습니다."
           row-key="memberId"
-          class="h-full min-w-[960px]"
+          class="h-full min-w-240"
         >
           <template #cell-name="{ row }">
             <div class="min-w-0">

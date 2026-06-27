@@ -1,7 +1,7 @@
 export type FileTargetType = 'TICKET' | 'PURCHASE_PLAN_ITEM'
 
 export interface FileMetadata {
-  fileId: number | string
+  fileId: number
   fileUrl: string
   originalFilename: string
   fileSize: number
@@ -12,7 +12,7 @@ export interface FileMetadata {
 export interface FileUploadRequest {
   file: File
   targetType?: FileTargetType
-  targetId?: number | string
+  targetId?: string
 }
 
 export interface FileDownloadUrlResponse {

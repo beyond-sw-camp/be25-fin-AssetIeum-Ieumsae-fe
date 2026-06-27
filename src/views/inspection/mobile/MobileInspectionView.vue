@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <div v-else class="mx-auto flex h-dvh min-h-dvh w-full max-w-md max-w-[100dvw] flex-col overflow-x-hidden bg-background text-text-main md:border-x md:border-border">
+  <div v-else class="mx-auto flex h-dvh min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-background text-text-main md:border-x md:border-border">
     <header class="shrink-0 border-b border-border bg-surface px-4 py-4">
       <div class="flex flex-row items-start justify-between gap-3">
         <div class="min-w-0">
@@ -428,7 +428,6 @@ async function loadRegisteredResponse(targetId: string) {
 
     form.responseContent = textValue(response.data.responseContent)
     form.followUpRequests = response.data.followUpRequests === true
-      || response.data.followUpRequests === 1
   } catch (error) {
     if (selectedTarget.value?.inspectionTargetId !== targetId) return
     isSuccess.value = false

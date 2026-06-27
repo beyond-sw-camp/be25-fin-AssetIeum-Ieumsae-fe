@@ -33,7 +33,7 @@ const PURCHASE_PLAN_STATUSES = new Set([
 type PurchasePlanItemResponse = PurchasePlanItem & {
   productName?: string | null
   name?: string | null
-  categoryId?: number | string | null
+  categoryId?: string | null
   categoryName?: string | null
   assetCategoryName?: string | null
   assetCategory?: {
@@ -50,17 +50,17 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   itemCategoryName?: string | null
   tangibleCategoryName?: string | null
   intangibleCategoryName?: string | null
-  purchasePlanItemId?: number | string
-  purchasePlanItemDetailId?: number | string
-  purchaseItemId?: number | string
-  planItemId?: number | string
-  purchaseRequestItemId?: number | string
-  purchasePlanId?: number | string
-  purchaseId?: number | string
-  planPurchaseItemId?: number | string
-  purchasePlanItemNo?: number | string
-  itemNo?: number | string
-  id?: number | string
+  purchasePlanItemId?: string
+  purchasePlanItemDetailId?: string
+  purchaseItemId?: string
+  planItemId?: string
+  purchaseRequestItemId?: string
+  purchasePlanId?: string
+  purchaseId?: string
+  planPurchaseItemId?: string
+  purchasePlanItemNo?: string
+  itemNo?: string
+  id?: string
   purchasePlanItemStatus?: string | null
   itemStatus?: string | null
   status?: string | null
@@ -74,31 +74,31 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
   registeredQuantity?: number | null
   registeredAssetQuantity?: number | null
   ticket?: {
-    ticketRequesterId?: number | string | null
+    ticketRequesterId?: string | null
     ticketRequesterName?: string | null
-    ticketDepartmentId?: number | string | null
+    ticketDepartmentId?: string | null
     ticketDepartmentName?: string | null
-    ticketTargetMemberIds?: (number | string | null)[]
+    ticketTargetMemberIds?: (string | null)[]
   } | null
-  ticketId?: number | string | null
-  ticketRequesterId?: number | string | null
+  ticketId?: string | null
+  ticketRequesterId?: string | null
   ticketRequesterName?: string | null
-  requesterId?: number | string | null
+  requesterId?: string | null
   requesterName?: string | null
-  ticketDepartmentId?: number | string | null
-  requestDepartmentId?: number | string | null
+  ticketDepartmentId?: string | null
+  requestDepartmentId?: string | null
   ticketDepartmentName?: string | null
   requestDepartmentName?: string | null
-  departmentId?: number | string | null
+  departmentId?: string | null
   departmentName?: string | null
-  assignmentTargetMemberIds?: (number | string | null)[]
-  assignmentTargetIds?: (number | string | null)[]
-  targetMemberIds?: (number | string | null)[]
-  assigneeIds?: (number | string | null)[]
+  assignmentTargetMemberIds?: (string | null)[]
+  assignmentTargetIds?: (string | null)[]
+  targetMemberIds?: (string | null)[]
+  assigneeIds?: (string | null)[]
   assignmentTargets?: unknown[]
   targetMembers?: unknown[]
-  tangibleAssetItemId?: number | string | null
-  intangibleAssetItemId?: number | string | null
+  tangibleAssetItemId?: string | null
+  intangibleAssetItemId?: string | null
   evidenceFiles?: unknown
 }
 
@@ -558,7 +558,7 @@ export const purchaseApi = {
     )
   },
 
-  uploadPlanItemEvidence: (planId: number | string, itemId: number | string, file: File) => {
+  uploadPlanItemEvidence: (planId: number | string, itemId: string, file: File) => {
     void planId
     return fileApi.upload({ file, targetType: 'PURCHASE_PLAN_ITEM', targetId: itemId })
   },

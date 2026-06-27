@@ -52,6 +52,26 @@
           처리 대상을 불러오는 중입니다.
         </div>
         <div
+          v-else-if="targets.length === 0 && event.eventType === 'ONBOARDING' && onboardingTemplateItems.length > 0"
+          class="divide-y divide-border rounded-lg border border-border bg-surface"
+        >
+          <article
+            v-for="item in onboardingTemplateItems"
+            :key="String(item.hrTemplateItemId ?? item.assetItemId)"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="truncate text-sm font-bold text-text-main">{{ item.productName || '-' }}</p>
+              <p class="mt-1 text-xs text-text-sub">
+                {{ templateAssetTypeLabel(item.assetType) }} · 요청 수량 {{ item.quantity }}개
+              </p>
+            </div>
+            <span class="inline-flex shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-text-sub">
+              티켓 생성 대기
+            </span>
+          </article>
+        </div>
+        <div
           v-else-if="targets.length === 0"
           class="rounded-lg border border-border bg-surface-secondary px-4 py-12 text-center text-sm text-text-muted"
         >
@@ -69,16 +89,20 @@
         >
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="font-bold text-text-main">{{ target.productName || '-' }}</p>
+              <p class="font-bold text-text-main">{{ targetProductName(target) }}</p>
               <p class="mt-1 text-xs text-text-sub">
-                {{ target.assetCode || '-' }} · {{ assetTypeLabel(target.assetType) }}
+                {{ targetMetaText(target) }}
               </p>
             </div>
-            <span :class="statusBadgeClass(targetStatusValue(target))">
-              {{ statusLabel(targetStatusValue(target)) }}
+            <span :class="targetStatusBadgeClass(target)">
+              {{ targetStatusLabel(target) }}
             </span>
           </div>
           <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div v-if="target.ticketNo">
+              <dt class="text-xs font-semibold text-text-muted">연결 티켓</dt>
+              <dd class="mt-1 font-semibold text-text-main">{{ target.ticketNo }}</dd>
+            </div>
             <div>
               <dt class="text-xs font-semibold text-text-muted">처리 방식</dt>
               <dd class="mt-1 font-semibold text-text-main">
@@ -111,6 +135,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
@@ -118,10 +143,14 @@ import Button from '@/components/common/Button.vue'
 import type {
   HrEventAssetActionType,
   HrEventAssetTargetResponse,
+  HrEventAssetTargetStatus,
   HrEventAssetType,
   HrEventStatus,
   HrEventType,
+  HrTemplateAssetType,
+  HrTemplateResponse,
 } from '@/types/hr'
+import { getTicketStatusLabel, normalizeTicketStatus } from '@/utils/labels'
 
 export interface HrEventDetailRow {
   eventNo: string
@@ -133,10 +162,11 @@ export interface HrEventDetailRow {
   statusLabel: string
 }
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean
   event: HrEventDetailRow | null
   targets: HrEventAssetTargetResponse[]
+  template?: HrTemplateResponse | null
   isLoading?: boolean
   isCompleting?: boolean
   errorMessage?: string
@@ -149,11 +179,12 @@ const emit = defineEmits<{
 }>()
 
 const ACTION_TYPE_LABEL: Record<HrEventAssetActionType, string> = {
-  RETURN_REQUIRED: '자산 반납',
-  UNASSIGN_REQUIRED: '배정 해제',
+  RETURN_REQUIRED: '반납 요청 생성',
   TRANSFER_REQUIRED: '다른 사용자에게 전달',
   KEEP: '동일 사용자 유지',
 }
+
+const onboardingTemplateItems = computed(() => props.template?.items ?? [])
 
 function actionTypeLabel(value?: HrEventAssetActionType) {
   return value ? ACTION_TYPE_LABEL[value] : '-'
@@ -165,7 +196,27 @@ function assetTypeLabel(value?: HrEventAssetType) {
   return '-'
 }
 
-function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
+function templateAssetTypeLabel(value?: HrTemplateAssetType) {
+  if (value === 'TANGIBLE') return '유형자산'
+  if (value === 'INTANGIBLE') return '무형자산'
+  return '-'
+}
+
+function targetProductName(target: HrEventAssetTargetResponse) {
+  return target.productName || target.requestedItemName || '-'
+}
+
+function targetMetaText(target: HrEventAssetTargetResponse) {
+  const parts = [
+    target.ticketNo ? `티켓 ${target.ticketNo}` : null,
+    target.assetCode,
+    assetTypeLabel(target.assetType),
+  ].filter((part): part is string => Boolean(part && part !== '-'))
+
+  return parts.length > 0 ? parts.join(' · ') : '-'
+}
+
+function targetStatusValue(target: HrEventAssetTargetResponse): HrEventAssetTargetStatus {
   const explicitStatus = normalizeStatus(
     target.status
     ?? target.targetStatus
@@ -174,6 +225,7 @@ function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
   )
 
   if (explicitStatus === 'COMPLETED') return 'COMPLETED'
+  if (explicitStatus === 'PROCESSED') return 'PROCESSED'
 
   const ticketStatus = normalizeStatus(
     target.ticketStatus
@@ -185,15 +237,66 @@ function targetStatusValue(target: HrEventAssetTargetResponse): HrEventStatus {
   return ticketStatus ?? explicitStatus ?? 'PENDING'
 }
 
-function normalizeStatus(value: unknown): HrEventStatus | null {
+function targetTicketStatusValue(target: HrEventAssetTargetResponse) {
+  return firstStatusText(
+    target.ticketStatus,
+    target.currentStatus,
+    target.detailStatus,
+    target.assetRequestStatus,
+    target.requestTicketStatus,
+    target.returnTicketStatus,
+    target.assetReturnStatus,
+  )
+}
+
+function firstStatusText(...values: unknown[]) {
+  return values.find((value): value is string => (
+    typeof value === 'string' && value.trim().length > 0
+  ))?.trim() ?? ''
+}
+
+function targetStatusLabel(target: HrEventAssetTargetResponse) {
+  const ticketStatus = targetTicketStatusValue(target)
+  if (ticketStatus) return getTicketStatusLabel(ticketStatus)
+
+  return statusLabel(targetStatusValue(target))
+}
+
+function targetStatusBadgeClass(target: HrEventAssetTargetResponse) {
+  const ticketStatus = targetTicketStatusValue(target)
+  if (!ticketStatus) return statusBadgeClass(targetStatusValue(target))
+
+  const normalizedStatus = normalizeTicketStatus(ticketStatus)
+  const base = 'inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold'
+  if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'COLLECTED') {
+    return `${base} bg-success/10 text-success`
+  }
+  if (normalizedStatus === 'IN_PROGRESS' || normalizedStatus === 'ASSET_APPROVED' || normalizedStatus === 'DEPARTMENT_APPROVED') {
+    return `${base} bg-primary/10 text-primary`
+  }
+  if (normalizedStatus === 'ASSET_REJECTED' || normalizedStatus === 'DEPARTMENT_REJECTED' || normalizedStatus === 'CANCELLED') {
+    return `${base} bg-danger/10 text-danger`
+  }
+  return `${base} bg-primary/10 text-primary`
+}
+
+function normalizeStatus(value: unknown): HrEventAssetTargetStatus | null {
   if (typeof value !== 'string') return null
 
   const normalized = value.trim().toUpperCase().replaceAll(' ', '_')
   if (normalized === 'COMPLETED' || normalized === 'COMPLETE' || normalized === 'DONE' || normalized === 'CLOSED') {
     return 'COMPLETED'
   }
-  if (normalized === 'IN_PROGRESS' || normalized === 'PROCESSING' || normalized === 'PROCESS') {
-    return 'IN_PROGRESS'
+  if (
+    normalized === 'PROCESSED'
+    || normalized === 'IN_PROGRESS'
+    || normalized === 'PROCESSING'
+    || normalized === 'PROCESS'
+    || normalized === 'REQUESTED'
+    || normalized === 'DEPARTMENT_APPROVED'
+    || normalized === 'ASSET_APPROVED'
+  ) {
+    return 'PROCESSED'
   }
   if (normalized === 'CANCELLED' || normalized === 'CANCELED') {
     return 'CANCELLED'
@@ -202,7 +305,7 @@ function normalizeStatus(value: unknown): HrEventStatus | null {
     return 'PENDING'
   }
   if (value.includes('완료')) return 'COMPLETED'
-  if (value.includes('처리') || value.includes('진행') || value.includes('실행')) return 'IN_PROGRESS'
+  if (value.includes('처리') || value.includes('진행') || value.includes('실행') || value.includes('요청')) return 'PROCESSED'
   if (value.includes('취소')) return 'CANCELLED'
   if (value.includes('대기')) return 'PENDING'
 
@@ -218,17 +321,17 @@ function targetProcessedAtText(target: HrEventAssetTargetResponse) {
   return processedAt ? formatDateTime(processedAt) : ''
 }
 
-function statusLabel(value?: HrEventStatus) {
-  if (value === 'IN_PROGRESS') return '처리 중'
+function statusLabel(value?: HrEventAssetTargetStatus) {
+  if (value === 'PROCESSED') return '반납/처리 진행 중'
   if (value === 'COMPLETED') return '처리 완료'
   if (value === 'CANCELLED') return '취소'
   return '대기 중'
 }
 
-function statusBadgeClass(value: HrEventStatus) {
+function statusBadgeClass(value: HrEventStatus | HrEventAssetTargetStatus) {
   const base = 'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold'
   if (value === 'COMPLETED') return `${base} bg-success/10 text-success`
-  if (value === 'IN_PROGRESS') return `${base} bg-primary/10 text-primary`
+  if (value === 'IN_PROGRESS' || value === 'PROCESSED') return `${base} bg-primary/10 text-primary`
   if (value === 'CANCELLED') return `${base} bg-danger/10 text-danger`
   return `${base} bg-surface-secondary text-text-sub`
 }

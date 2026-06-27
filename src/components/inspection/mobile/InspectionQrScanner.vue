@@ -17,7 +17,7 @@
         v-if="canTryCamera"
         class="mt-4 overflow-hidden rounded-lg bg-black"
       >
-        <div :id="readerId" class="aspect-[3/4] w-full overflow-hidden" />
+        <div :id="readerId" class="aspect-3/4 w-full overflow-hidden" />
       </div>
 
       <div

@@ -1,3 +1,4 @@
+// TODO: 데이터 타입 확인 필요
 import type { AssetType, PageResponse } from './common'
 import type { FileMetadata } from './file'
 
@@ -20,16 +21,16 @@ export interface PurchasePlanCreateItem {
   tangibleAssetItemId?: string | null
   intangibleAssetItemId?: string | null
   categoryName?: string
-  requesterId?: number | string | null
+  requesterId?: string | null
   requesterName?: string | null
-  departmentId?: number | string | null
+  departmentId?: string | null
   departmentName?: string | null
-  ticketRequesterId?: number | string | null
+  ticketRequesterId?: string | null
   ticketRequesterName?: string | null
-  ticketDepartmentId?: number | string | null
+  ticketDepartmentId?: string | null
   ticketDepartmentName?: string | null
   quantity: number
-  isStandard: 0 | 1
+  isStandard: boolean
   estimatedUnitPrice: number
   estimatedAmount: number
   externalUrl: string | null
@@ -40,7 +41,7 @@ export interface PurchasePlanCreateRequest {
 }
 
 export interface PurchasePlanCreateResponse {
-  planId: number | string
+  planId: string
   planNo: string
   estimatedAmount: number
   itemCount: number
@@ -49,7 +50,7 @@ export interface PurchasePlanCreateResponse {
 }
 
 export interface PurchasePlanListItem {
-  planId: number | string
+  planId: string
   planNo: string
   estimatedAmount: number
   itemCount: number
@@ -59,7 +60,7 @@ export interface PurchasePlanListItem {
   deletedAt?: string | null
   status?: PurchasePlanStatus
   purchaseRequestStatus?: PurchasePlanStatus
-  requesterId?: number | string | null
+  requesterId?: string | null
   requesterName?: string | null
   itemSummary?: string | null
 }
@@ -75,35 +76,35 @@ export interface PurchasePlanStatistics {
 
 export interface PurchasePlanListFilter {
   status?: PurchasePlanStatus
-  requesterId?: number | string
+  requesterId?: string
   keyword?: string
   page?: number
   size?: number
 }
 
 export interface PurchasePlanItem {
-  itemId?: number | string
-  purchasePlanItemId?: number | string
-  purchasePlanItemDetailId?: number | string
-  purchaseItemId?: number | string
-  planItemId?: number | string
-  purchaseRequestItemId?: number | string
-  purchasePlanId?: number | string
-  purchaseId?: number | string
-  planPurchaseItemId?: number | string
-  purchasePlanItemNo?: number | string
-  itemNo?: number | string
-  id?: number | string
+  itemId?: string
+  purchasePlanItemId?: string
+  purchasePlanItemDetailId?: string
+  purchaseItemId?: string
+  planItemId?: string
+  purchaseRequestItemId?: string
+  purchasePlanId?: string
+  purchaseId?: string
+  planPurchaseItemId?: string
+  purchasePlanItemNo?: string
+  itemNo?: string
+  id?: string
   purchasePlanItemStatus?: string | null
   itemStatus?: string | null
   status?: string | null
-  assetItemId?: number | string | null
-  tangibleItemId?: number | string | null
-  intangibleItemId?: number | string | null
-  tangibleAssetItemId?: number | string | null
-  intangibleAssetItemId?: number | string | null
+  assetItemId?: string | null
+  tangibleItemId?: string | null
+  intangibleItemId?: string | null
+  tangibleAssetItemId?: string | null
+  intangibleAssetItemId?: string | null
   category: string
-  categoryId?: number | string | null
+  categoryId?: string | null
   categoryName?: string | null
   itemName: string
   productName?: string | null
@@ -118,36 +119,36 @@ export interface PurchasePlanItem {
   registeredAssetQuantity?: number | null
   assetType?: AssetType | null
   isStandard?: boolean
-  ticketId?: number | string | null
+  ticketId?: string | null
   ticket?: {
-    ticketRequesterId?: number | string | null
+    ticketRequesterId?: string | null
     ticketRequesterName?: string | null
-    ticketDepartmentId?: number | string | null
+    ticketDepartmentId?: string | null
     ticketDepartmentName?: string | null
-    ticketTargetMemberIds?: (number | string | null)[]
+    ticketTargetMemberIds?: (string | null)[]
   } | null
-  ticketRequesterId?: number | string | null
+  ticketRequesterId?: string | null
   ticketRequesterName?: string | null
-  requesterId?: number | string | null
+  requesterId?: string | null
   requesterName?: string | null
-  assignmentTargetMemberIds?: (number | string | null)[]
-  assigneeIds?: (number | string | null)[]
+  assignmentTargetMemberIds?: (string | null)[]
+  assigneeIds?: (string | null)[]
   assignmentTargets?: {
-    targetId?: number | string | null
-    memberId?: number | string | null
-    assigneeId?: number | string | null
-    targetMemberId?: number | string | null
+    targetId?: string | null
+    memberId?: string | null
+    assigneeId?: string | null
+    targetMemberId?: string | null
     name?: string | null
     memberName?: string | null
     assigneeName?: string | null
-    departmentId?: number | string | null
+    departmentId?: string | null
     departmentName?: string | null
   }[]
-  ticketDepartmentId?: number | string | null
-  requestDepartmentId?: number | string | null
+  ticketDepartmentId?: string | null
+  requestDepartmentId?: string | null
   ticketDepartmentName?: string | null
   requestDepartmentName?: string | null
-  departmentId?: number | string | null
+  departmentId?: string | null
   departmentName?: string | null
   receivedAt?: string | null
   actualAmount?: number | null
@@ -215,7 +216,7 @@ export interface PurchasePlanIntangibleAssetRegisterRequest {
   purchasePrice: number
   purchaseVendor: string
   seatCount: number
-  isAutoRenewal: boolean | 0 | 1
+  isAutoRenewal: boolean
   billingCycle?: 'MONTHLY' | 'YEARLY' | 'ONE_TIME' | null
   startedAt?: string | null
   expiredAt?: string | null

@@ -30,7 +30,7 @@
             </label>
 
             <p
-              class="min-h-9 whitespace-pre-wrap break-words rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-text-main"
+              class="min-h-9 whitespace-pre-wrap wrap-break-word rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-text-main"
             >
               {{ displayAssignmentText || '-' }}
             </p>

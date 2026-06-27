@@ -147,7 +147,7 @@
         <div class="flex gap-8 mt-2">
           <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
             <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
-              <input v-model="formData.isStandard" type="radio" :value="1" class="sr-only peer" />
+              <input v-model="formData.isStandard" type="radio" :value="true" class="sr-only peer" />
               <div
                 class="w-5 h-5 rounded-full border border-gray-300 bg-white
                 peer-checked:border-primary transition-all duration-200
@@ -165,7 +165,7 @@
 
           <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
             <div class="relative flex h-5 w-5 shrink-0 items-center justify-center">
-              <input v-model="formData.isStandard" type="radio" :value="0" class="sr-only peer" />
+              <input v-model="formData.isStandard" type="radio" :value="false" class="sr-only peer" />
               <div
                 class="w-5 h-5 rounded-full border border-gray-300 bg-white
                 peer-checked:border-primary transition-all duration-200
@@ -221,7 +221,7 @@ interface RegisterForm {
     categoryId: string
     manufacturer: string
     modelName: string
-    isStandard: number
+    isStandard: boolean
 }
 
 const props = defineProps<{
@@ -239,7 +239,7 @@ const createInitialForm = (): RegisterForm => ({
     categoryId: '',
     manufacturer: '',
     modelName: '',
-    isStandard: 1
+    isStandard: true
 });
 
 // 등록할 폼 데이터 객체

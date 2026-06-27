@@ -8,7 +8,7 @@
         class="relative flex min-h-full flex-col bg-background text-text-main"
       >
         <div class="flex-1 pb-14">
-          <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+          <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
             <div class="mb-3 flex items-center gap-2">
               <button
                 type="button"
@@ -134,7 +134,7 @@
                           {{ item.label }}
                         </dt>
                         <dd
-                          class="mt-1.5 break-words text-sm font-semibold text-text-main"
+                          class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main"
                         >
                           {{ item.value }}
                         </dd>
@@ -159,7 +159,7 @@
                           {{ item.label }}
                         </dt>
                         <dd
-                          class="mt-1.5 break-words text-sm font-semibold text-text-main"
+                          class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main"
                         >
                           {{ item.value }}
                         </dd>
@@ -178,7 +178,7 @@
                     :rows="selectedPlanItems"
                     row-key="itemId"
                     empty-text="구매 품목이 없습니다."
-                    class="rounded-none! border-0! [&_table]:min-w-[1100px]"
+                    class="rounded-none! border-0! [&_table]:min-w-275"
                   >
                     <template #cell-categoryName="{ value }">
                       <span class="text-text-sub">{{ value || "-" }}</span>
@@ -261,7 +261,7 @@
                         v-else
                         variant="outline"
                         size="sm"
-                        class="min-w-[5.75rem] whitespace-nowrap px-3!"
+                        class="min-w-23 whitespace-nowrap px-3!"
                         :disabled="
                           !canConfirmDelivery(row) ||
                             isConfirmingPurchaseItem(row)
@@ -444,7 +444,7 @@
               <input
                 v-model="keywordInput"
                 type="search"
-                class="h-9 min-w-[240px] flex-1 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 xl:max-w-[22rem]"
+                class="h-9 min-w-60-1 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-main outline-none transition placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 xl:max-w-88"
                 placeholder="계획 번호 또는 품목 검색"
                 aria-label="구매 계획 검색"
               />
@@ -575,7 +575,7 @@
         :key="action.key ?? action.status ?? action.label"
         :variant="action.variant"
         :class="action.className"
-        class="min-w-[5.75rem] shrink-0 whitespace-nowrap px-3!"
+        class="min-w-23 shrink-0 whitespace-nowrap px-3!"
         :disabled="isStatusSaving"
         :loading="isStatusSaving && pendingReviewStatus === action.status"
         @click="handleFooterAction(action)"
@@ -610,7 +610,7 @@
         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-4">
           <div
             v-if="isEligibleLoading"
-            class="flex h-full min-h-[320px] items-center justify-center"
+            class="flex h-full min-h-80 items-center justify-center"
           >
             <Loader2 class="animate-spin text-primary" :size="28" />
           </div>
@@ -621,7 +621,7 @@
             :rows="eligibleTickets"
             row-key="ticketId"
             empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
-            class="max-h-[400px] overflow-y-auto max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
+            class="max-h-100 overflow-y-auto max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
             @row-click="handleEligibleTicketRowClick"
           >
             <template #cell-select="{ row }">
@@ -797,8 +797,8 @@
               승인 완료 티켓을 선택하거나 직접 품목을 추가해주세요.
             </div>
 
-            <div v-else class="max-h-[300px] overflow-y-auto overflow-x-auto rounded-xl border border-border">
-              <div class="min-w-[820px]">
+            <div v-else class="max-h-75 overflow-y-auto overflow-x-auto rounded-xl border border-border">
+              <div class="min-w-205">
                 <div
                   class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
                 >
@@ -2131,7 +2131,7 @@ async function fetchStandardPurchaseItems() {
         page: 0,
         size: 100,
         categoryId,
-        isStandard: 1,
+        isStandard: true,
       });
       standardPurchaseItems.value = response.data.content
         .map(toStandardIntangiblePurchaseItem)
@@ -2143,7 +2143,7 @@ async function fetchStandardPurchaseItems() {
       page: 0,
       size: 100,
       categoryId,
-      isStandard: 1,
+      isStandard: true,
     });
     standardPurchaseItems.value = response.data.content
       .map(toStandardTangiblePurchaseItem)
@@ -2332,7 +2332,7 @@ async function createPlan() {
       assetType: item.assetType!,
       assetItemId: item.assetItemId,
       quantity: item.quantity,
-      isStandard: item.isStandard ? 1 : 0,
+      isStandard: item.isStandard ? true : false,
       estimatedUnitPrice: item.estimatedUnitPrice,
       estimatedAmount: item.estimatedUnitPrice * item.quantity,
       externalUrl: null,
@@ -2346,7 +2346,7 @@ async function createPlan() {
         assetType: item.assetType,
         assetItemId: item.assetItemId,
         quantity: item.quantity,
-        isStandard: 1,
+        isStandard: true,
         estimatedUnitPrice: item.estimatedUnitPrice,
         estimatedAmount: item.estimatedUnitPrice * item.quantity,
         externalUrl: item.externalUrl,

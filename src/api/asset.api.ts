@@ -202,7 +202,7 @@ export const tangibleItemApi = {
     categoryId?: string
     categoryName?: string
     keyword?: string
-    isStandard?: number | boolean
+    isStandard?: boolean
     assetUsageType?: 'DEPARTMENT' | 'PERSONAL'
   }) =>
     api.get<PageResponse<TangibleAssetItem>>('/tangible-asset/items', compactParams(params)),
@@ -304,7 +304,7 @@ export const intangibleItemApi = {
     category?: string
     categoryId?: string
     keyword?: string
-    isStandard?: number | boolean
+    isStandard?: boolean
   }) =>
     api.get<PageResponse<IntangibleItem>>('/intangible-asset/items', compactParams(params)),
 

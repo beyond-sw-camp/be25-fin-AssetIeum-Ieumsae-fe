@@ -28,7 +28,7 @@ export const notificationApi = {
     return api.patch<NotificationReadAllResponse>(`${NOTIFICATION_BASE}/read-all`)
   },
 
-  markAsRead(notificationId: number | string) {
+  markAsRead(notificationId: number) {
     return api.patch<NotificationReadResponse>(`${NOTIFICATION_BASE}/${notificationId}/read`)
   },
 

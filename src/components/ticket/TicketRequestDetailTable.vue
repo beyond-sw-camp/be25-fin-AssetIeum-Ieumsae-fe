@@ -1,6 +1,6 @@
 <template>
   <div class="overflow-x-auto">
-    <table class="w-full min-w-[720px] table-fixed border-collapse">
+    <table class="w-full min-w-180 table-fixed border-collapse">
       <colgroup>
         <col
           v-for="column in columns"
@@ -38,7 +38,7 @@
           <td
             v-for="column in columns"
             :key="column.key"
-            class="break-words px-4 py-4 text-center text-sm font-medium leading-5 text-text-main"
+            class="wrap-break-word px-4 py-4 text-center text-sm font-medium leading-5 text-text-main"
           >
             {{ row[column.key] ?? '-' }}
           </td>
