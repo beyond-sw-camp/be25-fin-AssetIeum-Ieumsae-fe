@@ -3,7 +3,7 @@
 // =====================================================
 
 export type HrTemplateAssetType = 'TANGIBLE' | 'INTANGIBLE'
-export type HrTemplateId = string | number
+export type HrTemplateId = string
 
 export interface HrTemplateCreateRequest {
   items: HrTemplateItemCreateRequest[]
@@ -47,11 +47,11 @@ export interface HrTemplateItemResponse {
 
 export type HrEventType = 'ONBOARDING' | 'OFFBOARDING' | 'DEPARTMENT_TRANSFER'
 export type HrEventStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-export type HrEventId = string | number
+export type HrEventAssetTargetStatus = 'PENDING' | 'PROCESSED' | 'COMPLETED' | 'CANCELLED'
+export type HrEventId = string
 export type HrEventAssetType = 'TANGIBLE' | 'INTANGIBLE'
 export type HrEventAssetActionType =
   | 'RETURN_REQUIRED'
-  | 'UNASSIGN_REQUIRED'
   | 'TRANSFER_REQUIRED'
   | 'KEEP'
 
@@ -73,10 +73,15 @@ export interface HrEventCreateRequest {
 export interface HrEventAssetTargetResponse {
   hrEventAssetTargetId?: string
   assetTargetId?: string
+  ticketId?: string | null
+  ticketNo?: string | null
+  ticketType?: string | null
   assetType?: HrEventAssetType
   assetId?: string
+  assetItemId?: string | null
   assignmentId?: string | null
   productName?: string | null
+  requestedItemName?: string | null
   assetCode?: string | null
   actionType?: HrEventAssetActionType
   targetActionType?: HrEventAssetActionType
@@ -84,11 +89,14 @@ export interface HrEventAssetTargetResponse {
   transferMemberName?: string | null
   targetDepartmentId?: string | null
   targetDepartmentName?: string | null
-  status?: HrEventStatus | string | null
-  targetStatus?: HrEventStatus | string | null
-  hrEventAssetTargetStatus?: HrEventStatus | string | null
-  assetTargetStatus?: HrEventStatus | string | null
+  status?: HrEventAssetTargetStatus | string | null
+  targetStatus?: HrEventAssetTargetStatus | string | null
+  hrEventAssetTargetStatus?: HrEventAssetTargetStatus | string | null
+  assetTargetStatus?: HrEventAssetTargetStatus | string | null
   ticketStatus?: string | null
+  currentStatus?: string | null
+  detailStatus?: string | null
+  assetRequestStatus?: string | null
   returnTicketStatus?: string | null
   requestTicketStatus?: string | null
   assetReturnStatus?: string | null

@@ -115,6 +115,7 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { intangibleAssetApi, tangibleAssetApi } from '@/api/asset.api'
 import { dashboardApi } from '@/api/dashboard.api'
 import { ApiError } from '@/api/client'
 import type {
@@ -277,14 +278,14 @@ async function loadDetails() {
         page: currentPage.value,
         size: pageSize,
       })
-      rows.value = response.data.content.map(toExpiringRow)
+      rows.value = await Promise.all(response.data.content.map(toExpiringRow))
       totalElements.value = response.data.totalElements
       totalPages.value = Math.max(response.data.totalPages, 1)
       return
     }
 
     const detailGroups = await Promise.all(assetTypes.map(loadAllExpiringDetails))
-    const allRows = detailGroups.flat().map(toExpiringRow)
+    const allRows = (await Promise.all(detailGroups.flat().map(toExpiringRow)))
       .sort((a, b) => a.date.localeCompare(b.date))
     totalElements.value = allRows.length
     totalPages.value = Math.max(Math.ceil(allRows.length / pageSize), 1)
@@ -350,9 +351,54 @@ function ownedAssetOwnerText(item: OwnedAssetDetail, status: OwnedAssetDetailSta
   return '사용자 없음'
 }
 
-function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
-  const owner = item.userName || '-'
-  const department = item.departmentName || '-'
+async function toExpiringRow(item: ExpiringAssetDetail): Promise<DetailRow> {
+  const itemRecord = item as ExpiringAssetDetail & Record<string, unknown>
+  const assignment = await loadActiveAssignmentInfo(item)
+  const memberRecord = recordValue(
+    itemRecord.assignedMember
+    ?? itemRecord.member
+    ?? itemRecord.user
+    ?? itemRecord.currentUser
+    ?? itemRecord.renter,
+  )
+  const departmentRecord = recordValue(
+    itemRecord.department
+    ?? itemRecord.assignedDepartment
+    ?? itemRecord.currentDepartment
+    ?? itemRecord.ownerDepartment
+    ?? memberRecord?.department,
+  )
+  const owner = textValue(
+    item.userName,
+    assignment.owner,
+    item.assignedMemberName,
+    item.assignedUserName,
+    item.currentUserName,
+    item.memberName,
+    item.renterName,
+    itemRecord.assigneeName,
+    itemRecord.ownerName,
+    memberRecord?.name,
+    memberRecord?.memberName,
+    memberRecord?.userName,
+    memberRecord?.employeeName,
+  ) || '-'
+  const department = textValue(
+    item.departmentName,
+    assignment.department,
+    item.assignedDepartmentName,
+    item.currentDepartmentName,
+    item.ownerDepartmentName,
+    itemRecord.deptName,
+    itemRecord.teamName,
+    departmentRecord?.departmentName,
+    departmentRecord?.name,
+    departmentRecord?.deptName,
+    departmentRecord?.teamName,
+    memberRecord?.departmentName,
+    memberRecord?.deptName,
+    memberRecord?.teamName,
+  ) || '-'
 
   return {
     id: item.assetId,
@@ -366,6 +412,48 @@ function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
     date: item.expiredAt,
     note: item.remainingDays,
   }
+}
+
+async function loadActiveAssignmentInfo(item: ExpiringAssetDetail) {
+  if ((item.userName && item.departmentName) || !item.assetId) {
+    return { owner: '', department: '' }
+  }
+
+  try {
+    const response = item.assetType === 'TANGIBLE'
+      ? await tangibleAssetApi.getAssignments(item.assetId, { assignmentStatus: 'ACTIVE' })
+      : await intangibleAssetApi.getAssignments(item.assetId, { assignmentStatus: 'ACTIVE' })
+    const activeAssignment = response.data.find(isActiveAssignment) ?? response.data[0]
+    const record = activeAssignment as Record<string, unknown> | undefined
+
+    return {
+      owner: textValue(
+        activeAssignment?.memberName,
+        record?.userName,
+        record?.assignedMemberName,
+        record?.assigneeName,
+      ),
+      department: textValue(
+        activeAssignment?.departmentName,
+        record?.assignedDepartmentName,
+        record?.departmentName,
+        recordValue(record?.department)?.name,
+        recordValue(record?.member)?.departmentName,
+        recordValue(recordValue(record?.member)?.department)?.name,
+      ),
+    }
+  } catch (error) {
+    console.warn('만료 예정 자산 배정 정보 조회 실패', {
+      assetType: item.assetType,
+      assetId: item.assetId,
+      error,
+    })
+    return { owner: '', department: '' }
+  }
+}
+
+function isActiveAssignment(assignment: { assignmentStatus?: string }) {
+  return assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED'
 }
 
 function ownerDepartmentText(owner: string, department: string) {
@@ -403,5 +491,11 @@ function textValue(...values: unknown[]) {
       || typeof value === 'number'
     ))
     ?.toString() ?? ''
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
 }
 </script>

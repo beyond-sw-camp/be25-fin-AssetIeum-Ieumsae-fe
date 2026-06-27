@@ -219,6 +219,7 @@
       :is-open="isDetailDrawerOpen"
       :event="selectedEvent"
       :targets="selectedEventTargets"
+      :template="template"
       :is-loading="isLoadingTargets"
       :is-completing="selectedEvent ? actingEventId === selectedEvent.hrEventId : false"
       :error-message="detailErrorMessage"
@@ -245,14 +246,17 @@ import { hrApi } from '@/api/hr.api'
 import { memberApi } from '@/api/member.api'
 import { departmentApi } from '@/api/department.api'
 import { intangibleAssetApi } from '@/api/asset.api'
+import { ApiError } from '@/api/client'
+import { ticketApi } from '@/api/ticket.api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { useAuthStore } from '@/stores'
-import type { Department, DropdownOption, Member, PageResponse } from '@/types'
+import type { Department, DropdownOption, Member, PageResponse, TicketListItem } from '@/types'
 import type {
   HrEventId,
+  HrEventAssetType,
   HrEventAssetTargetResponse,
   HrEventResponse,
   HrEventStatus,
@@ -266,10 +270,15 @@ interface HrEventRow extends Record<string, unknown> {
   rowKey: string
   hrEventId: HrEventId
   eventNo: string
+  targetMemberId: string
   targetMemberName: string
+  departmentId: string
+  departmentName: string
   eventType: HrEventType
   eventTypeLabel: string
   eventDate: string
+  createdAt: string
+  executedAt: string
   templateName: string
   status: HrEventStatus
   statusLabel: string
@@ -314,6 +323,12 @@ const STATUS_LABEL: Record<HrEventStatus, string> = {
   IN_PROGRESS: '실행 중',
   COMPLETED: '실행 완료',
   CANCELLED: '취소됨',
+}
+
+function apiErrorMessage(error: unknown, fallbackMessage: string) {
+  if (error instanceof ApiError && error.message) return error.message
+  if (error instanceof Error && error.message) return error.message
+  return fallbackMessage
 }
 
 const eventColumns = computed<Column<HrEventRow>[]>(() => [
@@ -430,10 +445,15 @@ function toEventRow(event: HrEventResponse): HrEventRow {
     rowKey: String(eventId),
     hrEventId: eventId ?? '-',
     eventNo: event.hrEventNo ?? event.eventNo ?? '-',
+    targetMemberId: String(event.memberId ?? event.targetMemberId ?? ''),
     targetMemberName: event.memberName ?? event.targetMemberName ?? '-',
+    departmentId: event.departmentId ?? '',
+    departmentName: event.departmentName ?? '',
     eventType,
     eventTypeLabel: EVENT_TYPE_LABEL[eventType] ?? eventType,
     eventDate: formatDate(event.eventDate),
+    createdAt: event.createdAt ?? '',
+    executedAt: event.executedAt ?? '',
     templateName: event.templateName ?? event.matchedTemplateName ?? matchedTemplateLabel.value,
     status,
     statusLabel: STATUS_LABEL[status] ?? status,
@@ -703,7 +723,7 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 등록 실패', error)
-    formErrorMessage.value = 'HR 이벤트를 등록하지 못했습니다.'
+    formErrorMessage.value = apiErrorMessage(error, 'HR 이벤트를 등록하지 못했습니다.')
   } finally {
     isCreating.value = false
   }
@@ -721,7 +741,7 @@ async function handleCompleteEvent(row: HrEventRow) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 완료 처리 실패', error)
-    errorMessage.value = '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.'
+    errorMessage.value = apiErrorMessage(error, '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.')
   } finally {
     actingEventId.value = null
   }
@@ -739,7 +759,7 @@ async function handleDeleteEvent(row: HrEventRow) {
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 삭제 실패', error)
-    errorMessage.value = '대기 중인 HR 이벤트만 삭제할 수 있습니다.'
+    errorMessage.value = apiErrorMessage(error, '대기 중인 HR 이벤트만 삭제할 수 있습니다.')
   } finally {
     actingEventId.value = null
   }
@@ -769,7 +789,10 @@ async function loadSelectedEventTargets() {
   try {
     await refreshSelectedEventFromList()
     const response = await hrApi.getEventTargets(selectedEvent.value.hrEventId)
-    selectedEventTargets.value = await enrichIntangibleTargetNames(response.data)
+    const targets = response.data.length > 0
+      ? await enrichEventTargetsWithTickets(response.data)
+      : await loadEventTicketTargets()
+    selectedEventTargets.value = await enrichIntangibleTargetNames(targets)
   } catch (error) {
     console.error('HR 이벤트 처리 대상 조회 실패', error)
     selectedEventTargets.value = []
@@ -777,6 +800,172 @@ async function loadSelectedEventTargets() {
   } finally {
     isLoadingTargets.value = false
   }
+}
+
+async function enrichEventTargetsWithTickets(targets: HrEventAssetTargetResponse[]) {
+  if (!selectedEvent.value) return targets
+  if (targets.every(hasTicketStatusInfo)) return targets
+
+  const candidateTickets = await loadEventCandidateTickets({ requireEventOwner: false })
+
+  return targets.map((target) => {
+    if (hasTicketStatusInfo(target)) return target
+
+    const matchedTicket = candidateTickets.find((ticket) => isMatchingTargetTicket(target, ticket))
+    return matchedTicket ? mergeTargetTicket(target, matchedTicket) : target
+  })
+}
+
+function hasTicketStatusInfo(target: HrEventAssetTargetResponse) {
+  return Boolean(
+    target.ticketStatus
+    || target.currentStatus
+    || target.detailStatus
+    || target.assetRequestStatus
+    || target.requestTicketStatus
+    || target.returnTicketStatus
+    || target.assetReturnStatus
+    || target.ticketNo,
+  )
+}
+
+async function loadEventTicketTargets(): Promise<HrEventAssetTargetResponse[]> {
+  if (!selectedEvent.value) return []
+
+  const candidateTickets = await loadEventCandidateTickets({ requireEventOwner: true })
+  if (selectedEvent.value.eventType === 'ONBOARDING') {
+    return loadOnboardingTicketTargets(candidateTickets)
+  }
+
+  return candidateTickets.map(ticketToHrEventTarget)
+}
+
+async function loadEventCandidateTickets(options: { requireEventOwner: boolean }) {
+  const response = await ticketApi.getList({
+    page: 0,
+    size: 1000,
+  })
+
+  return response.data.content.filter((ticket) => isSelectedEventTicket(ticket, options))
+}
+
+function loadOnboardingTicketTargets(candidateTickets: TicketListItem[]): HrEventAssetTargetResponse[] {
+  if (!selectedEvent.value || selectedEvent.value.eventType !== 'ONBOARDING') return []
+
+  const templateItems = template.value?.items ?? []
+
+  return templateItems.flatMap((item) => {
+    const matchedTickets = candidateTickets.filter((ticket) => (
+      normalizeSearchText(ticket.requestedItemName)
+        === normalizeSearchText(item.productName)
+      || normalizeSearchText(ticket.productName)
+        === normalizeSearchText(item.productName)
+    ))
+
+    return (matchedTickets.length > 0 ? matchedTickets : []).map((ticket) => ({
+      ticketId: ticket.ticketId,
+      ticketNo: ticket.ticketNo,
+      ticketType: ticket.ticketType,
+      ticketStatus: ticket.ticketStatus,
+      detailStatus: ticket.detailStatus,
+      assetType: item.assetType,
+      assetItemId: item.assetItemId,
+      productName: item.productName,
+      requestedItemName: ticket.requestedItemName,
+      status: ticket.ticketStatus,
+      createdAt: ticket.requestedAt,
+    }))
+  })
+}
+
+function ticketToHrEventTarget(ticket: TicketListItem): HrEventAssetTargetResponse {
+  return {
+    ticketId: ticket.ticketId,
+    ticketNo: ticket.ticketNo,
+    ticketType: ticket.ticketType,
+    ticketStatus: ticket.ticketStatus,
+    detailStatus: ticket.detailStatus,
+    assetType: normalizeHrAssetType(ticket.assetType),
+    assetId: firstText(recordField(ticket, 'assetId')),
+    assetCode: firstText(recordField(ticket, 'assetCode')),
+    productName: firstText(
+      ticket.requestedItemName,
+      ticket.productName,
+      recordField(ticket, 'assetName'),
+      recordField(ticket, 'itemName'),
+    ),
+    requestedItemName: ticket.requestedItemName,
+    status: ticket.ticketStatus,
+    createdAt: ticket.requestedAt,
+  }
+}
+
+function mergeTargetTicket(target: HrEventAssetTargetResponse, ticket: TicketListItem): HrEventAssetTargetResponse {
+  return {
+    ...target,
+    ticketId: target.ticketId ?? ticket.ticketId,
+    ticketNo: target.ticketNo ?? ticket.ticketNo,
+    ticketType: target.ticketType ?? ticket.ticketType,
+    ticketStatus: target.ticketStatus ?? ticket.ticketStatus,
+    detailStatus: target.detailStatus ?? ticket.detailStatus,
+    requestedItemName: target.requestedItemName ?? ticket.requestedItemName,
+  }
+}
+
+function isMatchingTargetTicket(target: HrEventAssetTargetResponse, ticket: TicketListItem) {
+  const targetAssetId = normalizeSearchText(target.assetId)
+  const ticketAssetId = normalizeSearchText(firstText(recordField(ticket, 'assetId')))
+  if (targetAssetId && ticketAssetId && targetAssetId === ticketAssetId) return true
+
+  const targetAssetCode = normalizeSearchText(target.assetCode)
+  const ticketAssetCode = normalizeSearchText(firstText(recordField(ticket, 'assetCode')))
+  if (targetAssetCode && ticketAssetCode && targetAssetCode === ticketAssetCode) return true
+
+  const targetName = normalizeSearchText(target.productName)
+  const ticketName = normalizeSearchText(
+    ticket.requestedItemName
+    ?? ticket.productName
+    ?? firstText(recordField(ticket, 'assetName'), recordField(ticket, 'itemName')),
+  )
+
+  return Boolean(targetName && ticketName && targetName === ticketName)
+}
+
+function isSelectedEventTicket(ticket: TicketListItem, options: { requireEventOwner: boolean }) {
+  if (!selectedEvent.value) return false
+
+  const requestedAfterEvent = isRequestedAfterEvent(ticket.requestedAt, selectedEvent.value.executedAt || selectedEvent.value.createdAt)
+  if (!requestedAfterEvent) return false
+
+  if (!options.requireEventOwner) return true
+
+  const requesterMatches = selectedEvent.value.targetMemberId
+    ? String(ticket.requesterId ?? '') === selectedEvent.value.targetMemberId
+    : normalizeSearchText(ticket.requesterName) === normalizeSearchText(selectedEvent.value.targetMemberName)
+  const departmentMatches = selectedEvent.value.departmentId
+    ? String(ticket.departmentId ?? '') === selectedEvent.value.departmentId
+    : normalizeSearchText(ticket.departmentName) === normalizeSearchText(selectedEvent.value.departmentName)
+
+  return requesterMatches && departmentMatches
+}
+
+function isRequestedAfterEvent(requestedAt: string, eventStartedAt: string) {
+  if (!eventStartedAt || !requestedAt) return true
+
+  const requestedTime = new Date(requestedAt).getTime()
+  const eventTime = new Date(eventStartedAt).getTime()
+  if (Number.isNaN(requestedTime) || Number.isNaN(eventTime)) return true
+
+  return requestedTime >= eventTime - 5 * 60 * 1000
+}
+
+function normalizeSearchText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function normalizeHrAssetType(value: unknown): HrEventAssetType | undefined {
+  if (value === 'TANGIBLE' || value === 'INTANGIBLE') return value
+  return undefined
 }
 
 async function enrichIntangibleTargetNames(targets: HrEventAssetTargetResponse[]) {

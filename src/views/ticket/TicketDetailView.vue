@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
-      <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+      <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center">
           <button
             type="button"
@@ -121,6 +121,70 @@
               </dl>
             </TicketDetailCard>
 
+            <TicketDetailCard v-if="isDirectPurchaseTicket" title="직접구매 상세 정보">
+              <template #icon>
+                <ReceiptText :size="18" class="text-orange-500" />
+              </template>
+
+              <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="item in directPurchasePaymentInfoItems"
+                  :key="item.label"
+                  class="border-b border-border pb-3"
+                >
+                  <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
+                  <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                    {{ item.value }}
+                  </dd>
+                </div>
+              </dl>
+            </TicketDetailCard>
+
+            <TicketDetailCard v-if="isDirectPurchaseTicket" title="증빙 파일 목록">
+              <template #icon>
+                <FileWarning :size="18" class="text-text-muted" />
+              </template>
+
+              <div v-if="isEvidenceFilesLoading" class="rounded-lg border border-border bg-surface-secondary/40 px-3 py-3 text-sm font-semibold text-text-muted">
+                증빙 파일을 조회하고 있습니다.
+              </div>
+              <div
+                v-else-if="evidenceFiles.length"
+                class="divide-y divide-border rounded-lg border border-border bg-surface-secondary/40"
+              >
+                <div
+                  v-for="file in evidenceFiles"
+                  :key="String(file.fileId)"
+                  class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <button
+                    type="button"
+                    class="min-w-0 text-left text-sm font-semibold text-primary hover:underline"
+                    @click="openEvidenceFile(file)"
+                  >
+                    <span class="block truncate">{{ file.originalFilename || extractFilename(file.fileUrl) }}</span>
+                    <span class="mt-0.5 block text-xs font-medium text-text-muted">
+                      {{ formatFileSize(file.fileSize) }} · {{ formatDate(file.uploadedAt, 'YYYY-MM-DD HH:mm') }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <p
+                v-else
+                class="rounded-lg border border-dashed border-border bg-surface-secondary/40 px-3 py-2 text-xs font-semibold text-text-muted"
+              >
+                등록된 증빙 파일이 없습니다.
+              </p>
+
+              <p
+                v-if="evidenceFilesErrorMessage"
+                class="mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger"
+                role="alert"
+              >
+                {{ evidenceFilesErrorMessage }}
+              </p>
+            </TicketDetailCard>
+
             <div class="grid items-stretch gap-4 lg:grid-cols-2">
               <TicketProgressHistory :ticket="ticket" />
               <TicketCommunication
@@ -214,6 +278,7 @@
       :error-message="purchasePaymentErrorMessage"
       @close="closePurchasePaymentDrawer"
       @submit="handlePurchasePaymentSubmit"
+      @files-updated="handleDirectPurchaseEvidenceFilesUpdated"
     />
 
     <ConfirmationModal
@@ -233,6 +298,7 @@ import {
   ArrowLeft,
   CircleAlert,
   ClipboardList,
+  FileWarning,
   PackageCheck,
   ReceiptText,
   RefreshCw,
@@ -241,7 +307,7 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { ApiError, ticketApi } from '@/api'
+import { ApiError, fileApi, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import DirectPurchasePaymentDrawer from '@/components/ticket/DirectPurchasePaymentDrawer.vue'
@@ -259,6 +325,7 @@ import type {
   TicketStatus,
   TicketType,
 } from '@/types'
+import type { FileMetadata } from '@/types/file'
 import {
   formatCurrency,
   formatDate,
@@ -314,15 +381,18 @@ const isPurchasePaymentLoading = ref(false)
 const isPurchasePaymentSubmitting = ref(false)
 const purchasePaymentMode = ref<'create' | 'update'>('create')
 const purchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
+const evidenceFiles = ref<FileMetadata[]>([])
 const commentToDelete = ref<TicketComment | null>(null)
 const errorMessage = ref('')
 const commentsErrorMessage = ref('')
 const commentSubmitErrorMessage = ref('')
 const purchasePaymentErrorMessage = ref('')
+const evidenceFilesErrorMessage = ref('')
 const commentActionErrorMessage = ref('')
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
+const isEvidenceFilesLoading = ref(false)
 
 const ticketId = computed(() => {
   const value = route.params.ticketId
@@ -352,14 +422,22 @@ const canCancelTicket = computed(() => (
   )
 ))
 
-const canRegisterDirectPurchasePayment = computed(() => (
+const canRegisterDirectPurchasePayment = computed(() => {
+  const detail = ticket.value
+  return Boolean(
+    detail
+    && isDirectPurchaseTicket.value
+    && isRequester.value
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(detail.status)
+    && detail.directPurchaseConfirmationStatus !== 'CONFIRMED',
+  )
+})
+
+const isDirectPurchaseTicket = computed(() => (
   Boolean(
     ticket.value
     && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
-    && isRequester.value
-    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status)
-    && ticket.value.directPurchaseConfirmationStatus !== 'CONFIRMED',
+    && ticket.value.requestMethod === 'DIRECT_PURCHASE',
   )
 ))
 
@@ -385,14 +463,41 @@ const canCollectMaintenanceAsset = computed(() => (
   )
 ))
 
-const showsDirectPurchasePaymentAction = computed(() => (
-  Boolean(
-    ticket.value
-    && ticket.value.ticketType === 'PURCHASE_REQUEST'
-    && ticket.value.requestMethod === 'DIRECT_PURCHASE'
-    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(ticket.value.status),
+const showsDirectPurchasePaymentAction = computed(() => {
+  const detail = ticket.value
+  return Boolean(
+    detail
+    && isDirectPurchaseTicket.value
+    && DIRECT_PURCHASE_PAYMENT_STATUSES.has(detail.status),
   )
-))
+})
+
+const directPurchasePaymentInfoItems = computed<DetailItem[]>(() => {
+  if (!ticket.value) return []
+
+  const payment = purchasePaymentResult.value
+  const proofFileUrl = payment?.proofFileUrl
+    ?? payment?.ProofURL
+    ?? ticket.value.directPurchaseEvidenceUrl
+    ?? ticket.value.proofFileUrl
+    ?? null
+  const proofUploadedAt = payment?.proofFileUploadedAt
+    ?? ticket.value.directPurchaseEvidenceUploadedAt
+    ?? ticket.value.proofFileUploadedAt
+    ?? null
+  const actualAmount = payment?.actualPrice
+    ?? payment?.actualAmount
+    ?? ticket.value.actualAmount
+    ?? null
+
+  return [
+    { label: '실제 결제 금액', value: formatCurrency(actualAmount) },
+    { label: '구매처', value: payment?.purchaseVendor ?? ticket.value.purchaseVendor ?? '-' },
+    { label: '구매 일시', value: formatDate(payment?.purchaseDate ?? ticket.value.purchaseDate, 'YYYY-MM-DD HH:mm') },
+    { label: '증빙 파일명', value: extractFilename(proofFileUrl) },
+    { label: '증빙 업로드 일시', value: formatDate(proofUploadedAt, 'YYYY-MM-DD HH:mm') },
+  ]
+})
 
 const directPurchasePaymentActionLabel = computed(() => (
   purchasePaymentMode.value === 'update' || purchasePaymentResult.value || ticket.value?.actualAmount
@@ -740,6 +845,22 @@ function assetStatusLabel(status: string | null | undefined): string {
   return statusLabels[status] ?? status
 }
 
+function extractFilename(fileUrl: string | null | undefined) {
+  if (!fileUrl) return '-'
+  const [path] = fileUrl.split(/[?#]/)
+  const filename = path.split('/').filter(Boolean).at(-1)
+  return filename ? decodeURIComponent(filename) : '-'
+}
+
+function formatFileSize(value: number | null | undefined) {
+  const bytes = Number(value ?? 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '-'
+  const kilobytes = bytes / 1024
+  return kilobytes < 1024
+    ? `${Math.max(1, Math.round(kilobytes))} KB`
+    : `${(kilobytes / 1024).toFixed(1)} MB`
+}
+
 function detailErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 403) return '이 티켓을 조회할 권한이 없습니다.'
@@ -762,11 +883,75 @@ async function loadTicketDetail() {
   try {
     const response = await ticketApi.getDetail(ticketId.value, ticketType.value)
     ticket.value = response.data
+    await Promise.all([
+      loadDirectPurchasePaymentResult(response.data),
+      loadEvidenceFiles(response.data),
+    ])
   } catch (error) {
     ticket.value = null
+    purchasePaymentResult.value = null
+    evidenceFiles.value = []
     errorMessage.value = detailErrorMessage(error)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadDirectPurchasePaymentResult(detail: TicketDetail) {
+  purchasePaymentResult.value = null
+  purchasePaymentMode.value = 'create'
+  if (
+    detail.ticketType !== 'PURCHASE_REQUEST'
+    || detail.requestMethod !== 'DIRECT_PURCHASE'
+    || !DIRECT_PURCHASE_PAYMENT_STATUSES.has(detail.status)
+  ) return
+
+  try {
+    const response = await ticketApi.getDirectPurchaseResult(detail.ticketId)
+    purchasePaymentResult.value = response.data
+    purchasePaymentMode.value = 'update'
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return
+    purchasePaymentErrorMessage.value = error instanceof Error
+      ? error.message
+      : '직접구매 결과 정보를 불러오지 못했습니다.'
+  }
+}
+
+async function loadEvidenceFiles(detail = ticket.value) {
+  evidenceFiles.value = []
+  evidenceFilesErrorMessage.value = ''
+  if (
+    !detail
+    || detail.ticketType !== 'PURCHASE_REQUEST'
+    || detail.requestMethod !== 'DIRECT_PURCHASE'
+  ) return
+
+  isEvidenceFilesLoading.value = true
+  try {
+    const response = await fileApi.getFiles({
+      targetType: 'TICKET',
+      targetId: detail.ticketId,
+    })
+    evidenceFiles.value = response.data
+  } catch (error) {
+    evidenceFilesErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 목록을 조회하지 못했습니다.'
+  } finally {
+    isEvidenceFilesLoading.value = false
+  }
+}
+
+async function openEvidenceFile(file: FileMetadata) {
+  evidenceFilesErrorMessage.value = ''
+  try {
+    const response = await fileApi.getDownloadUrl(file.fileId)
+    window.open(response.data.downloadUrl, '_blank')
+  } catch (error) {
+    evidenceFilesErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 다운로드 URL을 조회하지 못했습니다.'
   }
 }
 
@@ -998,6 +1183,7 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
     if (file) {
       try {
         await ticketApi.uploadEvidence(ticketId.value, file)
+        await loadEvidenceFiles()
       } catch (error) {
         evidenceUploadErrorMessage = error instanceof Error
           ? error.message
@@ -1026,6 +1212,13 @@ async function handlePurchasePaymentSubmit(payload: DirectPurchasePaymentRequest
   }
 }
 
+async function handleDirectPurchaseEvidenceFilesUpdated() {
+  await Promise.all([
+    loadEvidenceFiles(),
+    loadTicketDetail(),
+  ])
+}
+
 async function loadPage() {
   await Promise.all([loadTicketDetail(), loadComments()])
 }
@@ -1046,6 +1239,9 @@ function resetTicketActionState() {
   purchasePaymentMode.value = 'create'
   purchasePaymentResult.value = null
   purchasePaymentErrorMessage.value = ''
+  evidenceFiles.value = []
+  evidenceFilesErrorMessage.value = ''
+  isEvidenceFilesLoading.value = false
 }
 
 watch(() => [ticketId.value, ticketType.value], () => {

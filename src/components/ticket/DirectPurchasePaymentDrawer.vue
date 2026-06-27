@@ -171,6 +171,62 @@
                 <X :size="16" />
               </button>
             </div>
+
+            <div class="mt-3 rounded-lg border border-border bg-surface-secondary/40">
+              <div class="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+                <p class="text-xs font-bold text-text-sub">등록된 증빙 파일</p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  :disabled="isEvidenceFilesLoading || submitting"
+                  @click="loadEvidenceFiles"
+                >
+                  <RefreshCw :size="13" />
+                  새로고침
+                </button>
+              </div>
+
+              <div v-if="isEvidenceFilesLoading" class="px-3 py-3 text-xs font-semibold text-text-muted">
+                증빙 파일을 조회하고 있습니다.
+              </div>
+              <div
+                v-else-if="evidenceFiles.length"
+                class="divide-y divide-border"
+              >
+                <div
+                  v-for="file in evidenceFiles"
+                  :key="String(file.fileId)"
+                  class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <button
+                    type="button"
+                    class="min-w-0 text-left text-sm font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="submitting"
+                    @click="openEvidenceFile(file)"
+                  >
+                    <span class="block truncate">{{ file.originalFilename || extractFilename(file.fileUrl) }}</span>
+                    <span class="mt-0.5 block text-xs font-medium text-text-muted">
+                      {{ formatFileSize(file.fileSize) }} · {{ formatDate(file.uploadedAt, 'YYYY-MM-DD HH:mm') }}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/5 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="submitting || deletingEvidenceFileId === String(file.fileId)"
+                    @click="deleteEvidenceFile(file)"
+                  >
+                    <Trash2 :size="13" />
+                    {{ deletingEvidenceFileId === String(file.fileId) ? '삭제 중' : '삭제' }}
+                  </button>
+                </div>
+              </div>
+              <p
+                v-else
+                class="px-3 py-3 text-xs font-semibold text-text-muted"
+              >
+                등록된 증빙 파일이 없습니다.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -318,11 +374,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ReceiptText, UploadCloud, X } from 'lucide-vue-next'
+import { ReceiptText, RefreshCw, Trash2, UploadCloud, X } from 'lucide-vue-next'
 
+import { fileApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import type { DirectPurchasePaymentRequest, TicketActualAmountResponse, TicketDetail } from '@/types'
+import type { FileMetadata } from '@/types/file'
 import { formatDate } from '@/utils/labels'
 
 export interface DirectPurchaseAssetPaymentDraft {
@@ -371,6 +429,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   close: []
   submit: [payload: DirectPurchasePaymentPayload]
+  filesUpdated: []
 }>()
 
 const ACCEPTED_FILE_TYPES = new Set([
@@ -388,6 +447,9 @@ const assetLocation = ref('')
 const warrantyExpiredAt = ref('')
 const assetDrafts = ref<EditableAssetDraft[]>([])
 const selectedFile = ref<File | null>(null)
+const evidenceFiles = ref<FileMetadata[]>([])
+const isEvidenceFilesLoading = ref(false)
+const deletingEvidenceFileId = ref<string | null>(null)
 const validationErrorMessage = ref('')
 
 const itemName = computed(() => (
@@ -424,6 +486,76 @@ const canSubmit = computed(() => (
 const displayErrorMessage = computed(() => (
   validationErrorMessage.value || props.errorMessage
 ))
+
+function formatFileSize(value: number | null | undefined) {
+  const bytes = Number(value ?? 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '-'
+  const kilobytes = bytes / 1024
+  return kilobytes < 1024
+    ? `${Math.max(1, Math.round(kilobytes))} KB`
+    : `${(kilobytes / 1024).toFixed(1)} MB`
+}
+
+function extractFilename(fileUrl: string | null | undefined) {
+  if (!fileUrl) return '-'
+  const [path] = fileUrl.split(/[?#]/)
+  const filename = path.split('/').filter(Boolean).at(-1)
+  return filename ? decodeURIComponent(filename) : '-'
+}
+
+async function loadEvidenceFiles() {
+  if (!props.ticket.ticketId) {
+    evidenceFiles.value = []
+    return
+  }
+
+  isEvidenceFilesLoading.value = true
+  try {
+    const response = await fileApi.getFiles({
+      targetType: 'TICKET',
+      targetId: props.ticket.ticketId,
+    })
+    evidenceFiles.value = response.data
+  } catch (error) {
+    validationErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 목록을 조회하지 못했습니다.'
+  } finally {
+    isEvidenceFilesLoading.value = false
+  }
+}
+
+async function deleteEvidenceFile(file: FileMetadata) {
+  if (props.submitting || deletingEvidenceFileId.value !== null) return
+
+  deletingEvidenceFileId.value = String(file.fileId)
+  validationErrorMessage.value = ''
+  try {
+    await fileApi.deleteFile(file.fileId)
+    evidenceFiles.value = evidenceFiles.value.filter((item) => String(item.fileId) !== String(file.fileId))
+    emit('filesUpdated')
+  } catch (error) {
+    validationErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 삭제에 실패했습니다.'
+  } finally {
+    deletingEvidenceFileId.value = null
+  }
+}
+
+async function openEvidenceFile(file: FileMetadata) {
+  if (props.submitting) return
+
+  validationErrorMessage.value = ''
+  try {
+    const response = await fileApi.getDownloadUrl(file.fileId)
+    window.open(response.data.downloadUrl, '_blank')
+  } catch (error) {
+    validationErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 다운로드 URL을 조회하지 못했습니다.'
+  }
+}
 
 function createEmptyAssetDraft(index: number, payment?: TicketActualAmountResponse | null): EditableAssetDraft {
   const shouldPrefillFromSingleResult = index === 0
@@ -683,10 +815,14 @@ watch(
     props.isOpen,
     props.ticket.ticketId,
     props.ticket.quantity,
+    props.paymentResult,
     props.paymentResult?.updatedAt,
   ] as const,
   ([isOpen]) => {
-    if (isOpen) resetForm()
+    if (isOpen) {
+      resetForm()
+      void loadEvidenceFiles()
+    }
   },
 )
 </script>

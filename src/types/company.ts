@@ -1,7 +1,7 @@
 import type { PageResponse } from './common'
 
 export interface Company {
-  companyId: number | string
+  companyId: string
   companyCode: string
   companyName?: string | null
   createdAt: string
@@ -24,7 +24,7 @@ export interface CompanyCreateRequest {
 }
 
 export interface CompanyDeleteResponse {
-  companyId: number | string
+  companyId: string
   deletedAt: string
 }
 

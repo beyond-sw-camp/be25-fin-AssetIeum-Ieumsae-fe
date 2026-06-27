@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
-      <div class="mx-auto w-full max-w-[1500px] px-3 pb-8 pt-2">
+      <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center gap-2">
           <button
             type="button"
@@ -182,7 +182,7 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                    <dd class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main">
                       {{ item.value }}
                     </dd>
                   </div>
@@ -201,6 +201,51 @@
               </div>
             </TicketDetailCard>
 
+            <TicketDetailCard v-if="shouldShowDirectPurchasePaymentCard" title="증빙 파일 목록">
+              <template #icon>
+                <FileWarning :size="18" class="text-text-muted" />
+              </template>
+
+              <div v-if="isDirectPurchaseEvidenceFilesLoading" class="rounded-lg border border-border bg-surface-secondary/40 px-3 py-3 text-sm font-semibold text-text-muted">
+                증빙 파일을 조회하고 있습니다.
+              </div>
+              <div
+                v-else-if="directPurchaseEvidenceFiles.length"
+                class="divide-y divide-border rounded-lg border border-border bg-surface-secondary/40"
+              >
+                <div
+                  v-for="file in directPurchaseEvidenceFiles"
+                  :key="String(file.fileId)"
+                  class="flex flex-col gap-2 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <button
+                    type="button"
+                    class="min-w-0 text-left text-sm font-semibold text-primary hover:underline"
+                    @click="openDirectPurchaseEvidenceFile(file)"
+                  >
+                    <span class="block truncate">{{ file.originalFilename || extractFilename(file.fileUrl) }}</span>
+                    <span class="mt-0.5 block text-xs font-medium text-text-muted">
+                      {{ formatFileSize(file.fileSize) }} · {{ formatDate(file.uploadedAt, 'YYYY-MM-DD HH:mm') }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <p
+                v-else
+                class="rounded-lg border border-dashed border-border bg-surface-secondary/40 px-3 py-2 text-xs font-semibold text-text-muted"
+              >
+                등록된 증빙 파일이 없습니다.
+              </p>
+
+              <p
+                v-if="directPurchaseEvidenceFilesErrorMessage"
+                class="mt-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger"
+                role="alert"
+              >
+                {{ directPurchaseEvidenceFilesErrorMessage }}
+              </p>
+            </TicketDetailCard>
+
             <TicketDetailCard v-if="assetCollectPanel" :title="assetCollectPanel.title">
               <template #icon>
                 <PackageCheck :size="18" class="text-primary" />
@@ -214,7 +259,7 @@
                     class="border-b border-border pb-3"
                   >
                     <dt class="text-xs font-semibold text-text-muted">{{ item.label }}</dt>
-                    <dd class="mt-1.5 break-words text-sm font-semibold text-text-main">
+                    <dd class="mt-1.5 wrap-break-word text-sm font-semibold text-text-main">
                       {{ item.value }}
                     </dd>
                   </div>
@@ -602,6 +647,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   ChevronRight,
+  FileWarning,
   PackageCheck,
   RefreshCw,
   ReceiptText,
@@ -612,7 +658,7 @@ import {
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { ApiError, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
+import { ApiError, fileApi, intangibleItemApi, tangibleItemApi, ticketApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
@@ -640,6 +686,7 @@ import type {
   TicketStatus,
   TicketType,
 } from '@/types'
+import type { FileMetadata } from '@/types/file'
 import {
   formatCurrency,
   formatDate,
@@ -756,6 +803,9 @@ const rejectErrorMessage = ref('')
 const assetAssignErrorMessage = ref('')
 const directPurchasePaymentResultErrorMessage = ref('')
 const directPurchasePaymentResult = ref<TicketActualAmountResponse | null>(null)
+const directPurchaseEvidenceFiles = ref<FileMetadata[]>([])
+const isDirectPurchaseEvidenceFilesLoading = ref(false)
+const directPurchaseEvidenceFilesErrorMessage = ref('')
 const rentalExtensionDueDate = ref('')
 const rentalExtensionDueDateError = ref('')
 const rentalExtensionSubmitErrorMessage = ref('')
@@ -856,7 +906,9 @@ const directPurchasePaymentConfirmationStatusLabel = computed(() => (
   getDirectPurchaseConfirmationStatusLabel(directPurchasePaymentConfirmationStatus.value)
 ))
 const directPurchaseEvidenceFileName = computed(() => (
-  ticket.value?.directPurchaseEvidenceFileName ?? ''
+  ticket.value?.directPurchaseEvidenceFileName
+  ?? extractFilename(directPurchasePaymentResult.value?.proofFileUrl ?? ticket.value?.directPurchaseEvidenceUrl)
+  ?? ''
 ))
 const hasDirectPurchaseEvidence = computed(() => (
   Boolean(
@@ -1528,6 +1580,22 @@ function assetStatusLabel(status: string | null | undefined): string {
   return statusLabels[status] ?? status
 }
 
+function extractFilename(fileUrl: string | null | undefined) {
+  if (!fileUrl) return ''
+  const [path] = fileUrl.split(/[?#]/)
+  const filename = path.split('/').filter(Boolean).at(-1)
+  return filename ? decodeURIComponent(filename) : ''
+}
+
+function formatFileSize(value: number | null | undefined) {
+  const bytes = Number(value ?? 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '-'
+  const kilobytes = bytes / 1024
+  return kilobytes < 1024
+    ? `${Math.max(1, Math.round(kilobytes))} KB`
+    : `${(kilobytes / 1024).toFixed(1)} MB`
+}
+
 function detailErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 403) return '이 티켓을 조회할 권한이 없습니다.'
@@ -1558,12 +1626,15 @@ async function loadTicketDetail() {
     await Promise.all([
       resolvePurchaseRequestAssignability(detail),
       resolveDirectPurchasePaymentResult(detail),
+      resolveDirectPurchaseEvidenceFiles(detail),
     ])
   } catch (error) {
     ticket.value = null
     purchaseRequestAssignable.value = false
     directPurchasePaymentResult.value = null
     directPurchasePaymentResultErrorMessage.value = ''
+    directPurchaseEvidenceFiles.value = []
+    directPurchaseEvidenceFilesErrorMessage.value = ''
     errorMessage.value = detailErrorMessage(error)
   } finally {
     isLoading.value = false
@@ -1597,6 +1668,45 @@ async function resolveDirectPurchasePaymentResult(detail: TicketDetail) {
       : '구매자산팀 실제 결제 정보를 조회하지 못했습니다.'
   } finally {
     isLoadingDirectPurchasePaymentResult.value = false
+  }
+}
+
+async function resolveDirectPurchaseEvidenceFiles(detail: TicketDetail) {
+  directPurchaseEvidenceFiles.value = []
+  directPurchaseEvidenceFilesErrorMessage.value = ''
+  isDirectPurchaseEvidenceFilesLoading.value = false
+
+  if (
+    detail.ticketType !== 'PURCHASE_REQUEST'
+    || detail.requestMethod !== 'DIRECT_PURCHASE'
+    || !['ASSET_APPROVED', 'IN_PROGRESS', 'COMPLETED'].includes(detail.status)
+  ) return
+
+  isDirectPurchaseEvidenceFilesLoading.value = true
+  try {
+    const response = await fileApi.getFiles({
+      targetType: 'TICKET',
+      targetId: detail.ticketId,
+    })
+    directPurchaseEvidenceFiles.value = response.data
+  } catch (error) {
+    directPurchaseEvidenceFilesErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 목록을 조회하지 못했습니다.'
+  } finally {
+    isDirectPurchaseEvidenceFilesLoading.value = false
+  }
+}
+
+async function openDirectPurchaseEvidenceFile(file: FileMetadata) {
+  directPurchaseEvidenceFilesErrorMessage.value = ''
+  try {
+    const response = await fileApi.getDownloadUrl(file.fileId)
+    window.open(response.data.downloadUrl, '_blank')
+  } catch (error) {
+    directPurchaseEvidenceFilesErrorMessage.value = error instanceof Error
+      ? error.message
+      : '증빙 파일 다운로드 URL을 조회하지 못했습니다.'
   }
 }
 
@@ -1648,8 +1758,7 @@ function requestedQuantity(detail: TicketDetail) {
 }
 
 function isNonStandardItem(value: TangibleAssetItem['isStandard'] | IntangibleItem['isStandard']) {
-  if (typeof value === 'boolean') return !value
-  return Number(value) === 0
+  return value === false
 }
 
 function tangibleItemName(item: TangibleAssetItem) {
@@ -2294,6 +2403,8 @@ function resetTicketActionState() {
   directPurchaseItemRegistrationDrawerOpen.value = false
   directPurchasePaymentResult.value = null
   directPurchasePaymentResultErrorMessage.value = ''
+  directPurchaseEvidenceFiles.value = []
+  directPurchaseEvidenceFilesErrorMessage.value = ''
   rentalExtensionDrawerOpen.value = false
   rentalExtensionDueDate.value = ''
   rentalExtensionDueDateError.value = ''
@@ -2313,6 +2424,7 @@ function resetTicketActionState() {
   isAssigningMe.value = false
   isConfirmingDirectPurchasePayment.value = false
   isLoadingDirectPurchasePaymentResult.value = false
+  isDirectPurchaseEvidenceFilesLoading.value = false
   isRegisteringDirectPurchaseItem.value = false
   isCollectingAsset.value = false
   isCompletingMaintenance.value = false

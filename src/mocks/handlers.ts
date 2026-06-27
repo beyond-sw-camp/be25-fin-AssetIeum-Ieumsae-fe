@@ -1020,14 +1020,14 @@ const additionalPurchaseTickets: MockTicket[] = [
 tickets = [...additionalPurchaseTickets, ...tickets]
 
 const additionalPurchaseTicketDetails: Array<[string, Partial<TicketDetail>]> = [
-  ['301', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '2', isStandard: 1, categoryName: '모니터', requestedItemName: 'Dell UltraSharp 27인치 4K', quantity: 2, expectedPrice: 720000 }],
-  ['302', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '6', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'JetBrains All Products Pack', quantity: 4, expectedPrice: 590000 }],
-  ['303', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '8', isStandard: 1, categoryName: '태블릿', requestedItemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, expectedPrice: 1850000 }],
-  ['304', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '17', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'Adobe Photoshop', quantity: 6, expectedPrice: 220000 }],
-  ['305', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '18', isStandard: 0, categoryName: '비표준 장비', requestedItemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, expectedPrice: 6800000 }],
-  ['306', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '9', isStandard: 1, categoryName: '소프트웨어', requestedItemName: 'Atlassian Jira Software', quantity: 5, expectedPrice: 680000 }],
-  ['307', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '17', isStandard: 1, categoryName: '노트북', requestedItemName: 'Dell XPS 15 9530', quantity: 4, expectedPrice: 3150000 }],
-  ['308', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '6', isStandard: 1, categoryName: '스마트폰', requestedItemName: 'iPhone 15 Pro Max 512GB', quantity: 2, expectedPrice: 1550000 }],
+  ['301', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '2', isStandard: true, categoryName: '모니터', requestedItemName: 'Dell UltraSharp 27인치 4K', quantity: 2, expectedPrice: 720000 }],
+  ['302', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '6', isStandard: true, categoryName: '소프트웨어', requestedItemName: 'JetBrains All Products Pack', quantity: 4, expectedPrice: 590000 }],
+  ['303', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '8', isStandard: true, categoryName: '태블릿', requestedItemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, expectedPrice: 1850000 }],
+  ['304', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '17', isStandard: true, categoryName: '소프트웨어', requestedItemName: 'Adobe Photoshop', quantity: 6, expectedPrice: 220000 }],
+  ['305', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '18', isStandard: false, categoryName: '비표준 장비', requestedItemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, expectedPrice: 6800000 }],
+  ['306', { detailStatus: '구매자산팀 승인 완료', assetType: 'INTANGIBLE', assetItemId: '9', isStandard: true, categoryName: '소프트웨어', requestedItemName: 'Atlassian Jira Software', quantity: 5, expectedPrice: 680000 }],
+  ['307', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '17', isStandard: true, categoryName: '노트북', requestedItemName: 'Dell XPS 15 9530', quantity: 4, expectedPrice: 3150000 }],
+  ['308', { detailStatus: '구매자산팀 승인 완료', assetType: 'TANGIBLE', assetItemId: '6', isStandard: true, categoryName: '스마트폰', requestedItemName: 'iPhone 15 Pro Max 512GB', quantity: 2, expectedPrice: 1550000 }],
 ]
 
 for (const [ticketId, detail] of additionalPurchaseTicketDetails) {
@@ -1075,7 +1075,7 @@ let purchasePlans: PurchasePlanDetail[] = [
     requesterName: '정사원',
     items: [
       {
-        itemId: 101,
+        itemId: '101',
         category: '노트북',
         itemName: 'ThinkPad X1 Carbon Gen 12',
         quantity: 1,
@@ -1110,9 +1110,9 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 1701, category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 3, estimatedUnitPrice: 2350000, totalAmount: 7050000, assetType: 'TANGIBLE', isStandard: true, ticketId: '209', receivedAt: null },
-      { itemId: 1702, category: '모니터', itemName: 'Dell UltraSharp 27인치 4K', quantity: 2, estimatedUnitPrice: 720000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: '301', receivedAt: null },
-      { itemId: 1703, category: '소프트웨어', itemName: 'JetBrains All Products Pack', quantity: 4, estimatedUnitPrice: 590000, totalAmount: 2360000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '302', receivedAt: null },
+      { itemId: '1701', category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 3, estimatedUnitPrice: 2350000, totalAmount: 7050000, assetType: 'TANGIBLE', isStandard: true, ticketId: '209', receivedAt: null },
+      { itemId: '1702', category: '모니터', itemName: 'Dell UltraSharp 27인치 4K', quantity: 2, estimatedUnitPrice: 720000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: '301', receivedAt: null },
+      { itemId: '1703', category: '소프트웨어', itemName: 'JetBrains All Products Pack', quantity: 4, estimatedUnitPrice: 590000, totalAmount: 2360000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '302', receivedAt: null },
     ],
   },
   {
@@ -1127,9 +1127,9 @@ purchasePlans = [
     requesterId: mockMemberId(3),
     requesterName: '이부장',
     items: [
-      { itemId: 1601, category: '태블릿', itemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, estimatedUnitPrice: 1850000, totalAmount: 3700000, assetType: 'TANGIBLE', isStandard: true, ticketId: '303', receivedAt: null },
-      { itemId: 1602, category: '소프트웨어', itemName: 'Adobe Photoshop', quantity: 6, estimatedUnitPrice: 220000, totalAmount: 1320000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '304', receivedAt: null },
-      { itemId: 1603, category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 10, estimatedUnitPrice: 140000, totalAmount: 1400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1601', category: '태블릿', itemName: 'iPad Pro 13인치 M4 셀룰러', quantity: 2, estimatedUnitPrice: 1850000, totalAmount: 3700000, assetType: 'TANGIBLE', isStandard: true, ticketId: '303', receivedAt: null },
+      { itemId: '1602', category: '소프트웨어', itemName: 'Adobe Photoshop', quantity: 6, estimatedUnitPrice: 220000, totalAmount: 1320000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '304', receivedAt: null },
+      { itemId: '1603', category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 10, estimatedUnitPrice: 140000, totalAmount: 1400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1144,8 +1144,8 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 1501, category: '노트북', itemName: 'MacBook Pro 14인치 M3 Max', quantity: 5, estimatedUnitPrice: 4200000, totalAmount: 21000000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
-      { itemId: 1502, category: '키보드', itemName: 'MX Keys S 무선 팬터그래프', quantity: 20, estimatedUnitPrice: 180000, totalAmount: 3600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1501', category: '노트북', itemName: 'MacBook Pro 14인치 M3 Max', quantity: 5, estimatedUnitPrice: 4200000, totalAmount: 21000000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1502', category: '키보드', itemName: 'MX Keys S 무선 팬터그래프', quantity: 20, estimatedUnitPrice: 180000, totalAmount: 3600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1160,7 +1160,7 @@ purchasePlans = [
     requesterId: mockMemberId(1),
     requesterName: '김관리',
     items: [
-      { itemId: 1401, category: '모니터', itemName: '오디세이 OLED G9 게이밍 모니터', quantity: 3, estimatedUnitPrice: 1800000, totalAmount: 5400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-16T15:20:00' },
+      { itemId: '1401', category: '모니터', itemName: '오디세이 OLED G9 게이밍 모니터', quantity: 3, estimatedUnitPrice: 1800000, totalAmount: 5400000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-16T15:20:00' },
     ],
   },
   {
@@ -1175,7 +1175,7 @@ purchasePlans = [
     requesterId: mockMemberId(3),
     requesterName: '이부장',
     items: [
-      { itemId: 1301, category: '소프트웨어', itemName: 'Slack Enterprise Grid', quantity: 8, estimatedUnitPrice: 550000, totalAmount: 4400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-15T17:40:00' },
+      { itemId: '1301', category: '소프트웨어', itemName: 'Slack Enterprise Grid', quantity: 8, estimatedUnitPrice: 550000, totalAmount: 4400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-15T17:40:00' },
     ],
   },
   {
@@ -1190,8 +1190,8 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 1201, category: '비표준 장비', itemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, estimatedUnitPrice: 6800000, totalAmount: 6800000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
-      { itemId: 1202, category: '스토리지', itemName: 'Thunderbolt 외장 RAID 16TB', quantity: 1, estimatedUnitPrice: 2300000, totalAmount: 2300000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
+      { itemId: '1201', category: '비표준 장비', itemName: '4K 영상 편집 전용 워크스테이션', quantity: 1, estimatedUnitPrice: 6800000, totalAmount: 6800000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
+      { itemId: '1202', category: '스토리지', itemName: 'Thunderbolt 외장 RAID 16TB', quantity: 1, estimatedUnitPrice: 2300000, totalAmount: 2300000, assetType: 'TANGIBLE', isStandard: false, ticketId: '305', receivedAt: null },
     ],
   },
   {
@@ -1206,7 +1206,7 @@ purchasePlans = [
     requesterId: mockMemberId(1),
     requesterName: '김관리',
     items: [
-      { itemId: 1101, category: '스마트폰', itemName: 'Galaxy S24 Ultra 자급제', quantity: 3, estimatedUnitPrice: 950000, totalAmount: 2850000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1101', category: '스마트폰', itemName: 'Galaxy S24 Ultra 자급제', quantity: 3, estimatedUnitPrice: 950000, totalAmount: 2850000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1221,8 +1221,8 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 1001, category: '책상', itemName: '모션데스크 E0 스마트 1600', quantity: 10, estimatedUnitPrice: 620000, totalAmount: 6200000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
-      { itemId: 1002, category: '의자', itemName: '시디즈 T80 하이엔드 의자', quantity: 10, estimatedUnitPrice: 560000, totalAmount: 5600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1001', category: '책상', itemName: '모션데스크 E0 스마트 1600', quantity: 10, estimatedUnitPrice: 620000, totalAmount: 6200000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '1002', category: '의자', itemName: '시디즈 T80 하이엔드 의자', quantity: 10, estimatedUnitPrice: 560000, totalAmount: 5600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1237,8 +1237,8 @@ purchasePlans = [
     requesterId: mockMemberId(3),
     requesterName: '이부장',
     items: [
-      { itemId: 901, category: '소프트웨어', itemName: 'Atlassian Jira Software', quantity: 5, estimatedUnitPrice: 680000, totalAmount: 3400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
-      { itemId: 902, category: '소프트웨어', itemName: 'Atlassian Confluence', quantity: 5, estimatedUnitPrice: 360000, totalAmount: 1800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
+      { itemId: '901', category: '소프트웨어', itemName: 'Atlassian Jira Software', quantity: 5, estimatedUnitPrice: 680000, totalAmount: 3400000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
+      { itemId: '902', category: '소프트웨어', itemName: 'Atlassian Confluence', quantity: 5, estimatedUnitPrice: 360000, totalAmount: 1800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: '306', receivedAt: null },
     ],
   },
   {
@@ -1253,7 +1253,7 @@ purchasePlans = [
     requesterId: mockMemberId(1),
     requesterName: '김관리',
     items: [
-      { itemId: 801, category: '노트북', itemName: 'Dell XPS 15 9530', quantity: 4, estimatedUnitPrice: 3150000, totalAmount: 12600000, assetType: 'TANGIBLE', isStandard: true, ticketId: '307', receivedAt: null },
+      { itemId: '801', category: '노트북', itemName: 'Dell XPS 15 9530', quantity: 4, estimatedUnitPrice: 3150000, totalAmount: 12600000, assetType: 'TANGIBLE', isStandard: true, ticketId: '307', receivedAt: null },
     ],
   },
   {
@@ -1268,7 +1268,7 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 701, category: '보안 소프트웨어', itemName: 'AhnLab V3', quantity: 25, estimatedUnitPrice: 150000, totalAmount: 3750000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-09T14:30:00' },
+      { itemId: '701', category: '보안 소프트웨어', itemName: 'AhnLab V3', quantity: 25, estimatedUnitPrice: 150000, totalAmount: 3750000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-09T14:30:00' },
     ],
   },
   {
@@ -1283,7 +1283,7 @@ purchasePlans = [
     requesterId: mockMemberId(3),
     requesterName: '이부장',
     items: [
-      { itemId: 601, category: '태블릿', itemName: 'Galaxy Tab S9 Ultra 256GB', quantity: 6, estimatedUnitPrice: 1650000, totalAmount: 9900000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-08T16:50:00' },
+      { itemId: '601', category: '태블릿', itemName: 'Galaxy Tab S9 Ultra 256GB', quantity: 6, estimatedUnitPrice: 1650000, totalAmount: 9900000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-08T16:50:00' },
     ],
   },
   {
@@ -1298,8 +1298,8 @@ purchasePlans = [
     requesterId: mockMemberId(1),
     requesterName: '김관리',
     items: [
-      { itemId: 501, category: '소프트웨어', itemName: 'GitHub Enterprise', quantity: 10, estimatedUnitPrice: 980000, totalAmount: 9800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
-      { itemId: 502, category: '소프트웨어', itemName: 'Tableau', quantity: 4, estimatedUnitPrice: 1450000, totalAmount: 5800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '501', category: '소프트웨어', itemName: 'GitHub Enterprise', quantity: 10, estimatedUnitPrice: 980000, totalAmount: 9800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '502', category: '소프트웨어', itemName: 'Tableau', quantity: 4, estimatedUnitPrice: 1450000, totalAmount: 5800000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1314,8 +1314,8 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 401, category: '스마트폰', itemName: 'iPhone 15 Pro Max 512GB', quantity: 2, estimatedUnitPrice: 1550000, totalAmount: 3100000, assetType: 'TANGIBLE', isStandard: true, ticketId: '308', receivedAt: null },
-      { itemId: 402, category: '소프트웨어', itemName: 'Zoom', quantity: 10, estimatedUnitPrice: 300000, totalAmount: 3000000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '401', category: '스마트폰', itemName: 'iPhone 15 Pro Max 512GB', quantity: 2, estimatedUnitPrice: 1550000, totalAmount: 3100000, assetType: 'TANGIBLE', isStandard: true, ticketId: '308', receivedAt: null },
+      { itemId: '402', category: '소프트웨어', itemName: 'Zoom', quantity: 10, estimatedUnitPrice: 300000, totalAmount: 3000000, assetType: 'INTANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1330,8 +1330,8 @@ purchasePlans = [
     requesterId: mockMemberId(3),
     requesterName: '이부장',
     items: [
-      { itemId: 301, category: '주변기기', itemName: 'MX Keys S 무선 팬터그래프', quantity: 8, estimatedUnitPrice: 180000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
-      { itemId: 302, category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 8, estimatedUnitPrice: 130000, totalAmount: 1040000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '301', category: '주변기기', itemName: 'MX Keys S 무선 팬터그래프', quantity: 8, estimatedUnitPrice: 180000, totalAmount: 1440000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
+      { itemId: '302', category: '주변기기', itemName: 'MX Master 3S 무소음 마우스', quantity: 8, estimatedUnitPrice: 130000, totalAmount: 1040000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: null },
     ],
   },
   {
@@ -1346,7 +1346,7 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 201, category: '노트북', itemName: 'Galaxy Book4 Ultra 코어Ultra9', quantity: 2, estimatedUnitPrice: 3800000, totalAmount: 7600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-04T17:20:00' },
+      { itemId: '201', category: '노트북', itemName: 'Galaxy Book4 Ultra 코어Ultra9', quantity: 2, estimatedUnitPrice: 3800000, totalAmount: 7600000, assetType: 'TANGIBLE', isStandard: true, ticketId: null, receivedAt: '2026-06-04T17:20:00' },
     ],
   },
   {
@@ -1361,7 +1361,7 @@ purchasePlans = [
     requesterId: mockMemberId(2),
     requesterName: '박자산',
     items: [
-      { itemId: 101, category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 1, estimatedUnitPrice: 1740000, totalAmount: 1740000, assetType: 'TANGIBLE', isStandard: true, ticketId: '6', receivedAt: null },
+      { itemId: '101', category: '노트북', itemName: 'ThinkPad X1 Carbon Gen 12', quantity: 1, estimatedUnitPrice: 1740000, totalAmount: 1740000, assetType: 'TANGIBLE', isStandard: true, ticketId: '6', receivedAt: null },
     ],
   },
 ]
@@ -1372,7 +1372,7 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
   const itemName = extraCount > 0 ? `${firstItemName} 외 ${extraCount}종` : firstItemName
 
   return {
-    planId: plan.planId,
+    planId: String(plan.planId),
     planNo: plan.planNo,
     estimatedAmount: plan.estimatedAmount,
     itemCount: plan.items.length,
@@ -1381,7 +1381,7 @@ function toPurchasePlanListItem(plan: PurchasePlanDetail): PurchasePlanListItem 
     deletedAt: plan.deletedAt ?? null,
     status: plan.status,
     purchaseRequestStatus: plan.purchaseRequestStatus,
-    requesterId: plan.requesterId,
+    requesterId: plan.requesterId == null ? null : String(plan.requesterId),
     requesterName: plan.requesterName,
     itemName,
   }
@@ -1397,14 +1397,18 @@ function toPurchasePlanDetail(plan: PurchasePlanDetail): PurchasePlanDetail {
 
       return {
         ...item,
-        ticketRequesterId: item.ticketRequesterId ?? ticketDetail?.requesterId ?? null,
+        ticketRequesterId: normalizeMockId(item.ticketRequesterId ?? ticketDetail?.requesterId),
         ticketRequesterName: item.ticketRequesterName ?? ticketDetail?.requesterName ?? null,
-        ticketDepartmentId: item.ticketDepartmentId ?? ticketDetail?.departmentId ?? null,
+        ticketDepartmentId: normalizeMockId(item.ticketDepartmentId ?? ticketDetail?.departmentId),
         ticketDepartmentName: item.ticketDepartmentName ?? ticketDetail?.departmentName ?? null,
         evidenceFiles: mockFiles.get(mockFileKey('PURCHASE_PLAN_ITEM', String(item.itemId))) ?? item.evidenceFiles ?? [],
       }
     }),
   }
+}
+
+function normalizeMockId(value: string | number | null | undefined) {
+  return value == null ? null : String(value)
 }
 
 function getPurchasePlanStatistics(): PurchasePlanStatistics {
@@ -1574,27 +1578,24 @@ interface TangibleItem {
   category: string
   manufacturer: string
   modelName: string
-  isStandard: number
+  isStandard: boolean
 }
 
 type TangibleItemRequestBody = Partial<Omit<TangibleItem, 'assetItemId' | 'isStandard'>> & {
   itemCode?: string
   name?: string
   productName?: string
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
-const toMockStandardValue = (value: number | boolean | undefined, fallback = 1) => {
-  if (typeof value === 'boolean') return value ? 1 : 0
+const toMockStandardValue = (value: boolean | undefined, fallback = true) => {
   return value ?? fallback
 }
 
-function matchesMockStandardFilter(itemValue: number | boolean | undefined, filterValue: string) {
+function matchesMockStandardFilter(itemValue: boolean | undefined, filterValue: string) {
   if (!filterValue) return true
-  const normalizedFilter = filterValue === 'true' ? 1 : filterValue === 'false' ? 0 : Number(filterValue)
-  if (!Number.isFinite(normalizedFilter)) return true
-  const normalizedItem = typeof itemValue === 'boolean' ? (itemValue ? 1 : 0) : Number(itemValue)
-  return normalizedItem === normalizedFilter
+  if (filterValue !== 'true' && filterValue !== 'false') return true
+  return itemValue === (filterValue === 'true')
 }
 
 interface IntangibleItem {
@@ -1604,42 +1605,42 @@ interface IntangibleItem {
   categoryId?: string
   licenseType: string
   vendor: string
-  isStandard: number
+  isStandard: boolean
 }
 
 // 유형자산 품목 마스터 데이터 (30개) - ID를 string으로 변경
 let tangibleItems: TangibleItem[] = [
-  { assetItemId: '1', assetName: 'MacBook Pro 14인치 M3 Max', category: '노트북', manufacturer: 'Apple', modelName: 'A2992', isStandard: 1 },
-  { assetItemId: '2', assetName: 'ThinkPad X1 Carbon Gen 12', category: '노트북', manufacturer: 'Lenovo', modelName: '21KC', isStandard: 0 },
-  { assetItemId: '3', assetName: '시디즈 T80 하이엔드 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'TN800HLDA', isStandard: 1 },
-  { assetItemId: '4', assetName: 'MX Keys S 무선 팬터그래프', category: '주변기기', manufacturer: 'Logitech', modelName: 'KX800S', isStandard: 1 },
-  { assetItemId: '5', assetName: '퍼시스 6인용 모듈러 회의 테이블', category: '사무가구', manufacturer: '퍼시스', modelName: 'CRN016', isStandard: 1 },
-  { assetItemId: '6', assetName: 'iPhone 15 Pro Max 512GB', category: '스마트폰', manufacturer: 'Apple', modelName: 'A3106', isStandard: 1 },
-  { assetItemId: '7', assetName: 'Galaxy S24 Ultra 자급제', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-S928N', isStandard: 1 },
-  { assetItemId: '8', assetName: 'iPad Pro 13인치 M4 셀룰러', category: '태블릿', manufacturer: 'Apple', modelName: 'A3007', isStandard: 0 },
-  { assetItemId: '9', assetName: 'MX Master 3S 무소음 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: 'MX-M3S', isStandard: 1 },
-  { assetItemId: '10', assetName: 'LG 27인치 QHD 에르고 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27QN880', isStandard: 1 },
-  { assetItemId: '11', assetName: 'Galaxy Tab S9 Ultra 256GB', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X910', isStandard: 1 },
-  { assetItemId: '12', assetName: '에어론 체어 풀 스펙 B사이즈', category: '사무가구', manufacturer: 'Herman Miller', modelName: 'AERON-B', isStandard: 1 },
-  { assetItemId: '13', assetName: 'Galaxy Book4 Ultra 코어Ultra9', category: '노트북', manufacturer: '삼성전자', modelName: 'NT960XGK', isStandard: 1 },
-  { assetItemId: '14', assetName: '모션데스크 E0 스마트 1600', category: '사무가구', manufacturer: '데스커', modelName: 'DSMD1607', isStandard: 0 },
-  { assetItemId: '15', assetName: '오디세이 OLED G9 게이밍 모니터', category: '모니터', manufacturer: '삼성전자', modelName: 'G95SC', isStandard: 0 },
-  { assetItemId: '16', assetName: '가산 지사 복사기 렌탈 장비', category: '사무기기', manufacturer: 'Sindoh', modelName: 'D450-RENT', isStandard: 0 },
-  { assetItemId: '17', assetName: 'Dell XPS 15 9530', category: '노트북', manufacturer: 'Dell', modelName: '9530', isStandard: 1 },
-  { assetItemId: '18', assetName: 'HP EliteDragonfly G4', category: '노트북', manufacturer: 'HP', modelName: 'G4', isStandard: 1 },
-  { assetItemId: '19', assetName: 'LG UltraFine 5K 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27MD5KL-B', isStandard: 1 },
-  { assetItemId: '20', assetName: 'BenQ PD2725U 디자이너 모니터', category: '모니터', manufacturer: 'BenQ', modelName: 'PD2725U', isStandard: 0 },
-  { assetItemId: '21', assetName: 'Apple Magic Keyboard', category: '주변기기', manufacturer: 'Apple', modelName: 'MQ052KH/A', isStandard: 1 },
-  { assetItemId: '22', assetName: 'Samsung T7 Touch SSD 2TB', category: '주변기기', manufacturer: 'Samsung', modelName: 'MU-PC2T0T/KO', isStandard: 0 },
-  { assetItemId: '23', assetName: 'Microsoft Surface Pro 9', category: '태블릿', manufacturer: 'Microsoft', modelName: 'QVG-00001', isStandard: 1 },
-  { assetItemId: '24', assetName: 'Logitech Brio 500 웹캠', category: '주변기기', manufacturer: 'Logitech', modelName: '960-001399', isStandard: 1 },
-  { assetItemId: '25', assetName: '시디즈 T50 사무용 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'T50', isStandard: 0 },
-  { assetItemId: '26', assetName: 'Samsung Galaxy Tab S9 FE', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X510N', isStandard: 0 },
-  { assetItemId: '27', assetName: 'MX Vertical 인체공학 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: '910-005448', isStandard: 0 },
-  { assetItemId: '28', assetName: 'Canon imageCLASS 복합기', category: '사무기기', manufacturer: 'Canon', modelName: 'MF746Cdw', isStandard: 1 },
-  { assetItemId: '29', assetName: 'Brother 라벨프린터 QL-820NWB', category: '사무기기', manufacturer: 'Brother', modelName: 'QL-820NWB', isStandard: 0 },
-  { assetItemId: '30', assetName: 'Samsung Galaxy Z Fold 5', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-F946N', isStandard: 1 },
-  { assetItemId: '31', assetName: 'ABC 노트북 커버', category: '노트북 커버', manufacturer: '삼성전자', modelName: 'SM-46N', isStandard: 1 },
+  { assetItemId: '1', assetName: 'MacBook Pro 14인치 M3 Max', category: '노트북', manufacturer: 'Apple', modelName: 'A2992', isStandard: true },
+  { assetItemId: '2', assetName: 'ThinkPad X1 Carbon Gen 12', category: '노트북', manufacturer: 'Lenovo', modelName: '21KC', isStandard: false },
+  { assetItemId: '3', assetName: '시디즈 T80 하이엔드 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'TN800HLDA', isStandard: true },
+  { assetItemId: '4', assetName: 'MX Keys S 무선 팬터그래프', category: '주변기기', manufacturer: 'Logitech', modelName: 'KX800S', isStandard: true },
+  { assetItemId: '5', assetName: '퍼시스 6인용 모듈러 회의 테이블', category: '사무가구', manufacturer: '퍼시스', modelName: 'CRN016', isStandard: true },
+  { assetItemId: '6', assetName: 'iPhone 15 Pro Max 512GB', category: '스마트폰', manufacturer: 'Apple', modelName: 'A3106', isStandard: true },
+  { assetItemId: '7', assetName: 'Galaxy S24 Ultra 자급제', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-S928N', isStandard: true },
+  { assetItemId: '8', assetName: 'iPad Pro 13인치 M4 셀룰러', category: '태블릿', manufacturer: 'Apple', modelName: 'A3007', isStandard: false },
+  { assetItemId: '9', assetName: 'MX Master 3S 무소음 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: 'MX-M3S', isStandard: true },
+  { assetItemId: '10', assetName: 'LG 27인치 QHD 에르고 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27QN880', isStandard: true },
+  { assetItemId: '11', assetName: 'Galaxy Tab S9 Ultra 256GB', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X910', isStandard: true },
+  { assetItemId: '12', assetName: '에어론 체어 풀 스펙 B사이즈', category: '사무가구', manufacturer: 'Herman Miller', modelName: 'AERON-B', isStandard: true },
+  { assetItemId: '13', assetName: 'Galaxy Book4 Ultra 코어Ultra9', category: '노트북', manufacturer: '삼성전자', modelName: 'NT960XGK', isStandard: true },
+  { assetItemId: '14', assetName: '모션데스크 E0 스마트 1600', category: '사무가구', manufacturer: '데스커', modelName: 'DSMD1607', isStandard: false },
+  { assetItemId: '15', assetName: '오디세이 OLED G9 게이밍 모니터', category: '모니터', manufacturer: '삼성전자', modelName: 'G95SC', isStandard: false },
+  { assetItemId: '16', assetName: '가산 지사 복사기 렌탈 장비', category: '사무기기', manufacturer: 'Sindoh', modelName: 'D450-RENT', isStandard: false },
+  { assetItemId: '17', assetName: 'Dell XPS 15 9530', category: '노트북', manufacturer: 'Dell', modelName: '9530', isStandard: true },
+  { assetItemId: '18', assetName: 'HP EliteDragonfly G4', category: '노트북', manufacturer: 'HP', modelName: 'G4', isStandard: true },
+  { assetItemId: '19', assetName: 'LG UltraFine 5K 모니터', category: '모니터', manufacturer: 'LG전자', modelName: '27MD5KL-B', isStandard: true },
+  { assetItemId: '20', assetName: 'BenQ PD2725U 디자이너 모니터', category: '모니터', manufacturer: 'BenQ', modelName: 'PD2725U', isStandard: false },
+  { assetItemId: '21', assetName: 'Apple Magic Keyboard', category: '주변기기', manufacturer: 'Apple', modelName: 'MQ052KH/A', isStandard: true },
+  { assetItemId: '22', assetName: 'Samsung T7 Touch SSD 2TB', category: '주변기기', manufacturer: 'Samsung', modelName: 'MU-PC2T0T/KO', isStandard: false },
+  { assetItemId: '23', assetName: 'Microsoft Surface Pro 9', category: '태블릿', manufacturer: 'Microsoft', modelName: 'QVG-00001', isStandard: true },
+  { assetItemId: '24', assetName: 'Logitech Brio 500 웹캠', category: '주변기기', manufacturer: 'Logitech', modelName: '960-001399', isStandard: true },
+  { assetItemId: '25', assetName: '시디즈 T50 사무용 의자', category: '사무가구', manufacturer: '시디즈', modelName: 'T50', isStandard: false },
+  { assetItemId: '26', assetName: 'Samsung Galaxy Tab S9 FE', category: '태블릿', manufacturer: '삼성전자', modelName: 'SM-X510N', isStandard: false },
+  { assetItemId: '27', assetName: 'MX Vertical 인체공학 마우스', category: '주변기기', manufacturer: 'Logitech', modelName: '910-005448', isStandard: false },
+  { assetItemId: '28', assetName: 'Canon imageCLASS 복합기', category: '사무기기', manufacturer: 'Canon', modelName: 'MF746Cdw', isStandard: true },
+  { assetItemId: '29', assetName: 'Brother 라벨프린터 QL-820NWB', category: '사무기기', manufacturer: 'Brother', modelName: 'QL-820NWB', isStandard: false },
+  { assetItemId: '30', assetName: 'Samsung Galaxy Z Fold 5', category: '스마트폰', manufacturer: '삼성전자', modelName: 'SM-F946N', isStandard: true },
+  { assetItemId: '31', assetName: 'ABC 노트북 커버', category: '노트북 커버', manufacturer: '삼성전자', modelName: 'SM-46N', isStandard: true },
 ]
 
 let tangibleCategoryGroups: TangibleCategoryGroup[] = [
@@ -1708,37 +1709,37 @@ let tangibleCategoryGroups: TangibleCategoryGroup[] = [
 
 // 무형자산 품목 마스터 데이터 (31개) - ID를 string으로 변경
 let intangibleItems: IntangibleItem[] = [
-  { assetItemId: '1', productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 1 },
-  { assetItemId: '2', productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 1 },
-  { assetItemId: '3', productName: 'Figma', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: 1 },
-  { assetItemId: '4', productName: 'Slack', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: 1 },
-  { assetItemId: '5', productName: 'GitHub Enterprise', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'GitHub', isStandard: 1 },
-  { assetItemId: '6', productName: 'JetBrains All Products Pack', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'JetBrains', isStandard: 1 },
-  { assetItemId: '7', productName: 'Notion', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Notion Labs', isStandard: 0 },
-  { assetItemId: '8', productName: 'Zoom', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Zoom', isStandard: 1 },
-  { assetItemId: '9', productName: 'Atlassian Jira Software', category: '업무용', licenseType: '기간제 라이선스', vendor: 'Atlassian', isStandard: 1 },
-  { assetItemId: '10', productName: 'Atlassian Confluence', category: '업무용', licenseType: '기간제 라이선스', vendor: 'Atlassian', isStandard: 0 },
-  { assetItemId: '11', productName: 'AWS Developer Tools', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'Amazon Web Services', isStandard: 1 },
-  { assetItemId: '12', productName: 'Slack Enterprise Grid', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: 1 },
-  { assetItemId: '13', productName: 'Adobe Illustrator', category: '디자인', licenseType: '영구 라이선스', vendor: 'Adobe', isStandard: 0 },
-  { assetItemId: '14', productName: 'Tableau', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Tableau', isStandard: 1 },
-  { assetItemId: '15', productName: 'Salesforce CRM', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Salesforce', isStandard: 1 },
-  { assetItemId: '16', productName: 'Dropbox Business', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Dropbox', isStandard: 0 },
-  { assetItemId: '17', productName: 'Adobe Photoshop', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: 1 },
-  { assetItemId: '18', productName: 'GitHub Copilot', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'GitHub', isStandard: 1 },
-  { assetItemId: '19', productName: 'Microsoft Azure DevOps', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: 0 },
-  { assetItemId: '20', productName: 'Visual Studio Enterprise', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'Microsoft', isStandard: 1 },
-  { assetItemId: '21', productName: 'Figma Organization', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: 1 },
-  { assetItemId: '22', productName: 'Sketch', category: '디자인', licenseType: '영구 라이선스', vendor: 'Sketch', isStandard: 0 },
-  { assetItemId: '23', productName: 'AhnLab V3', category: '보안', licenseType: '구독형 (SaaS)', vendor: 'AhnLab', isStandard: 1 },
-  { assetItemId: '24', productName: 'McAfee Endpoint Security', category: '보안', licenseType: '기간제 라이선스', vendor: 'McAfee', isStandard: 0 },
-  { assetItemId: '25', productName: 'GitLab Ultimate', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'GitLab', isStandard: 1 },
-  { assetItemId: '26', productName: 'Concur Expense', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'SAP Concur', isStandard: 1 },
-  { assetItemId: '27', productName: 'Zendesk Support', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Zendesk', isStandard: 0 },
-  { assetItemId: '28', productName: 'Miro', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Miro', isStandard: 1 },
-  { assetItemId: '29', productName: 'Dropbox Sign', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Dropbox', isStandard: 1 },
-  { assetItemId: '30', productName: 'HubSpot Marketing Hub', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'HubSpot', isStandard: 0 },
-  { assetItemId: '31', productName: 'Grammarly Business', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Grammarly', isStandard: 1 },
+  { assetItemId: '1', productName: 'Adobe Creative Cloud', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: true },
+  { assetItemId: '2', productName: 'Microsoft 365', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: true },
+  { assetItemId: '3', productName: 'Figma', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: true },
+  { assetItemId: '4', productName: 'Slack', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: true },
+  { assetItemId: '5', productName: 'GitHub Enterprise', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'GitHub', isStandard: true },
+  { assetItemId: '6', productName: 'JetBrains All Products Pack', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'JetBrains', isStandard: true },
+  { assetItemId: '7', productName: 'Notion', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Notion Labs', isStandard: false },
+  { assetItemId: '8', productName: 'Zoom', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Zoom', isStandard: true },
+  { assetItemId: '9', productName: 'Atlassian Jira Software', category: '업무용', licenseType: '기간제 라이선스', vendor: 'Atlassian', isStandard: true },
+  { assetItemId: '10', productName: 'Atlassian Confluence', category: '업무용', licenseType: '기간제 라이선스', vendor: 'Atlassian', isStandard: false },
+  { assetItemId: '11', productName: 'AWS Developer Tools', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'Amazon Web Services', isStandard: true },
+  { assetItemId: '12', productName: 'Slack Enterprise Grid', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Slack', isStandard: true },
+  { assetItemId: '13', productName: 'Adobe Illustrator', category: '디자인', licenseType: '영구 라이선스', vendor: 'Adobe', isStandard: false },
+  { assetItemId: '14', productName: 'Tableau', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Tableau', isStandard: true },
+  { assetItemId: '15', productName: 'Salesforce CRM', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Salesforce', isStandard: true },
+  { assetItemId: '16', productName: 'Dropbox Business', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Dropbox', isStandard: false },
+  { assetItemId: '17', productName: 'Adobe Photoshop', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Adobe', isStandard: true },
+  { assetItemId: '18', productName: 'GitHub Copilot', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'GitHub', isStandard: true },
+  { assetItemId: '19', productName: 'Microsoft Azure DevOps', category: '개발툴', licenseType: '구독형 (SaaS)', vendor: 'Microsoft', isStandard: false },
+  { assetItemId: '20', productName: 'Visual Studio Enterprise', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'Microsoft', isStandard: true },
+  { assetItemId: '21', productName: 'Figma Organization', category: '디자인', licenseType: '구독형 (SaaS)', vendor: 'Figma', isStandard: true },
+  { assetItemId: '22', productName: 'Sketch', category: '디자인', licenseType: '영구 라이선스', vendor: 'Sketch', isStandard: false },
+  { assetItemId: '23', productName: 'AhnLab V3', category: '보안', licenseType: '구독형 (SaaS)', vendor: 'AhnLab', isStandard: true },
+  { assetItemId: '24', productName: 'McAfee Endpoint Security', category: '보안', licenseType: '기간제 라이선스', vendor: 'McAfee', isStandard: false },
+  { assetItemId: '25', productName: 'GitLab Ultimate', category: '개발툴', licenseType: '기간제 라이선스', vendor: 'GitLab', isStandard: true },
+  { assetItemId: '26', productName: 'Concur Expense', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'SAP Concur', isStandard: true },
+  { assetItemId: '27', productName: 'Zendesk Support', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Zendesk', isStandard: false },
+  { assetItemId: '28', productName: 'Miro', category: '협업', licenseType: '구독형 (SaaS)', vendor: 'Miro', isStandard: true },
+  { assetItemId: '29', productName: 'Dropbox Sign', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Dropbox', isStandard: true },
+  { assetItemId: '30', productName: 'HubSpot Marketing Hub', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'HubSpot', isStandard: false },
+  { assetItemId: '31', productName: 'Grammarly Business', category: '업무용', licenseType: '구독형 (SaaS)', vendor: 'Grammarly', isStandard: true },
 ]
 
 // 유형자산 실물 데이터 (36개) - 모든 ID 필드를 string으로 정렬
@@ -2480,6 +2481,27 @@ export const handlers = [
     return HttpResponse.json(ok(Array.from(mockFiles.values()).flat()))
   }),
 
+  http.get(`${API_PREFIX}/files/:fileId/download-url`, ({ params }) => {
+    const fileId = String(params.fileId)
+    const file = Array.from(mockFiles.values())
+      .flat()
+      .find((item) => String(item.fileId) === fileId)
+
+    if (!file) {
+      return HttpResponse.json({
+        status: 404,
+        errorCode: 'FILE_NOT_FOUND',
+        message: '?뚯씪??李얠쓣 ???놁뒿?덈떎.',
+        data: null,
+      }, { status: 404 })
+    }
+
+    return HttpResponse.json(ok({
+      downloadUrl: file.fileUrl,
+      expiresInSeconds: 300,
+    }))
+  }),
+
   http.delete(`${API_PREFIX}/files/:fileId`, ({ params }) => {
     const fileId = String(params.fileId)
     let deleted = false
@@ -2590,18 +2612,18 @@ export const handlers = [
           : null
 
         return {
-          itemId: planId * 100 + index + 1,
+          itemId: String(planId * 100 + index + 1),
           category: detail?.categoryName ?? item.categoryName ?? '-',
           itemName: item.productName,
           quantity: item.quantity,
           estimatedUnitPrice: item.estimatedUnitPrice,
           totalAmount: item.estimatedAmount,
           assetType: item.assetType,
-          isStandard: item.isStandard === 1,
+          isStandard: item.isStandard,
           ticketId: item.ticketId,
-          ticketRequesterId: detail?.requesterId ?? directRequesterId,
+          ticketRequesterId: normalizeMockId(detail?.requesterId ?? directRequesterId),
           ticketRequesterName: detail?.requesterName ?? directRequesterName,
-          ticketDepartmentId: detail?.departmentId ?? directDepartmentId,
+          ticketDepartmentId: normalizeMockId(detail?.departmentId ?? directDepartmentId),
           ticketDepartmentName: detail?.departmentName ?? directDepartmentName,
           receivedAt: null,
         }
@@ -3050,7 +3072,7 @@ export const handlers = [
       requesterName: ticket.requesterName,
       departmentId: ticket.departmentId,
       departmentName: ticket.departmentName,
-      approverId: departmentApprover ? memberSequence(departmentApprover) : null,
+      approverId: departmentApprover ? String(memberSequence(departmentApprover)) : null,
       approverName: departmentApprover?.name ?? null,
       assigneeId: assignee?.memberId ?? null,
       assigneeName: assignee?.name ?? null,
@@ -4248,7 +4270,7 @@ export const handlers = [
           productName: item.assetName,
           manufacturer: item.manufacturer,
           modelName: item.modelName,
-          isStandard: item.isStandard === 1,
+          isStandard: item.isStandard,
           availableAssetCount,
         }
       })

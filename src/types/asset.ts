@@ -12,20 +12,20 @@ export interface TangibleAssetItem {
   assetItemId: string
   tangibleAssetItemId?: string
   itemId?: string
-  itemNo: string        // 품목번호
+  itemNo: string
   itemCode?: string
   productName?: string
-  name: string          // 제품명
-  category?: string     // 카테고리
+  name: string 
+  category?: string
   categoryId?: string
   categoryName?: string
-  manufacturer: string  // 제조사
-  modelName: string     // 모델명
-  vendor: string        // 구매처
-  purchasePrice: number // 구매금액
-  stockCount: number    // 재고수량
+  manufacturer: string  
+  modelName: string
+  vendor: string
+  purchasePrice: number
+  stockCount: number
   availableCount: number
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
 export interface TangibleAssetItemCreateRequest {
@@ -41,7 +41,7 @@ export interface TangibleAssetItemCreateRequest {
   vendor?: string
   purchasePrice?: number
   stockCount?: number
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
 export interface TangibleAssetItemUpdateRequest {
@@ -55,7 +55,7 @@ export interface TangibleAssetItemUpdateRequest {
   modelName?: string
   vendor?: string
   purchasePrice?: number
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
 export interface TangibleCategoryGroup {
@@ -237,9 +237,9 @@ export interface IntangibleAssetCategoryDeleteResponse {
 export interface IntangibleAssetItem {
   assetItemId: string
   itemNo: string
-  name: string           // 소프트웨어명
-  vendor: string         // 제공사
-  softwareType: string   // 소프트웨어 종류
+  name: string
+  vendor: string
+  softwareType: string
   stockCount: number
   availableCount: number
 }
@@ -255,23 +255,23 @@ export interface IntangibleItem {
   licenseType: string
   vendor: string
   provider?: string
-  isStandard: number | boolean
+  isStandard: boolean
   assetCount?: number
   stockCount?: number
   availableCount?: number
-  availableSeatCount?: number | string | null
-  remainingSeatCount?: number | string | null
-  remainingSeats?: number | string | null
-  availableSeats?: number | string | null
-  assignableSeatCount?: number | string | null
-  remainingAssignableCount?: number | string | null
-  remainingAssignableSeatCount?: number | string | null
-  availableUserCount?: number | string | null
-  remainingUserCount?: number | string | null
-  availableMemberCount?: number | string | null
-  remainingMemberCount?: number | string | null
-  availableAssignmentCount?: number | string | null
-  remainingAssignmentCount?: number | string | null
+  availableSeatCount?: number | null
+  remainingSeatCount?: number | null
+  remainingSeats?: number | null
+  availableSeats?: number | null
+  assignableSeatCount?: number | null
+  remainingAssignableCount?: number | null
+  remainingAssignableSeatCount?: number | null
+  availableUserCount?: number | null
+  remainingUserCount?: number | null
+  availableMemberCount?: number | null
+  remainingMemberCount?: number | null
+  availableAssignmentCount?: number | null
+  remainingAssignmentCount?: number | null
   intangibleAssetCount?: number
   totalAssetCount?: number
   assetTotalCount?: number
@@ -285,7 +285,7 @@ export interface IntangibleAssetItemCreateRequest {
   licenseType?: LicenseType
   provider?: string
   vendor?: string
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
 export interface IntangibleAssetItemUpdateRequest {
@@ -295,7 +295,7 @@ export interface IntangibleAssetItemUpdateRequest {
   licenseType?: LicenseType
   provider?: string
   vendor?: string
-  isStandard?: number | boolean
+  isStandard?: boolean
 }
 
 // =====================================================
@@ -363,7 +363,7 @@ export interface IntangibleAssetListFilter {
 export interface IntangibleAssetUpdateRequest {
   intangibleAssetStatus?: IntangibleAssetStatus
   seatCount?: number
-  isAutoRenewal: number | boolean
+  isAutoRenewal: boolean
   startedAt?: string | null
   expiredAt?: string | null
 }

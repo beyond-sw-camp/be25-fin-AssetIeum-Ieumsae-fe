@@ -10,17 +10,17 @@ export interface TicketListItem extends Record<string, unknown> {
   ticketType: TicketType
   requestMethod: PurchaseRequestMethod | null
   requestedItemName: string | null
-  requesterId?: string | number
+  requesterId?: string
   requesterName?: string
-  departmentId?: string | number
+  departmentId?: string
   departmentName?: string
   requestedAt: string
   ticketStatus: TicketStatus
   status?: TicketStatus
   detailStatus?: string | null
   assetType?: AssetType | null
-  assetItemId?: string | number | null
-  isStandard?: number | boolean | null
+  assetItemId?: string | null
+  isStandard?: boolean | null
   categoryName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
@@ -54,9 +54,9 @@ export interface TicketDetail {
   requesterName: string
   departmentId: string | number
   departmentName: string
-  approverId: string | number | null
+  approverId: string | null
   approverName: string | null
-  assigneeId: string | number | null
+  assigneeId: string | null
   assigneeName: string | null
   actions?: TicketActions | null
   histories?: TicketHistory[] | null
@@ -66,7 +66,7 @@ export interface TicketDetail {
   requestedUsageType?: RequestedUsageType | null
   assetType?: AssetType | null
   assetItemId?: string | null
-  isStandard?: number | boolean | null
+  isStandard?: boolean | null
   categoryName?: string | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
@@ -175,10 +175,10 @@ export interface PurchasePlanCandidateTicket {
   categoryName: string
   quantity: number
   estimatedUnitPrice: number
-  assetItemId?: string | number | null
-  tangibleAssetItemId?: string | number | null
-  intangibleAssetItemId?: string | number | null
-  isStandard?: number | boolean | null
+  assetItemId?: string | null
+  tangibleAssetItemId?: string | null
+  intangibleAssetItemId?: string | null
+  isStandard?: boolean | null
   requestedItemName?: string | null
   requestedItemDetail?: string | null
   productName?: string | null
@@ -278,7 +278,7 @@ export interface RentalAvailableItem {
   name?: string
   manufacturer?: string
   modelName?: string
-  isStandard?: boolean | number
+  isStandard?: boolean
   availableAssetCount?: number
 }
 
@@ -370,21 +370,21 @@ export interface AssetRequestAssignRequest {
 
 export interface AssetRequestAssignableItem {
   assetType?: AssetType
-  itemId?: string | number
-  assetItemId?: string | number
-  tangibleAssetItemId?: string | number
-  intangibleAssetItemId?: string | number
-  categoryId?: string | number
+  itemId?: string
+  assetItemId?: string
+  tangibleAssetItemId?: string
+  intangibleAssetItemId?: string
+  categoryId?: string
   categoryName?: string | null
   productName?: string | null
   name?: string | null
-  itemIdentifier?: string | number | null
+  itemIdentifier?: string | null
   itemNo?: string | null
   itemCode?: string | null
   manufacturerOrProvider?: string | null
   modelName?: string | null
   licenseType?: string | null
-  isStandard?: boolean | number | null
+  isStandard?: boolean | null
   requestedItem?: boolean
   availableCount?: number | string | null
   availableSeatCount?: number | string | null
@@ -451,15 +451,15 @@ export interface RentalAssignResponse {
 
 export interface MaintenanceCollectResponse {
   ticketId: string
-  tangibleAssetId: string | number
+  tangibleAssetId: string
   assetStatus: string
   collectedAt: string
 }
 
 export interface AssetCollectResponse {
-  ticketId: string | number
+  ticketId: string
   assetType: AssetType
-  assetId: string | number
+  assetId: string
   status?: string
   ticketStatus?: string
   assetStatus: string
@@ -467,7 +467,7 @@ export interface AssetCollectResponse {
 }
 
 export interface ReturnCompleteResponse {
-  ticketId: string | number
+  ticketId: string
   ticketNo?: string
   ticketStatus: TicketStatus | string
   detailStatus?: string
@@ -484,18 +484,13 @@ export interface MaintenanceCompleteRequest {
 }
 
 export interface MaintenanceCompleteResponse {
-  maintenanceTicketId?: string | number
-  maintenance_ticket_id?: string | number
-  ticketId?: string | number
+  maintenanceTicketId?: string
+  ticketId?: string
   status: string
-  tangibleAssetId?: string | number
-  tangible_asset_id?: string | number
+  tangibleAssetId?: string
   maintenanceResult?: string
-  maintenance_result?: string
   maintenanceCompletedAt?: string
-  maintenance_completed_at?: string
   maintenanceCost?: number
-  maintenance_cost?: number
 }
 
 export interface TicketAssignMeResponse {

@@ -58,7 +58,7 @@
         </div>
         <div
           v-if="!template?.items?.length"
-          class="rounded-lg border border-warning/30 bg-warning/5 px-4 py-4 text-sm text-warning"
+          class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-sm text-primary"
         >
           현재 부서에 등록된 입사 자산 템플릿이 없습니다.
         </div>
@@ -88,35 +88,36 @@
         <div v-else-if="assetTargets.length === 0" class="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-muted">
           대상자에게 배정된 자산이 없습니다.
         </div>
-        <article
-          v-for="target in assetTargets"
-          v-else
-          :key="`${target.assetType}-${target.assetId}`"
-          class="rounded-lg border border-border bg-surface p-4"
-        >
-          <div class="flex items-start gap-3">
-            <input
-              v-model="target.isSelected"
-              type="checkbox"
-              class="mt-1 h-4 w-4 accent-primary"
-              :aria-label="`${target.productName} 처리 대상 선택`"
-            />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-bold text-text-main">{{ target.productName }}</p>
-              <p class="mt-1 text-xs text-text-sub">{{ target.assetCode }} · {{ assetTypeLabel(target.assetType) }}</p>
+        <template v-else>
+          <article
+            v-for="target in assetTargets"
+            :key="`${target.assetType}-${target.assetId}`"
+            class="rounded-lg border border-border bg-surface p-4"
+          >
+            <div class="flex items-start gap-3">
+              <input
+                v-model="target.isSelected"
+                type="checkbox"
+                class="mt-1 h-4 w-4 accent-primary"
+                :aria-label="`${target.productName} 처리 대상 선택`"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-text-main">{{ target.productName }}</p>
+                <p class="mt-1 text-xs text-text-sub">{{ target.assetCode }} · {{ assetTypeLabel(target.assetType) }}</p>
+              </div>
             </div>
-          </div>
-          <div v-if="target.isSelected" class="mt-3 space-y-3 pl-7">
-            <Dropdown v-model="target.actionType" :options="actionTypeOptions" menu-strategy="fixed" />
-            <Dropdown
-              v-if="target.actionType === 'TRANSFER_REQUIRED'"
-              v-model="target.transferMemberId"
-              :options="transferMemberOptions"
-              root-option="전달받을 사원을 선택하세요"
-              menu-strategy="fixed"
-            />
-          </div>
-        </article>
+            <div v-if="target.isSelected" class="mt-3 space-y-3 pl-7">
+              <Dropdown v-model="target.actionType" :options="actionTypeOptions" menu-strategy="fixed" />
+              <Dropdown
+                v-if="target.actionType === 'TRANSFER_REQUIRED'"
+                v-model="target.transferMemberId"
+                :options="transferMemberOptions"
+                root-option="전달받을 사원을 선택하세요"
+                menu-strategy="fixed"
+              />
+            </div>
+          </article>
+        </template>
       </div>
 
       <Input
@@ -157,6 +158,7 @@ import Button from '@/components/common/Button.vue'
 import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import { useAuthStore } from '@/stores'
 import type { Department, DropdownOption, IntangibleAsset, Member, TangibleAsset } from '@/types'
 import type {
   HrEventAssetActionType,
@@ -190,6 +192,21 @@ interface IntangibleAssetAliases {
   itemName?: string | null
 }
 
+interface MemberAliasRecord {
+  id?: string | number | null
+  memberId?: string | number | null
+  departmentId?: string | number | null
+  departmentName?: string | null
+  departmentNamePath?: string | null
+  department?: {
+    departmentId?: string | number | null
+    id?: string | number | null
+    name?: string | null
+    departmentName?: string | null
+    departmentNamePath?: string | null
+  } | null
+}
+
 const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
   OFFBOARDING: '퇴사',
@@ -209,6 +226,7 @@ const emit = defineEmits<{
   submit: [payload: HrEventRegisterSubmitPayload]
 }>()
 
+const authStore = useAuthStore()
 const form = reactive<{
   memberId: string
   eventType: '' | HrEventType
@@ -224,7 +242,11 @@ const assetTargets = ref<AssetTargetDraft[]>([])
 const isLoadingAssets = ref(false)
 const assetErrorMessage = ref('')
 
-const memberOptions = computed<DropdownOption[]>(() => props.members.map((member) => ({
+const currentDepartmentId = computed(() => getMemberDepartmentId(authStore.user as MemberAliasRecord | null))
+const currentDepartmentName = computed(() => getMemberDepartmentName(authStore.user as MemberAliasRecord | null))
+const currentDepartmentPath = computed(() => getMemberDepartmentPath(authStore.user as MemberAliasRecord | null))
+const departmentScopedMembers = computed(() => props.members.filter(isSameDepartmentMember))
+const memberOptions = computed<DropdownOption[]>(() => departmentScopedMembers.value.map((member) => ({
   label: `${member.memberNo} · ${member.name}`,
   value: member.memberId,
 })))
@@ -233,20 +255,19 @@ const eventTypeOptions = computed<DropdownOption[]>(() => (
   Object.entries(EVENT_TYPE_LABEL).map(([value, label]) => ({ label, value }))
 ))
 
-const selectedMember = computed(() => props.members.find((member) => member.memberId === form.memberId))
+const selectedMember = computed(() => departmentScopedMembers.value.find((member) => member.memberId === form.memberId))
 const requiresAssetTargets = computed(() => (
   form.eventType === 'OFFBOARDING' || form.eventType === 'DEPARTMENT_TRANSFER'
 ))
-const transferMemberOptions = computed<DropdownOption[]>(() => props.members
+const transferMemberOptions = computed<DropdownOption[]>(() => departmentScopedMembers.value
   .filter((member) => (
     member.memberId !== form.memberId
-    && member.departmentId === selectedMember.value?.departmentId
+    && getMemberDepartmentId(member as MemberAliasRecord) === getMemberDepartmentId(selectedMember.value as MemberAliasRecord | undefined)
   ))
   .map((member) => ({ label: `${member.memberNo} · ${member.name}`, value: member.memberId })))
 const actionTypeOptions = computed<DropdownOption[]>(() => {
   const options: DropdownOption[] = [
-    { label: '자산 반납', value: 'RETURN_REQUIRED' },
-    { label: '배정 해제', value: 'UNASSIGN_REQUIRED' },
+    { label: '반납 요청 생성', value: 'RETURN_REQUIRED' },
     { label: '다른 사용자에게 전달', value: 'TRANSFER_REQUIRED' },
   ]
   if (form.eventType === 'DEPARTMENT_TRANSFER') {
@@ -283,6 +304,17 @@ watch(
       return
     }
     void loadAssignedAssets(memberId, eventType)
+  },
+)
+
+watch(
+  departmentScopedMembers,
+  (members) => {
+    if (form.memberId && !members.some((member) => member.memberId === form.memberId)) {
+      form.memberId = ''
+      assetTargets.value = []
+      assetErrorMessage.value = ''
+    }
   },
 )
 
@@ -326,8 +358,10 @@ async function loadAssignedAssets(memberId: string, eventType: HrEventType) {
 
     assetTargets.value = [
       ...tangibleResponse.data.content
+        .filter(isInUseAsset)
         .map((asset) => toTangibleDraft(asset, defaultAction)),
       ...intangibleResponse.data.content
+        .filter(isInUseAsset)
         .map((asset) => toIntangibleDraft(asset, defaultAction)),
     ]
   } catch (error) {
@@ -386,8 +420,94 @@ function assetTypeLabel(assetType: HrEventAssetType) {
   return assetType === 'TANGIBLE' ? '유형자산' : '무형자산'
 }
 
-function firstText(...values: Array<string | null | undefined>) {
-  return values.find((value): value is string => Boolean(value?.trim()))?.trim() ?? '-'
+function firstText(...values: unknown[]) {
+  return values.find((value): value is string => (
+    typeof value === 'string' && value.trim().length > 0
+  ))?.trim() ?? '-'
+}
+
+function assetStatusValue(asset: TangibleAsset | IntangibleAsset) {
+  const record = asset as unknown as Record<string, unknown>
+  return firstText(
+    record.status as string | null | undefined,
+    record.tangibleAssetStatus as string | null | undefined,
+    record.tangibleAssetstatus as string | null | undefined,
+    record.intangibleAssetStatus as string | null | undefined,
+    record.assetStatus as string | null | undefined,
+  )
+}
+
+function isInUseAsset(asset: TangibleAsset | IntangibleAsset) {
+  const normalizedStatus = assetStatusValue(asset)
+    .replaceAll('-', '_')
+    .replaceAll(' ', '_')
+    .toUpperCase()
+
+  return normalizedStatus === 'IN_USE'
+    || normalizedStatus === 'INUSE'
+    || normalizedStatus === 'USED'
+    || normalizedStatus === 'ASSIGNED'
+    || normalizedStatus === '사용중'
+    || normalizedStatus === '사용_중'
+}
+
+function normalizeId(value: string | number | null | undefined) {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+function normalizeText(value: string | null | undefined) {
+  return value?.trim() ?? ''
+}
+
+function getMemberDepartmentId(member: MemberAliasRecord | null | undefined) {
+  return normalizeId(
+    member?.departmentId
+    ?? member?.department?.departmentId
+    ?? member?.department?.id,
+  )
+}
+
+function getMemberDepartmentName(member: MemberAliasRecord | null | undefined) {
+  return normalizeText(
+    member?.departmentName
+    ?? member?.department?.departmentName
+    ?? member?.department?.name,
+  )
+}
+
+function getMemberDepartmentPath(member: MemberAliasRecord | null | undefined) {
+  return normalizeText(
+    member?.departmentNamePath
+    ?? member?.department?.departmentNamePath
+    ?? getMemberDepartmentName(member),
+  )
+}
+
+function isSameDepartmentMember(member: Member) {
+  const memberRecord = member as MemberAliasRecord
+  const memberDepartmentId = getMemberDepartmentId(memberRecord)
+  if (currentDepartmentId.value && memberDepartmentId) {
+    return memberDepartmentId === currentDepartmentId.value
+  }
+
+  const memberDepartmentName = getMemberDepartmentName(memberRecord)
+  if (currentDepartmentName.value && memberDepartmentName) {
+    return memberDepartmentName === currentDepartmentName.value
+  }
+
+  const memberDepartmentPath = getMemberDepartmentPath(memberRecord)
+  if (currentDepartmentName.value && memberDepartmentPath) {
+    return memberDepartmentPath
+      .split('>')
+      .map((part) => part.trim())
+      .includes(currentDepartmentName.value)
+  }
+
+  if (currentDepartmentPath.value && memberDepartmentPath) {
+    return memberDepartmentPath === currentDepartmentPath.value
+  }
+
+  return false
 }
 
 defineExpose({

@@ -339,7 +339,6 @@ function addDraftItem() {
 }
 
 function toApiId(value: string | number) {
-  if (typeof value === 'number') return value
-  return /^\d+$/.test(value) ? Number(value) : value
+  return String(value)
 }
 </script>

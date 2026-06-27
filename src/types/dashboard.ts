@@ -58,8 +58,16 @@ export interface ExpiringAssetDetail {
   remainingDays: number
   departmentId?: string | null
   departmentName?: string | null
+  assignedDepartmentName?: string | null
+  currentDepartmentName?: string | null
+  ownerDepartmentName?: string | null
   userId?: string | null
   userName?: string | null
+  assignedMemberName?: string | null
+  assignedUserName?: string | null
+  currentUserName?: string | null
+  memberName?: string | null
+  renterName?: string | null
   expiredAt: string
   assetCode: string
   manufacturer?: string | null

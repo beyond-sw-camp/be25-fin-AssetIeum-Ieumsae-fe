@@ -34,7 +34,7 @@
         v-if="isCalendarOpen"
         ref="calendarRef"
         :style="calendarStyle"
-        class="fixed z-[10030] w-72 rounded-xl border border-border bg-surface p-3 shadow-xl"
+        class="fixed z-10030 w-72 rounded-xl border border-border bg-surface p-3 shadow-xl"
       >
         <div class="mb-3 flex items-center justify-between">
           <button
