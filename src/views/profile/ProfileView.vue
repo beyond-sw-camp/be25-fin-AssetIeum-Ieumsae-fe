@@ -33,7 +33,7 @@
             <component :is="item.icon" :size="16" />
             {{ item.label }}
           </dt>
-          <dd class="break-words text-sm font-bold text-text-main sm:text-right">
+          <dd class="wrap-break-word text-sm font-bold text-text-main sm:text-right">
             {{ item.value }}
           </dd>
         </div>
@@ -71,14 +71,10 @@ const profile = computed(() => {
     departmentName: textValue(user?.departmentName),
     company: firstText(
       record?.companyName,
-      record?.company_name,
       company?.companyName,
-      company?.company_name,
       company?.name,
       record?.companyCode,
-      record?.company_code,
       company?.companyCode,
-      company?.company_code,
       company?.code,
     ),
     roleLabel: user?.role ? ROLE_LABEL[user.role] : '-',

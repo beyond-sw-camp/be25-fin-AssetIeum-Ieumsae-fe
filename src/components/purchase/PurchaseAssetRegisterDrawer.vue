@@ -176,16 +176,16 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-border">
-            <table class="min-w-[960px] w-full border-collapse text-sm">
+            <table class="min-w-240 w-full border-collapse text-sm">
               <thead class="bg-surface-secondary text-xs font-bold text-text-sub">
                 <tr>
                   <th class="w-14 px-3 py-2 text-center">번호</th>
                   <th class="px-3 py-2 text-left">
                     {{ isTangible ? '시리얼 번호' : '라이선스 코드' }}
                   </th>
-                  <th class="w-[190px] px-3 py-2 text-left">할당 방식</th>
-                  <th class="w-[480px] px-3 py-2 text-left">할당 사용자</th>
-                  <th class="w-[120px] px-3 py-2 text-center">상태</th>
+                  <th class="w-47.5 px-3 py-2 text-left">할당 방식</th>
+                  <th class="w-120 px-3 py-2 text-left">할당 사용자</th>
+                  <th class="w-30 px-3 py-2 text-center">상태</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-border">

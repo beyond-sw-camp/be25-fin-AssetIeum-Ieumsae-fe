@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="props.isOpen"
-    class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+    class="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
     role="dialog"
     aria-modal="true"
     aria-labelledby="confirmation-modal-title"

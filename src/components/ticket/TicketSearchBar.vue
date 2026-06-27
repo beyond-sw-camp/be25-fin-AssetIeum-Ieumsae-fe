@@ -1,6 +1,6 @@
 <template>
   <form
-    class="flex min-w-[15rem] max-w-[22rem] flex-1 items-center gap-2"
+    class="flex min-w-60 max-w-88 flex-1 items-center gap-2"
     @submit.prevent="emit('search')"
   >
     <input

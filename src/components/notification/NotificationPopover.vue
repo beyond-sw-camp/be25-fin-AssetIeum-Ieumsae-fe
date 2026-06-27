@@ -17,7 +17,7 @@
 
     <div
       v-if="isOpen"
-      class="absolute right-0 top-11 z-50 w-[360px] overflow-hidden rounded-xl border border-border bg-surface shadow-xl"
+      class="absolute right-0 top-11 z-50 w-90 overflow-hidden rounded-xl border border-border bg-surface shadow-xl"
     >
       <div class="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
@@ -54,7 +54,7 @@
         {{ errorMessage }}
       </div>
 
-      <div class="max-h-[420px] overflow-y-auto">
+      <div class="max-h-105 overflow-y-auto">
         <div v-if="isLoading && notifications.length === 0" class="space-y-3 px-4 py-4">
           <div v-for="index in 4" :key="index" class="animate-pulse rounded-lg border border-border p-3">
             <div class="h-3 w-2/3 rounded bg-surface-secondary" />

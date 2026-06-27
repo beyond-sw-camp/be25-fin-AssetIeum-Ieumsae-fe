@@ -74,7 +74,7 @@
           :loading="isLoading"
           row-key="companyId"
           empty-text="등록된 회사가 없습니다."
-          class="border-0! [&_table]:min-w-[760px]"
+          class="border-0! [&_table]:min-w-190"
         >
           <template #cell-companyCode="{ value }">
             <span class="font-bold text-text-main">{{ value }}</span>

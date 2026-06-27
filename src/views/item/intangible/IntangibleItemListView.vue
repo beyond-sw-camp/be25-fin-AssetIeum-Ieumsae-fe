@@ -88,7 +88,7 @@
           <div class="flex gap-8 mt-2">
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
               <div class="relative flex items-center justify-center">
-                <input v-model="itemEditForm.isStandard" type="radio" :value="1" class="sr-only peer" />
+                <input v-model="itemEditForm.isStandard" type="radio" :value="true" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
                 <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
               </div>
@@ -97,7 +97,7 @@
 
             <label class="flex items-center gap-2.5 text-sm text-text-main cursor-pointer select-none group">
               <div class="relative flex items-center justify-center">
-                <input v-model="itemEditForm.isStandard" type="radio" :value="0" class="sr-only peer" />
+                <input v-model="itemEditForm.isStandard" type="radio" :value="false" class="sr-only peer" />
                 <div class="w-5 h-5 rounded-full border border-gray-300 bg-white peer-checked:border-primary transition-all duration-200 group-hover:border-gray-400 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/20"></div>
                 <div class="absolute w-2.5 h-2.5 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200 ease-out"></div>
               </div>
@@ -206,7 +206,7 @@
 
           <template #cell-isStandard="{ value }">
             <span>
-              {{ value === true || value === 1 ? '표준 자산' : '비표준 자산' }}
+              {{ value ? '표준 자산' : '비표준 자산' }}
             </span>
           </template>
 
@@ -307,7 +307,7 @@ interface ItemEditForm {
   categoryId: string
   licenseType: string
   provider: string
-  isStandard: number
+  isStandard: boolean
 }
 
 type IntangibleItemResponse = IntangibleItem & {
@@ -349,13 +349,8 @@ const createEmptyItemEditForm = (): ItemEditForm => ({
   categoryId: '',
   licenseType: '라이선스 유형 선택',
   provider: '',
-  isStandard: 1,
+  isStandard: true,
 })
-
-const toRadioValue = (value: number | boolean | undefined) => {
-  if (typeof value === 'boolean') return value ? 1 : 0
-  return value ?? 1
-}
 
 const licenseTypeOptions = ['구독형 (SaaS)', '영구 라이선스', '기간제 라이선스']
 const licenseTypeValueByLabel: Record<string, LicenseType> = {
@@ -644,7 +639,7 @@ const toItemEditForm = (row: IntangibleItem): ItemEditForm => ({
   categoryId: row.categoryId || categoryIdByName(row.category),
   licenseType: licenseTypeLabel(row.licenseType) === '-' ? '라이선스 유형 선택' : licenseTypeLabel(row.licenseType),
   provider: row.provider ?? row.vendor ?? '',
-  isStandard: toRadioValue(row.isStandard),
+  isStandard: row.isStandard,
 })
 
 const openItemEdit = (row: IntangibleItem) => {

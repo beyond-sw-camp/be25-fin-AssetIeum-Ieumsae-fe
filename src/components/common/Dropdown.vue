@@ -25,7 +25,7 @@
       v-if="isOpen"
       :style="menuStyle"
       :class="[
-        menuStrategy === 'fixed' ? 'fixed z-[10020] overflow-y-auto' : 'absolute w-full z-50',
+        menuStrategy === 'fixed' ? 'fixed z-10020 overflow-y-auto' : 'absolute w-full z-50',
         'rounded-xl border border-border bg-surface shadow-xl',
         menuStrategy === 'absolute' && (effectiveMenuDirection === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'),
         menuStrategy === 'absolute' && (menuAlign === 'right' ? 'right-0' : 'left-0'),

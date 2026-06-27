@@ -86,13 +86,13 @@ function pickString(source: Record<string, unknown> | null, keys: string[]): str
   return undefined
 }
 
-function pickId(source: Record<string, unknown> | null, keys: string[]): string | number | undefined {
+function pickId(source: Record<string, unknown> | null, keys: string[]): string | undefined {
   if (!source) return undefined
 
   for (const key of keys) {
     const value = getNestedValue(source, key)
     if (typeof value === 'string' && value.trim()) return value
-    if (typeof value === 'number') return value
+    if (typeof value === 'number') return String(value)
   }
 
   return undefined
@@ -672,7 +672,7 @@ export const ticketCreateApi = {
 
   getRentalAvailableItems: (params?: {
     categoryId?: string
-    isStandard?: string | boolean
+    isStandard?: boolean
     keyword?: string
     page?: number
     size?: number

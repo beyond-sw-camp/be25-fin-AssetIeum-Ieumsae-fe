@@ -25,7 +25,7 @@ export interface ServerNotification {
   title: string
   content: string
   targetType: NotificationTargetType
-  targetId: number | string | null
+  targetId?: string | null
   isRead: boolean
   createdAt: string
 }

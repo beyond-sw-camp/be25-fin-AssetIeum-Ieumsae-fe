@@ -1,5 +1,5 @@
 <template>
-  <TicketDetailCard title="커뮤니케이션" class="h-full min-h-0 lg:[contain:size]">
+  <TicketDetailCard title="커뮤니케이션" class="h-full min-h-0 lg:contain-[size]">
     <template #icon>
       <MessageSquareText :size="18" class="text-primary" />
     </template>
@@ -118,7 +118,7 @@
               <p
                 v-else
                 :class="[
-                  'inline-block whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-left text-sm',
+                  'inline-block whitespace-pre-wrap wrap-break-word rounded-2xl px-4 py-3 text-left text-sm',
                   isMine(comment)
                     ? 'rounded-br-md bg-primary/15 text-text-main'
                     : 'rounded-bl-md bg-surface-secondary text-text-main',

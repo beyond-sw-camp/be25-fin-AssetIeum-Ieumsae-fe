@@ -11,7 +11,7 @@
       </Button>
     </header>
 
-    <div class="mx-3 mb-4 grid min-h-[680px] flex-1 gap-5 xl:min-h-0 xl:grid-cols-[minmax(380px,1.15fr)_minmax(500px,1fr)]">
+    <div class="mx-3 mb-4 grid min-h-170 flex-1 gap-5 xl:min-h-0 xl:grid-cols-[minmax(380px,1.15fr)_minmax(500px,1fr)]">
       <section class="card mx-0 flex min-h-0 flex-col overflow-hidden border border-border p-0">
         <div class="border-b border-border px-5 py-4">
           <div class="flex items-center gap-2">
@@ -173,7 +173,7 @@
             v-else
             class="min-h-0 flex-1 pb-2"
             :class="selectedDetail
-              ? 'overflow-y-auto pr-2 [scrollbar-gutter:stable]'
+              ? 'overflow-y-auto pr-2 scrollbar-gutter-stable'
               : 'overflow-hidden'"
           >
             <Table

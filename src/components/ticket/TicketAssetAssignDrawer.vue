@@ -122,7 +122,7 @@
               <h3 class="text-sm font-semibold text-text-main">표준 품목</h3>
               <span class="text-xs font-medium text-text-muted">{{ standardItemOptions.length }}개</span>
             </div>
-            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            <div class="max-h-90 space-y-2 overflow-y-auto pr-1">
               <p
                 v-if="standardItemOptions.length === 0"
                 class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
@@ -168,7 +168,7 @@
               <h3 class="text-sm font-semibold text-text-main">비표준 품목</h3>
               <span class="text-xs font-medium text-text-muted">{{ nonStandardItemOptions.length }}개</span>
             </div>
-            <div class="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            <div class="max-h-90 space-y-2 overflow-y-auto pr-1">
               <p
                 v-if="nonStandardItemOptions.length === 0"
                 class="rounded-xl border border-dashed border-border bg-surface-secondary p-6 text-center text-sm text-text-sub"
@@ -211,7 +211,7 @@
         </div>
       </div>
 
-      <div v-else class="max-h-[360px] space-y-2 overflow-y-auto rounded-xl border border-border p-2">
+      <div v-else class="max-h-90 space-y-2 overflow-y-auto rounded-xl border border-border p-2">
         <h3 v-if="suggestedItemOptions.length > 0" class="px-1 pt-1 text-sm font-semibold text-text-main">
           검색 결과
         </h3>
@@ -871,11 +871,8 @@ function licenseTypeLabel(value: string | null | undefined) {
   return LICENSE_TYPE_LABEL[value] ?? value
 }
 
-function isStandardValue(value: boolean | number | string | null | undefined) {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value !== 0
-  if (typeof value === 'string') return value !== '0' && value.toLowerCase() !== 'false'
-  return true
+function isStandardValue(value: boolean | null | undefined) {
+  return value !== false
 }
 
 function uniqueItemOptions(items: ItemOption[]) {
