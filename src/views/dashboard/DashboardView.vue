@@ -262,7 +262,7 @@ const fallbackBudgetRows = computed<BudgetRow[]>(() => [
         held: commonBudgetHeld.value,
         committed: commonBudgetCommitted.value,
         used: commonBudgetUsed.value,
-        percent: commonBudgetUsagePercent.value,
+        percent: commonBudgetAvailabilityPercent.value,
         isCommon: true,
       }]
     : []),
@@ -274,7 +274,11 @@ const fallbackBudgetRows = computed<BudgetRow[]>(() => [
     held: budgetHeldAmount(item),
     committed: budgetCommittedAmount(item),
     used: budgetUsedAmount(item),
-    percent: budgetUsagePercent(item.usedAmount, item.totalAmount),
+    percent: budgetAvailabilityPercent(
+      item.totalAmount,
+      budgetUsedAmount(item),
+      budgetHeldAmount(item),
+    ),
     isCommon: false,
   })) ?? []),
 ])
@@ -323,9 +327,13 @@ const commonBudgetHeld = computed(() => {
   return commonBudget ? budgetHeldAmount(commonBudget) : 0
 })
 
-const commonBudgetUsagePercent = computed(() => {
+const commonBudgetAvailabilityPercent = computed(() => {
   if (commonBudgetLimit.value <= 0) return 0
-  return budgetUsagePercent(commonBudgetUsed.value, commonBudgetLimit.value)
+  return budgetAvailabilityPercent(
+    commonBudgetLimit.value,
+    commonBudgetUsed.value,
+    commonBudgetHeld.value,
+  )
 })
 
 function budgetCommittedAmount(budget: DepartmentBudgetOverview) {
@@ -345,6 +353,12 @@ function budgetUsagePercent(usedAmount: number, totalAmount: number) {
   return Math.round((usedAmount / totalAmount) * 1000) / 10
 }
 
+function budgetAvailabilityPercent(totalAmount: number, usedAmount: number, heldAmount: number) {
+  if (totalAmount <= 0) return 0
+  const availableAmount = Math.max(totalAmount - usedAmount - heldAmount, 0)
+  return Math.round((availableAmount / totalAmount) * 1000) / 10
+}
+
 function toBudgetRow(item: BudgetListItem): BudgetRow {
   const usedAmount = Math.max(item.usedAmount ?? 0, 0)
   const heldAmount = Math.max(item.heldAmount ?? 0, 0)
@@ -357,7 +371,7 @@ function toBudgetRow(item: BudgetListItem): BudgetRow {
     held: heldAmount,
     committed: usedAmount + heldAmount,
     used: usedAmount,
-    percent: budgetUsagePercent(usedAmount, item.totalAmount),
+    percent: budgetAvailabilityPercent(item.totalAmount, usedAmount, heldAmount),
     isCommon: !item.departmentId,
   }
 }

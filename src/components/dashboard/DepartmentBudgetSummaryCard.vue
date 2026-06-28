@@ -18,7 +18,7 @@
 
       <div class="space-y-3 mr-6">
         <div class="rounded-lg border border-border bg-surface px-6 py-5">
-          <h3 class="mb-4 text-m font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
+          <h3 class="mb-6 text-m font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
           <div class="grid gap-3 text-sm md:grid-cols-4 xl:grid-cols-5">
             <div
               v-for="item in summaryItems"
@@ -29,12 +29,12 @@
               <p class="mt-2 font-bold text-text-main">{{ item.value }}</p>
             </div>
           </div>
-          <div class="mt-4">
+          <div class="mt-5">
             <div class="mb-2 flex items-center justify-between text-xs font-semibold">
               <span class="text-text-sub">가용률</span>
               <span class="text-primary">{{ availabilityRate }}%</span>
             </div>
-            <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
+            <div class="h-2.5 overflow-hidden rounded-full bg-surface-secondary">
               <div
                 class="dashboard-bar-fill h-full rounded-full bg-primary"
                 :style="{ width: `${availabilityRate}%` }"
@@ -42,28 +42,6 @@
             </div>
           </div>
         </div>
-
-        <!-- <div class="rounded-lg border border-border bg-surface px-4 py-3">
-          <h3 class="mb-3 text-sm font-bold text-text-main">{{ summary.departmentName }} 예산 사용 내역</h3>
-          <div class="space-y-4">
-            <div
-              v-for="usage in summary.categoryUsages"
-              :key="usage.categoryName"
-              class="space-y-2"
-            >
-              <div class="flex items-center justify-between text-sm">
-                <span class="font-semibold text-text-main">{{ usage.categoryName }}</span>
-                <span class="font-bold text-primary">{{ usage.percentage }}%</span>
-              </div>
-              <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-                <div
-                  class="h-full rounded-full bg-primary"
-                  :style="{ width: `${usage.percentage}%` }"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div> -->
       </div>
     </div>
   </div>
@@ -89,12 +67,9 @@ const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`
 const heldAmount = computed(() => Math.max(props.summary.heldAmount ?? props.summary.holdAmount ?? 0, 0))
 const usedAmount = computed(() => Math.max(props.summary.usedAmount ?? 0, 0))
 const totalAmount = computed(() => Math.max(props.summary.totalAmount ?? 0, 0))
-const availableAmount = computed(() => {
-  const calculatedAmount = totalAmount.value - usedAmount.value - heldAmount.value
-  const fallbackAmount = props.summary.remainingAmount ?? calculatedAmount
-
-  return Math.max(heldAmount.value > 0 ? calculatedAmount : fallbackAmount, 0)
-})
+const availableAmount = computed(() => (
+  Math.max(totalAmount.value - usedAmount.value - heldAmount.value, 0)
+))
 const availabilityRate = computed(() => {
   if (totalAmount.value <= 0) return 0
   return Math.min(Math.max(Math.round((availableAmount.value / totalAmount.value) * 1000) / 10, 0), 100)
