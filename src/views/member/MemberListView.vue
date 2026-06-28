@@ -34,7 +34,7 @@
           <Dropdown
             :model-value="filterForm.status"
             :options="STATUS_FILTER_OPTIONS"
-            class="w-28"
+            class="w-32 shrink-0"
             aria-label="재직 상태"
             @update:model-value="handleStatusFilterChange"
           />
@@ -42,7 +42,7 @@
           <Dropdown
             :model-value="filterForm.departmentId"
             :options="departmentFilterOptions"
-            class="w-40"
+            class="w-40 shrink-0"
             aria-label="소속 부서"
             @update:model-value="handleDepartmentFilterChange"
           />
