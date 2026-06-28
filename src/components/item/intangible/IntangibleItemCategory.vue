@@ -77,7 +77,7 @@
         <Button
           :variant="addMode === 'main' ? 'primary' : 'outline'"
           size="md"
-          @click="addMode = 'main'"
+          @click="handleAddModeChange('main')"
         >
           대분류 추가
         </Button>
@@ -85,7 +85,7 @@
           :variant="addMode === 'sub' ? 'primary' : 'outline'"
           size="md"
           :disabled="localGroups.length === 0"
-          @click="addMode = 'sub'"
+          @click="handleAddModeChange('sub')"
         >
           중분류 추가
         </Button>
@@ -93,7 +93,7 @@
           :variant="addMode === 'small' ? 'primary' : 'outline'"
           size="md"
           :disabled="middleCategoryOptions.length === 0"
-          @click="addMode = 'small'"
+          @click="handleAddModeChange('small')"
         >
           소분류 추가
         </Button>
@@ -102,26 +102,22 @@
       <div class="space-y-4">
         <div v-if="addMode !== 'main'" class="grid gap-3 sm:grid-cols-[120px_1fr] items-center">
           <label class="text-sm text-text-main">대분류</label>
-          <select
-            v-model="selectedMainCategory"
-            class="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-          >
-            <option v-for="group in localGroups" :key="group.mainCategory" :value="group.mainCategory">
-              {{ group.mainCategory }}
-            </option>
-          </select>
+          <Dropdown
+            :model-value="selectedMainCategory"
+            :options="mainCategoryOptions"
+            menu-direction="down"
+            @update:model-value="handleMainCategoryChange"
+          />
         </div>
 
         <div v-if="addMode === 'small'" class="grid gap-3 sm:grid-cols-[120px_1fr] items-center">
           <label class="text-sm text-text-main">중분류</label>
-          <select
-            v-model="selectedMiddleCategory"
-            class="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-          >
-            <option v-for="category in middleCategoryOptions" :key="category" :value="category">
-              {{ category }}
-            </option>
-          </select>
+          <Dropdown
+            :model-value="selectedMiddleCategory"
+            :options="middleCategoryDropdownOptions"
+            menu-direction="down"
+            @update:model-value="handleMiddleCategoryChange"
+          />
         </div>
 
         <div class="grid gap-3 sm:grid-cols-[120px_1fr] items-center">
@@ -139,7 +135,7 @@
           variant="outline"
           size="md"
           class="w-full"
-          :disabled="isSaving"
+          :disabled="isSaving || !newCategoryName.trim()"
           :loading="isSaving"
           @click="addCategory"
         >
@@ -154,6 +150,7 @@
 import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Button from '@/components/common/Button.vue';
+import Dropdown from '@/components/common/Dropdown.vue';
 import { Minus } from 'lucide-vue-next';
 import { intangibleItemApi } from '@/api/asset.api';
 
@@ -174,7 +171,7 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'update-categories']);
 
 const localGroups = ref<CategoryGroup[]>([]);
-const addMode = ref<'main' | 'sub' | 'small'>('sub');
+const addMode = ref<'main' | 'sub' | 'small'>('main');
 const selectedMainCategory = ref('');
 const selectedMiddleCategory = ref('');
 const newCategoryName = ref('');
@@ -199,6 +196,20 @@ const selectedGroup = computed(() => (
 
 const middleCategoryOptions = computed(() => (
   selectedGroup.value ? getMiddleCategories(selectedGroup.value) : []
+));
+
+const mainCategoryOptions = computed(() => (
+  localGroups.value.map((group) => ({
+    label: group.mainCategory,
+    value: group.mainCategory,
+  }))
+));
+
+const middleCategoryDropdownOptions = computed(() => (
+  middleCategoryOptions.value.map((category) => ({
+    label: category,
+    value: category,
+  }))
 ));
 
 const addInputLabel = computed(() => {
@@ -239,6 +250,19 @@ const createCategory = async (name: string, parentId: string | null) => {
   return categoryResponseId(response.data);
 };
 
+const handleAddModeChange = (mode: 'main' | 'sub' | 'small') => {
+  addMode.value = mode;
+  newCategoryName.value = '';
+};
+
+const handleMainCategoryChange = (value: string | number) => {
+  selectedMainCategory.value = String(value);
+};
+
+const handleMiddleCategoryChange = (value: string | number) => {
+  selectedMiddleCategory.value = String(value);
+};
+
 const deleteCategory = async (categoryId: string) => {
   if (!categoryId) {
     alert('카테고리 ID를 찾을 수 없어 삭제할 수 없습니다.');
@@ -257,10 +281,7 @@ const addCategory = async () => {
   if (isSaving.value) return;
 
   const trimmedName = newCategoryName.value.trim();
-  if (!trimmedName) {
-    alert('카테고리 이름을 입력해주세요.');
-    return;
-  }
+  if (!trimmedName) return;
 
   isSaving.value = true;
 
@@ -463,7 +484,7 @@ watch(
       selectedMainCategory.value = localGroups.value[0]?.mainCategory ?? '';
       selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
       newCategoryName.value = '';
-      addMode.value = localGroups.value.length > 0 ? 'sub' : 'main';
+      addMode.value = 'main';
     }
   }
 );
