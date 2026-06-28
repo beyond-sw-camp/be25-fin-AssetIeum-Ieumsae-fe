@@ -618,7 +618,7 @@ const isLoading = ref(false)
 const listError = ref('')
 
 const tableColumns: Column<IntangibleItem>[] = [
-  { key: 'productName', label: '제품명', align: 'center', width: '25%' },
+  { key: 'productName', label: '제품명', align: 'center', width: '25%', maxLines: 2 },
   { key: 'category', label: '카테고리', align: 'center', width: '12%' },
   { key: 'licenseType', label: '라이선스 유형', align: 'center', width: '12%' },
   { key: 'vendor', label: '제공사', align: 'center', width: '16%' },

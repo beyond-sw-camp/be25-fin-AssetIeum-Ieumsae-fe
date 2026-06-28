@@ -365,7 +365,7 @@ const totalPages = ref(0)
 const isLoading = ref(false)
 
 const tableColumns: Column<IntangibleAsset>[] = [
-  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%' },
+  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%', maxLines: 2 },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '22%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '16%' },
   { key: 'departmentName', label: '부서', align: 'center', width: '16%' },

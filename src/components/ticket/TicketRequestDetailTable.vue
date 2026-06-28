@@ -1,64 +1,39 @@
 <template>
-  <div class="overflow-x-auto">
-    <table class="w-full min-w-180 table-fixed border-collapse">
-      <colgroup>
-        <col
-          v-for="column in columns"
-          :key="column.key"
-          :style="{ width: `${100 / columns.length}%` }"
-        />
-      </colgroup>
-      <thead>
-        <tr class="border-b border-border bg-surface-secondary">
-          <th
-            v-for="column in columns"
-            :key="column.key"
-            scope="col"
-            class="px-4 py-3 text-center text-xs font-semibold text-text-sub"
-          >
-            {{ column.label }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="rows.length === 0">
-          <td
-            :colspan="columns.length"
-            class="px-5 py-10 text-center text-sm text-text-muted"
-          >
-            {{ emptyText }}
-          </td>
-        </tr>
-        <tr
-          v-for="(row, rowIndex) in rows"
-          v-else
-          :key="rowIndex"
-          class="border-b border-border last:border-b-0"
-        >
-          <td
-            v-for="column in columns"
-            :key="column.key"
-            class="wrap-break-word px-4 py-4 text-center text-sm font-medium leading-5 text-text-main"
-          >
-            {{ row[column.key] ?? '-' }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <Table
+    :columns="tableColumns"
+    :rows="props.rows"
+    :empty-text="props.emptyText"
+    table-class="min-w-180"
+  />
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import Table, { type Column } from '@/components/common/Table.vue'
+
 interface TicketRequestDetailColumn {
   key: string
   label: string
 }
 
-withDefaults(defineProps<{
+type TicketRequestDetailRow = Record<string, string>
+
+const props = withDefaults(defineProps<{
   columns: TicketRequestDetailColumn[]
-  rows: Array<Record<string, string>>
+  rows: TicketRequestDetailRow[]
   emptyText?: string
 }>(), {
   emptyText: '요청 상세 내역이 없습니다.',
 })
+
+const tableColumns = computed<Column<TicketRequestDetailRow>[]>(() => (
+  props.columns.map((column) => ({
+    key: column.key,
+    label: column.label,
+    width: `${100 / props.columns.length}%`,
+    align: 'center',
+    maxLines: column.key === 'itemName' ? 2 : 1,
+  }))
+))
 </script>

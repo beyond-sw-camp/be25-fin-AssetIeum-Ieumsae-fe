@@ -398,7 +398,7 @@ const departmentChangeForm = reactive({
 
 const memberColumns: Column<Member>[] = [
   { key: 'memberNo', label: '사번', width: '14%' },
-  { key: 'name', label: '이름 (이메일)', width: '25%' },
+  { key: 'name', label: '이름 (이메일)', width: '25%', maxLines: 2 },
   { key: 'departmentName', label: '소속 부서', width: '20%' },
   { key: 'role', label: '권한', width: '15%' },
   { key: 'status', label: '상태', width: '11%', align: 'center' },

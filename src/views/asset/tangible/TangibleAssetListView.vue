@@ -418,7 +418,7 @@ const isLoading = ref(false);
 const listError = ref('');
 
 const tableColumns: Column<TangibleAssetRow>[] = [
-  { key: 'productName', label: '제품명', align: 'center', width: '25%' },
+  { key: 'productName', label: '제품명', align: 'center', width: '25%', maxLines: 2 },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '20%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '18%' },
   { key: 'departmentName', label: '부서', align: 'center', width: '14%' },

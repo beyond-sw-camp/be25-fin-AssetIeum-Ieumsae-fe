@@ -10,7 +10,7 @@
       </svg>
     </div>
 
-    <table class="w-full table-auto text-sm text-text-main">
+    <table :class="['w-full table-fixed text-sm text-text-main', props.tableClass]">
       <thead class="bg-surface-secondary text-xs uppercase tracking-wide text-text-sub border-b border-border transition-colors duration-300">
         <tr>
           <th
@@ -18,7 +18,7 @@
             :key="String(col.key)"
             :style="col.width ? { width: col.width } : {}"
             :class="[
-              'px-4 py-3 font-semibold',
+              'px-4 py-3 font-semibold whitespace-nowrap',
               alignClass[col.align ?? 'left'],
               col.sortable && 'cursor-pointer select-none hover:text-text-main transition-colors',
             ]"
@@ -62,22 +62,47 @@
           <td
             v-for="col in props.columns"
             :key="String(col.key)"
-            :class="['px-4 py-3', alignClass[col.align ?? 'left']]"
+            :style="col.width ? { width: col.width } : {}"
+            :class="['overflow-hidden px-4 py-3', alignClass[col.align ?? 'left']]"
           >
-            <slot :name="`cell-${String(col.key)}`" :value="getCellValue(row, String(col.key))" :row="row">
-              <span class="font-medium text-text-main">
-                {{ getCellValue(row, String(col.key)) ?? '–' }}
-              </span>
-            </slot>
+            <div
+              :class="cellContentClass(col)"
+              @mouseenter="handleCellMouseEnter($event, col)"
+              @mouseleave="handleCellMouseLeave"
+            >
+              <slot :name="`cell-${String(col.key)}`" :value="getCellValue(row, String(col.key))" :row="row">
+                <span class="font-medium text-text-main">
+                  {{ getCellValue(row, String(col.key)) ?? '–' }}
+                </span>
+              </slot>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="tooltip.isVisible"
+      ref="tooltipElement"
+      role="tooltip"
+      class="pointer-events-none fixed z-[100] max-w-80 break-words rounded-md bg-gray px-2 py-1 text-xs font-medium leading-5 text-main shadow-lg"
+      :style="{
+        left: `${tooltip.left}px`,
+        top: `${tooltip.top}px`,
+        visibility: tooltip.isPositioned ? 'visible' : 'hidden',
+      }"
+    >
+      {{ tooltip.text }}
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, unknown>">
 // 범용 데이터 테이블 컴포넌트 (다크모드 지원 및 스크립트 통합 버전)
+
+import { nextTick, onBeforeUnmount, reactive, ref } from 'vue'
 
 export interface Column<T> {
   key: keyof T | string
@@ -86,6 +111,9 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right'
   sortable?: boolean
   sortDirection?: 'asc' | 'desc'
+  truncate?: boolean
+  maxLines?: 1 | 2
+  tooltip?: boolean
 }
 
 interface Props {
@@ -94,18 +122,30 @@ interface Props {
   loading?: boolean
   emptyText?: string
   rowKey?: keyof T
+  tableClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
   emptyText: '데이터가 없습니다.',
   rowKey: 'id' as keyof T,
+  tableClass: '',
 })
 
 const emit = defineEmits<{
   'row-click': [row: T]
   'sort': [key: string]
 }>()
+
+const tooltipElement = ref<HTMLElement | null>(null)
+const tooltip = reactive({
+  isVisible: false,
+  isPositioned: false,
+  text: '',
+  left: 0,
+  top: 0,
+})
+let tooltipTarget: HTMLElement | null = null
 
 function getCellValue(row: T, key: string): unknown {
   return key.split('.').reduce((obj: unknown, k) => {
@@ -115,6 +155,100 @@ function getCellValue(row: T, key: string): unknown {
     return undefined
   }, row)
 }
+
+const twoLineCellKeys = new Set([
+  'assetname',
+  'assetitemname',
+  'itemname',
+  'productname',
+])
+
+const nonTruncatingCellKeys = new Set([
+  'action',
+  'actions',
+  'delivery',
+  'manage',
+  'management',
+  'menu',
+  'select',
+  'selection',
+])
+
+function shouldTruncate(col: Column<T>) {
+  if (col.truncate !== undefined) return col.truncate
+  return !nonTruncatingCellKeys.has(String(col.key).toLowerCase())
+}
+
+function cellMaxLines(col: Column<T>) {
+  if (col.maxLines) return col.maxLines
+  return twoLineCellKeys.has(String(col.key).toLowerCase()) ? 2 : 1
+}
+
+function cellContentClass(col: Column<T>) {
+  if (!shouldTruncate(col)) return 'min-w-0 max-w-full'
+  if (cellMaxLines(col) === 2) {
+    return 'line-clamp-2 max-h-10 min-w-0 max-w-full break-words whitespace-normal leading-5'
+  }
+  return 'min-w-0 max-w-full truncate whitespace-nowrap'
+}
+
+async function handleCellMouseEnter(event: MouseEvent, col: Column<T>) {
+  if (col.tooltip === false || !shouldTruncate(col)) return
+
+  const element = event.currentTarget as HTMLElement
+  const isOverflowing = (
+    element.scrollWidth > element.clientWidth + 1
+    || element.scrollHeight > element.clientHeight + 1
+  )
+  if (!isOverflowing) return
+
+  const text = element.innerText.replace(/\s+/g, ' ').trim()
+  if (!text) return
+
+  tooltipTarget = element
+  tooltip.text = text
+  tooltip.isPositioned = false
+  tooltip.isVisible = true
+
+  await nextTick()
+  if (tooltipTarget !== element || !tooltipElement.value) return
+
+  positionTooltip(element, tooltipElement.value)
+}
+
+function positionTooltip(target: HTMLElement, tooltipNode: HTMLElement) {
+  const targetRect = target.getBoundingClientRect()
+  const tooltipRect = tooltipNode.getBoundingClientRect()
+  const viewportPadding = 8
+  const gap = 6
+  const centeredLeft = targetRect.left + (targetRect.width - tooltipRect.width) / 2
+  const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding)
+
+  tooltip.left = Math.min(Math.max(centeredLeft, viewportPadding), maxLeft)
+  tooltip.top = targetRect.bottom + gap + tooltipRect.height <= window.innerHeight
+    ? targetRect.bottom + gap
+    : Math.max(viewportPadding, targetRect.top - tooltipRect.height - gap)
+  tooltip.isPositioned = true
+}
+
+function handleCellMouseLeave() {
+  hideTooltip()
+}
+
+function hideTooltip() {
+  tooltipTarget = null
+  tooltip.isVisible = false
+  tooltip.isPositioned = false
+  tooltip.text = ''
+}
+
+window.addEventListener('scroll', hideTooltip, true)
+window.addEventListener('resize', hideTooltip)
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', hideTooltip, true)
+  window.removeEventListener('resize', hideTooltip)
+})
 
 // 테마 변수를 타는 텍스트 정렬 매핑
 const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' }

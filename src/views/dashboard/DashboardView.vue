@@ -220,7 +220,7 @@ const holdingAssetSegments = computed(() => toSegments([
 
 const demandColumns = [
   { key: 'kind', label: '자산 구분', align: 'left' as const, width: '13%' },
-  { key: 'name', label: '자산명', align: 'left' as const, width: '22%' },
+  { key: 'name', label: '자산명', align: 'left' as const, width: '22%', maxLines: 2 as const },
   { key: 'expectedDemand', label: '예상 수요', align: 'center' as const, width: '13%' },
   { key: 'currentStock', label: '현재 재고', align: 'center' as const, width: '13%' },
   { key: 'returnExpected', label: '회수 예정', align: 'center' as const, width: '13%' },

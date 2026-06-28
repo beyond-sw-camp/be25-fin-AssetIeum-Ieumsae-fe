@@ -607,7 +607,7 @@ const isLoading = ref(false);
 const listError = ref('');
 
 const tableColumns: Column<Asset>[] = [
-  { key: 'assetName', label: '제품명', align: 'center', width: '25%' },
+  { key: 'assetName', label: '제품명', align: 'center', width: '25%', maxLines: 2 },
   { key: 'category', label: '카테고리', align: 'center', width: '14%' },
   { key: 'manufacturer', label: '제조사', align: 'center', width: '14%' },
   { key: 'modelName', label: '모델명', align: 'center', width: '18%' },

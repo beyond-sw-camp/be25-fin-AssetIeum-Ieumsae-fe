@@ -175,139 +175,137 @@
             </span>
           </div>
 
-          <div class="overflow-x-auto rounded-xl border border-border">
-            <table class="min-w-240 w-full border-collapse text-sm">
-              <thead class="bg-surface-secondary text-xs font-bold text-text-sub">
-                <tr>
-                  <th class="w-14 px-3 py-2 text-center">번호</th>
-                  <th class="px-3 py-2 text-left">
-                    {{ isTangible ? '시리얼 번호' : '라이선스 코드' }}
-                  </th>
-                  <th class="w-47.5 px-3 py-2 text-left">할당 방식</th>
-                  <th class="w-120 px-3 py-2 text-left">할당 사용자</th>
-                  <th class="w-30 px-3 py-2 text-center">상태</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <tr v-for="(row, index) in assetRows" :key="row.localId" class="bg-surface">
-                  <td class="px-3 py-3 text-center font-semibold text-text-sub">
-                    {{ index + 1 }}
-                  </td>
-                  <td class="px-3 py-3">
-                    <input
-                      v-model="row.uniqueCode"
-                      :placeholder="isTangible ? 'SN-001' : 'LIC-001'"
-                      :disabled="isSubmitting || row.status === 'success'"
-                      class="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
-                      @input="markRowEdited(row)"
-                    />
-                    <p v-if="row.errorMessage" class="mt-1 text-xs font-semibold text-danger">
-                      {{ row.errorMessage }}
-                    </p>
-                  </td>
-                  <td class="px-3 py-3">
-                    <div class="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-secondary p-1">
-                      <button
-                        v-for="option in ASSIGNMENT_METHOD_OPTIONS"
-                        :key="String(option.value)"
-                        type="button"
-                        class="h-8 rounded-lg px-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="row.assignmentMethod === option.value
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'text-text-sub hover:bg-surface'"
-                        :disabled="isSubmitting || row.status === 'success'"
-                        @click="handleRowAssignmentMethodChange(row, option.value)"
-                      >
-                        {{ option.label }}
-                      </button>
-                    </div>
-                  </td>
-                  <td class="px-3 py-3">
-                    <div
-                      v-if="row.assignmentMethod === 'UNASSIGNED'"
-                      class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-sm font-semibold text-text-muted"
+          <Table
+            :columns="assetRowColumns"
+            :rows="assetRows"
+            row-key="localId"
+            table-class="min-w-240"
+            empty-text="등록할 자산이 없습니다."
+          >
+            <template #cell-rowNumber="{ row }">
+              <span class="font-semibold text-text-sub">{{ assetRowNumber(row.localId) }}</span>
+            </template>
+
+            <template #cell-uniqueCode="{ row }">
+              <input
+                v-model="row.uniqueCode"
+                :placeholder="isTangible ? 'SN-001' : 'LIC-001'"
+                :disabled="isSubmitting || row.status === 'success'"
+                class="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
+                @input="markRowEdited(row)"
+              />
+              <p v-if="row.errorMessage" class="mt-1 text-xs font-semibold text-danger">
+                {{ row.errorMessage }}
+              </p>
+            </template>
+
+            <template #cell-assignmentMethod="{ row }">
+              <div class="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-secondary p-1">
+                <button
+                  v-for="option in ASSIGNMENT_METHOD_OPTIONS"
+                  :key="String(option.value)"
+                  type="button"
+                  class="h-8 rounded-lg px-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
+                  :class="row.assignmentMethod === option.value
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-sub hover:bg-surface'"
+                  :disabled="isSubmitting || row.status === 'success'"
+                  @click="handleRowAssignmentMethodChange(row, option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </template>
+
+            <template #cell-memberIds="{ row }">
+              <div
+                v-if="row.assignmentMethod === 'UNASSIGNED'"
+                class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-sm font-semibold text-text-muted"
+              >
+                미할당으로 등록됩니다.
+              </div>
+              <div v-else class="space-y-2">
+                <div
+                  v-if="assignmentCandidateMembers.length"
+                  class="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-lg border border-border bg-surface-secondary/40 p-2"
+                >
+                  <button
+                    v-for="member in assignmentCandidateMembers"
+                    :key="member.memberId"
+                    type="button"
+                    class="flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition disabled:cursor-not-allowed"
+                    :class="[
+                      isRowMemberSelected(row, member.memberId)
+                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                        : 'border-border bg-surface text-text-main hover:border-primary/50 hover:bg-white',
+                      isMemberOptionDisabled(row, member.memberId)
+                        ? 'opacity-50 hover:border-border hover:bg-surface'
+                        : ''
+                    ]"
+                    :disabled="isSubmitting || row.status === 'success' || isMemberOptionDisabled(row, member.memberId)"
+                    @click="handleCandidateMemberSelect(row, member.memberId)"
+                  >
+                    <span
+                      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] font-black"
+                      :class="isRowMemberSelected(row, member.memberId)
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-border bg-surface text-transparent'"
                     >
-                      미할당으로 등록됩니다.
-                    </div>
-                    <div v-else class="space-y-2">
-                      <div
-                        v-if="assignmentCandidateMembers.length"
-                        class="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-lg border border-border bg-surface-secondary/40 p-2"
-                      >
-                        <button
-                          v-for="member in assignmentCandidateMembers"
-                          :key="member.memberId"
-                          type="button"
-                          class="flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition disabled:cursor-not-allowed"
-                          :class="[
-                            isRowMemberSelected(row, member.memberId)
-                              ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                              : 'border-border bg-surface text-text-main hover:border-primary/50 hover:bg-white',
-                            isMemberOptionDisabled(row, member.memberId)
-                              ? 'opacity-50 hover:border-border hover:bg-surface'
-                              : ''
-                          ]"
-                          :disabled="isSubmitting || row.status === 'success' || isMemberOptionDisabled(row, member.memberId)"
-                          @click="handleCandidateMemberSelect(row, member.memberId)"
-                        >
-                          <span
-                            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] font-black"
-                            :class="isRowMemberSelected(row, member.memberId)
-                              ? 'border-primary bg-primary text-white'
-                              : 'border-border bg-surface text-transparent'"
-                          >
-                            ✓
-                          </span>
-                          <span class="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                            <span class="shrink-0 font-bold">{{ member.name }}</span>
-                            <span class="truncate text-xs font-semibold text-text-muted">
-                              {{ member.memberNo || '-' }}
-                              <span class="mx-1 text-border">|</span>
-                              {{ member.departmentName || '-' }}
-                            </span>
-                          </span>
-                        </button>
-                      </div>
-                      <p v-else-if="isDepartmentMembersLoading" class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
-                        부서 멤버를 조회하고 있습니다.
-                      </p>
-                      <p v-else class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
-                        선택 가능한 자산 할당자가 없습니다.
-                      </p>
-                      <div class="flex flex-wrap gap-1.5">
-                        <span
-                          v-for="memberId in row.memberIds"
-                          :key="memberId"
-                          class="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
-                        >
-                          <span class="truncate">{{ memberNameById(memberId) }}</span>
-                          <button
-                            type="button"
-                            class="text-primary/70 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="isSubmitting || row.status === 'success'"
-                            @click="handleCandidateMemberSelect(row, memberId)"
-                          >
-                            x
-                          </button>
-                        </span>
-                        <span v-if="row.memberIds.length === 0" class="text-xs font-semibold text-text-muted">
-                          사용자를 선택해주세요.
-                        </span>
-                      </div>
-                      <p class="text-xs font-semibold text-text-muted">
-                        {{ selectedMemberCountLabel(row) }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="px-3 py-3 text-center">
-                    <span :class="rowStatusClass(row)">
-                      {{ rowStatusLabel(row) }}
+                      ✓
                     </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    <span class="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                      <span class="shrink-0 font-bold">{{ member.name }}</span>
+                      <span
+                        class="truncate text-xs font-semibold text-text-muted"
+                        :title="`${member.memberNo || '-'} | ${member.departmentName || '-'}`"
+                      >
+                        {{ member.memberNo || '-' }}
+                        <span class="mx-1 text-border">|</span>
+                        {{ member.departmentName || '-' }}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+                <p v-else-if="isDepartmentMembersLoading" class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
+                  부서 멤버를 조회하고 있습니다.
+                </p>
+                <p v-else class="rounded-xl border border-dashed border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-muted">
+                  선택 가능한 자산 할당자가 없습니다.
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="memberId in row.memberIds"
+                    :key="memberId"
+                    class="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
+                  >
+                    <span class="truncate" :title="memberNameById(memberId)">
+                      {{ memberNameById(memberId) }}
+                    </span>
+                    <button
+                      type="button"
+                      class="text-primary/70 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      :disabled="isSubmitting || row.status === 'success'"
+                      @click="handleCandidateMemberSelect(row, memberId)"
+                    >
+                      x
+                    </button>
+                  </span>
+                  <span v-if="row.memberIds.length === 0" class="text-xs font-semibold text-text-muted">
+                    사용자를 선택해주세요.
+                  </span>
+                </div>
+                <p class="text-xs font-semibold text-text-muted">
+                  {{ selectedMemberCountLabel(row) }}
+                </p>
+              </div>
+            </template>
+
+            <template #cell-status="{ row }">
+              <span :class="rowStatusClass(row)">
+                {{ rowStatusLabel(row) }}
+              </span>
+            </template>
+          </Table>
 
           <p v-if="errorMessage" class="rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger">
             {{ errorMessage }}
@@ -335,6 +333,7 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Table, { type Column } from '@/components/common/Table.vue'
 import SectionTitle from '@/components/purchase/PurchaseAssetRegisterSectionTitle.vue'
 import type {
   AssetType,
@@ -458,6 +457,19 @@ const intangibleForm = reactive({
 
 const assetType = computed<AssetType | null>(() => resolvePurchaseItemAssetType(props.item))
 const isTangible = computed(() => assetType.value === 'TANGIBLE')
+const assetRowColumns = computed<Column<AssetRegisterRow>[]>(() => [
+  { key: 'rowNumber', label: '번호', width: '6%', align: 'center', truncate: false, tooltip: false },
+  {
+    key: 'uniqueCode',
+    label: isTangible.value ? '시리얼 번호' : '라이선스 코드',
+    width: '20%',
+    truncate: false,
+    tooltip: false,
+  },
+  { key: 'assignmentMethod', label: '할당 방식', width: '20%', truncate: false, tooltip: false },
+  { key: 'memberIds', label: '할당 사용자', width: '44%', truncate: false, tooltip: false },
+  { key: 'status', label: '상태', width: '10%', align: 'center', truncate: false, tooltip: false },
+])
 const assetTypeLabel = computed(() => {
   if (assetType.value === 'TANGIBLE') return '유형자산'
   if (assetType.value === 'INTANGIBLE') return '무형자산'
@@ -662,6 +674,11 @@ function createRows(count: number): AssetRegisterRow[] {
     status: 'idle',
     errorMessage: '',
   }))
+}
+
+function assetRowNumber(localId: string) {
+  const index = assetRows.value.findIndex((row) => row.localId === localId)
+  return index >= 0 ? index + 1 : '-'
 }
 
 function applyDefaultAssignments() {

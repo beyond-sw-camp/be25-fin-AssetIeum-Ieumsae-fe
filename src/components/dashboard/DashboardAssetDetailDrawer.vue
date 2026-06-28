@@ -172,7 +172,7 @@ const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> 
 ]
 
 const baseColumns: Column<DetailRow>[] = [
-  { key: 'name', label: '자산명', width: '18%', align: 'center' },
+  { key: 'name', label: '자산명', width: '18%', align: 'center', maxLines: 2 },
   { key: 'code', label: '자산코드', width: '15%', align: 'center' },
   { key: 'category', label: '카테고리', width: '11%', align: 'center' },
   { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
