@@ -203,12 +203,15 @@
             <label for="register-department" class="text-sm font-semibold text-text-main">
               부서 <span class="font-bold text-primary">*</span>
             </label>
-            <Dropdown
+            <DepartmentTreeSelect
               id="register-department"
               :model-value="registerForm.departmentId"
-              :options="departmentRegisterOptions"
+              :departments="selectableDepartments"
+              placeholder="부서를 선택해주세요."
               :disabled="isRegistering"
-              trigger-class="h-11 py-2.5"
+              :has-error="registerSubmitted && Boolean(registerErrors.departmentId)"
+              :expand-all-on-open="false"
+              keep-open-on-parent-select
               @update:model-value="handleRegisterDepartmentChange"
             />
             <p
@@ -229,7 +232,6 @@
               :model-value="registerForm.role"
               :options="registerRoleOptions"
               :disabled="isRegistering"
-              trigger-class="h-11 py-2.5"
               @update:model-value="handleRegisterRoleChange"
             />
           </div>
@@ -324,6 +326,7 @@ import { ApiError, memberApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import Table from '@/components/common/Table.vue'
@@ -608,10 +611,8 @@ function handleDepartmentFilterChange(value: string | number) {
   }
 }
 
-function handleRegisterDepartmentChange(value: string | number) {
-  if (typeof value === 'string') {
-    registerForm.departmentId = value
-  }
+function handleRegisterDepartmentChange(value: string | null) {
+  registerForm.departmentId = value ?? ''
 }
 
 function handleRegisterRoleChange(value: string | number) {
