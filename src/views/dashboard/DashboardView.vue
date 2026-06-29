@@ -211,7 +211,7 @@ const progressTicketSegments = computed(() => toSegments([
 
 const holdingAssetSegments = computed(() => toSegments([
   ...(isAssetOperator.value
-    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
+    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-text-main' }]
     : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
   { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },

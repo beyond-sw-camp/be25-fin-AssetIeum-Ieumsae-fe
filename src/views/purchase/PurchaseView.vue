@@ -378,7 +378,7 @@
           class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between"
         >
           <div>
-            <p class="page-subtitle mb-1">구매 계획</p>
+            <p class="page-subtitle mb-1">구매 프로세스</p>
             <h1 class="page-title">구매 계획 및 집행 관리</h1>
           </div>
           <Button v-if="canCreatePurchasePlan" @click="openCreateDrawer">

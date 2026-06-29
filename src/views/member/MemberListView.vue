@@ -12,9 +12,9 @@
       </Button>
     </header>
 
-    <section class="card mb-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border">
+    <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
       <form
-        class="relative z-30 flex shrink-0 items-center justify-between gap-3 overflow-visible border-b border-border pb-3"
+        class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between"
         @submit.prevent="handleSearch"
       >
         <div class="flex shrink-0 items-center gap-2">
@@ -30,7 +30,7 @@
           </span>
         </div>
 
-        <div class="ml-auto flex shrink-0 items-center gap-2">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
           <Dropdown
             :model-value="filterForm.status"
             :options="STATUS_FILTER_OPTIONS"
@@ -50,7 +50,7 @@
           <Input
             id="member-keyword"
             v-model="filterForm.keyword"
-            class="w-72"
+            class="w-45!"
             placeholder="이름, 이메일, 사번 검색"
           />
 
@@ -63,7 +63,7 @@
 
       <div
         v-if="listError"
-        class="mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+        class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
       >
         <p class="text-sm text-danger">{{ listError }}</p>
         <Button variant="outline" size="sm" @click="fetchMembers">
@@ -72,7 +72,7 @@
         </Button>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto py-3">
+      <div class="relative z-10 min-h-0 flex-1 overflow-auto bg-surface p-3">
         <Table
           :columns="memberColumns"
           :rows="members"
@@ -116,7 +116,7 @@
 
       <div
         v-if="totalElements > 0"
-        class="flex shrink-0 items-center justify-center border-t border-border pt-3"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
       >
         <Pagination
           :current-page="page"

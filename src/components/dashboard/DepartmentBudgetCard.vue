@@ -1,11 +1,11 @@
 <template>
-  <div class="rounded-xl border border-border bg-surface p-6 shadow-sm">
-    <div class="mb-5">
+  <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+    <div class="mb-4">
       <h2 class="text-base font-bold text-text-main">부서별 예산 현황</h2>
       <p class="mt-1 text-xs text-text-sub">부서별 가용 예산과 집행 대기, 실제 사용 금액을 확인합니다.</p>
     </div>
 
-    <div class="mb-7 rounded-xl border border-border bg-surface p-4">
+    <div class="mb-4 rounded-lg border border-border bg-surface p-4">
       <div class="text-sm font-bold text-text-main">전사 예산 총괄</div>
 
       <div class="mb-4 flex flex-col gap-2 items-end">

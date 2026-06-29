@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+  <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
     <div class="mb-4 flex items-center justify-between">
       <div>
         <h2 class="text-base font-bold text-text-main">자산 수요 정보 조회</h2>
