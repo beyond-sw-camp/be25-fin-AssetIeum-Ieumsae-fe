@@ -39,8 +39,8 @@
           <FormField label="자동 갱신 여부" required>
             <Dropdown v-model="assetEditForm.isAutoRenewal" :options="autoRenewalOptions" :disabled="!canUpdateAsset" />
           </FormField>
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :disabled="!canUpdateAsset" />
-          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="datetime-local" label="만료 일시" :disabled="!canUpdateAsset" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :disabled="!canUpdateAsset" />
+          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="date" label="만료일" :disabled="!canUpdateAsset" />
         </div>
       </section>
 
@@ -49,8 +49,8 @@
           구매 정보
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input id="edit-purchaseDate" v-model="assetEditForm.purchaseDate" type="datetime-local" label="구매 일시" disabled />
-          <Input id="edit-purchasePrice" v-model="assetEditForm.purchasePrice" label="구매 금액" disabled />
+          <Input id="edit-purchaseDate" v-model="assetEditForm.purchaseDate" type="date" label="구매일" disabled />
+          <CurrencyInput id="edit-purchasePrice" v-model="assetEditForm.purchasePrice" label="구매 금액" disabled />
           <Input id="edit-purchaseVendor" v-model="assetEditForm.purchaseVendor" label="구매처" disabled />
           <Input id="edit-billingCycle" v-model="assetEditForm.billingCycle" label="결제 주기" disabled />
         </div>
@@ -97,6 +97,7 @@ import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
@@ -249,15 +250,15 @@ const seatCountValidationMessage = computed(() => {
   return `현재 사용 중인 사용자가 ${currentActiveAssignmentCount.value}명이라 최대 사용 가능 인원 수를 ${currentActiveAssignmentCount.value}명 미만으로 줄일 수 없습니다.`
 })
 
-const toDateTimeInputValue = (value: string | null | undefined) => {
+const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`
-  return value.slice(0, 16)
+  return value.slice(0, 10)
 }
 
 const toLocalDateTimeRequestValue = (value: string) => {
   const trimmedValue = value.trim()
   if (!trimmedValue || trimmedValue === '-') return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) return `${trimmedValue}T00:00:00`
   return trimmedValue.length === 16 ? `${trimmedValue}:00` : trimmedValue
 }
 
@@ -347,10 +348,10 @@ const toAssetEditForm = (asset: IntangibleAsset): AssetEditForm => {
     billingCycle: billingCycleLabel(asset.billingCycle) || '-',
     departmentName: displayDepartmentName || '-',
     memberName: displayMemberName || '-',
-    startedAt: toDateTimeInputValue(asset.startedAt),
-    expiredAt: toDateTimeInputValue(asset.expiredAt),
-    purchaseDate: toDateTimeInputValue(asset.purchaseDate),
-    purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '-',
+    startedAt: toDateInputValue(asset.startedAt),
+    expiredAt: toDateInputValue(asset.expiredAt),
+    purchaseDate: toDateInputValue(asset.purchaseDate),
+    purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '',
     purchaseVendor: asset.purchaseVendor ?? assetWithAliases.provider ?? asset.vendor ?? '-',
   }
 }

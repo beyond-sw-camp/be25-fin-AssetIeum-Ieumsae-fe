@@ -108,8 +108,8 @@
           <Input
             id="intangible-assignment-ended-at"
             v-model="endedAt"
-            type="datetime-local"
-            label="사용 종료 예정 일시"
+            type="date"
+            label="사용 종료 예정일"
           />
         </div>
       </section>
@@ -683,6 +683,7 @@ const selectedAssetInfo = computed(() => ({
 
 const toServerDateTime = (value: string) => {
   if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
   return value.length === 16 ? `${value}:00` : value
 }
 

@@ -50,13 +50,14 @@
               {{ calendarYear }}년 {{ calendarMonth + 1 }}월
             </p>
 
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               class="w-hug rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-background transition-colors hover:text-primary"
               @click="selectToday"
             >
               오늘
-            </button>
+            </Button>
           </div>
 
           <button
@@ -122,6 +123,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import Button from './Button.vue'
 
 interface Props {
   id?: string

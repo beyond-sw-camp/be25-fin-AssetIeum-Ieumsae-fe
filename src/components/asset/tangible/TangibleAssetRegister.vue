@@ -63,18 +63,18 @@
           <Input
             id="register-startedAt"
             v-model="formData.startedAt"
-            type="datetime-local"
-            label="사용 시작 일시"
+            type="date"
+            label="사용 시작일"
             :required="requiresAssignmentInfo"
-            placeholder="사용 시작 일시 입력"
+            placeholder="사용 시작일 선택"
           />
 
           <Input
             id="register-returnDueDate"
             v-model="formData.returnDueDate"
-            type="datetime-local"
-            label="반납 예정 일시"
-            placeholder="반납 예정 일시 입력"
+            type="date"
+            label="반납 예정일"
+            placeholder="반납 예정일 선택"
           />
 
           <FormField label="부서" :required="requiresAssignmentInfo">
@@ -103,17 +103,17 @@
           <Input
             id="register-purchaseDate"
             v-model="formData.purchaseDate"
-            type="datetime-local"
-            label="구매 일시"
-            placeholder="구매 일시 입력"
+            type="date"
+            label="구매일"
+            placeholder="구매일 선택"
             required
           />
 
-          <Input
+          <CurrencyInput
             id="register-purchasePrice"
             v-model="formData.purchasePrice"
             label="구매 금액"
-            placeholder="구매 금액 입력"
+            placeholder="0"
             required
           />
 
@@ -128,9 +128,9 @@
           <Input
             id="register-warrantyExpiredAt"
             v-model="formData.warrantyExpiredAt"
-            type="datetime-local"
-            label="보증 만료 일시"
-            placeholder="보증 만료 일시 입력"
+            type="date"
+            label="보증 만료일"
+            placeholder="보증 만료일 선택"
             required
           />
         </div>
@@ -155,6 +155,7 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
@@ -460,7 +461,13 @@ const isRegisterReady = computed(() => (
 
 const optionalDate = (value: string) => {
   const trimmed = value.trim()
-  return trimmed ? trimmed : null
+  return trimmed ? toLocalDateTimeRequestValue(trimmed) : null
+}
+
+const toLocalDateTimeRequestValue = (value: string) => {
+  const trimmed = value.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T00:00:00`
+  return trimmed.length === 16 ? `${trimmed}:00` : trimmed
 }
 
 const parsePrice = (value: string) => {
@@ -492,7 +499,7 @@ const handleSave = async () => {
 
   const department = effectiveDepartment.value
   const member = selectedMember.value
-  const purchaseDate = formData.value.purchaseDate.trim()
+  const purchaseDate = toLocalDateTimeRequestValue(formData.value.purchaseDate)
   const purchasePrice = parsePrice(formData.value.purchasePrice)
 
   if (purchasePrice === undefined) {

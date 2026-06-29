@@ -59,8 +59,8 @@
           <Input
             id="assignment-ended-at"
             v-model="endedAt"
-            type="datetime-local"
-            label="반납 예정 일시"
+            type="date"
+            label="반납 예정일"
             :disabled="usageTypeLabel === '정식 배정'"
           />
         </div>
@@ -591,6 +591,7 @@ const assetUsageTypeValue = (): TangibleAssetAssignmentAssetUsageType => (
 
 const toServerDateTime = (value: string) => {
   if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
   return value.length === 16 ? `${value}:00` : value
 }
 
@@ -690,7 +691,7 @@ const submit = async () => {
   try {
     if (mode.value === 'assign' && selectedAsset.value && selectedMember.value) {
       if (usageTypeValue() === 'TEMPORARY' && !endedAt.value) {
-        errorMessage.value = '임시 배정은 반납 예정 일시가 필수입니다.'
+        errorMessage.value = '임시 배정은 반납 예정일이 필수입니다.'
         return
       }
 
