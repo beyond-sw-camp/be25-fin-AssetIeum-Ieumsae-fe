@@ -18,6 +18,10 @@ interface RefreshResponse {
   accessToken: string
 }
 
+function isPublicAuthRequest(url?: string) {
+  return url === '/auth/login' || url === '/auth/reissue'
+}
+
 export class ApiError extends Error {
   status: number | null
   errorCode: string | null
@@ -47,9 +51,8 @@ export const httpClient = axios.create({
 
 httpClient.interceptors.request.use((config) => {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
-  const isAuthRequest = config.url?.includes('/auth/')
 
-  if (accessToken && !isAuthRequest) {
+  if (accessToken && !isPublicAuthRequest(config.url)) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
 
@@ -87,7 +90,7 @@ httpClient.interceptors.response.use(
     const originalRequest = error.config as RetryRequestConfig | undefined
     const isUnauthorized = error.response?.status === 401
     const isForbidden = error.response?.status === 403
-    const isAuthRequest = originalRequest?.url?.includes('/auth/')
+    const isPublicAuthEndpoint = isPublicAuthRequest(originalRequest?.url)
 
     if (isUnauthorized) {
       console.warn('API 401 Unauthorized 응답', {
@@ -105,7 +108,7 @@ httpClient.interceptors.response.use(
       })
     }
 
-    if (isUnauthorized && originalRequest && !originalRequest._retry && !isAuthRequest) {
+    if (isUnauthorized && originalRequest && !originalRequest._retry && !isPublicAuthEndpoint) {
       originalRequest._retry = true
 
       try {
