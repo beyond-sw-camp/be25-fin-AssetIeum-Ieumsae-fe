@@ -57,6 +57,8 @@ export function useEventSource() {
         error.value = null
       },
       onmessage(message) {
+        if (!message.data.trim()) return
+
         dispatch({
           type: message.event || 'message',
           data: message.data,
