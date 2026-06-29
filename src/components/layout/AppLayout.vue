@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   BarChart3,
@@ -41,14 +41,17 @@ import {
   Workflow,
 } from 'lucide-vue-next'
 
+import { notificationApi } from '@/api'
 import ToastContainer from '@/components/common/ToastContainer.vue'
 import Header from '@/components/layout/Header.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
+import { useEventSource } from '@/composables/useEventSource'
 
 const collapsed = ref(false)
 const route = useRoute()
 const permission = usePermission()
+const notificationSubscription = useEventSource()
 const {
   canManageCompany,
   canManageDepartment,
@@ -71,6 +74,10 @@ const usesContainedPageScroll = computed(() => (
   route.path === '/tickets'
   || route.path.startsWith('/tickets/')
 ))
+
+onMounted(() => {
+  notificationSubscription.connect(notificationApi.getSubscribePath())
+})
 
 const navItems = computed(() => {
   if (canManagePlatform.value) {
