@@ -36,8 +36,8 @@
         </article>
       </section>
 
-      <section class="card relative z-10 flex min-h-170 flex-1 flex-col overflow-visible border border-border">
-        <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
+      <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+        <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex shrink-0 items-center gap-2">
             <Dropdown
               :model-value="pageSize"
@@ -99,7 +99,7 @@
 
         <div
           v-if="errorMessage"
-          class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+          class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
         >
           <p class="text-sm text-danger">{{ errorMessage }}</p>
           <Button variant="outline" size="sm" @click="fetchTickets">
@@ -108,106 +108,72 @@
           </Button>
         </div>
 
-        <div class="mt-4 flex min-h-130 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-surface xl:min-h-150">
-          <div class="min-h-0 flex-1 overflow-auto">
-            <Table
-              :columns="columns"
-              :rows="pagedTickets"
-              :loading="isLoading"
-              row-key="ticketId"
-              empty-text="조회된 티켓이 없습니다."
-              class="rounded-none! border-0!"
-              @row-click="openTicketDetail"
-            >
-              <template #cell-ticketNo="{ value }">
-                <span class="font-semibold text-text-main">{{ value }}</span>
-              </template>
+        <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
+          <Table
+            :columns="columns"
+            :rows="pagedTickets"
+            :loading="isLoading"
+            row-key="ticketId"
+            empty-text="조회된 티켓이 없습니다."
+            class="min-w-full"
+            @row-click="openTicketDetail"
+          >
+            <template #cell-ticketNo="{ value }">
+              <span class="font-semibold text-text-main">{{ value }}</span>
+            </template>
 
-              <template #cell-ticketType="{ row }">
-                <span class="font-semibold text-text-main">
-                  {{ getTicketTypeLabel(row) }}
-                </span>
-              </template>
+            <template #cell-ticketType="{ row }">
+              <span class="font-semibold text-text-main">
+                {{ getTicketTypeLabel(row) }}
+              </span>
+            </template>
 
-              <template #cell-requestedItemName="{ value }">
-                <span class="line-clamp-1 font-medium text-text-main">
-                  {{ value || '-' }}
-                </span>
-              </template>
+            <template #cell-requestedItemName="{ value }">
+              <span class="line-clamp-1 font-medium text-text-main">
+                {{ value || '-' }}
+              </span>
+            </template>
 
-              <template #cell-requester="{ row }">
-                <div class="min-w-0">
-                  <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
-                  <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
-                </div>
-              </template>
+            <template #cell-requester="{ row }">
+              <div class="min-w-0">
+                <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
+                <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
+              </div>
+            </template>
 
-              <template #cell-requestedAt="{ value }">
-                <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
-              </template>
+            <template #cell-requestedAt="{ value }">
+              <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
+            </template>
 
-              <template #cell-ticketStatus="{ row }">
-                <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
-                  {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
-                </span>
-              </template>
+            <template #cell-ticketStatus="{ row }">
+              <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
+                {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
+              </span>
+            </template>
 
-              <template #cell-management="{ row }">
-                <Button
-                  size="sm"
-                  class="min-w-18 whitespace-nowrap"
-                  :variant="getManagementButtonVariant(row)"
-                  @click.stop="openTicketDetail(row)"
-                >
-                  {{ getManagementButtonLabel(row) }}
-                </Button>
-              </template>
-            </Table>
-          </div>
-
-          <div class="flex shrink-0 items-center justify-center border-t border-border py-3">
-            <div class="flex items-center justify-center gap-1">
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-                :disabled="page === 0 || isLoading"
-                aria-label="이전 페이지"
-                @click="page -= 1"
+            <template #cell-management="{ row }">
+              <Button
+                size="sm"
+                class="min-w-18 whitespace-nowrap"
+                :variant="getManagementButtonVariant(row)"
+                @click.stop="openTicketDetail(row)"
               >
-                <ChevronLeft :size="16" />
-              </button>
-              <template v-for="item in paginationItems" :key="String(item)">
-                <span
-                  v-if="item === 'ellipsis'"
-                  class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-                >
-                  ...
-                </span>
-                <button
-                  v-else
-                  type="button"
-                  :class="[
-                    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                    page === item
-                      ? 'bg-primary text-white'
-                      : 'text-text-sub hover:bg-surface-secondary',
-                  ]"
-                  @click="page = item"
-                >
-                  {{ item + 1 }}
-                </button>
-              </template>
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-                :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-                aria-label="다음 페이지"
-                @click="page += 1"
-              >
-                <ChevronRight :size="16" />
-              </button>
-            </div>
-          </div>
+                {{ getManagementButtonLabel(row) }}
+              </Button>
+            </template>
+          </Table>
+        </div>
+
+        <div
+          v-if="tickets.length > 0"
+          class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+        >
+          <Pagination
+            :current-page="page"
+            :total-pages="totalPages"
+            :disabled="isLoading"
+            @change="page = $event"
+          />
         </div>
       </section>
     </template>
@@ -215,13 +181,14 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
+import { RefreshCw } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, departmentApi, memberApi, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table from '@/components/common/Table.vue'
 import TicketManagementDetail from '@/components/ticket/TicketManagementDetail.vue'
 import TicketSearchBar from '@/components/ticket/TicketSearchBar.vue'
@@ -374,23 +341,6 @@ const statCards = computed(() => {
     },
   ]
 })
-const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
-  if (totalPages.value <= 7) {
-    return Array.from({ length: totalPages.value }, (_, index) => index)
-  }
-
-  const items: Array<number | 'ellipsis'> = [0]
-  const start = Math.max(1, page.value - 1)
-  const end = Math.min(totalPages.value - 2, page.value + 1)
-
-  if (start > 1) items.push('ellipsis')
-  for (let index = start; index <= end; index += 1) items.push(index)
-  if (end < totalPages.value - 2) items.push('ellipsis')
-  items.push(totalPages.value - 1)
-
-  return items
-})
-
 function flattenDepartments(items: Department[]): Department[] {
   return items.flatMap((department) => [
     department,

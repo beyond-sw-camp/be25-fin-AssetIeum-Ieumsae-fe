@@ -13,72 +13,39 @@
 
     <div class="grid gap-15 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="flex justify-center">
-        <div
-          class="relative h-50 w-50 rounded-full border border-text-main/30 bg-surface"
-        >
-          <div
-            class="dashboard-ring-fill absolute inset-px rounded-full"
-            :style="donutStyle"
-          ></div>
-          <div class="absolute inset-13 flex flex-col items-center justify-center rounded-full border border border-text-main/30 bg-surface text-center">
-            <span class="text-xs font-semibold text-text-sub">소진율</span>
-            <span class="mt-1 text-lg font-bold text-primary">{{ summary.usageRate }}%</span>
-          </div>
-        </div>
+        <DashboardDonutChart :value="usageRate" :used-value="usedRate" label="사용률" />
       </div>
 
       <div class="space-y-3 mr-6">
         <div class="rounded-lg border border-border bg-surface px-6 py-5">
-          <h3 class="mb-4 text-m font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
-          <div class="grid gap-4 text-sm md:grid-cols-4">
-            <div>
-              <p class="mb-2 font-semibold text-text-main">총 예산</p>
-              <p class="font-bold text-text-main">{{ formatCurrency(summary.totalAmount) }}</p>
+          <h3 class="mb-6 text-m font-bold text-text-main">{{ summary.departmentName }} 예산 현황</h3>
+          <div class="grid gap-3 text-sm md:grid-cols-4 xl:grid-cols-5">
+            <div
+              v-for="item in summaryItems"
+              :key="item.label"
+              class="rounded-lg border border-border bg-surface px-4 py-3"
+            >
+              <p class="text-xs font-semibold text-text-muted">{{ item.label }}</p>
+              <p class="mt-2 font-bold text-text-main">{{ item.value }}</p>
             </div>
-            <div>
-              <p class="mb-2 font-semibold text-text-main">사용 금액</p>
-              <p class="font-bold text-text-main">{{ formatCurrency(summary.usedAmount) }}</p>
+          </div>
+          <div class="mt-5">
+            <div class="mb-2 flex items-center justify-between text-xs font-semibold">
+              <span class="text-text-sub">사용률</span>
+              <span class="text-primary">{{ usageRate }}%</span>
             </div>
-            <div>
-              <p class="mb-2 font-semibold text-text-main">잔여 예산</p>
-              <p class="font-bold text-text-main">{{ formatCurrency(summary.remainingAmount) }}</p>
-            </div>
-            <div>
-              <p class="mb-2 font-semibold text-text-main">소진율</p>
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-bold text-primary">{{ summary.usageRate }}%</span>
-                <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-secondary">
-                  <div
-                    class="dashboard-bar-fill h-full rounded-full bg-primary"
-                    :style="{ width: `${summary.usageRate}%` }"
-                  ></div>
-                </div>
-              </div>
+            <div class="relative h-2.5 overflow-hidden rounded-full bg-surface-secondary">
+              <div
+                class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
+                :style="{ width: `${usageRate}%` }"
+              ></div>
+              <div
+                class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
+                :style="{ width: `${usedRate}%` }"
+              ></div>
             </div>
           </div>
         </div>
-
-        <!-- <div class="rounded-lg border border-border bg-surface px-4 py-3">
-          <h3 class="mb-3 text-sm font-bold text-text-main">{{ summary.departmentName }} 예산 사용 내역</h3>
-          <div class="space-y-4">
-            <div
-              v-for="usage in summary.categoryUsages"
-              :key="usage.categoryName"
-              class="space-y-2"
-            >
-              <div class="flex items-center justify-between text-sm">
-                <span class="font-semibold text-text-main">{{ usage.categoryName }}</span>
-                <span class="font-bold text-primary">{{ usage.percentage }}%</span>
-              </div>
-              <div class="h-2 overflow-hidden rounded-full bg-surface-secondary">
-                <div
-                  class="h-full rounded-full bg-primary"
-                  :style="{ width: `${usage.percentage}%` }"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div> -->
       </div>
     </div>
   </div>
@@ -86,6 +53,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+
+import DashboardDonutChart from '@/components/dashboard/DashboardDonutChart.vue'
 import type { DepartmentBudgetDetail } from '@/types'
 
 const props = defineProps<{
@@ -99,16 +68,27 @@ const emit = defineEmits<{
 
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`
 
-const donutStyle = computed(() => {
-  const usageRate = Math.min(Math.max(props.summary.usageRate ?? 0, 0), 100)
-
-  return {
-    '--dashboard-ring-progress': `${usageRate}%`,
-    background: `conic-gradient(
-      from 0deg,
-      var(--color-surface-secondary) 0 calc(100% - var(--dashboard-ring-progress)),
-      var(--color-primary) calc(100% - var(--dashboard-ring-progress)) 100%
-    )`,
-  }
+const heldAmount = computed(() => Math.max(props.summary.heldAmount ?? props.summary.holdAmount ?? 0, 0))
+const usedAmount = computed(() => Math.max(props.summary.usedAmount ?? 0, 0))
+const totalAmount = computed(() => Math.max(props.summary.totalAmount ?? 0, 0))
+const availableAmount = computed(() => (
+  Math.max(totalAmount.value - usedAmount.value - heldAmount.value, 0)
+))
+const usageRate = computed(() => {
+  if (totalAmount.value <= 0) return 0
+  const committedAmount = usedAmount.value + heldAmount.value
+  return Math.min(Math.max(Math.round((committedAmount / totalAmount.value) * 1000) / 10, 0), 100)
 })
+const usedRate = computed(() => {
+  if (totalAmount.value <= 0) return 0
+  return Math.min(Math.max(Math.round((usedAmount.value / totalAmount.value) * 1000) / 10, 0), 100)
+})
+
+const summaryItems = computed(() => [
+  { label: '가용 예산', value: formatCurrency(availableAmount.value) },
+  { label: '사용 예산', value: formatCurrency(usedAmount.value) },
+  { label: '집행 대기 금액', value: formatCurrency(heldAmount.value) },
+  { label: '총 예산', value: formatCurrency(totalAmount.value) },
+  { label: '사용률', value: `${usageRate.value}%` },
+])
 </script>

@@ -1,11 +1,11 @@
 <template>
-  <div class="rounded-xl border border-border bg-surface p-6 shadow-sm">
-    <div class="mb-5">
+  <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+    <div class="mb-4">
       <h2 class="text-base font-bold text-text-main">부서별 예산 현황</h2>
       <p class="mt-1 text-xs text-text-sub">부서별 가용 예산과 집행 대기, 실제 사용 금액을 확인합니다.</p>
     </div>
 
-    <div class="mb-7 rounded-xl border border-border bg-surface p-4">
+    <div class="mb-4 rounded-lg border border-border bg-surface p-4">
       <div class="text-sm font-bold text-text-main">전사 예산 총괄</div>
 
       <div class="mb-4 flex flex-col gap-2 items-end">
@@ -75,17 +75,20 @@
       </template>
 
       <template #cell-percent="{ row }">
-        <div class="flex flex-col items-center gap-2">
-          <div class="relative h-2.5 w-32 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-600">
+        <div class="flex items-center justify-center gap-2">
+          <div class="relative h-2 w-25 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-600">
             <div
               class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
-              :style="{ width: `${clampPercent(rowCommittedPercent(row))}%` }"
+              :style="{ width: `${clampPercent(row.percent)}%` }"
             />
             <div
               class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
-              :style="{ width: `${clampPercent(rowUsedPercent(row))}%` }"
+              :style="{ width: `${usedPercent(row)}%` }"
             />
           </div>
+          <span class="w-11 text-xs font-semibold text-text-sub">
+            {{ clampPercent(row.percent) }}%
+          </span>
         </div>
       </template>
     </Table>
@@ -110,12 +113,12 @@ export interface BudgetRow extends Record<string, unknown> {
 }
 
 const budgetColumns: Column<BudgetRow>[] = [
-  { key: 'department', label: '부서명', width: '18%', align: 'center' },
+  { key: 'department', label: '부서명', width: '15%', align: 'center' },
   { key: 'available', label: '가용 예산', width: '17%', align: 'center' },
   { key: 'held', label: '집행 대기', width: '17%', align: 'center' },
   { key: 'used', label: '실제 사용', width: '17%', align: 'center' },
   { key: 'limit', label: '총 예산', width: '17%', align: 'center' },
-  { key: 'percent', label: '가용률', width: '14%', align: 'center' },
+  { key: 'percent', label: '사용률', width: '14%', align: 'center' },
 ]
 
 const props = defineProps<{
@@ -137,12 +140,9 @@ const summaryItems = computed(() => [
 
 const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100)
 
-function rowCommittedPercent(row: BudgetRow) {
-  return row.limit > 0 ? Math.round((row.committed / row.limit) * 1000) / 10 : 0
-}
-
-function rowUsedPercent(row: BudgetRow) {
-  return row.limit > 0 ? Math.round((row.used / row.limit) * 1000) / 10 : 0
+const usedPercent = (row: BudgetRow) => {
+  if (row.limit <= 0) return 0
+  return clampPercent(Math.round((row.used / row.limit) * 1000) / 10)
 }
 
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`

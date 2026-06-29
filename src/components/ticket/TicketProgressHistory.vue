@@ -137,6 +137,14 @@ const PROCESS_BY_TICKET_TYPE: Record<TicketType, ProcessDefinition[]> = {
   ],
 }
 
+const INTANGIBLE_ASSET_RETURN_PROCESS: ProcessDefinition[] = [
+  { key: 'created', label: '해지 요청 생성' },
+  { key: 'department', label: '부서 승인' },
+  { key: 'review', label: '구매자산팀 검토' },
+  { key: 'result', label: '무형자산 해지 처리' },
+  { key: 'completed', label: '해지 처리 완료' },
+]
+
 const STATUS_PROGRESS_INDEX: Partial<Record<TicketStatus | string, number>> = {
   REQUESTED: 1,
   DEPARTMENT_APPROVED: 2,
@@ -215,6 +223,10 @@ function historyStepDate(ticket: TicketDetail, key: ProcessStepKey) {
 
 function historyForStep(ticket: TicketDetail, key: ProcessStepKey) {
   const histories = ticket.histories ?? []
+  if (ticket.ticketType === 'ASSET_RETURN' && ticket.assetType === 'INTANGIBLE' && key === 'result') {
+    return histories.find((history) => String(history.status) === 'IN_PROGRESS')
+  }
+
   const statusesByStep: Partial<Record<ProcessStepKey, string[]>> = {
     created: ['REQUESTED'],
     department: ['DEPARTMENT_APPROVED', 'DEPARTMENT_REJECTED'],
@@ -287,7 +299,9 @@ function stepReasonTitle(key: ProcessStepKey) {
 
 const processSteps = computed<ProcessStep[]>(() => {
   const ticket = props.ticket
-  const definitions = ticket.ticketType === 'PURCHASE_REQUEST'
+  const definitions = ticket.ticketType === 'ASSET_RETURN' && ticket.assetType === 'INTANGIBLE'
+    ? INTANGIBLE_ASSET_RETURN_PROCESS
+    : ticket.ticketType === 'PURCHASE_REQUEST'
     && ticket.requestMethod === 'DIRECT_PURCHASE'
       ? [
         { key: 'created', label: '품목 구분 및 직접 구매 요청 생성' },

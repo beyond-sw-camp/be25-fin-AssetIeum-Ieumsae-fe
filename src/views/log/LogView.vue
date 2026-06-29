@@ -78,39 +78,12 @@
       </div>
 
       <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 pt-3 flex items-center justify-center relative z-20">
-        <div class="flex items-center gap-2">
-          <button
-            :disabled="page === 0 || isLoading"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(page - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-
-          <button
-            v-for="pageNumber in visiblePages"
-            :key="pageNumber"
-            type="button"
-            :disabled="isLoading"
-            :class="[
-              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
-              page === pageNumber - 1
-                ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                : 'text-text-sub hover:bg-surface-secondary'
-            ]"
-            @click="changePage(pageNumber - 1)"
-          >
-            {{ pageNumber }}
-          </button>
-
-          <button
-            :disabled="page >= totalPages - 1 || isLoading"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(page + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
+          :disabled="isLoading"
+          @change="changePage"
+        />
       </div>
     </div>
   </div>
@@ -118,7 +91,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { logApi } from '@/api/log.api'
@@ -126,6 +99,7 @@ import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import ActivityLogTableCard from '@/components/log/ActivityLogTableCard.vue'
 import AuditLogTableCard from '@/components/log/AuditLogTableCard.vue'
 import { ACTIVITY_LOG_ACTION_LABEL, AUDIT_LOG_ACTION_LABEL } from '@/utils/logLabels'
@@ -192,18 +166,6 @@ const itemRangeText = computed(() => {
   const start = page.value * pageSize.value + 1
   const end = Math.min(start + pageSize.value - 1, totalElements.value)
   return `${start}-${end}`
-})
-
-const visiblePages = computed(() => {
-  const maxPages = 5
-  const total = totalPages.value
-  if (total <= 0) return [1]
-
-  const current = page.value + 1
-  const start = Math.max(1, Math.min(current - 2, total - maxPages + 1))
-  const end = Math.min(total, start + maxPages - 1)
-
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 })
 
 const requestParams = (): LogListFilter => ({

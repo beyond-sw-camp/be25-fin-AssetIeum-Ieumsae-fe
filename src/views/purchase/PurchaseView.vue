@@ -378,7 +378,7 @@
           class="page-header flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between"
         >
           <div>
-            <p class="page-subtitle mb-1">구매 계획</p>
+            <p class="page-subtitle mb-1">구매 프로세스</p>
             <h1 class="page-title">구매 계획 및 집행 관리</h1>
           </div>
           <Button v-if="canCreatePurchasePlan" @click="openCreateDrawer">
@@ -466,7 +466,7 @@
             </Button>
           </div>
 
-          <div class="mt-4 rounded-xl border border-border bg-surface">
+          <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
             <Table
               :columns="columns"
               :rows="plans"
@@ -515,52 +515,13 @@
             </Table>
           </div>
 
-          <div
-            class="flex shrink-0 items-center justify-center border-t border-border py-3"
-          >
-            <div class="flex items-center justify-center gap-1">
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-                :disabled="page === 0 || isListLoading"
-                aria-label="이전 페이지"
-                @click="page -= 1"
-              >
-                <ChevronLeft :size="16" />
-              </button>
-              <template v-for="item in paginationItems" :key="String(item)">
-                <span
-                  v-if="item === 'ellipsis'"
-                  class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-                >
-                  ...
-                </span>
-                <button
-                  v-else
-                  type="button"
-                  :class="[
-                    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                    page === item
-                      ? 'bg-primary text-white'
-                      : 'text-text-sub hover:bg-surface-secondary',
-                  ]"
-                  @click="page = item"
-                >
-                  {{ item + 1 }}
-                </button>
-              </template>
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-                :disabled="
-                  totalPages === 0 || page >= totalPages - 1 || isListLoading
-                "
-                aria-label="다음 페이지"
-                @click="page += 1"
-              >
-                <ChevronRight :size="16" />
-              </button>
-            </div>
+          <div>
+            <Pagination
+              :current-page="page"
+              :total-pages="totalPages"
+              :disabled="isListLoading"
+              @change="page = $event"
+            />
           </div>
         </section>
       </template>
@@ -1093,8 +1054,6 @@ import {
   ArrowLeft,
   Box as BoxIcon,
   Check,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   FileWarning,
   Loader2,
@@ -1126,6 +1085,7 @@ import Button from "@/components/common/Button.vue";
 import ConfirmationModal from "@/components/common/ConfirmationModal.vue";
 import Dropdown from "@/components/common/Dropdown.vue";
 import Input from "@/components/common/Input.vue";
+import Pagination from "@/components/common/Pagination.vue";
 import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
@@ -1762,23 +1722,6 @@ const purchaseExecutionInfoItems = computed(() => {
       value: `${selectedPlan.value.items.length - standardCount}건`,
     },
   ];
-});
-
-const paginationItems = computed<Array<number | "ellipsis">>(() => {
-  if (totalPages.value <= 7) {
-    return Array.from({ length: totalPages.value }, (_, index) => index);
-  }
-
-  const items: Array<number | "ellipsis"> = [0];
-  const start = Math.max(1, page.value - 1);
-  const end = Math.min(totalPages.value - 2, page.value + 1);
-
-  if (start > 1) items.push("ellipsis");
-  for (let index = start; index <= end; index += 1) items.push(index);
-  if (end < totalPages.value - 2) items.push("ellipsis");
-  items.push(totalPages.value - 1);
-
-  return items;
 });
 
 watch([page, pageSize, statusFilter, requesterFilter], () => {

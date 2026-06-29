@@ -27,22 +27,24 @@
             자산 검수
           </h1>
         </div>
-        <button
+        <Button
           v-if="authStore.isAuthenticated"
-          type="button"
-          class="shrink-0 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-sub transition hover:bg-primary/5 hover:text-primary"
+          variant="outline"
+          size="md"
+          class="shrink-0"
           @click="handleLogout"
         >
           로그아웃
-        </button>
-        <button
+        </Button>
+        <Button
           v-else
-          type="button"
-          class="shrink-0 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs font-semibold text-text-sub transition hover:bg-primary/5 hover:text-primary"
+          variant="outline"
+          size="md"
+          class="shrink-0"
           @click="goLogin"
         >
           로그인
-        </button>
+        </Button>
       </div>
       <p class="w-full mt-2 text-sm leading-relaxed text-text-sub">
         {{ inspectionGuideText }}

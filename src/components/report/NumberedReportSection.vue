@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-lg border border-border bg-surface p-7 shadow-sm">
+  <section class="card mx-0! border border-border p-7">
     <div class="mb-5 flex flex-col gap-2">
       <h2 class="text-lg font-extrabold text-text-main">{{ title }}</h2>
       <p class="text-base font-semibold text-text-sub">

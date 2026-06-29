@@ -11,16 +11,15 @@
       </RouterLink>
 
       <div class="flex items-center gap-3">
-        <button
-          class="
-          flex h-9 w-9 items-center justify-center
-          rounded-lg border border-border hover:bg-surface-secondary text-text-sub
-          transition-colors duration-300"
+        <Button
+          variant="outline"
+          size="icon-md"
+          :aria-label="isDark ? '라이트 모드로 변경' : '다크 모드로 변경'"
           @click="toggleDarkMode"
         >
           <Sun v-if="isDark" :size="18" />
           <Moon v-else :size="18" />
-        </button>
+        </Button>
 
         <NotificationPopover />
       </div>
@@ -32,6 +31,7 @@
 import { ref, onMounted } from 'vue'
 import { Moon, Sun } from 'lucide-vue-next'
 
+import Button from '@/components/common/Button.vue'
 import NotificationPopover from '@/components/notification/NotificationPopover.vue'
 
 const isDark = ref(false)
