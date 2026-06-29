@@ -172,7 +172,8 @@ async function loadNotifications() {
 
   try {
     const response = await notificationApi.getList({ page: 0, size: 10 })
-    notifications.value = response.data.content
+    notifications.value = response.data.content.filter(isServerNotification)
+    await loadUnreadCount()
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '알림 목록을 불러오지 못했습니다.')
   } finally {
@@ -197,8 +198,7 @@ async function markAsRead(notification: ServerNotification) {
   try {
     await notificationApi.markAsRead(notification.notificationId)
     notification.isRead = true
-    unreadCount.value = Math.max(0, unreadCount.value - 1)
-    notificationStore.setUnreadCount(unreadCount.value)
+    await loadUnreadCount()
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '알림 읽음 처리에 실패했습니다.')
   }
@@ -224,8 +224,7 @@ async function markAllAsRead() {
       ...notification,
       isRead: true,
     }))
-    unreadCount.value = 0
-    notificationStore.setUnreadCount(0)
+    await loadUnreadCount()
   } catch (error) {
     errorMessage.value = getErrorMessage(error, '전체 알림 읽음 처리에 실패했습니다.')
   } finally {
@@ -243,8 +242,10 @@ function connectRealtimeNotifications() {
   }
 }
 
-function handleIncomingNotification(event: { data: ServerNotification }) {
+function handleIncomingNotification(event: { data: unknown }) {
   const incoming = event.data
+  if (!isServerNotification(incoming)) return
+
   const existingNotification = notifications.value.find((notification) => (
     notification.notificationId === incoming.notificationId
   ))
@@ -256,14 +257,31 @@ function handleIncomingNotification(event: { data: ServerNotification }) {
     )),
   ].slice(0, 10)
 
-  if (!incoming.isRead && !existingNotification) {
-    unreadCount.value += 1
-    notificationStore.setUnreadCount(unreadCount.value)
-  }
+  void loadUnreadCount()
 
   if (!existingNotification) {
     notificationStore.info(incoming.title, incoming.content)
   }
+}
+
+function isServerNotification(value: unknown): value is ServerNotification {
+  if (!value || typeof value !== 'object') return false
+
+  const notification = value as Partial<ServerNotification>
+  return (
+    typeof notification.notificationId === 'number'
+    && Number.isFinite(notification.notificationId)
+    && typeof notification.notificationType === 'string'
+    && notification.notificationType.trim().length > 0
+    && typeof notification.title === 'string'
+    && notification.title.trim().length > 0
+    && typeof notification.content === 'string'
+    && typeof notification.targetType === 'string'
+    && notification.targetType.trim().length > 0
+    && typeof notification.isRead === 'boolean'
+    && typeof notification.createdAt === 'string'
+    && notification.createdAt.trim().length > 0
+  )
 }
 
 function resolveNotificationRoute(notification: ServerNotification): RouteLocationRaw | null {
