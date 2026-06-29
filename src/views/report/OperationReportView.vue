@@ -14,7 +14,7 @@
     <main class="flex-1 overflow-y-auto px-3 pb-6">
       <div
         v-if="!canViewOperationReports"
-        class="rounded-lg border border-border bg-surface p-8 text-center shadow-sm"
+        class="card mx-0! border border-border p-8 text-center"
       >
         <ShieldAlert :size="32" class="mx-auto mb-3 text-danger" />
         <p class="text-lg font-semibold text-text-main">운영 리포트 조회 권한이 없습니다.</p>
@@ -31,7 +31,7 @@
 
         <section
           v-if="unreturnedLoading || summaryTiles.length > 0 || departmentChartItems.length > 0"
-          class="mb-4 rounded-lg border border-border bg-surface p-6 shadow-sm"
+          class="card mx-0! mb-4 border border-border p-6"
         >
           <div
             v-if="unreturnedLoading && summaryTiles.length === 0 && departmentChartItems.length === 0"
@@ -50,7 +50,7 @@
               />
             </div>
 
-            <div v-if="departmentChartItems.length > 0" class="flex min-h-80 flex-col rounded-lg border border-border bg-surface p-4">
+            <div v-if="departmentChartItems.length > 0" class="flex min-h-80 flex-col rounded-2xl border border-border bg-surface p-4">
               <div class="mb-2 flex items-center justify-between">
                 <h2 class="text-base font-bold text-text-main">부서별 미반납 현황</h2>
                 <span class="text-sm font-semibold text-text-sub">상위 {{ departmentChartItems.length }}개 부서</span>
@@ -80,7 +80,7 @@
         </NumberedReportSection>
 
         <section class="mt-5 space-y-5">
-          <div class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <div class="card mx-0! border border-border p-5">
             <div class="mb-4">
               <h2 class="text-base font-extrabold text-text-main">기간별 운영 분석</h2>
               <p class="mt-1 text-sm font-semibold text-text-sub">
@@ -165,7 +165,7 @@
                 empty-text="부서별 구매 요청 데이터가 없습니다."
               />
 
-              <div v-if="purchaseQuantityChartItems.length > 0" class="rounded-lg border border-border bg-surface p-5 shadow-sm">
+              <div v-if="purchaseQuantityChartItems.length > 0" class="rounded-2xl border border-border bg-surface p-5 shadow-sm">
                 <h3 class="mb-3 text-base font-bold text-text-main">부서별 누적 구매 수량</h3>
                 <HorizontalBarChart :items="purchaseQuantityChartItems" unit="개" />
               </div>

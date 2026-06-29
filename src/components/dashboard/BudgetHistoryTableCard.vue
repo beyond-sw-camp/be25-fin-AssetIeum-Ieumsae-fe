@@ -62,41 +62,29 @@
       </Table>
     </div>
 
-    <div class="flex items-center justify-between border-t border-border px-5 py-3">
+    <div
+      v-if="totalElements > 0"
+      class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-border px-5 py-3"
+    >
       <span class="text-xs text-text-sub">총 {{ totalElements.toLocaleString() }}건 중 {{ rangeText }}</span>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-          :disabled="page === 0 || isLoading"
-          aria-label="이전 페이지"
-          @click="changePage(page - 1)"
-        >
-          <ChevronLeft :size="15" />
-        </button>
-        <span class="min-w-16 text-center text-xs font-semibold text-text-main">
-          {{ page + 1 }} / {{ totalPages }}
-        </span>
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-          :disabled="page >= totalPages - 1 || isLoading"
-          aria-label="다음 페이지"
-          @click="changePage(page + 1)"
-        >
-          <ChevronRight :size="15" />
-        </button>
-      </div>
+      <Pagination
+        :current-page="page"
+        :total-pages="totalPages"
+        :disabled="isLoading"
+        @change="changePage"
+      />
+      <span aria-hidden="true" />
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { budgetApi } from '@/api/budget.api'
 import { ApiError } from '@/api/client'

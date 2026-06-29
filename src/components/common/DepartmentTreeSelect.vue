@@ -1,9 +1,12 @@
 <template>
   <div class="relative rounded-xl">
     <button
+      :id="id"
       type="button"
       class="w-full h-9 inline-flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-main transition-all hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      :class="hasError && 'border-danger focus:ring-danger/20'"
       :disabled="disabled"
+      :aria-invalid="hasError"
       @click="toggleOpen"
     >
       <span :class="selectedDepartment ? 'min-w-0 truncate font-medium text-text-main' : 'text-text-muted'">
@@ -66,18 +69,22 @@ interface VisibleDepartmentRow {
 }
 
 const props = withDefaults(defineProps<{
+  id?: string
   modelValue?: string | null
   departments: Department[]
   placeholder?: string
   disabled?: boolean
   expandAllOnOpen?: boolean
   keepOpenOnParentSelect?: boolean
+  hasError?: boolean
 }>(), {
+  id: undefined,
   modelValue: null,
   placeholder: '부서 선택',
   disabled: false,
   expandAllOnOpen: true,
   keepOpenOnParentSelect: false,
+  hasError: false,
 })
 
 const emit = defineEmits<{

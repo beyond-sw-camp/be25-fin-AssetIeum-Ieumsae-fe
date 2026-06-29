@@ -273,7 +273,7 @@ type InspectionDetailTab = (typeof allTabs)[number]['value']
 const tabs = allTabs
 
 const resultColumns: Column<ResultRow>[] = [
-  { key: 'productName', label: '제품명', width: '20%', align: 'center' },
+  { key: 'productName', label: '제품명', width: '20%', align: 'center', maxLines: 2 },
   { key: 'assetCode', label: '자산코드', width: '20%', align: 'center' },
   { key: 'memberName', label: '대상 사용자', width: '12%', align: 'center' },
   { key: 'followUpRequired', label: '후속처리 여부', width: '15%', align: 'center' },
@@ -281,7 +281,7 @@ const resultColumns: Column<ResultRow>[] = [
 ]
 
 const uninspectedColumns: Column<UninspectedRow>[] = [
-  { key: 'productName', label: '제품명', width: '28%', align: 'center' },
+  { key: 'productName', label: '제품명', width: '28%', align: 'center', maxLines: 2 },
   { key: 'category', label: '카테고리', width: '22%', align: 'center' },
   { key: 'assetCode', label: '자산코드', width: '27%', align: 'center' },
   { key: 'memberName', label: '대상 사용자', width: '23%', align: 'center' },

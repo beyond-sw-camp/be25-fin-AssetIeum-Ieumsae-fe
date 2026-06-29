@@ -134,7 +134,7 @@ const intangibleAssetItems = ref<IntangibleItem[]>([])
 
 const templateItemColumns: Column<HrTemplateItemRow>[] = [
   { key: 'assetTypeLabel', label: '자산 유형', align: 'center', width: '16%' },
-  { key: 'productName', label: '품목명', align: 'left', width: '52%' },
+  { key: 'productName', label: '품목명', align: 'left', width: '52%', maxLines: 2 },
   { key: 'quantity', label: '수량', align: 'center', width: '16%' },
 ]
 

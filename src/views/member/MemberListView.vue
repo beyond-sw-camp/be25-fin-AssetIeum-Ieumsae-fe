@@ -12,9 +12,9 @@
       </Button>
     </header>
 
-    <section class="card mb-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border">
+    <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
       <form
-        class="relative z-30 flex shrink-0 items-center justify-between gap-3 overflow-visible border-b border-border pb-3"
+        class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between"
         @submit.prevent="handleSearch"
       >
         <div class="flex shrink-0 items-center gap-2">
@@ -30,11 +30,11 @@
           </span>
         </div>
 
-        <div class="ml-auto flex shrink-0 items-center gap-2">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
           <Dropdown
             :model-value="filterForm.status"
             :options="STATUS_FILTER_OPTIONS"
-            class="w-28"
+            class="w-32 shrink-0"
             aria-label="재직 상태"
             @update:model-value="handleStatusFilterChange"
           />
@@ -42,7 +42,7 @@
           <Dropdown
             :model-value="filterForm.departmentId"
             :options="departmentFilterOptions"
-            class="w-40"
+            class="w-40 shrink-0"
             aria-label="소속 부서"
             @update:model-value="handleDepartmentFilterChange"
           />
@@ -50,7 +50,7 @@
           <Input
             id="member-keyword"
             v-model="filterForm.keyword"
-            class="w-72"
+            class="w-45!"
             placeholder="이름, 이메일, 사번 검색"
           />
 
@@ -63,7 +63,7 @@
 
       <div
         v-if="listError"
-        class="mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+        class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
       >
         <p class="text-sm text-danger">{{ listError }}</p>
         <Button variant="outline" size="sm" @click="fetchMembers">
@@ -72,7 +72,7 @@
         </Button>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto py-3">
+      <div class="relative z-10 min-h-0 flex-1 overflow-auto bg-surface p-3">
         <Table
           :columns="memberColumns"
           :rows="members"
@@ -116,43 +116,14 @@
 
       <div
         v-if="totalElements > 0"
-        class="flex shrink-0 items-center justify-center gap-2 border-t border-border pt-3"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
       >
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-          :disabled="page === 0 || isLoading"
-          aria-label="이전 페이지"
-          @click="changePage(page - 1)"
-        >
-          <ChevronLeft :size="16" />
-        </button>
-
-        <button
-          v-for="pageNumber in visiblePageNumbers"
-          :key="pageNumber"
-          type="button"
-          :class="[
-            'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm transition-colors',
-            pageNumber - 1 === page
-              ? 'bg-primary font-semibold text-white'
-              : 'text-text-sub hover:bg-surface-secondary',
-          ]"
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
           :disabled="isLoading"
-          @click="changePage(pageNumber - 1)"
-        >
-          {{ pageNumber }}
-        </button>
-
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-          :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-          aria-label="다음 페이지"
-          @click="changePage(page + 1)"
-        >
-          <ChevronRight :size="16" />
-        </button>
+          @change="changePage"
+        />
       </div>
     </section>
 
@@ -203,12 +174,15 @@
             <label for="register-department" class="text-sm font-semibold text-text-main">
               부서 <span class="font-bold text-primary">*</span>
             </label>
-            <Dropdown
+            <DepartmentTreeSelect
               id="register-department"
               :model-value="registerForm.departmentId"
-              :options="departmentRegisterOptions"
+              :departments="selectableDepartments"
+              placeholder="부서를 선택해주세요."
               :disabled="isRegistering"
-              trigger-class="h-11 py-2.5"
+              :has-error="registerSubmitted && Boolean(registerErrors.departmentId)"
+              :expand-all-on-open="false"
+              keep-open-on-parent-select
               @update:model-value="handleRegisterDepartmentChange"
             />
             <p
@@ -229,7 +203,6 @@
               :model-value="registerForm.role"
               :options="registerRoleOptions"
               :disabled="isRegistering"
-              trigger-class="h-11 py-2.5"
               @update:model-value="handleRegisterRoleChange"
             />
           </div>
@@ -313,8 +286,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Search,
   UserPlus,
@@ -324,8 +295,10 @@ import { ApiError, memberApi } from '@/api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
+import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table from '@/components/common/Table.vue'
 import type { Column } from '@/components/common/Table.vue'
 import MemberActionMenu from '@/components/member/MemberActionMenu.vue'
@@ -395,7 +368,7 @@ const departmentChangeForm = reactive({
 
 const memberColumns: Column<Member>[] = [
   { key: 'memberNo', label: '사번', width: '14%' },
-  { key: 'name', label: '이름 (이메일)', width: '25%' },
+  { key: 'name', label: '이름 (이메일)', width: '25%', maxLines: 2 },
   { key: 'departmentName', label: '소속 부서', width: '20%' },
   { key: 'role', label: '권한', width: '15%' },
   { key: 'status', label: '상태', width: '11%', align: 'center' },
@@ -442,15 +415,6 @@ const memberRangeText = computed(() => {
   const start = page.value * size.value + 1
   const end = Math.min((page.value + 1) * size.value, totalElements.value)
   return `${start}-${end}명`
-})
-
-const visiblePageNumbers = computed(() => {
-  const total = totalPages.value
-  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
-
-  const current = page.value + 1
-  const start = Math.min(Math.max(current - 2, 1), total - 4)
-  return Array.from({ length: 5 }, (_, index) => start + index)
 })
 
 const registerErrors = computed(() => ({
@@ -608,10 +572,8 @@ function handleDepartmentFilterChange(value: string | number) {
   }
 }
 
-function handleRegisterDepartmentChange(value: string | number) {
-  if (typeof value === 'string') {
-    registerForm.departmentId = value
-  }
+function handleRegisterDepartmentChange(value: string | null) {
+  registerForm.departmentId = value ?? ''
 }
 
 function handleRegisterRoleChange(value: string | number) {

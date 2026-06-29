@@ -16,6 +16,8 @@
           v-model="formData.category"
           :options="initialCategories"
           root-option="카테고리 선택"
+          category-select-mode="leaf-only"
+          category-value-mode="label"
         />
       </div>
 

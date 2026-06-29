@@ -97,9 +97,6 @@
               submenu-direction="left"
               class="w-44 text-text-sub"
             >
-              <template #icon>
-                <Layers :size="16" />
-              </template>
             </Dropdown>
           </div>
 
@@ -140,38 +137,11 @@
       </div>
 
       <div class="shrink-0 rounded-b-2xl border-t border-border bg-surface px-4 pt-3 flex items-center justify-center relative z-20">
-        <div class="flex items-center gap-2">
-          <button
-            :disabled="searchParams.page === 0"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(searchParams.page - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-
-          <button
-            v-for="pageIndex in totalPages"
-            :key="pageIndex"
-            type="button"
-            :class="[
-              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all',
-              searchParams.page === (pageIndex - 1)
-                ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                : 'text-text-sub hover:bg-surface-secondary'
-            ]"
-            @click="changePage(pageIndex - 1)"
-          >
-            {{ pageIndex }}
-          </button>
-
-          <button
-            :disabled="searchParams.page >= totalPages - 1"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            @click="changePage(searchParams.page + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+        <Pagination
+          :current-page="searchParams.page"
+          :total-pages="totalPages"
+          @change="changePage"
+        />
       </div>
     </div>
   </div>
@@ -180,11 +150,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import Button from '@/components/common/Button.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import Input from '@/components/common/Input.vue'
-import { Search, ChevronLeft, ChevronRight, Layers, Plus, Tag, Upload } from 'lucide-vue-next'
+import { Search, Plus, Tag, Upload } from 'lucide-vue-next'
 import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
 import type { IntangibleAssetAssignmentResponse } from '@/api/asset.api'
@@ -368,7 +339,7 @@ const totalPages = ref(0)
 const isLoading = ref(false)
 
 const tableColumns: Column<IntangibleAsset>[] = [
-  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%' },
+  { key: 'assetItemName', label: '제품명', align: 'center', width: '26%', maxLines: 2 },
   { key: 'assetCode', label: '자산 번호', align: 'center', width: '22%' },
   { key: 'status', label: '자산 상태', align: 'center', width: '16%' },
   { key: 'departmentName', label: '부서', align: 'center', width: '16%' },

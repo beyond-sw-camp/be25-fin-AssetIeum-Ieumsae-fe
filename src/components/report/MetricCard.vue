@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-lg border border-border bg-surface p-6 shadow-sm">
+  <div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
     <div class="flex items-start justify-between gap-3">
       <p class="text-sm font-bold text-text-main">{{ label }}</p>
       <span :class="['rounded-md px-2 py-1 text-xs font-bold', toneClass]">

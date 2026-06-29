@@ -53,8 +53,8 @@
       </article>
     </section>
 
-    <section class="card mx-3 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-surface">
-      <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+      <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex items-center gap-2">
           <Dropdown
             :model-value="String(pageSize)"
@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+      <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
         <Table
           :columns="columns"
           :rows="pagedRows"
@@ -133,39 +133,15 @@
         </Table>
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border bg-surface px-4 py-3">
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="currentPage === 0"
-            @click="changePage(currentPage - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <button
-            v-for="page in visiblePages"
-            :key="page"
-            type="button"
-            :class="[
-              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-              currentPage === page - 1
-                ? 'bg-primary text-white'
-                : 'text-text-sub hover:bg-surface-secondary',
-            ]"
-            @click="changePage(page - 1)"
-          >
-            {{ page }}
-          </button>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="currentPage >= totalPages - 1"
-            @click="changePage(currentPage + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+      <div
+        v-if="filteredRows.length > 0"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+      >
+        <Pagination
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          @change="changePage"
+        />
       </div>
     </section>
 
@@ -188,11 +164,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-vue-next'
+import { Plus, Search } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import IntangibleInspectionDetail from '@/components/inspection/intangible/IntangibleInspectionDetail.vue'
 import IntangibleInspectionRegister from '@/components/inspection/intangible/IntangibleInspectionRegister.vue'
@@ -292,12 +269,12 @@ const pageSizeOptions: DropdownOption[] = [10, 20, 50].map((value) => ({
 }))
 
 const statusFilterOptions: DropdownOption[] = [
-  { label: '- 전체 -', value: '' },
+  { label: '전체', value: '' },
   ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
 ]
 
 const inspectorFilterOptions = computed<DropdownOption[]>(() => [
-  { label: '- 조사 담당자 -', value: '' },
+  { label: '조사 담당자', value: '' },
   ...Array.from(new Set(inspections.value.map((item) => item.inspectorName))).map((name) => ({
     label: name,
     value: name,
@@ -335,10 +312,6 @@ const pagedRows = computed(() => {
   const start = currentPage.value * pageSize.value
   return filteredRows.value.slice(start, start + pageSize.value)
 })
-
-const visiblePages = computed(() => (
-  Array.from({ length: totalPages.value }, (_, index) => index + 1).slice(0, 5)
-))
 
 const rangeText = computed(() => {
   if (filteredRows.value.length === 0) return '0-0건'

@@ -244,6 +244,7 @@ const selectDate = (value: string) => {
   isCalendarOpen.value = false
 }
 
+
 const selectToday = () => {
   const today = new Date()
   visibleDate.value = today

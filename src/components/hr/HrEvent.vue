@@ -150,49 +150,13 @@
         </Table>
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border px-4 pt-3">
-        <div class="flex items-center justify-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="pagination.page <= 0 || isLoading"
-            aria-label="이전 페이지"
-            @click="movePage(pagination.page - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <template v-for="item in paginationItems" :key="String(item)">
-            <span
-              v-if="item === 'ellipsis'"
-              class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-            >
-              ...
-            </span>
-            <button
-              v-else
-              type="button"
-              :class="[
-                'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                pagination.page === item
-                  ? 'bg-primary text-white'
-                  : 'text-text-sub hover:bg-surface-secondary',
-              ]"
-              :disabled="isLoading"
-              @click="movePage(item)"
-            >
-              {{ item + 1 }}
-            </button>
-          </template>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="pagination.totalPages === 0 || pagination.page >= pagination.totalPages - 1 || isLoading"
-            aria-label="다음 페이지"
-            @click="movePage(pagination.page + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+      <div>
+        <Pagination
+          :current-page="pagination.page"
+          :total-pages="pagination.totalPages"
+          :disabled="isLoading"
+          @change="movePage"
+        />
       </div>
     </section>
 
@@ -233,8 +197,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
-  ChevronLeft,
-  ChevronRight,
   CircleCheckBig,
   ClipboardClock,
   Search,
@@ -251,6 +213,7 @@ import { ticketApi } from '@/api/ticket.api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { useAuthStore } from '@/stores'
 import type { Department, DropdownOption, Member, PageResponse, TicketListItem } from '@/types'
@@ -419,23 +382,6 @@ const rangeEnd = computed(() => Math.min((pagination.page + 1) * pagination.size
 const rangeText = computed(() => (
   pagination.totalElements === 0 ? '0건' : `${rangeStart.value}-${rangeEnd.value}건`
 ))
-const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
-  if (pagination.totalPages <= 7) {
-    return Array.from({ length: pagination.totalPages }, (_, index) => index)
-  }
-
-  const items: Array<number | 'ellipsis'> = [0]
-  const start = Math.max(1, pagination.page - 1)
-  const end = Math.min(pagination.totalPages - 2, pagination.page + 1)
-
-  if (start > 1) items.push('ellipsis')
-  for (let index = start; index <= end; index += 1) items.push(index)
-  if (end < pagination.totalPages - 2) items.push('ellipsis')
-  items.push(pagination.totalPages - 1)
-
-  return items
-})
-
 function toEventRow(event: HrEventResponse): HrEventRow {
   const eventType = event.hrEventType ?? event.eventType ?? 'ONBOARDING'
   const status = event.hrEventStatus ?? event.status ?? 'PENDING'

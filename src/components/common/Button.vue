@@ -3,9 +3,9 @@
     :type="props.type"
     :disabled="props.disabled || props.loading"
     :class="[
-      'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900',
-      variantClasses[props.variant],
-      sizeClasses[props.size],
+      !props.unstyled && 'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900',
+      !props.unstyled && variantClasses[props.variant],
+      !props.unstyled && sizeClasses[props.size],
       (props.disabled || props.loading) && 'cursor-not-allowed opacity-50',
     ]"
   >
@@ -31,7 +31,7 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'
 // outline: 흰색 배경 + 검은색 글씨
 // danger: 빨간색 배경 + 흰색 글씨
 // ghost: 회색 배경 + 더 진한 회색 글씨
-type Size = 'sm' | 'md' | 'm' | 'lg'
+type Size = 'sm' | 'md' | 'm' | 'lg' | 'icon-sm' | 'icon-md'
 
 interface Props {
   variant?: Variant
@@ -39,6 +39,7 @@ interface Props {
   disabled?: boolean
   loading?: boolean
   type?: 'button' | 'submit' | 'reset'
+  unstyled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   loading: false,
   type: 'button',
+  unstyled: false,
 })
 
 // 피그마 시안 기준 변수 매핑
@@ -80,6 +82,8 @@ const sizeClasses: Record<Size, string> = {
   m: 'px-3 py-1.5 text-xs rounded-lg h-11',    
 
   // 큰 액션 버튼용
-  lg: 'px-5 py-2.5 text-base rounded-xl h-15', 
+  lg: 'px-5 py-2.5 text-base rounded-xl h-15',
+  'icon-sm': 'h-8 w-8 rounded-lg p-0',
+  'icon-md': 'h-9 w-9 rounded-lg p-0',
 }
 </script>
