@@ -78,8 +78,12 @@
         <div class="flex items-center justify-center gap-2">
           <div class="relative h-2 w-25 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-600">
             <div
-              class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
+              class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
               :style="{ width: `${clampPercent(row.percent)}%` }"
+            />
+            <div
+              class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
+              :style="{ width: `${usedPercent(row)}%` }"
             />
           </div>
           <span class="w-11 text-xs font-semibold text-text-sub">
@@ -114,7 +118,7 @@ const budgetColumns: Column<BudgetRow>[] = [
   { key: 'held', label: '집행 대기', width: '17%', align: 'center' },
   { key: 'used', label: '실제 사용', width: '17%', align: 'center' },
   { key: 'limit', label: '총 예산', width: '17%', align: 'center' },
-  { key: 'percent', label: '가용률', width: '14%', align: 'center' },
+  { key: 'percent', label: '사용률', width: '14%', align: 'center' },
 ]
 
 const props = defineProps<{
@@ -135,6 +139,11 @@ const summaryItems = computed(() => [
 ])
 
 const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100)
+
+const usedPercent = (row: BudgetRow) => {
+  if (row.limit <= 0) return 0
+  return clampPercent(Math.round((row.used / row.limit) * 1000) / 10)
+}
 
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`
 </script>

@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { BarChart } from 'echarts/charts'
 import type { BarSeriesOption } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
@@ -30,6 +30,8 @@ interface LayeredSegment extends DashboardSegment {
 const props = defineProps<{
   segments: DashboardSegment[]
 }>()
+const textMainColor = ref('#111827')
+let themeObserver: MutationObserver | null = null
 
 use([
   BarChart,
@@ -37,6 +39,19 @@ use([
   TooltipComponent,
   CanvasRenderer,
 ])
+
+onMounted(() => {
+  updateThemeColors()
+  themeObserver = new MutationObserver(updateThemeColors)
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+})
+
+onBeforeUnmount(() => {
+  themeObserver?.disconnect()
+})
 
 const chartSegments = computed<LayeredSegment[]>(() => {
   let cumulativePercent = 0
@@ -108,11 +123,20 @@ function clampPercent(value: number) {
   return Math.min(Math.max(value, 0), 100)
 }
 
+function updateThemeColors() {
+  const color = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-text-main')
+    .trim()
+
+  textMainColor.value = color || '#111827'
+}
+
 function chartColor(className: string) {
   if (className.includes('bg-primary-trans')) return '#f6bc98'
   if (className.includes('bg-primary')) return '#f97316'
   if (className.includes('bg-warning')) return '#facc15'
   if (className.includes('bg-success')) return '#22c55e'
+  if (className.includes('bg-text-main')) return textMainColor.value
   if (className.includes('bg-danger')) return '#ef4444'
   if (className.includes('bg-neutral-800')) return '#1f2937'
   return '#9CA3AF'

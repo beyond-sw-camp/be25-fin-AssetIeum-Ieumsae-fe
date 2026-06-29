@@ -13,7 +13,7 @@
 
     <div class="grid gap-15 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="flex justify-center">
-        <DashboardDonutChart :value="availabilityRate" label="가용률" />
+        <DashboardDonutChart :value="usageRate" :used-value="usedRate" label="사용률" />
       </div>
 
       <div class="space-y-3 mr-6">
@@ -31,13 +31,17 @@
           </div>
           <div class="mt-5">
             <div class="mb-2 flex items-center justify-between text-xs font-semibold">
-              <span class="text-text-sub">가용률</span>
-              <span class="text-primary">{{ availabilityRate }}%</span>
+              <span class="text-text-sub">사용률</span>
+              <span class="text-primary">{{ usageRate }}%</span>
             </div>
-            <div class="h-2.5 overflow-hidden rounded-full bg-surface-secondary">
+            <div class="relative h-2.5 overflow-hidden rounded-full bg-surface-secondary">
               <div
-                class="dashboard-bar-fill h-full rounded-full bg-primary"
-                :style="{ width: `${availabilityRate}%` }"
+                class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary-trans"
+                :style="{ width: `${usageRate}%` }"
+              ></div>
+              <div
+                class="dashboard-bar-fill absolute inset-y-0 left-0 rounded-full bg-primary"
+                :style="{ width: `${usedRate}%` }"
               ></div>
             </div>
           </div>
@@ -70,9 +74,14 @@ const totalAmount = computed(() => Math.max(props.summary.totalAmount ?? 0, 0))
 const availableAmount = computed(() => (
   Math.max(totalAmount.value - usedAmount.value - heldAmount.value, 0)
 ))
-const availabilityRate = computed(() => {
+const usageRate = computed(() => {
   if (totalAmount.value <= 0) return 0
-  return Math.min(Math.max(Math.round((availableAmount.value / totalAmount.value) * 1000) / 10, 0), 100)
+  const committedAmount = usedAmount.value + heldAmount.value
+  return Math.min(Math.max(Math.round((committedAmount / totalAmount.value) * 1000) / 10, 0), 100)
+})
+const usedRate = computed(() => {
+  if (totalAmount.value <= 0) return 0
+  return Math.min(Math.max(Math.round((usedAmount.value / totalAmount.value) * 1000) / 10, 0), 100)
 })
 
 const summaryItems = computed(() => [
@@ -80,6 +89,6 @@ const summaryItems = computed(() => [
   { label: '사용 예산', value: formatCurrency(usedAmount.value) },
   { label: '집행 대기 금액', value: formatCurrency(heldAmount.value) },
   { label: '총 예산', value: formatCurrency(totalAmount.value) },
-  { label: '가용률', value: `${availabilityRate.value}%` },
+  { label: '사용률', value: `${usageRate.value}%` },
 ])
 </script>

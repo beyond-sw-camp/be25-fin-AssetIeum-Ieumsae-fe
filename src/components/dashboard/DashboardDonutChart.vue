@@ -27,8 +27,10 @@ type ChartOption = ComposeOption<PieSeriesOption | TooltipComponentOption>
 
 const props = withDefaults(defineProps<{
   value: number
+  usedValue?: number
   label?: string
 }>(), {
+  usedValue: undefined,
   label: '소진율',
 })
 
@@ -39,6 +41,11 @@ use([
 ])
 
 const normalizedValue = computed(() => clampPercent(props.value))
+const normalizedUsedValue = computed(() => Math.min(
+  clampPercent(props.usedValue ?? props.value),
+  normalizedValue.value,
+))
+const heldValue = computed(() => Math.max(normalizedValue.value - normalizedUsedValue.value, 0))
 const remainingValue = computed(() => Math.max(100 - normalizedValue.value, 0))
 
 const chartOption = computed<ChartOption>(() => ({
@@ -88,10 +95,17 @@ const chartOption = computed<ChartOption>(() => ({
       },
       data: [
         {
-          name: props.label,
-          value: normalizedValue.value,
+          name: '실제 사용',
+          value: normalizedUsedValue.value,
           itemStyle: {
             color: '#f97316',
+          },
+        },
+        {
+          name: '집행 대기',
+          value: heldValue.value,
+          itemStyle: {
+            color: '#f6bc98',
           },
         },
         {
