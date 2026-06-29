@@ -13,7 +13,7 @@
     </header>
 
     <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
-      <div class="relative z-30 flex shrink-0 items-center gap-3 overflow-visible border-b border-border pb-3">
+      <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex shrink-0 items-center gap-2">
           <Dropdown
             :model-value="pageSize"
@@ -28,7 +28,7 @@
           </span>
         </div>
 
-        <div class="ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-2">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
           <Dropdown
             :model-value="filterForm.status"
             :options="STATUS_FILTER_OPTIONS"
@@ -56,7 +56,7 @@
 
       <div
         v-if="errorMessage"
-        class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+        class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
       >
         <p class="text-sm text-danger">{{ errorMessage }}</p>
         <Button variant="outline" size="sm" @click="fetchTickets">
@@ -65,7 +65,7 @@
         </Button>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto py-4">
+      <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
         <TicketTable
           :tickets="pagedTickets"
           :loading="isLoading"
@@ -74,7 +74,10 @@
         />
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border pt-3">
+      <div
+        v-if="filteredTickets.length > 0"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+      >
         <Pagination
           :current-page="page"
           :total-pages="totalPages"

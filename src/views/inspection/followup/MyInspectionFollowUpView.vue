@@ -12,9 +12,20 @@
       </Button>
     </header>
 
-    <main class="mx-3 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
-      <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <p class="text-xs text-text-sub">총 {{ totalElements.toLocaleString() }}건</p>
+    <main class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+      <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-2">
+          <Dropdown
+            :model-value="String(pageSize)"
+            :options="pageSizeOptions"
+            class="w-30"
+            menu-strategy="fixed"
+            @update:model-value="handlePageSizeChange"
+          />
+          <p class="whitespace-nowrap text-xs text-text-sub">
+            총 {{ totalElements.toLocaleString() }}건 중 {{ rangeText }}
+          </p>
+        </div>
         <div class="flex gap-2">
           <Dropdown
             v-model="statusFilter"
@@ -37,7 +48,7 @@
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+      <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
         <div
           v-if="loadError"
           class="mb-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
@@ -59,8 +70,8 @@
       </div>
 
       <div
-        v-if="totalPages > 1"
-        class="flex shrink-0 items-center justify-center border-t border-border px-4 py-3"
+        v-if="totalElements > 0"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
       >
         <Pagination
           :current-page="page"
@@ -92,8 +103,6 @@ import type {
   InspectionFollowUpStatus,
 } from '@/types/inspection'
 
-const PAGE_SIZE = 20
-
 const followUps = ref<InspectionFollowUpSearchResponse[]>([])
 const statusFilter = ref('')
 const keyword = ref('')
@@ -102,8 +111,14 @@ const isLoading = ref(false)
 const loadError = ref('')
 const submittingFollowUpId = ref('')
 const page = ref(0)
+const pageSize = ref(20)
 const totalElements = ref(0)
 const totalPages = ref(0)
+
+const pageSizeOptions: DropdownOption[] = [10, 20, 50].map((value) => ({
+  label: `${value}개씩 보기`,
+  value: String(value),
+}))
 
 const statusOptions: DropdownOption[] = [
   { label: '전체 상태', value: '' },
@@ -111,6 +126,13 @@ const statusOptions: DropdownOption[] = [
   { label: '처리 중', value: 'IN_PROGRESS' },
   { label: '처리 완료', value: 'COMPLETED' },
 ]
+
+const rangeText = computed(() => {
+  if (totalElements.value === 0) return '0-0건'
+  const start = page.value * pageSize.value + 1
+  const end = Math.min(start + followUps.value.length - 1, totalElements.value)
+  return `${start}-${end}건`
+})
 
 const rows = computed<InspectionFollowUpPanelRow[]>(() => followUps.value.map((item, index) => {
   const followUpId = textValue(item.inspectionFollowUpId)
@@ -141,7 +163,7 @@ async function loadFollowUps() {
   try {
     const response = await inspectionFollowUpApi.getFollowUps({
       page: page.value,
-      size: PAGE_SIZE,
+      size: pageSize.value,
       status: isFollowUpStatus(statusFilter.value) ? statusFilter.value : undefined,
       keyword: appliedKeyword.value || undefined,
     })
@@ -162,6 +184,14 @@ async function loadFollowUps() {
 
 function handleSearch() {
   appliedKeyword.value = keyword.value.trim()
+  page.value = 0
+  void loadFollowUps()
+}
+
+function handlePageSizeChange(value: string | number) {
+  const nextSize = Number(value)
+  if (!Number.isInteger(nextSize) || nextSize <= 0) return
+  pageSize.value = nextSize
   page.value = 0
   void loadFollowUps()
 }

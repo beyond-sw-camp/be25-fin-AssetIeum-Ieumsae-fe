@@ -36,8 +36,8 @@
         </article>
       </section>
 
-      <section class="card relative z-10 flex min-h-170 flex-1 flex-col overflow-visible border border-border">
-        <div class="relative z-30 flex shrink-0 flex-col gap-3 overflow-visible border-b border-border pb-3 xl:flex-row xl:items-center">
+      <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+        <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex shrink-0 items-center gap-2">
             <Dropdown
               :model-value="pageSize"
@@ -99,7 +99,7 @@
 
         <div
           v-if="errorMessage"
-          class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+          class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
         >
           <p class="text-sm text-danger">{{ errorMessage }}</p>
           <Button variant="outline" size="sm" @click="fetchTickets">
@@ -108,71 +108,72 @@
           </Button>
         </div>
 
-        <div class="mt-4 flex min-h-130 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-surface xl:min-h-150">
-          <div class="min-h-0 flex-1 overflow-auto">
-            <Table
-              :columns="columns"
-              :rows="pagedTickets"
-              :loading="isLoading"
-              row-key="ticketId"
-              empty-text="조회된 티켓이 없습니다."
-              class="rounded-none! border-0!"
-              @row-click="openTicketDetail"
-            >
-              <template #cell-ticketNo="{ value }">
-                <span class="font-semibold text-text-main">{{ value }}</span>
-              </template>
+        <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
+          <Table
+            :columns="columns"
+            :rows="pagedTickets"
+            :loading="isLoading"
+            row-key="ticketId"
+            empty-text="조회된 티켓이 없습니다."
+            class="min-w-full"
+            @row-click="openTicketDetail"
+          >
+            <template #cell-ticketNo="{ value }">
+              <span class="font-semibold text-text-main">{{ value }}</span>
+            </template>
 
-              <template #cell-ticketType="{ row }">
-                <span class="font-semibold text-text-main">
-                  {{ getTicketTypeLabel(row) }}
-                </span>
-              </template>
+            <template #cell-ticketType="{ row }">
+              <span class="font-semibold text-text-main">
+                {{ getTicketTypeLabel(row) }}
+              </span>
+            </template>
 
-              <template #cell-requestedItemName="{ value }">
-                <span class="line-clamp-1 font-medium text-text-main">
-                  {{ value || '-' }}
-                </span>
-              </template>
+            <template #cell-requestedItemName="{ value }">
+              <span class="line-clamp-1 font-medium text-text-main">
+                {{ value || '-' }}
+              </span>
+            </template>
 
-              <template #cell-requester="{ row }">
-                <div class="min-w-0">
-                  <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
-                  <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
-                </div>
-              </template>
+            <template #cell-requester="{ row }">
+              <div class="min-w-0">
+                <p class="truncate font-medium text-text-main">{{ row.requesterName || '-' }}</p>
+                <p class="truncate text-xs text-text-sub">{{ row.departmentName || '-' }}</p>
+              </div>
+            </template>
 
-              <template #cell-requestedAt="{ value }">
-                <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
-              </template>
+            <template #cell-requestedAt="{ value }">
+              <span class="text-sm text-text-sub">{{ formatDate(String(value)) }}</span>
+            </template>
 
-              <template #cell-ticketStatus="{ row }">
-                <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
-                  {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
-                </span>
-              </template>
+            <template #cell-ticketStatus="{ row }">
+              <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', getStatusBadgeClass(row.ticketStatus)]">
+                {{ TICKET_STATUS_LABEL[row.ticketStatus] }}
+              </span>
+            </template>
 
-              <template #cell-management="{ row }">
-                <Button
-                  size="sm"
-                  class="min-w-18 whitespace-nowrap"
-                  :variant="getManagementButtonVariant(row)"
-                  @click.stop="openTicketDetail(row)"
-                >
-                  {{ getManagementButtonLabel(row) }}
-                </Button>
-              </template>
-            </Table>
-          </div>
+            <template #cell-management="{ row }">
+              <Button
+                size="sm"
+                class="min-w-18 whitespace-nowrap"
+                :variant="getManagementButtonVariant(row)"
+                @click.stop="openTicketDetail(row)"
+              >
+                {{ getManagementButtonLabel(row) }}
+              </Button>
+            </template>
+          </Table>
+        </div>
 
-          <div class="flex shrink-0 items-center justify-center border-t border-border py-3">
-            <Pagination
-              :current-page="page"
-              :total-pages="totalPages"
-              :disabled="isLoading"
-              @change="page = $event"
-            />
-          </div>
+        <div
+          v-if="tickets.length > 0"
+          class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+        >
+          <Pagination
+            :current-page="page"
+            :total-pages="totalPages"
+            :disabled="isLoading"
+            @change="page = $event"
+          />
         </div>
       </section>
     </template>

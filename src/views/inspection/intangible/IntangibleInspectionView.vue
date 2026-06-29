@@ -53,8 +53,8 @@
       </article>
     </section>
 
-    <section class="card mx-3 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden border border-border bg-surface">
-      <div class="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
+      <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex items-center gap-2">
           <Dropdown
             :model-value="String(pageSize)"
@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+      <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
         <Table
           :columns="columns"
           :rows="pagedRows"
@@ -133,7 +133,10 @@
         </Table>
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border bg-surface px-4 py-3">
+      <div
+        v-if="filteredRows.length > 0"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+      >
         <Pagination
           :current-page="currentPage"
           :total-pages="totalPages"
