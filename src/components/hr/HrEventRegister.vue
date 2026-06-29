@@ -60,7 +60,7 @@
           v-if="!template?.items?.length"
           class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-sm text-primary"
         >
-          현재 부서에 등록된 입사 자산 템플릿이 없습니다.
+          {{ EMPTY_ASSET_MESSAGE }}
         </div>
         <ul v-else class="divide-y divide-border rounded-lg border border-border bg-surface">
           <li
@@ -85,8 +85,8 @@
         <div v-if="isLoadingAssets" class="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-muted">
           배정 자산을 불러오는 중입니다.
         </div>
-        <div v-else-if="assetTargets.length === 0" class="rounded-lg border border-border px-4 py-8 text-center text-sm text-text-muted">
-          대상자에게 배정된 자산이 없습니다.
+        <div v-else-if="assetTargets.length === 0" class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-sm text-primary">
+          {{ EMPTY_ASSET_MESSAGE }}
         </div>
         <template v-else>
           <article
@@ -212,6 +212,7 @@ const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   OFFBOARDING: '퇴사',
   DEPARTMENT_TRANSFER: '부서 이동',
 }
+const EMPTY_ASSET_MESSAGE = '대상 자산이 없습니다.'
 
 const props = defineProps<{
   members: Member[]
