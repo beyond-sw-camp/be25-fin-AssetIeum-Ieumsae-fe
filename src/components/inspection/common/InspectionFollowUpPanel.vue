@@ -1,12 +1,5 @@
 <template>
   <section class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm font-bold text-text-main">후속 처리</p>
-        <p class="mt-1 text-xs text-text-sub">후속 처리가 필요한 전수조사 결과의 처리 상태를 관리합니다.</p>
-      </div>
-    </div>
-
     <div
       v-if="!effectiveLoading && displayRows.length === 0"
       class="rounded-lg border border-border bg-surface p-10 text-center text-sm text-text-muted"

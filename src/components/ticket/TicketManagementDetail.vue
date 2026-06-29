@@ -1012,6 +1012,7 @@ const canCollectAsset = computed(() => (
     ticket.value
     && isAssetTeamRole.value
     && isAssetCollectTicket.value
+    && !(ticket.value.ticketType === 'ASSET_RETURN' && ticket.value.assetType === 'INTANGIBLE')
     && ticket.value.status === 'ASSET_APPROVED'
     && !ticket.value.collectedAt,
   ))
@@ -1033,7 +1034,10 @@ const canCompleteReturn = computed(() => (
     ticket.value
     && isAssetTeamRole.value
     && (ticket.value.ticketType === 'ASSET_RETURN' || ticket.value.ticketType === 'PURCHASE_RETURN')
-    && Boolean(ticket.value.collectedAt)
+    && (
+      Boolean(ticket.value.collectedAt)
+      || (ticket.value.ticketType === 'ASSET_RETURN' && ticket.value.assetType === 'INTANGIBLE')
+    )
     && !ticket.value.completedAt
     && !TERMINAL_STATUSES.has(ticket.value.status),
   ))
@@ -1169,6 +1173,14 @@ const assetCollectPanel = computed(() => {
 
   const collected = Boolean(ticket.value.collectedAt)
 
+  if (ticket.value.ticketType === 'ASSET_RETURN' && ticket.value.assetType === 'INTANGIBLE') {
+    return {
+      title: '무형자산 해지 처리',
+      description: '승인된 무형자산 해지 요청입니다. 완료 처리하면 사용자 배정이 해지됩니다.',
+      buttonText: '무형자산 해지 처리',
+    }
+  }
+
   if (ticket.value.ticketType === 'MAINTENANCE_REQUEST') {
     return {
       title: '유지보수 대상 자산 회수',
@@ -1200,10 +1212,18 @@ const assetCollectPanel = computed(() => {
 const assetCollectInfoItems = computed<DetailItem[]>(() => {
   if (!ticket.value || !assetCollectPanel.value) return []
 
-  return [
+  const items: DetailItem[] = [
     { label: '대상 자산', value: requestItemName(ticket.value) },
     { label: '자산 구분', value: assetTypeLabel(ticket.value.assetType) },
     { label: '자산 상태', value: assetStatusLabel(ticket.value.assetStatus) },
+  ]
+
+  if (ticket.value.ticketType === 'ASSET_RETURN' && ticket.value.assetType === 'INTANGIBLE') {
+    return items
+  }
+
+  return [
+    ...items,
     { label: '회수 여부', value: ticket.value.collectedAt ? '회수 완료' : '회수 대기' },
     { label: '회수 일시', value: formatDate(ticket.value.collectedAt, 'YYYY-MM-DD HH:mm') },
   ]

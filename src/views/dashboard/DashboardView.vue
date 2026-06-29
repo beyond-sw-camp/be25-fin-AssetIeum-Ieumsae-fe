@@ -139,6 +139,7 @@ const EMPTY_DEPARTMENT_BUDGET: DepartmentBudgetDetail = {
   totalAmount: 0,
   usedAmount: 0,
   remainingAmount: 0,
+  heldAmount: 0,
   usageRate: 0,
   categoryUsages: [],
 }
@@ -210,7 +211,7 @@ const progressTicketSegments = computed(() => toSegments([
 
 const holdingAssetSegments = computed(() => toSegments([
   ...(isAssetOperator.value
-    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-neutral-800' }]
+    ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-text-main' }]
     : []),
   { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
   { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
@@ -219,7 +220,7 @@ const holdingAssetSegments = computed(() => toSegments([
 
 const demandColumns = [
   { key: 'kind', label: '자산 구분', align: 'left' as const, width: '13%' },
-  { key: 'name', label: '자산명', align: 'left' as const, width: '22%' },
+  { key: 'name', label: '자산명', align: 'left' as const, width: '22%', maxLines: 2 as const },
   { key: 'expectedDemand', label: '예상 수요', align: 'center' as const, width: '13%' },
   { key: 'currentStock', label: '현재 재고', align: 'center' as const, width: '13%' },
   { key: 'returnExpected', label: '회수 예정', align: 'center' as const, width: '13%' },
@@ -273,7 +274,7 @@ const fallbackBudgetRows = computed<BudgetRow[]>(() => [
     held: budgetHeldAmount(item),
     committed: budgetCommittedAmount(item),
     used: budgetUsedAmount(item),
-    percent: budgetUsagePercent(item.usedAmount, item.totalAmount),
+    percent: budgetUsagePercent(budgetCommittedAmount(item), item.totalAmount),
     isCommon: false,
   })) ?? []),
 ])
@@ -324,7 +325,7 @@ const commonBudgetHeld = computed(() => {
 
 const commonBudgetUsagePercent = computed(() => {
   if (commonBudgetLimit.value <= 0) return 0
-  return budgetUsagePercent(commonBudgetUsed.value, commonBudgetLimit.value)
+  return budgetUsagePercent(commonBudgetCommitted.value, commonBudgetLimit.value)
 })
 
 function budgetCommittedAmount(budget: DepartmentBudgetOverview) {
@@ -356,7 +357,7 @@ function toBudgetRow(item: BudgetListItem): BudgetRow {
     held: heldAmount,
     committed: usedAmount + heldAmount,
     used: usedAmount,
-    percent: budgetUsagePercent(usedAmount, item.totalAmount),
+    percent: budgetUsagePercent(usedAmount + heldAmount, item.totalAmount),
     isCommon: !item.departmentId,
   }
 }
@@ -446,12 +447,48 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
-function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview): DepartmentBudgetDetail {
+function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview | DepartmentBudgetDetail): DepartmentBudgetDetail {
+  const heldAmount = budgetHeldAmount(budget)
+  const remainingAmount = Math.max(budget.totalAmount - budget.usedAmount - heldAmount, 0)
+
   return {
     ...budget,
-    remainingAmount: Math.max(budget.totalAmount - budget.usedAmount, 0),
-    categoryUsages: [],
+    heldAmount,
+    remainingAmount,
+    categoryUsages: 'categoryUsages' in budget ? budget.categoryUsages : [],
   }
+}
+
+function mergeDepartmentBudgetDetail(
+  detail: DepartmentBudgetDetail,
+  overview: DepartmentBudgetOverview | null,
+): DepartmentBudgetDetail {
+  if (!overview) return toDepartmentBudgetDetail(detail)
+
+  return toDepartmentBudgetDetail({
+    ...detail,
+    departmentName: detail.departmentName || overview.departmentName,
+    totalAmount: overview.totalAmount,
+    usedAmount: overview.usedAmount,
+    heldAmount: budgetHeldAmount(overview),
+    holdAmount: overview.holdAmount,
+    usageRate: overview.usageRate,
+  })
+}
+
+function findCurrentDepartmentBudget(budgets: DepartmentBudgetOverview[]) {
+  const departmentId = normalizeComparableText(auth.user?.departmentId)
+  const departmentName = normalizeComparableText(auth.user?.departmentName)
+
+  return budgets.find((budget) => (
+    departmentId && normalizeComparableText(budget.departmentId) === departmentId
+  )) ?? budgets.find((budget) => (
+    departmentName && normalizeComparableText(budget.departmentName) === departmentName
+  )) ?? null
+}
+
+function normalizeComparableText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
 }
 
 async function loadDashboardData() {
@@ -473,20 +510,26 @@ async function loadDashboardData() {
     expiringSummary.value = expiringResponse.data
     assetDemands.value = demandResponse.data.content
     if (isDepartmentManager.value && departmentId) {
-      const [budgetResponse, eventsResponse, statisticsResponse] = await Promise.all([
+      const [budgetResponse, budgetOverviewResponse, eventsResponse, statisticsResponse] = await Promise.all([
         dashboardApi.getDepartmentBudgetDetails(departmentId),
+        dashboardApi.getBudgets({ page: 0, size: 1000 }),
         dashboardApi.getDepartmentHrEvents({ departmentId, page: 0, size: 1000 }),
         dashboardApi.getDepartmentHrStatistics(departmentId),
       ])
-      departmentBudget.value = budgetResponse.data
+      const currentDepartmentBudget = findCurrentDepartmentBudget(
+        budgetOverviewResponse.data.departmentBudgets.content,
+      )
+      departmentBudget.value = mergeDepartmentBudgetDetail(budgetResponse.data, currentDepartmentBudget)
       departmentHrEvents.value = eventsResponse.data.content
       departmentHrStatistics.value = statisticsResponse.data
       return
     }
 
     if (isEmployee.value) {
-      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1 })
-      const employeeBudget = budgetResponse.data.departmentBudgets.content[0]
+      const budgetResponse = await dashboardApi.getBudgets({ page: 0, size: 1000 })
+      const employeeBudget = findCurrentDepartmentBudget(
+        budgetResponse.data.departmentBudgets.content,
+      )
       departmentBudget.value = employeeBudget
         ? toDepartmentBudgetDetail(employeeBudget)
         : {

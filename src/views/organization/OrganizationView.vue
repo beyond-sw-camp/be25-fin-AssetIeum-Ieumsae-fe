@@ -217,7 +217,7 @@
       :is-open="isCreateDrawerOpen"
       title="부서 추가"
       submit-text="등록하기"
-      @close="isCreateDrawerOpen = false"
+      @close="handleCloseCreateDrawer"
       @submit="handleCreateDepartment"
     >
       <form class="space-y-5" @submit.prevent="handleCreateDepartment">
@@ -253,7 +253,7 @@
         <Button
           class="w-full"
           :loading="isCreating"
-          :disabled="Boolean(createNameError)"
+          :disabled="isCreating"
           @click="handleCreateDepartment"
         >
           등록하기
@@ -313,6 +313,7 @@ const isDeleting = ref(false)
 const detailError = ref('')
 const membersError = ref('')
 const isCreateDrawerOpen = ref(false)
+const hasAttemptedCreate = ref(false)
 const departmentToDelete = ref<DepartmentTreeNode | null>(null)
 let detailRequestId = 0
 let membersRequestId = 0
@@ -333,7 +334,9 @@ const editNameError = computed(() =>
   editForm.name.trim() ? '' : '부서명을 입력해주세요.',
 )
 const createNameError = computed(() =>
-  createForm.name.trim() ? '' : '부서명을 입력해주세요.',
+  hasAttemptedCreate.value && !createForm.name.trim()
+    ? '부서명을 입력해주세요.'
+    : '',
 )
 const memberEmptyText = computed(() =>
   departmentStore.selectedDepartmentId === null
@@ -415,6 +418,7 @@ function resetCreateForm() {
   createForm.name = ''
   createForm.parentDepartmentId = departmentStore.selectedDepartmentId
   createForm.departmentManagerId = null
+  hasAttemptedCreate.value = false
 }
 
 function handleEditParentChange(value: string | number) {
@@ -507,7 +511,13 @@ function openCreateDrawer() {
   isCreateDrawerOpen.value = true
 }
 
+function handleCloseCreateDrawer() {
+  isCreateDrawerOpen.value = false
+  hasAttemptedCreate.value = false
+}
+
 async function handleCreateDepartment() {
+  hasAttemptedCreate.value = true
   if (createNameError.value) return
 
   isCreating.value = true
@@ -519,7 +529,7 @@ async function handleCreateDepartment() {
       departmentManagerId: createForm.departmentManagerId,
     })
 
-    isCreateDrawerOpen.value = false
+    handleCloseCreateDrawer()
     await departmentStore.fetchAll()
     await handleSelectDepartment(response.data.departmentId)
     notificationStore.success('부서가 등록되었습니다.')

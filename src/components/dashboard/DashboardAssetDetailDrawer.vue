@@ -10,20 +10,16 @@
     <div class="flex h-full min-h-0 flex-col">
       <div class="flex shrink-0 flex-col gap-3 border-b border-border px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-wrap gap-2">
-          <button
+          <Button
             v-for="option in modeOptions"
             :key="option.value"
-            type="button"
-            :class="[
-              'h-9 rounded-lg border px-3 text-sm font-semibold transition',
-              selectedOption === option.value
-                ? 'border-primary bg-primary text-white'
-                : 'border-border bg-surface text-text-sub hover:border-primary/40',
-            ]"
+            :variant="selectedOption === option.value ? 'primary' : 'outline'"
+            size="md"
+            class="text-sm!"
             @click="selectOption(option.value)"
           >
             {{ option.label }}
-          </button>
+          </Button>
         </div>
 
         <div class="flex gap-2">
@@ -77,31 +73,18 @@
         </Table>
       </div>
 
-      <div class="flex shrink-0 items-center justify-between border-t border-border px-5 py-3">
+      <div
+        v-if="totalElements > 0"
+        class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-5 py-3"
+      >
         <span class="text-xs text-text-sub">{{ rangeText }}</span>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-            :disabled="currentPage === 0 || isLoading"
-            aria-label="이전 페이지"
-            @click="changePage(currentPage - 1)"
-          >
-            <ChevronLeft :size="15" />
-          </button>
-          <span class="min-w-16 text-center text-xs font-semibold text-text-main">
-            {{ currentPage + 1 }} / {{ totalPages }}
-          </span>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-            :disabled="currentPage >= totalPages - 1 || isLoading"
-            aria-label="다음 페이지"
-            @click="changePage(currentPage + 1)"
-          >
-            <ChevronRight :size="15" />
-          </button>
-        </div>
+        <Pagination
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :disabled="isLoading"
+          @change="changePage"
+        />
+        <span aria-hidden="true" />
       </div>
     </div>
   </BaseDrawer>
@@ -109,11 +92,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
+import { RefreshCw } from 'lucide-vue-next'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, tangibleAssetApi } from '@/api/asset.api'
 import { dashboardApi } from '@/api/dashboard.api'
@@ -126,6 +110,7 @@ import type {
 
 type DrawerMode = 'owned' | 'expiring'
 type ExpiringAssetType = 'ALL' | 'TANGIBLE' | 'INTANGIBLE'
+const PAGE_SIZE = 20
 
 interface DetailRow extends Record<string, unknown> {
   id: string
@@ -172,7 +157,7 @@ const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> 
 ]
 
 const baseColumns: Column<DetailRow>[] = [
-  { key: 'name', label: '자산명', width: '18%', align: 'center' },
+  { key: 'name', label: '자산명', width: '18%', align: 'center', maxLines: 2 },
   { key: 'code', label: '자산코드', width: '15%', align: 'center' },
   { key: 'category', label: '카테고리', width: '11%', align: 'center' },
   { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
@@ -187,7 +172,6 @@ const rows = ref<DetailRow[]>([])
 const totalElements = ref(0)
 const currentPage = ref(0)
 const totalPages = ref(1)
-const pageSize = 20
 const isLoading = ref(false)
 const errorMessage = ref('')
 
@@ -208,7 +192,7 @@ const selectedOption = computed(() => (
 ))
 const rangeText = computed(() => {
   if (totalElements.value === 0) return '0-0건'
-  const start = currentPage.value * pageSize + 1
+  const start = currentPage.value * PAGE_SIZE + 1
   const end = Math.min(start + rows.value.length - 1, totalElements.value)
   return `${start.toLocaleString()}-${end.toLocaleString()}건`
 })
@@ -259,7 +243,7 @@ async function loadDetails() {
         departmentId: props.departmentId,
         keyword: keyword.value.trim() || undefined,
         page: currentPage.value,
-        size: pageSize,
+        size: PAGE_SIZE,
       })
       rows.value = response.data.content.map((item) => toOwnedRow(item, selectedOwnedStatus.value))
       totalElements.value = response.data.totalElements
@@ -276,7 +260,7 @@ async function loadDetails() {
         departmentId: props.departmentId,
         keyword: keyword.value.trim() || undefined,
         page: currentPage.value,
-        size: pageSize,
+        size: PAGE_SIZE,
       })
       rows.value = await Promise.all(response.data.content.map(toExpiringRow))
       totalElements.value = response.data.totalElements
@@ -288,9 +272,9 @@ async function loadDetails() {
     const allRows = (await Promise.all(detailGroups.flat().map(toExpiringRow)))
       .sort((a, b) => a.date.localeCompare(b.date))
     totalElements.value = allRows.length
-    totalPages.value = Math.max(Math.ceil(allRows.length / pageSize), 1)
-    const start = currentPage.value * pageSize
-    rows.value = allRows.slice(start, start + pageSize)
+    totalPages.value = Math.max(Math.ceil(allRows.length / PAGE_SIZE), 1)
+    const start = currentPage.value * PAGE_SIZE
+    rows.value = allRows.slice(start, start + PAGE_SIZE)
   } catch (error) {
     rows.value = []
     totalElements.value = 0

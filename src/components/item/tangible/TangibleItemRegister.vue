@@ -46,8 +46,9 @@
                   :class="[
                     'min-w-0 flex-1 px-3 py-2 text-left text-sm transition-colors',
                     isCategorySelected(group.mainCategory) ? 'font-semibold text-primary' : 'font-medium text-text-main',
+                    getMiddleCategories(group).length > 0 && 'text-text-muted',
                   ]"
-                  @click="selectMainCategory(group)"
+                  @click="handleMainCategorySelect(group)"
                 >
                   <span class="block truncate">{{ group.mainCategory }}</span>
                 </button>
@@ -80,8 +81,9 @@
                       :class="[
                         'min-w-0 flex-1 px-3 py-2 text-left text-sm transition-colors',
                         isCategorySelected(middleCategory) ? 'font-semibold text-primary' : 'text-text-main',
+                        getSmallCategories(group, middleCategory).length > 0 && 'text-text-muted',
                       ]"
-                      @click="selectMiddleCategory(group, middleCategory)"
+                      @click="handleMiddleCategorySelect(group, middleCategory)"
                     >
                       <span class="block truncate">{{ middleCategory }}</span>
                     </button>
@@ -302,10 +304,28 @@ const selectMainCategory = (group: CategoryGroup) => {
     closeCategoryList();
 };
 
+const handleMainCategorySelect = (group: CategoryGroup) => {
+    if (getMiddleCategories(group).length > 0) {
+        toggleMainCategory(group.mainCategory);
+        return;
+    }
+
+    selectMainCategory(group);
+};
+
 const selectMiddleCategory = (group: CategoryGroup, middleCategory: string) => {
     formData.value.category = middleCategory;
     formData.value.categoryId = group.subCategoryIds?.[middleCategory] ?? '';
     closeCategoryList();
+};
+
+const handleMiddleCategorySelect = (group: CategoryGroup, middleCategory: string) => {
+    if (getSmallCategories(group, middleCategory).length > 0) {
+        toggleMiddleCategory(group.mainCategory, middleCategory);
+        return;
+    }
+
+    selectMiddleCategory(group, middleCategory);
 };
 
 const handleSave = async () => {

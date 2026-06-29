@@ -67,7 +67,7 @@
           <!-- 사용자 -->
           <FormField label="사용자" :required="requiresAssignmentInfo">
             <div class="space-y-2">
-              <div class="flex gap-2">
+              <div class="flex items-center gap-2">
                 <Dropdown
                   v-model="formData.memberName"
                   :options="memberOptions"

@@ -109,39 +109,12 @@
       </div>
 
       <div class="flex shrink-0 items-center justify-center border-t border-border py-3">
-        <div class="flex items-center justify-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="page === 0 || isLoading"
-            aria-label="이전 페이지"
-            @click="page -= 1"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <button
-            v-for="pageNumber in visiblePageNumbers"
-            :key="pageNumber"
-            type="button"
-            :class="[
-              'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-              pageNumber === page ? 'bg-primary text-white' : 'text-text-sub hover:bg-surface-secondary',
-            ]"
-            :disabled="isLoading"
-            @click="page = pageNumber"
-          >
-            {{ pageNumber + 1 }}
-          </button>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-            aria-label="다음 페이지"
-            @click="page += 1"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
+          :disabled="isLoading"
+          @change="page = $event"
+        />
       </div>
     </section>
 
@@ -204,8 +177,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  ChevronLeft,
-  ChevronRight,
   Plus,
   RefreshCw,
   Search,
@@ -219,6 +190,7 @@ import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { usePermission } from '@/composables'
 import { useNotificationStore } from '@/stores'
@@ -273,13 +245,6 @@ const companyCodeError = computed(() => (
 ))
 
 const hasCompanyFormError = computed(() => Boolean(companyNameError.value || companyCodeError.value))
-
-const visiblePageNumbers = computed(() => {
-  const maxVisible = 5
-  const start = Math.max(0, Math.min(page.value - 2, totalPages.value - maxVisible))
-  const end = Math.min(totalPages.value, start + maxVisible)
-  return Array.from({ length: Math.max(0, end - start) }, (_, index) => start + index)
-})
 
 watch(page, () => {
   void fetchCompanies()

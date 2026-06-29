@@ -77,7 +77,7 @@
             </div>
 
             <div class="overflow-hidden rounded-lg border border-border">
-              <div class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_44px] gap-4 border-b border-border bg-surface-secondary px-4 py-3 text-xs font-bold text-text-sub">
+              <div class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_62px] gap-4 border-b border-border bg-surface-secondary px-4 py-3 text-xs font-bold text-text-sub">
                 <span>자산 유형</span>
                 <span>품목명</span>
                 <span class="text-center">수량</span>
@@ -95,7 +95,7 @@
                 <div
                   v-for="(item, index) in items"
                   :key="item.rowId"
-                  class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_44px] items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-secondary/60"
+                  class="grid grid-cols-[minmax(120px,1fr)_minmax(220px,1.8fr)_88px_57px] items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-secondary/60"
                 >
                   <span class="text-sm font-semibold text-text-main">
                     {{ ASSET_TYPE_LABEL[item.assetType] }}
@@ -109,14 +109,15 @@
                     {{ item.quantity }}
                   </span>
 
-                  <button
-                    type="button"
-                    class="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger/20"
-                    aria-label="자산 품목 삭제"
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    class="whitespace-nowrap gap-1"
                     @click="removeItemRow(index)"
                   >
-                    <Trash2 :size="20" />
-                  </button>
+                    <Trash2 :size="14" />
+                    <span class="hidden md:inline">삭제</span>
+                  </Button>
                 </div>
               </div>
             </div>

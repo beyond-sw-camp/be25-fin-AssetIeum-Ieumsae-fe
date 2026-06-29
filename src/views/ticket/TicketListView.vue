@@ -13,7 +13,7 @@
     </header>
 
     <section class="card relative z-10 mb-4 flex min-h-0 flex-1 flex-col overflow-visible border border-border">
-      <div class="relative z-30 flex shrink-0 items-center gap-3 overflow-visible border-b border-border pb-3">
+      <div class="relative z-30 flex shrink-0 flex-col gap-3 rounded-t-2xl border-b border-border bg-surface px-2 pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex shrink-0 items-center gap-2">
           <Dropdown
             :model-value="pageSize"
@@ -28,7 +28,7 @@
           </span>
         </div>
 
-        <div class="ml-auto flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-2">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
           <Dropdown
             :model-value="filterForm.status"
             :options="STATUS_FILTER_OPTIONS"
@@ -56,7 +56,7 @@
 
       <div
         v-if="errorMessage"
-        class="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
+        class="mx-3 mt-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
       >
         <p class="text-sm text-danger">{{ errorMessage }}</p>
         <Button variant="outline" size="sm" @click="fetchTickets">
@@ -65,7 +65,7 @@
         </Button>
       </div>
 
-      <div class="min-h-0 flex-1 overflow-auto py-4">
+      <div class="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface p-3">
         <TicketTable
           :tickets="pagedTickets"
           :loading="isLoading"
@@ -74,48 +74,16 @@
         />
       </div>
 
-      <div class="flex shrink-0 items-center justify-center border-t border-border pt-3">
-        <div class="flex items-center justify-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="page === 0 || isLoading"
-            aria-label="이전 페이지"
-            @click="page -= 1"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <template v-for="item in paginationItems" :key="String(item)">
-            <span
-              v-if="item === 'ellipsis'"
-              class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-text-muted"
-            >
-              ...
-            </span>
-            <button
-              v-else
-              type="button"
-              :class="[
-                'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors',
-                page === item
-                  ? 'bg-primary text-white'
-                  : 'text-text-sub hover:bg-surface-secondary',
-              ]"
-              @click="page = item"
-            >
-              {{ item + 1 }}
-            </button>
-          </template>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-            :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-            aria-label="다음 페이지"
-            @click="page += 1"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+      <div
+        v-if="filteredTickets.length > 0"
+        class="relative z-20 flex shrink-0 items-center justify-center rounded-b-2xl border-t border-border bg-surface px-4 pt-3"
+      >
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
+          :disabled="isLoading"
+          @change="page = $event"
+        />
       </div>
     </section>
 
@@ -128,13 +96,14 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-vue-next'
+import { Plus, RefreshCw } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, ticketApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import TicketRequestDrawer from '@/components/ticket/TicketRequestDrawer.vue'
 import TicketSearchBar from '@/components/ticket/TicketSearchBar.vue'
 import TicketTable from '@/components/ticket/TicketTable.vue'
@@ -227,23 +196,6 @@ const emptyText = computed(() => (
     ? '조건에 맞는 요청이 없습니다.'
     : '등록된 요청이 없습니다.'
 ))
-const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
-  if (totalPages.value <= 7) {
-    return Array.from({ length: totalPages.value }, (_, index) => index)
-  }
-
-  const items: Array<number | 'ellipsis'> = [0]
-  const start = Math.max(1, page.value - 1)
-  const end = Math.min(totalPages.value - 2, page.value + 1)
-
-  if (start > 1) items.push('ellipsis')
-  for (let index = start; index <= end; index += 1) items.push(index)
-  if (end < totalPages.value - 2) items.push('ellipsis')
-  items.push(totalPages.value - 1)
-
-  return items
-})
-
 async function fetchTickets() {
   const currentMemberId = authStore.user?.memberId
   if (!currentMemberId) {
