@@ -39,8 +39,8 @@
           <FormField label="자동 갱신 여부" required>
             <Dropdown v-model="assetEditForm.isAutoRenewal" :options="autoRenewalOptions" :disabled="!canUpdateAsset" />
           </FormField>
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :disabled="!canUpdateAsset" />
-          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="date" label="만료일" :disabled="!canUpdateAsset" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :min="minimumDate" disable-past-month-navigation :disabled="!canUpdateAsset" />
+          <Input id="edit-expiredAt" v-model="assetEditForm.expiredAt" type="date" label="만료일" :min="minimumDate" disable-past-month-navigation :disabled="!canUpdateAsset" />
         </div>
       </section>
 
@@ -101,10 +101,16 @@ import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { BillingCycle, IntangibleAsset } from '@/types'
 import type { IntangibleAssetAssignmentResponse } from '@/api/asset.api'
 import { usePermission } from '@/composables'
+
+const minimumDate = getCurrentDateInputValue()
 
 interface AssetEditForm {
   assetItemName: string
@@ -253,13 +259,6 @@ const seatCountValidationMessage = computed(() => {
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return ''
   return value.slice(0, 10)
-}
-
-const toLocalDateTimeRequestValue = (value: string) => {
-  const trimmedValue = value.trim()
-  if (!trimmedValue || trimmedValue === '-') return undefined
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) return `${trimmedValue}T00:00:00`
-  return trimmedValue.length === 16 ? `${trimmedValue}:00` : trimmedValue
 }
 
 const toIdString = (value: unknown) => {
@@ -517,8 +516,8 @@ const handleUpdateAsset = async () => {
     const payload = compactPayload({
       seatCount,
       isAutoRenewal,
-      startedAt: toLocalDateTimeRequestValue(assetEditForm.value.startedAt),
-      expiredAt: toLocalDateTimeRequestValue(assetEditForm.value.expiredAt),
+      startedAt: toFutureLocalDateTimeValue(assetEditForm.value.startedAt) ?? undefined,
+      expiredAt: toFutureLocalDateTimeValue(assetEditForm.value.expiredAt) ?? undefined,
     })
 
     console.log('무형자산 수정 요청 payload', payload)

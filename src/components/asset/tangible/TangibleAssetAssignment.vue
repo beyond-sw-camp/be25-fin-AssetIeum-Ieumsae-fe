@@ -60,6 +60,8 @@
             id="assignment-ended-at"
             v-model="endedAt"
             type="date"
+            :min="minimumDate"
+            disable-past-month-navigation
             label="반납 예정일"
             :disabled="usageTypeLabel === '정식 배정'"
           />
@@ -193,8 +195,14 @@ import {
   type TangibleAssetAssignmentResponse,
   type TangibleAssetAssignmentUsageType,
 } from '@/api/asset.api'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { Department, Member, TangibleAsset } from '@/types'
+
+const minimumDate = getCurrentDateInputValue()
 
 type AssignmentMode = 'assign' | 'reassign' | 'bulk'
 
@@ -590,9 +598,7 @@ const assetUsageTypeValue = (): TangibleAssetAssignmentAssetUsageType => (
 )
 
 const toServerDateTime = (value: string) => {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
-  return value.length === 16 ? `${value}:00` : value
+  return toFutureLocalDateTimeValue(value)
 }
 
 const canSubmit = computed(() => {

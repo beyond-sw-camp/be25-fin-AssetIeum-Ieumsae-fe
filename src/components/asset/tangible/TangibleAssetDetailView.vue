@@ -39,8 +39,8 @@
             <Dropdown v-model="assetEditForm.usageType" :options="usageTypeOptions" disabled />
           </FormField>
           <Input id="edit-location" v-model="assetEditForm.location" label="위치" placeholder="위치 입력" required :disabled="!canUpdateAsset" />
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :required="requiresAssignmentInfo" :disabled="!canUpdateAsset" />
-          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="date" label="반납 예정일" :disabled="!canUpdateAsset" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :min="minimumDate" disable-past-month-navigation :required="requiresAssignmentInfo" :disabled="!canUpdateAsset" />
+          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="date" label="반납 예정일" :min="minimumDate" disable-past-month-navigation :disabled="!canUpdateAsset" />
           <Input id="edit-department" v-model="assetEditForm.departmentName" label="부서" disabled />
           <Input id="edit-member" v-model="assetEditForm.memberName" label="사용자" disabled />
         </div>
@@ -92,6 +92,11 @@ import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import QrcodeVue from 'qrcode.vue'
 import type {
@@ -147,6 +152,9 @@ interface MemberAliases extends Member {
 }
 
 const { canUpdateAsset } = usePermission()
+const notificationStore = useNotificationStore()
+
+const minimumDate = getCurrentDateInputValue()
 
 const props = defineProps<{
   isOpen: boolean
@@ -395,9 +403,7 @@ const toDateInputValue = (value: string | null | undefined) => {
 }
 
 const nullableDateTime = (value: string) => {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00` : trimmed
+  return toFutureLocalDateTimeValue(value)
 }
 
 const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
@@ -489,7 +495,7 @@ const handleUpdateAsset = async () => {
   }
 
   if (!assetEditForm.value.location.trim()) {
-    alert('위치를 입력해주세요.')
+    notificationStore.warning('위치를 입력해주세요.')
     return
   }
 
@@ -507,7 +513,7 @@ const handleUpdateAsset = async () => {
       : null
 
   if (nextStatus === 'IN_USE' && initialStatus !== nextStatus && !assetEditForm.value.startedAt.trim()) {
-    alert('사용 중 자산은 사용 시작일이 필요합니다.')
+    notificationStore.warning('사용 중 자산은 사용 시작일이 필요합니다.')
     return
   }
 
@@ -550,9 +556,11 @@ const handleUpdateAsset = async () => {
     }
 
     emit('saved')
+    notificationStore.success('유형자산 정보가 수정되었습니다.')
     emit('close')
   } catch (error) {
     console.error('유형자산 수정 실패', error)
+    notificationStore.error('유형자산 수정 실패', '다시 시도해주세요.')
   } finally {
     isSavingAsset.value = false
   }

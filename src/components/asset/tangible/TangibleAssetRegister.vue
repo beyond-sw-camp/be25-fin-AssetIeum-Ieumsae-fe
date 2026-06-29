@@ -65,6 +65,8 @@
             v-model="formData.startedAt"
             type="date"
             label="사용 시작일"
+            :min="minimumDate"
+            disable-past-month-navigation
             :required="requiresAssignmentInfo"
             placeholder="사용 시작일 선택"
           />
@@ -74,6 +76,8 @@
             v-model="formData.returnDueDate"
             type="date"
             label="반납 예정일"
+            :min="minimumDate"
+            disable-past-month-navigation
             placeholder="반납 예정일 선택"
           />
 
@@ -105,6 +109,8 @@
             v-model="formData.purchaseDate"
             type="date"
             label="구매일"
+            :min="minimumDate"
+            disable-past-month-navigation
             placeholder="구매일 선택"
             required
           />
@@ -130,6 +136,8 @@
             v-model="formData.warrantyExpiredAt"
             type="date"
             label="보증 만료일"
+            :min="minimumDate"
+            disable-past-month-navigation
             placeholder="보증 만료일 선택"
             required
           />
@@ -160,6 +168,12 @@ import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+  toLocalDateTimeWithCurrentTimeValue,
+} from '@/utils/date'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   Department,
@@ -176,6 +190,9 @@ interface AssetItemOption {
   manufacturer: string
   modelName: string
 }
+
+const minimumDate = getCurrentDateInputValue()
+const notificationStore = useNotificationStore()
 
 interface RegisterForm {
   serialNo: string
@@ -460,14 +477,7 @@ const isRegisterReady = computed(() => (
 ))
 
 const optionalDate = (value: string) => {
-  const trimmed = value.trim()
-  return trimmed ? toLocalDateTimeRequestValue(trimmed) : null
-}
-
-const toLocalDateTimeRequestValue = (value: string) => {
-  const trimmed = value.trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T00:00:00`
-  return trimmed.length === 16 ? `${trimmed}:00` : trimmed
+  return toFutureLocalDateTimeValue(value)
 }
 
 const parsePrice = (value: string) => {
@@ -499,21 +509,26 @@ const handleSave = async () => {
 
   const department = effectiveDepartment.value
   const member = selectedMember.value
-  const purchaseDate = toLocalDateTimeRequestValue(formData.value.purchaseDate)
+  const purchaseDate = toLocalDateTimeWithCurrentTimeValue(formData.value.purchaseDate)
   const purchasePrice = parsePrice(formData.value.purchasePrice)
 
+  if (!purchaseDate) {
+    notificationStore.warning('구매일을 선택해주세요.')
+    return
+  }
+
   if (purchasePrice === undefined) {
-    alert('구매 금액을 숫자로 입력해주세요.')
+    notificationStore.warning('구매 금액을 숫자로 입력해주세요.')
     return
   }
 
   if (!formData.value.location.trim()) {
-    alert('위치를 입력해주세요.')
+    notificationStore.warning('위치를 입력해주세요.')
     return
   }
 
   if (requiresAssignmentInfo.value && (!member || !department || !formData.value.startedAt.trim())) {
-    alert('AVAILABLE, DISPOSED 상태가 아닌 자산은 사용자, 부서, 사용 시작일이 필요합니다.')
+    notificationStore.warning('사용 중 자산은 사용자, 부서, 사용 시작일이 필요합니다.')
     return
   }
 
@@ -538,11 +553,15 @@ const handleSave = async () => {
 
   try {
     const response = await tangibleAssetApi.create(payload)
+    notificationStore.success('유형자산이 등록되었습니다.')
     emit('registered', response.data)
     emit('close')
   } catch (error) {
     console.error(error)
-    alert(error instanceof Error ? error.message : '자산 등록 중 오류가 발생했습니다.')
+    notificationStore.error(
+      '유형자산 등록 실패',
+      error instanceof Error ? error.message : '다시 시도해주세요.',
+    )
   } finally {
     isSaving.value = false
   }

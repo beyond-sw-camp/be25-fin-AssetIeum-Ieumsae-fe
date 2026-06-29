@@ -114,6 +114,8 @@
             v-model="formData.startedAt"
             type="date"
             label="사용 시작일"
+            :min="minimumDate"
+            disable-past-month-navigation
             :required="requiresAssignmentInfo"
           />
           <!-- 만료 예정일  -->
@@ -121,6 +123,8 @@
             id="intangible-expired-at"
             v-model="formData.expiredAt"
             type="date"
+            :min="minimumDate"
+            disable-past-month-navigation
             label="만료일"
           />
         </div>
@@ -190,6 +194,10 @@ import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   BillingCycle,
@@ -251,6 +259,8 @@ const props = defineProps<{
   departments: Department[]
   members: Member[]
 }>()
+
+const minimumDate = getCurrentDateInputValue()
 
 const emit = defineEmits<{
   close: []
@@ -589,8 +599,8 @@ const handleSave = async () => {
     intangibleAssetStatus: members.length > 0 ? 'AVAILABLE' : selectedStatus.value,
     memberId: null,
     departmentId: null,
-    startedAt: toLocalDateTimeRequestValue(formData.value.startedAt),
-    expiredAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
+    startedAt: toFutureLocalDateTimeValue(formData.value.startedAt),
+    expiredAt: toFutureLocalDateTimeValue(formData.value.expiredAt),
     billingCycle: billingCycleValueByLabel[formData.value.billingCycleLabel],
   }
 
@@ -609,7 +619,7 @@ const handleSave = async () => {
       for (const memberId of formData.value.selectedMemberIds) {
         await intangibleAssetApi.assign(createdAssetId, {
           memberId,
-          endedAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
+          endedAt: toFutureLocalDateTimeValue(formData.value.expiredAt),
         })
       }
     }

@@ -206,6 +206,7 @@ import Input from '@/components/common/Input.vue';
 import Button from '@/components/common/Button.vue';
 import { ChevronDown } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api';
+import { useNotificationStore } from '@/stores';
 import type { TangibleAssetItemCreateRequest } from '@/types';
 
 interface CategoryGroup {
@@ -230,6 +231,7 @@ const props = defineProps<{
     isOpen: boolean;
     initialCategories: CategoryGroup[];
 }>();
+const notificationStore = useNotificationStore();
 
 const emit = defineEmits(['close', 'update-categories', 'registered']);
 
@@ -332,11 +334,11 @@ const handleSave = async () => {
     if (!isRegisterReady.value || isSaving.value) return;
 
     if (formData.value.category === DEFAULT_CATEGORY || !formData.value.categoryId) {
-        alert('카테고리를 선택해주세요.');
+        notificationStore.warning('카테고리를 선택해주세요.');
         return;
     }
     if (!formData.value.productName.trim() || !formData.value.modelName.trim()) {
-        alert('필수 항목을 입력해주세요.');
+        notificationStore.warning('필수 항목을 입력해주세요.');
         return;
     }
 
@@ -354,10 +356,11 @@ const handleSave = async () => {
     try {
         await tangibleItemApi.create(payload);
         emit('registered');
-        alert('성공적으로 등록되었습니다.');
+        notificationStore.success('유형자산 품목이 등록되었습니다.');
         emit('close');
     } catch (error) {
         console.error('유형자산 품목 등록 실패', error);
+        notificationStore.error('유형자산 품목 등록 실패', '다시 시도해주세요.');
     } finally {
         isSaving.value = false;
     }

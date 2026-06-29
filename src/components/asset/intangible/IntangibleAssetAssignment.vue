@@ -109,6 +109,8 @@
             id="intangible-assignment-ended-at"
             v-model="endedAt"
             type="date"
+            :min="minimumDate"
+            disable-past-month-navigation
             label="사용 종료 예정일"
           />
         </div>
@@ -186,7 +188,13 @@ import {
   type IntangibleAssetAssignmentResponse,
 } from '@/api/asset.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import type { Department, IntangibleAsset, Member } from '@/types'
+
+const minimumDate = getCurrentDateInputValue()
 
 type AssignmentMode = 'assign' | 'cancel'
 
@@ -682,9 +690,7 @@ const selectedAssetInfo = computed(() => ({
 }))
 
 const toServerDateTime = (value: string) => {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00`
-  return value.length === 16 ? `${value}:00` : value
+  return toFutureLocalDateTimeValue(value)
 }
 
 const addSelectedMember = () => {

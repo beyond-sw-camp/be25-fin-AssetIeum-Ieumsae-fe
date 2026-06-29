@@ -84,7 +84,7 @@
             v-model="registerForm.startDate"
             type="date"
             label="시작일"
-            
+            :min="minimumDate"
             required
           />
           <Input
@@ -92,6 +92,7 @@
             v-model="registerForm.endDate"
             type="date"
             label="종료일"
+            :min="minimumDate"
             required
           />
         </div>
@@ -129,6 +130,7 @@ import { intangibleItemApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
 import { memberApi } from '@/api/member.api'
+import { toDateInputValue as getCurrentDateInputValue } from '@/utils/date'
 import type { Department, DropdownOption, Member } from '@/types'
 import type {
   InspectionTargetType,
@@ -163,6 +165,8 @@ const props = defineProps<{
   isOpen: boolean
   assetType?: 'tangible' | 'intangible'
 }>()
+
+const minimumDate = getCurrentDateInputValue()
 
 const emit = defineEmits<{
   close: []
