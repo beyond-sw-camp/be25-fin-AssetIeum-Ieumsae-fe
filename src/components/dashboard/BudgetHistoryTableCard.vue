@@ -62,10 +62,7 @@
       </Table>
     </div>
 
-    <div
-      v-if="totalElements > 0"
-      class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-5 py-3"
-    >
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-border px-5 py-3">
       <span class="text-xs text-text-sub">총 {{ totalElements.toLocaleString() }}건 중 {{ rangeText }}</span>
       <Pagination
         :current-page="page"
