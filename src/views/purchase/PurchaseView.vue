@@ -466,7 +466,7 @@
             </Button>
           </div>
 
-          <div class="mt-4 rounded-xl border border-border bg-surface">
+          <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-surface p-3 relative z-10">
             <Table
               :columns="columns"
               :rows="plans"
@@ -515,9 +515,7 @@
             </Table>
           </div>
 
-          <div
-            class="flex shrink-0 items-center justify-center border-t border-border py-3"
-          >
+          <div>
             <Pagination
               :current-page="page"
               :total-pages="totalPages"
