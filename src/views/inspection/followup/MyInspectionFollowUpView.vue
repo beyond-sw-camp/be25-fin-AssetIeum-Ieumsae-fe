@@ -60,29 +60,14 @@
 
       <div
         v-if="totalPages > 1"
-        class="flex shrink-0 items-center justify-center gap-2 border-t border-border px-4 py-3"
+        class="flex shrink-0 items-center justify-center border-t border-border px-4 py-3"
       >
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:opacity-30"
-          :disabled="page === 0 || isLoading"
-          aria-label="이전 페이지"
-          @click="changePage(page - 1)"
-        >
-          <ChevronLeft :size="16" />
-        </button>
-        <span class="min-w-16 text-center text-xs font-semibold text-text-sub">
-          {{ page + 1 }} / {{ totalPages }}
-        </span>
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition hover:bg-surface-secondary disabled:opacity-30"
-          :disabled="page >= totalPages - 1 || isLoading"
-          aria-label="다음 페이지"
-          @click="changePage(page + 1)"
-        >
-          <ChevronRight :size="16" />
-        </button>
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
+          :disabled="isLoading"
+          @change="changePage"
+        />
       </div>
     </main>
   </div>
@@ -90,11 +75,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-vue-next'
+import { RefreshCw, Search } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import InspectionFollowUpPanel, {
   type InspectionFollowUpPanelRow,
 } from '@/components/inspection/common/InspectionFollowUpPanel.vue'

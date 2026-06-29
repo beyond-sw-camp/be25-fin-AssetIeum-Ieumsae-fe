@@ -8,9 +8,9 @@
           : 'text-text-main hover:bg-surface-secondary',
       ]"
     >
-      <button
+      <Button
         v-if="props.node.children.length"
-        type="button"
+        unstyled
         class="rounded p-0.5 text-text-sub hover:bg-black/5"
         :aria-label="isExpanded ? `${props.node.name} 접기` : `${props.node.name} 펼치기`"
         @click.stop="isExpanded = !isExpanded"
@@ -19,18 +19,18 @@
           :size="16"
           :class="['transition-transform', isExpanded && 'rotate-90']"
         />
-      </button>
+      </Button>
       <span v-else class="w-5" />
 
-      <button
-        type="button"
+      <Button
+        unstyled
         class="flex min-w-0 flex-1 items-center gap-2 text-left"
         @click="emit('select', props.node.departmentId)"
       >
         <FolderOpen v-if="isExpanded && props.node.children.length" :size="18" />
         <Folder v-else :size="18" />
         <span class="truncate text-sm font-medium">{{ props.node.name }}</span>
-      </button>
+      </Button>
 
       <span
         v-if="props.node.memberCount > 0"
@@ -39,15 +39,15 @@
         {{ props.node.memberCount }}
       </span>
 
-      <button
+      <Button
         v-if="props.canDelete"
-        type="button"
+        unstyled
         class="rounded-lg p-1 text-text-muted opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100 focus:opacity-100"
         :aria-label="`${props.node.name} 삭제`"
         @click.stop="emit('delete', props.node)"
       >
         <Trash2 :size="16" />
-      </button>
+      </Button>
     </div>
 
     <ul v-if="isExpanded && props.node.children.length" class="ml-5 border-l border-border pl-2">
@@ -68,6 +68,7 @@
 import { ChevronRight, Folder, FolderOpen, Trash2 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
+import Button from '@/components/common/Button.vue'
 import type { DepartmentTreeNode } from '@/types'
 
 defineOptions({ name: 'OrganizationTreeNode' })

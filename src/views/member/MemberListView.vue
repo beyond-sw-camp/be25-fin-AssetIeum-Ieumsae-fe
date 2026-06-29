@@ -116,43 +116,14 @@
 
       <div
         v-if="totalElements > 0"
-        class="flex shrink-0 items-center justify-center gap-2 border-t border-border pt-3"
+        class="flex shrink-0 items-center justify-center border-t border-border pt-3"
       >
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-          :disabled="page === 0 || isLoading"
-          aria-label="이전 페이지"
-          @click="changePage(page - 1)"
-        >
-          <ChevronLeft :size="16" />
-        </button>
-
-        <button
-          v-for="pageNumber in visiblePageNumbers"
-          :key="pageNumber"
-          type="button"
-          :class="[
-            'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm transition-colors',
-            pageNumber - 1 === page
-              ? 'bg-primary font-semibold text-white'
-              : 'text-text-sub hover:bg-surface-secondary',
-          ]"
+        <Pagination
+          :current-page="page"
+          :total-pages="totalPages"
           :disabled="isLoading"
-          @click="changePage(pageNumber - 1)"
-        >
-          {{ pageNumber }}
-        </button>
-
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub transition-colors hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-30"
-          :disabled="totalPages === 0 || page >= totalPages - 1 || isLoading"
-          aria-label="다음 페이지"
-          @click="changePage(page + 1)"
-        >
-          <ChevronRight :size="16" />
-        </button>
+          @change="changePage"
+        />
       </div>
     </section>
 
@@ -315,8 +286,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Search,
   UserPlus,
@@ -329,6 +298,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import Table from '@/components/common/Table.vue'
 import type { Column } from '@/components/common/Table.vue'
 import MemberActionMenu from '@/components/member/MemberActionMenu.vue'
@@ -445,15 +415,6 @@ const memberRangeText = computed(() => {
   const start = page.value * size.value + 1
   const end = Math.min((page.value + 1) * size.value, totalElements.value)
   return `${start}-${end}명`
-})
-
-const visiblePageNumbers = computed(() => {
-  const total = totalPages.value
-  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
-
-  const current = page.value + 1
-  const start = Math.min(Math.max(current - 2, 1), total - 4)
-  return Array.from({ length: 5 }, (_, index) => start + index)
 })
 
 const registerErrors = computed(() => ({

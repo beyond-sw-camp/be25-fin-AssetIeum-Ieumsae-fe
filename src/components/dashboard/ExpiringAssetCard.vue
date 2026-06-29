@@ -19,8 +19,8 @@
     </div>
     <div class="flex flex-1 items-center pt-4">
       <div class="grid w-full grid-cols-2 gap-3 text-center">
-        <button
-          type="button"
+        <Button
+          unstyled
           class="rounded-lg px-3 py-4 transition hover:bg-surface-secondary/50"
           @click.stop="interactive && emit('click-tangible')"
         >
@@ -29,9 +29,9 @@
             <p class="text-xs font-semibold text-text-sub">유형자산</p>
           </div>
           <p class="mt-2 text-lg font-semibold text-text-main">{{ tangibleCount }}</p>
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          unstyled
           class="rounded-lg px-3 py-4 transition hover:bg-surface-secondary/50"
           @click.stop="interactive && emit('click-intangible')"
         >
@@ -40,7 +40,7 @@
             <p class="text-xs font-semibold text-text-sub">무형자산</p>
           </div>
           <p class="mt-2 text-lg font-semibold text-text-main">{{ intangibleCount }}</p>
-        </button>
+        </Button>
       </div>
     </div>
   </div>
@@ -50,6 +50,7 @@
 import { computed } from 'vue'
 import { CalendarClock } from 'lucide-vue-next'
 
+import Button from '@/components/common/Button.vue'
 import DashboardStackedProgressChart from '@/components/dashboard/DashboardStackedProgressChart.vue'
 
 const props = withDefaults(defineProps<{

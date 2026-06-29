@@ -28,21 +28,17 @@
       <section class="rounded-lg border border-border p-4">
         <h3 class="mb-4 text-base font-bold text-text-main">카테고리 필터링</h3>
         <div class="grid gap-2">
-          <button
+          <Button
             v-for="item in categoryItems"
             :key="item.type"
-            type="button"
-            :class="[
-              'flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-semibold transition',
-              selectedCategory === item.type
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-surface text-text-sub hover:border-primary/40 hover:text-text-main',
-            ]"
+            :variant="selectedCategory === item.type ? 'secondary' : 'outline'"
+            size="md"
+            class="w-full justify-between text-sm!"
             @click="selectCategory(item.type)"
           >
             <span>{{ item.type }}</span>
             <span>{{ item.count }}건</span>
-          </button>
+          </Button>
         </div>
         <div class="mt-4 rounded-lg bg-surface-secondary px-3 py-2 text-xs leading-5 text-text-sub">
           완료·취소된 지난 이벤트는 기본 목록에서 접어둡니다.
@@ -58,32 +54,20 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <button
+            <Button
               v-if="pastFinalEvents.length > 0"
-              type="button"
-              class="h-8 rounded-lg border border-border px-3 text-xs font-semibold text-text-sub transition hover:border-primary/40 hover:text-primary"
+              variant="outline"
+              size="sm"
+              class="h-8!"
               @click="togglePastEvents"
             >
               {{ showPastEvents ? '지난 이벤트 숨기기' : `지난 이벤트 ${pastFinalEvents.length}건 보기` }}
-            </button>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-              :disabled="eventPage === 0"
-              aria-label="이전 이벤트"
-              @click="eventPage -= 1"
-            >
-              <ChevronLeft :size="15" />
-            </button>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-sub disabled:opacity-30"
-              :disabled="eventPage >= eventTotalPages - 1"
-              aria-label="다음 이벤트"
-              @click="eventPage += 1"
-            >
-              <ChevronRight :size="15" />
-            </button>
+            </Button>
+            <Pagination
+              :current-page="eventPage"
+              :total-pages="eventTotalPages"
+              @change="eventPage = $event"
+            />
           </div>
         </div>
 
@@ -170,8 +154,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, LogIn, LogOut, MoveRight } from 'lucide-vue-next'
+import { LogIn, LogOut, MoveRight } from 'lucide-vue-next'
 
+import Button from '@/components/common/Button.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import type { HrEventStatistics, HrLifecycleEvent } from '@/types'
 
 const EVENT_TYPES = ['입사', '퇴사', '부서이동'] as const
