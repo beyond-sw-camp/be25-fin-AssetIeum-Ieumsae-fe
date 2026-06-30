@@ -228,7 +228,7 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
-import type { Department, DropdownOption, Member, PageResponse, TicketListItem } from '@/types'
+import type { Department, DropdownOption, Member, TicketListItem } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type {
   HrEventId,
@@ -442,14 +442,29 @@ async function loadEvents() {
   errorMessage.value = ''
 
   try {
-    const response = await hrApi.getEvents({
-      page: pagination.page,
-      size: pagination.size,
+    const request = {
+      page: 0,
+      size: 1000,
       hrEventType: filters.eventType || undefined,
       hrEventStatus: filters.status || undefined,
-      sort: `eventDate,${eventDateSortOrder.value.toLowerCase()}`,
-    })
-    applyPage(response.data)
+    }
+    const firstResponse = await hrApi.getEvents(request)
+    const remainingResponses = await Promise.all(
+      Array.from(
+        { length: Math.max(firstResponse.data.totalPages - 1, 0) },
+        (_, index) => hrApi.getEvents({ ...request, page: index + 1 }),
+      ),
+    )
+    const allEvents = [
+      ...firstResponse.data.content,
+      ...remainingResponses.flatMap((response) => response.data.content),
+    ].sort(compareEventsByDate)
+    const totalPages = Math.max(Math.ceil(allEvents.length / pagination.size), 1)
+    pagination.page = Math.min(pagination.page, totalPages - 1)
+    pagination.totalElements = allEvents.length
+    pagination.totalPages = totalPages
+    const start = pagination.page * pagination.size
+    events.value = allEvents.slice(start, start + pagination.size)
     void loadEventSummary()
   } catch (error) {
     console.error('HR 이벤트 목록 조회 실패', error)
@@ -525,14 +540,6 @@ async function loadTemplate() {
     console.error('HR 이벤트 템플릿 조회 실패', error)
     template.value = null
   }
-}
-
-function applyPage(page: PageResponse<HrEventResponse>) {
-  events.value = page.content
-  pagination.page = page.page
-  pagination.size = page.size
-  pagination.totalElements = page.totalElements
-  pagination.totalPages = page.totalPages
 }
 
 function normalizeId(value: string | number | null | undefined) {
