@@ -11,12 +11,12 @@ export function toFutureLocalDateTimeValue(value: string, now: Date = new Date()
   if (!trimmedValue) return null
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+    const futureDate = new Date(now.getTime() + 60_000)
     if (trimmedValue === toDateInputValue(now)) {
-      const futureDate = new Date(now.getTime() + 60_000)
       return formatLocalDateTime(futureDate)
     }
 
-    return `${trimmedValue}T${formatLocalTime(now)}`
+    return `${trimmedValue}T${formatLocalTime(futureDate)}`
   }
 
   return trimmedValue.length === 16 ? `${trimmedValue}:00` : trimmedValue

@@ -124,6 +124,8 @@
         id="hr-event-date"
         v-model="form.eventDate"
         type="date"
+        :min="minimumDate"
+        disable-past-month-navigation
         label="이벤트 예정일"
         required
       />
@@ -160,6 +162,7 @@ import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { useAuthStore } from '@/stores'
 import type { Department, DropdownOption, IntangibleAsset, Member, TangibleAsset } from '@/types'
+import { toDateInputValue as getCurrentDateInputValue } from '@/utils/date'
 import type {
   HrEventAssetActionType,
   HrEventAssetTargetCreateRequest,
@@ -206,6 +209,8 @@ interface MemberAliasRecord {
     departmentNamePath?: string | null
   } | null
 }
+
+const minimumDate = getCurrentDateInputValue()
 
 const EVENT_TYPE_LABEL: Record<HrEventType, string> = {
   ONBOARDING: '입사',
