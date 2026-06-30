@@ -53,22 +53,6 @@
         </div>
         
         <div class="flex flex-row items-center gap-2">
-          <div
-            v-if="user"
-            class="flex flex-col items-center gap-0.5 rounded-lg bg-surface-secondary px-3 py-2"
-          >
-            <div class="min-w-0 flex flex-row items-center gap-1">
-              <p class="truncate text-sm font-bold text-text-main">
-                {{ user.name }}
-              </p>
-              <span class="shrink-0 text-xs font-semibold text-main">
-                ({{roleLabel}})
-              </span>
-            </div>
-            <p class="text-xs text-text-sub">
-              {{ user.departmentName || '-' }}
-            </p>
-          </div>
           <Button
             v-if="authStore.isAuthenticated"
             variant="outline"
@@ -89,6 +73,28 @@
           </Button>
         </div>
       </div>
+      <p class="w-full ml-1 mt-3 text-sm flex justify-start text-text-sub">
+        {{ inspectionGuideText }}
+      </p>
+      <div
+        v-if="user"
+        class="flex flex-col mt-4 items-center gap-0.5 rounded-lg bg-surface-secondary px-3 py-2"
+      >
+        <div class="min-w-0 w-full flex justify-between">
+          <div class="flex gap-2 items-center">
+            <p class="truncate text-sm font-bold text-text-main">
+              {{ user.name }}
+            </p>
+            <span class="shrink-0 text-xs font-semibold text-text-muted">
+              {{ roleLabel }}
+            </span>
+          </div>  
+
+          <p class="text-xs text-primary border border-white font-semibold px-2 py-1 rounded-2xl bg-white ">
+            {{ user.departmentName || '-' }}
+          </p>
+        </div>
+      </div>
 
       <div class="mt-4 grid grid-cols-2 rounded-lg bg-surface-secondary p-1">
         <button
@@ -105,11 +111,6 @@
         >
           무형자산
         </button>
-      </div>
-      <div>
-        <p class="w-full ml-1 mt-1 text-sm flex justify-start text-text-sub">
-          {{ inspectionGuideText }}
-        </p>
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-2">
