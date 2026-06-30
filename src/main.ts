@@ -38,26 +38,7 @@ const pinia = createPinia()
 
 function showFatalError(error: unknown) {
   const root = document.getElementById('app')
-  let rawMessage: string
-  
-  if (error instanceof Error) {
-    rawMessage = error.stack || error.message
-  } else if (typeof error === 'object' && error !== null) {
-    try {
-      rawMessage = JSON.stringify(error, null, 2)
-    } catch {
-      rawMessage = String(error)
-    }
-  } else {
-    rawMessage = String(error) || '알 수 없는 화면 오류가 발생했습니다.'
-  }
-
-  const message = rawMessage
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
+  console.error('화면 렌더링 오류:', error)
 
   if (!root) return
 
@@ -65,7 +46,7 @@ function showFatalError(error: unknown) {
     <main style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #f8fafc; color: #111827;">
       <section style="width: 100%; max-width: 600px; border: 1px solid #fecaca; border-radius: 12px; background: #fff1f2; padding: 24px; text-align: left;">
         <p style="margin: 0; color: #dc2626; font-size: 16px; font-weight: 700; text-align: center;">화면을 불러오지 못했습니다.</p>
-        <pre style="margin: 12px 0 0; color: #6b7280; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;">${message}</pre>
+        <p style="margin: 12px 0 0; color: #6b7280; font-size: 14px; line-height: 1.6; text-align: center;">잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의해주세요.</p>
       </section>
     </main>
   `

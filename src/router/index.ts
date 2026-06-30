@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import type { Role } from '@/types'
+import { canUseMobileInspectionRole } from '@/utils/mobileInspection'
 
 // =====================================================
 // 라우트 메타 타입 확장
@@ -40,8 +41,7 @@ const router = createRouter({
       component: () => import('@/views/inspection/mobile/MobileInspectionView.vue'),
       meta: {
         requiresAuth: true,
-        title: '모바일 자산 검수',
-        roles: ['EMPLOYEE', 'ASSET_TEAM', 'ASSET_MANAGER', 'ADMIN'],
+        title: '모바일 자산 검수'
       },
     },
     // ─── 인증 필요 (공통 레이아웃) ─────────────────
@@ -390,13 +390,6 @@ router.beforeEach(async (to) => {
 function isMobileViewport() {
   if (typeof window === 'undefined') return false
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
-}
-
-function canUseMobileInspectionRole(role: Role | null) {
-  return role === 'EMPLOYEE'
-    || role === 'ASSET_TEAM'
-    || role === 'ASSET_MANAGER'
-    || role === 'ADMIN'
 }
 
 export default router

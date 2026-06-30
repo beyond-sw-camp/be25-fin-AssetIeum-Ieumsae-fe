@@ -6,7 +6,7 @@
         :for="props.id"
       >
         {{ props.label }}
-        <span v-if="props.required" class="text-primary font-bold">*</span>
+        <span v-if="props.required && props.showRequiredIndicator" class="text-primary font-bold">*</span>
       </label>
 
       <span v-if="props.maxlength" class="text-xs text-text-muted">
@@ -39,7 +39,14 @@
         <div class="mb-3 flex items-center justify-between">
           <button
             type="button"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-sub hover:bg-surface-secondary"
+            aria-label="이전 달"
+            :disabled="isPreviousMonthDisabled"
+            :class="[
+              'inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              isPreviousMonthDisabled
+                ? 'cursor-not-allowed text-text-muted/30'
+                : 'text-text-sub hover:bg-surface-secondary',
+            ]"
             @click="moveMonth(-1)"
           >
             <ChevronLeft :size="16" />
@@ -50,13 +57,13 @@
               {{ calendarYear }}년 {{ calendarMonth + 1 }}월
             </p>
 
-            <button
-              type="button"
-              class="w-hug rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-background transition-colors hover:text-primary"
+            <Button
+              variant="outline"
+              size="sm"
               @click="selectToday"
             >
               오늘
-            </button>
+            </Button>
           </div>
 
           <button
@@ -77,11 +84,16 @@
             v-for="day in calendarDays"
             :key="day.key"
             type="button"
+            :disabled="isDateDisabled(day.value)"
             :class="[
               'h-8 rounded-2xl text-xs font-medium transition-colors',
-              day.isCurrentMonth ? 'text-text-main hover:bg-surface-secondary' : 'text-text-muted/50',
-              day.value === props.modelValue && 'bg-primary text-main hover:bg-primary!',
-              day.isToday && day.value !== props.modelValue && 'text-primary'
+              isDateDisabled(day.value)
+                ? 'cursor-not-allowed text-text-muted/25'
+                : day.isCurrentMonth
+                  ? 'text-text-main hover:bg-surface-secondary'
+                  : 'text-text-muted/50 hover:bg-surface-secondary',
+              day.value === props.modelValue && !isDateDisabled(day.value) && 'bg-primary text-white hover:bg-primary!',
+              day.isToday && day.value !== props.modelValue && 'text-primary',
             ]"
             @click="selectDate(day.value)"
           >
@@ -99,6 +111,8 @@
       :placeholder="props.placeholder"
       :autocomplete="props.autocomplete"
       :disabled="props.disabled"
+      :required="props.required"
+      :aria-required="props.required"
       :maxlength="props.maxlength"
       :min="props.min"
       :aria-invalid="props.error"
@@ -122,6 +136,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import Button from './Button.vue'
 
 interface Props {
   id?: string
@@ -129,13 +144,15 @@ interface Props {
   type?: 'text' | 'password' | 'number' | 'tel' | 'date' | 'datetime-local' | 'email'
   label?: string
   required?: boolean
+  showRequiredIndicator?: boolean
   placeholder?: string
   autocomplete?: string
   disabled?: boolean
   error?: boolean
   errorMessage?: string
   maxlength?: number
-  min?: number
+  min?: number | string
+  disablePastMonthNavigation?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -143,6 +160,7 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   label: '',
   required: false,
+  showRequiredIndicator: true,
   placeholder: '',
   autocomplete: 'off',
   disabled: false,
@@ -150,6 +168,7 @@ const props = withDefaults(defineProps<Props>(), {
   errorMessage: '',
   maxlength: undefined,
   min: undefined,
+  disablePastMonthNavigation: false,
 })
 
 const emit = defineEmits<{
@@ -178,6 +197,16 @@ const errorId = computed(() => props.id ? `${props.id}-error` : undefined)
 const dateDisplayValue = computed(() => String(props.modelValue || ''))
 const calendarYear = computed(() => visibleDate.value.getFullYear())
 const calendarMonth = computed(() => visibleDate.value.getMonth())
+const isPreviousMonthDisabled = computed(() => {
+  if (!props.disablePastMonthNavigation || typeof props.min !== 'string') return false
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(props.min)) return false
+
+  const [minimumYear, minimumMonth] = props.min.split('-').map(Number)
+  const minimumMonthDate = new Date(minimumYear, minimumMonth - 1, 1)
+  const previousMonthDate = new Date(calendarYear.value, calendarMonth.value - 1, 1)
+
+  return previousMonthDate < minimumMonthDate
+})
 
 const calendarDays = computed(() => {
   const year = calendarYear.value
@@ -207,10 +236,11 @@ const handleInput = (event: Event) => {
 
   if (props.type === 'number' && props.min !== undefined && value !== '') {
     const numericValue = Number(value)
-    if (Number.isFinite(numericValue) && numericValue < props.min) {
-      const minimumValue = String(props.min)
-      target.value = minimumValue
-      emit('update:modelValue', minimumValue)
+    const minimumValue = Number(props.min)
+    if (Number.isFinite(numericValue) && Number.isFinite(minimumValue) && numericValue < minimumValue) {
+      const normalizedMinimumValue = String(props.min)
+      target.value = normalizedMinimumValue
+      emit('update:modelValue', normalizedMinimumValue)
       return
     }
   }
@@ -219,7 +249,7 @@ const handleInput = (event: Event) => {
 }
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (props.type === 'number' && props.min !== undefined && props.min >= 0 && event.key === '-') {
+  if (props.type === 'number' && props.min !== undefined && Number(props.min) >= 0 && event.key === '-') {
     event.preventDefault()
   }
 }
@@ -236,14 +266,22 @@ const toggleCalendar = async () => {
 }
 
 const moveMonth = (amount: number) => {
+  if (amount < 0 && isPreviousMonthDisabled.value) return
   visibleDate.value = new Date(calendarYear.value, calendarMonth.value + amount, 1)
 }
 
 const selectDate = (value: string) => {
+  if (isDateDisabled(value)) return
   emit('update:modelValue', value)
   isCalendarOpen.value = false
 }
 
+const isDateDisabled = (value: string) => (
+  props.type === 'date'
+  && typeof props.min === 'string'
+  && /^\d{4}-\d{2}-\d{2}$/.test(props.min)
+  && value < props.min
+)
 
 const selectToday = () => {
   const today = new Date()

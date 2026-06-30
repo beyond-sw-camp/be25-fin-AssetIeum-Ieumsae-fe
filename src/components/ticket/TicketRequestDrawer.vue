@@ -576,6 +576,7 @@
           v-model="form.rentalStartDate"
           type="date"
           label="대여 시작일"
+          :min="minimumDate"
           required
           :disabled="isSubmitting"
         />
@@ -584,6 +585,7 @@
           v-model="form.rentalDueDate"
           type="date"
           label="반납 예정일"
+          :min="minimumDate"
           required
           :disabled="isSubmitting"
         />
@@ -595,6 +597,7 @@
         v-model="form.requestedDueDate"
         type="date"
         label="연장 요청 반납일"
+        :min="minimumDate"
         required
         :disabled="isSubmitting"
       />
@@ -684,6 +687,7 @@ import AssetRadioList from '@/components/ticket/AssetRadioList.vue'
 import type { AssetRadioGroup, AssetRadioItem } from '@/components/ticket/AssetRadioList.vue'
 import RequestTypeSelector from '@/components/ticket/RequestTypeSelector.vue'
 import { useAuthStore } from '@/stores'
+import { toDateInputValue as getCurrentDateInputValue } from '@/utils/date'
 import type {
   AssetType,
   ActiveRentalAsset,
@@ -763,6 +767,8 @@ type MemberRecord = Member & {
 const props = defineProps<{
   isOpen: boolean
 }>()
+
+const minimumDate = getCurrentDateInputValue()
 
 const emit = defineEmits<{
   close: []

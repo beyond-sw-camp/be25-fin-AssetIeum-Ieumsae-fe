@@ -1,4 +1,4 @@
-import type { PageResponse } from './common'
+import type { PageResponse, TicketType } from './common'
 
 export type NotificationType =
   | 'TICKET_STATUS_CHANGED'
@@ -26,6 +26,7 @@ export interface ServerNotification {
   content: string
   targetType: NotificationTargetType
   targetId?: string | null
+  ticketType?: TicketType | null
   isRead: boolean
   createdAt: string
 }
