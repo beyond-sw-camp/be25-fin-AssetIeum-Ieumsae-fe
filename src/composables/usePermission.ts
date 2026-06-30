@@ -29,10 +29,6 @@ export function usePermission() {
   // 예산 관리 (최고관리자)
   const canManageBudget = computed(() => canAccessAllPages.value)
 
-
-
-
-  
   // 회사 최고 관리자 전용 기능 여부
   const canManageCompany = computed(() => canAccessAllPages.value)
 
@@ -40,12 +36,12 @@ export function usePermission() {
 
   // 사원 등록, 부서 변경, 퇴사 처리 권한
   const canManageMembers = computed(() =>
-    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value
   )
 
   // 조직도 조회 가능 여부
   const canManageDepartment = computed(() =>
-    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+    canAccessAllPages.value
   )
 
   // 조직도 부서 생성/수정/삭제 가능 여부
@@ -83,7 +79,7 @@ export function usePermission() {
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
-    // 자산 관리 가능 여부 (구매자산팀, 최고관리자)
+  // 자산 관리 가능 여부 (구매자산팀, 최고관리자)
   const canManageAsset = computed(() =>
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )

@@ -57,6 +57,7 @@ const {
   canViewInspection,
   canViewMyInspectionFollowUps,
   canViewLogs,
+  canCreateTicket,
   canManagePlatform,
 } = permission
 
@@ -105,7 +106,7 @@ const navItems = computed(() => {
       icon: Ticket,
       show: canViewMyTickets.value || canManageTickets.value,
       children: [
-        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
+        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canCreateTicket.value },
         { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },
       ],
     },
