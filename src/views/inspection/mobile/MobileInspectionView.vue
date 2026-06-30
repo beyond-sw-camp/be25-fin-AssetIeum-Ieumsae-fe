@@ -51,44 +51,43 @@
             자산 검수
           </h1>
         </div>
-        <Button
-          v-if="authStore.isAuthenticated"
-          variant="outline"
-          size="md"
-          class="shrink-0"
-          @click="handleLogout"
-        >
-          로그아웃
-        </Button>
-        <Button
-          v-else
-          variant="outline"
-          size="md"
-          class="shrink-0"
-          @click="goLogin"
-        >
-          로그인
-        </Button>
-      </div>
-      <p class="w-full mt-2 text-sm leading-relaxed text-text-sub">
-        {{ inspectionGuideText }}
-      </p>
-
-      <div
-        v-if="user"
-        class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-surface-secondary px-3 py-3"
-      >
-        <div class="min-w-0 flex gap-1.5">
-          <p class="truncate text-sm font-bold text-text-main">
-            {{ user.name }}
-          </p>
-          <p class="mt-0.5 text-xs text-text-sub">
-            {{ user.departmentName || '-' }}
-          </p>
+        
+        <div class="flex flex-row items-center gap-2">
+          <div
+            v-if="user"
+            class="flex flex-col items-center gap-0.5 rounded-lg bg-surface-secondary px-3 py-2"
+          >
+            <div class="min-w-0 flex flex-row items-center gap-1">
+              <p class="truncate text-sm font-bold text-text-main">
+                {{ user.name }}
+              </p>
+              <span class="shrink-0 text-xs font-semibold text-main">
+                ({{roleLabel}})
+              </span>
+            </div>
+            <p class="text-xs text-text-sub">
+              {{ user.departmentName || '-' }}
+            </p>
+          </div>
+          <Button
+            v-if="authStore.isAuthenticated"
+            variant="outline"
+            size="md"
+            class="shrink-0"
+            @click="handleLogout"
+          >
+            로그아웃
+          </Button>
+          <Button
+            v-else
+            variant="outline"
+            size="md"
+            class="shrink-0"
+            @click="goLogin"
+          >
+            로그인
+          </Button>
         </div>
-        <span class="shrink-0 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-primary">
-          {{ roleLabel }}
-        </span>
       </div>
 
       <div class="mt-4 grid grid-cols-2 rounded-lg bg-surface-secondary p-1">
@@ -107,8 +106,13 @@
           무형자산
         </button>
       </div>
+      <div>
+        <p class="w-full ml-1 mt-1 text-sm flex justify-start text-text-sub">
+          {{ inspectionGuideText }}
+        </p>
+      </div>
 
-      <div class="mt-4 grid grid-cols-3 gap-2">
+      <div class="mt-3 grid grid-cols-3 gap-2">
         <div class="flex justify-between rounded-lg bg-surface-secondary px-3 py-3">
           <p class="mt-1 text-xs font-semibold text-text-muted">전체</p>
           <p class="text-lg font-bold text-text-main">{{ totalElements }}</p>
@@ -124,7 +128,7 @@
       </div>
     </header>
 
-    <main class="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
+    <main class="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pt-3">
       <div
         v-if="authIssue"
         class="rounded-lg border border-dashed border-border bg-surface px-5 py-12 text-center"
@@ -140,10 +144,10 @@
         </Button>
       </div>
 
-      <div v-else class="min-w-0 overflow-x-hidden bg-background px-4 pb-3">
+      <div v-else class="min-w-0 overflow-x-hidden bg-background pb-3">
         <Button
           v-if="assetType === 'tangible'"
-          class="h-13! w-full"
+          class="h-10! w-full"
           size="lg"
           @click="isScannerOpen = true"
         >
@@ -300,7 +304,7 @@ const respondedCount = computed(() => targets.value.filter((target) => target.is
 const emptyText = computed(() => loadError.value || '배정된 검수 대상 자산이 없습니다.')
 const inspectionGuideText = computed(() => (
   assetType.value === 'tangible'
-    ? 'QR을 스캔하거나 목록에서 자산을 선택해 검수 결과를 등록해주세요.'
+    ? 'QR을 스캔하거나 목록에서 자산을 선택하여 검수 결과를 등록해주세요.'
     : '목록에서 무형자산을 선택해 검수 결과를 등록해주세요.'
 ))
 const isResponseDisabled = computed(() => (
