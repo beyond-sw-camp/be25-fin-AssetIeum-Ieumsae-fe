@@ -82,7 +82,8 @@ import { useRouter } from 'vue-router'
 
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 interface PasswordChangeFormErrors {
   currentPassword: string
@@ -91,6 +92,7 @@ interface PasswordChangeFormErrors {
 }
 
 const auth = useAuthStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 
 const form = reactive({
@@ -139,14 +141,14 @@ async function handlePasswordChange() {
       currentPassword: form.currentPassword,
       newPassword: form.newPassword,
     })
+    notificationStore.success('비밀번호가 변경되었습니다.', '새 비밀번호로 다시 로그인해주세요.')
     await router.replace({
       name: 'Login',
       query: { passwordChanged: 'true' },
     })
   } catch (error: unknown) {
-    errorMessage.value = error instanceof Error
-      ? error.message
-      : '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해주세요.'
+    errorMessage.value = getApiErrorMessage(error, '비밀번호 변경에 실패했습니다.')
+    notificationStore.error('비밀번호 변경 실패', errorMessage.value)
   }
 }
 </script>

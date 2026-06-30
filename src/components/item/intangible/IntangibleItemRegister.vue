@@ -87,6 +87,7 @@ import { computed, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Input from '@/components/common/Input.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
+import { useNotificationStore } from '@/stores'
 import type { IntangibleAssetItemCreateRequest, LicenseType } from '@/types'
 
 interface CategoryGroup {
@@ -110,6 +111,7 @@ const props = defineProps<{
   isOpen: boolean
   initialCategories: CategoryGroup[]
 }>()
+const notificationStore = useNotificationStore()
 
 const emit = defineEmits(['close', 'register-asset'])
 
@@ -155,28 +157,28 @@ const categoryIdByName = computed(() => {
 
 const handleSave = () => {
   if (!formData.value.productName.trim()) {
-    alert('제품명을 입력해주세요.')
+    notificationStore.warning('제품명을 입력해주세요.')
     return
   }
 
   if (!formData.value.vendor.trim()) {
-    alert('제공사를 입력해주세요.')
+    notificationStore.warning('제공사를 입력해주세요.')
     return
   }
 
   if (formData.value.category === '카테고리 선택') {
-    alert('카테고리를 선택해주세요.')
+    notificationStore.warning('카테고리를 선택해주세요.')
     return
   }
 
   const categoryId = categoryIdByName.value.get(formData.value.category)
   if (!categoryId) {
-    alert('카테고리 ID를 찾을 수 없습니다. 카테고리를 다시 선택해주세요.')
+    notificationStore.warning('카테고리를 다시 선택해주세요.', '카테고리 정보를 찾을 수 없습니다.')
     return
   }
 
   if (formData.value.licenseType === '라이선스 유형 선택') {
-    alert('라이선스 유형을 선택해주세요.')
+    notificationStore.warning('라이선스 유형을 선택해주세요.')
     return
   }
 

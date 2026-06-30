@@ -112,16 +112,20 @@
           <Input
             id="intangible-started-at"
             v-model="formData.startedAt"
-            type="datetime-local"
-            label="사용 시작 일시"
+            type="date"
+            label="사용 시작일"
+            :min="minimumDate"
+            disable-past-month-navigation
             :required="requiresAssignmentInfo"
           />
           <!-- 만료 예정일  -->
           <Input
             id="intangible-expired-at"
             v-model="formData.expiredAt"
-            type="datetime-local"
-            label="만료 일시"
+            type="date"
+            :min="minimumDate"
+            disable-past-month-navigation
+            label="만료일"
           />
         </div>
       </section>
@@ -135,17 +139,16 @@
           <Input
             id="intangible-purchase-date"
             v-model="formData.purchaseDate"
-            type="datetime-local"
-            label="구매 일시"
+            type="date"
+            label="구매일"
             required
           />
           <!-- 구매 가격 -->
-          <Input
+          <CurrencyInput
             id="intangible-purchase-price"
             v-model="formData.purchasePrice"
-            type="number"
             label="구매 금액"
-            placeholder="구매 금액 입력"
+            placeholder="0"
             required
           />
           <!-- 구매처 -->
@@ -186,10 +189,17 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type {
   BillingCycle,
@@ -206,6 +216,8 @@ interface AssetItemOption {
   name: string
   licenseType: LicenseType
 }
+
+const notificationStore = useNotificationStore()
 
 interface RegisterForm {
   assetItemName: string
@@ -251,6 +263,8 @@ const props = defineProps<{
   departments: Department[]
   members: Member[]
 }>()
+
+const minimumDate = getCurrentDateInputValue()
 
 const emit = defineEmits<{
   close: []
@@ -451,6 +465,7 @@ const memberBelongsToSelectedDepartment = (member: Member) => {
 const toLocalDateTimeRequestValue = (value: string) => {
   const trimmedValue = value.trim()
   if (!trimmedValue) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) return `${trimmedValue}T00:00:00`
   return trimmedValue.length === 16 ? `${trimmedValue}:00` : trimmedValue
 }
 
@@ -588,8 +603,8 @@ const handleSave = async () => {
     intangibleAssetStatus: members.length > 0 ? 'AVAILABLE' : selectedStatus.value,
     memberId: null,
     departmentId: null,
-    startedAt: toLocalDateTimeRequestValue(formData.value.startedAt),
-    expiredAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
+    startedAt: toFutureLocalDateTimeValue(formData.value.startedAt),
+    expiredAt: toFutureLocalDateTimeValue(formData.value.expiredAt),
     billingCycle: billingCycleValueByLabel[formData.value.billingCycleLabel],
   }
 
@@ -608,7 +623,7 @@ const handleSave = async () => {
       for (const memberId of formData.value.selectedMemberIds) {
         await intangibleAssetApi.assign(createdAssetId, {
           memberId,
-          endedAt: toLocalDateTimeRequestValue(formData.value.expiredAt),
+          endedAt: toFutureLocalDateTimeValue(formData.value.expiredAt),
         })
       }
     }
@@ -623,6 +638,7 @@ const handleSave = async () => {
       ...response.data,
       assignedMemberCount: members.length,
     } as IntangibleAsset)
+    notificationStore.success('무형자산이 등록되었습니다.')
     emit('close')
   } catch (error) {
     const failure = typeof error === 'object' && error !== null
@@ -636,6 +652,10 @@ const handleSave = async () => {
       details: failure.details,
       error,
     })
+    notificationStore.error(
+      '무형자산 등록 실패',
+      getApiErrorMessage(error, '무형자산을 등록하지 못했습니다.'),
+    )
   } finally {
     isSaving.value = false
   }

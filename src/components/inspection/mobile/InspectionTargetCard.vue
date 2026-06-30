@@ -8,30 +8,33 @@
     @click="$emit('select')"
   >
     <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <p class="truncate text-base font-bold text-text-main">
-          {{ target.productName }}
-        </p>
+      <div class="min-w-0 w-full">
+        <div class="flex flex-row justify-between align-top">
+          <p class="truncate text-base font-bold text-text-main">
+            {{ target.productName }}
+          </p>
+          <p class="text-xs text-text-sub">
+            {{ formatDate(target.startDate) }} ~ {{ formatDate(target.endDate) }}
+          </p>
+        </div>
         <p class="mt-1 truncate text-xs text-text-sub">
           {{ target.assetCode }} · {{ target.category }}
         </p>
-        <p v-if="target.memberName !== '-'" class="mt-1 truncate text-xs text-text-sub">
-          대상 사용자 {{ target.memberName }}
-        </p>
-      </div>
-      <div class="flex shrink-0 items-center gap-2">
-        <span :class="inspectionStatusBadgeClass(target.inspectionStatus)">
-          {{ inspectionStatusLabel[target.inspectionStatus] }}
-        </span>
-        <span :class="target.isResponded ? 'badge-success' : 'badge-warning'">
-          {{ target.isResponded ? '응답 완료' : '응답 대기' }}
-        </span>
+        <div class="flex flex-row items-center justify-between">
+          <p v-if="target.memberName !== '-'" class="mt-1 truncate text-xs text-text-sub">
+            대상 사용자 {{ target.memberName }}
+          </p>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <span :class="inspectionStatusBadgeClass(target.inspectionStatus)">
+              {{ inspectionStatusLabel[target.inspectionStatus] }}
+            </span>
+            <span :class="target.isResponded ? 'badge-success' : 'badge-warning'">
+              {{ target.isResponded ? '응답 완료' : '응답 대기' }}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
-
-    <p class="mt-3 text-xs text-text-sub">
-      {{ formatDate(target.startDate) }} ~ {{ formatDate(target.endDate) }}
-    </p>
   </button>
 </template>
 

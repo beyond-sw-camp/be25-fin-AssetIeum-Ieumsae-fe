@@ -26,12 +26,12 @@
               variant="outline"
               :loading="isClosing"
               :disabled="isLoading || displayStatus === 'CLOSED'"
-              @click="closeInspection"
+              @click="isCloseConfirmOpen = true"
             >
               조사 종료
             </Button>
             <span :class="statusBadgeClass(displayStatus)">
-              {{ statusLabel[displayStatus] }}
+              {{ displayStatusLabel }}
             </span>
           </div>
         </div>
@@ -62,7 +62,7 @@
           v-if="displayStatus === 'CLOSED'"
           class="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary"
         >
-          구매자산팀이 임의로 종료한 전수조사입니다.
+          {{ closedNoticeText }}
         </p>
       </div>
 
@@ -175,6 +175,16 @@
       </div>
     </div>
   </BaseDrawer>
+
+  <ConfirmationModal
+    :is-open="isCloseConfirmOpen"
+    title="전수조사 종료"
+    message="이 전수조사를 조건 없이 종료 처리하시겠습니까? 종료 후에는 다시 진행할 수 없습니다."
+    confirm-text="종료 처리"
+    :loading="isClosing"
+    @cancel="isCloseConfirmOpen = false"
+    @confirm="closeInspection"
+  />
 </template>
 
 <script setup lang="ts">
@@ -182,6 +192,7 @@ import { computed, ref, watch } from 'vue'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
@@ -191,6 +202,8 @@ import {
   tangibleInspectionApi,
 } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type { Member } from '@/types/member'
@@ -263,6 +276,7 @@ const statusLabel: Record<InspectionStatus, string> = {
 }
 
 const { canManageInspection, canCloseInspection } = usePermission()
+const notificationStore = useNotificationStore()
 
 const allTabs = [
   { label: '개요', value: 'overview' },
@@ -301,6 +315,7 @@ const members = ref<Member[]>([])
 const assetMemberNames = ref<Map<string, string[]>>(new Map())
 const isLoading = ref(false)
 const isClosing = ref(false)
+const isCloseConfirmOpen = ref(false)
 const errorMessage = ref('')
 const inspectionApi = computed(() => (
   props.assetType === 'intangible'
@@ -369,6 +384,24 @@ const displayStatus = computed<InspectionStatus>(() => resolveInspectionStatus({
   followUpCount: detail.value ? followUpRequiredCount.value : undefined,
 }))
 
+const isCompletedByResponses = computed(() => (
+  detail.value !== null
+  && resultRows.value.length > 0
+  && uninspectedRows.value.length === 0
+))
+
+const displayStatusLabel = computed(() => (
+  displayStatus.value === 'CLOSED' && isCompletedByResponses.value
+    ? '조사 완료'
+    : statusLabel[displayStatus.value]
+))
+
+const closedNoticeText = computed(() => (
+  isCompletedByResponses.value
+    ? '모든 대상 자산의 응답이 완료되어 종료된 전수조사입니다.'
+    : '종료 처리된 전수조사입니다.'
+))
+
 const completionRate = computed(() => {
   const totalCount = resultRows.value.length + uninspectedRows.value.length
   if (totalCount === 0) return 0
@@ -399,7 +432,7 @@ const overviewItems = computed(() => {
     { label: '조사 담당자', value: displayInspectorName.value },
     { label: '조사 대상', value: displayTargetName.value },
     { label: '조사 수행자', value: displayInspectorType.value },
-    { label: '조사 상태', value: statusLabel[displayStatus.value] },
+    { label: '조사 상태', value: displayStatusLabel.value },
     { label: '조사 시작일', value: formatDate(displayStartDate.value) },
     { label: '조사 종료일', value: formatDate(displayEndDate.value) },
   ]
@@ -636,9 +669,6 @@ async function loadEmployeeDetailData() {
 async function closeInspection() {
   if (!props.inspection?.inspectionId || isClosing.value) return
 
-  const shouldClose = window.confirm('이 전수조사를 조건 없이 종료 처리할까요?')
-  if (!shouldClose) return
-
   isClosing.value = true
   errorMessage.value = ''
 
@@ -654,8 +684,11 @@ async function closeInspection() {
       }
     }
     emit('refresh')
-  } catch {
-    errorMessage.value = '전수조사를 종료 처리하지 못했습니다.'
+    isCloseConfirmOpen.value = false
+    notificationStore.success('전수조사가 종료 처리되었습니다.')
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, '전수조사를 종료 처리하지 못했습니다.')
+    notificationStore.error('전수조사 종료 실패', errorMessage.value)
   } finally {
     isClosing.value = false
   }
