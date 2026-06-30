@@ -230,6 +230,7 @@ import Table, { type Column } from '@/components/common/Table.vue'
 import { useAuthStore, useNotificationStore } from '@/stores'
 import type { Department, DropdownOption, Member, TicketListItem } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { toFutureLocalDateTimeValue } from '@/utils/date'
 import type {
   HrEventId,
   HrEventAssetType,
@@ -687,7 +688,7 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
     await hrApi.createEvent({
       memberId: getMemberId(selectedMember),
       eventType: payload.eventType,
-      eventDate: toLocalDateTime(payload.eventDate),
+      eventDate: toFutureLocalDateTimeValue(payload.eventDate) ?? payload.eventDate,
       targetDepartmentId: payload.targetDepartmentId,
       assetTargets: payload.assetTargets,
     })
@@ -1048,10 +1049,6 @@ function getTemplateLabel(value: HrTemplateResponse | null) {
   if (value.name) return value.name
   if (value.departmentName) return `${value.departmentName} HR 템플릿`
   return '우리 부서 HR 템플릿'
-}
-
-function toLocalDateTime(value: string) {
-  return value.includes('T') ? value : `${value}T00:00:00`
 }
 
 function resolveEventDate(value: string) {
