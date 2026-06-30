@@ -114,6 +114,16 @@ function optionalNumber(value: unknown): number | null {
   return null
 }
 
+const PURCHASE_PLAN_STATUS_VALUES: ReadonlySet<PurchasePlanStatus> = new Set([
+  'REQUESTED',
+  'APPROVED',
+  'REJECTED',
+  'ORDERED',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+])
+
 let departments: Department[] = [
   {
     departmentId: ROOT_DEPARTMENT_ID,
@@ -2694,7 +2704,7 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    if (!body.status) {
+    if (!body.status || !PURCHASE_PLAN_STATUS_VALUES.has(body.status)) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'PURCHASE_PLAN_STATUS_REQUIRED',

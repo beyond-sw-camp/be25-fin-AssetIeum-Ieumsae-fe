@@ -78,41 +78,6 @@
                     </span>
                   </div>
                 </div>
-
-                <div
-                  v-if="canChangeStatus && statusActionOptions.length > 0"
-                  class="w-full shrink-0 lg:w-60"
-                >
-                  <div class="mb-1.5 flex items-center justify-between gap-2">
-                    <label
-                      for="purchase-plan-status-selector"
-                      class="text-xs font-semibold text-text-muted"
-                    >
-                      상태 변경
-                    </label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="shrink-0"
-                      :loading="isStatusSaving"
-                      :disabled="!canSaveSelectedStatus"
-                      @click="changeSelectedStatus"
-                    >
-                      <Save :size="14" />
-                      상태 저장
-                    </Button>
-                  </div>
-                  <Dropdown
-                    id="purchase-plan-status-selector"
-                    :model-value="selectedStatusForDropdown"
-                    :options="statusActionOptions"
-                    :disabled="isStatusSaving"
-                    root-option="변경할 상태 선택"
-                    menu-align="right"
-                    aria-label="구매 계획 상태"
-                    @update:model-value="handleStatusSelect"
-                  />
-                </div>
               </header>
 
               <div class="space-y-4">
@@ -229,7 +194,7 @@
                           {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
                         </span>
                         <Button
-                          v-if="canChangeStatus"
+                          v-if="canManagePurchasePlan"
                           variant="outline"
                           size="sm"
                           class="whitespace-nowrap text-xs"
@@ -761,7 +726,7 @@
             <div v-else class="max-h-75 overflow-y-auto overflow-x-auto rounded-xl border border-border">
               <div class="min-w-205">
                 <div
-                  class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
+                  class="grid grid-cols-[120px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
                 >
                   <span>출처</span>
                   <span>품목</span>
@@ -774,18 +739,27 @@
                 <div
                   v-for="item in planRequestItems"
                   :key="item.id"
-                  class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] items-center gap-3 border-t border-border px-4 py-3 text-sm"
+                  class="grid grid-cols-[120px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] items-center gap-3 border-t border-border px-4 py-3 text-sm"
                 >
-                  <span
-                    :class="[
-                      'inline-flex w-fit rounded-full px-2 py-1 text-xs font-bold',
-                      item.source === 'ticket'
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-success/10 text-success',
-                    ]"
-                  >
-                    {{ item.sourceLabel }}
-                  </span>
+                  <div class="min-w-0">
+                    <span
+                      :class="[
+                        'inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-bold',
+                        item.source === 'ticket'
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-success/10 text-success',
+                      ]"
+                    >
+                      {{ item.sourceLabel }}
+                    </span>
+                    <span
+                      v-if="item.sourceDetail"
+                      class="mt-1 block truncate text-xs font-semibold text-text-muted"
+                      :title="item.sourceDetail"
+                    >
+                      {{ item.sourceDetail }}
+                    </span>
+                  </div>
                   <span
                     class="truncate font-semibold text-text-main"
                     :title="item.itemName"
@@ -840,7 +814,6 @@
       </div>
     </BaseDrawer>
 
-    <!-- 자산 등록 패널 -->
     <BaseDrawer
       :is-open="isActualAmountDrawerOpen"
       title="실제 결제금액 등록"
@@ -1061,7 +1034,6 @@ import {
   Plus,
   RefreshCw,
   ReceiptText,
-  Save,
   Search,
   ShoppingCart,
   Trash2,
@@ -1142,6 +1114,7 @@ interface PlanRequestItem {
   id: string;
   source: "ticket" | "direct";
   sourceLabel: string;
+  sourceDetail?: string;
   itemName: string;
   categoryName: string;
   assetType: AssetType;
@@ -1206,29 +1179,6 @@ const LICENSE_TYPE_OPTIONS: DropdownOption[] = [
 
 const STATUS_FILTER_OPTIONS: DropdownOption[] = [
   { label: "전체 상태", value: "" },
-  { label: "승인 대기", value: "REQUESTED" },
-  { label: "승인", value: "APPROVED" },
-  { label: "반려", value: "REJECTED" },
-  { label: "발주", value: "ORDERED" },
-  { label: "납품 확인", value: "DELIVERED" },
-  { label: "완료", value: "COMPLETED" },
-  { label: "취소", value: "CANCELLED" },
-];
-
-const PURCHASE_PLAN_STATUS_TRANSITIONS: Record<
-  PurchasePlanStatus,
-  PurchasePlanStatus[]
-> = {
-  REQUESTED: ["APPROVED", "REJECTED", "CANCELLED"],
-  APPROVED: ["ORDERED"],
-  ORDERED: ["DELIVERED"],
-  DELIVERED: ["COMPLETED"],
-  REJECTED: [],
-  COMPLETED: [],
-  CANCELLED: [],
-};
-
-const STATUS_ALL_OPTIONS: DropdownOption[] = [
   { label: "승인 대기", value: "REQUESTED" },
   { label: "승인", value: "APPROVED" },
   { label: "반려", value: "REJECTED" },
@@ -1307,7 +1257,7 @@ const { hasRole } = usePermission();
 const route = useRoute();
 const router = useRouter();
 const notificationStore = useNotificationStore();
-const canChangeStatus = computed(() =>
+const canManagePurchasePlan = computed(() =>
   hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
 );
 const canCreatePurchasePlan = computed(() =>
@@ -1339,7 +1289,6 @@ const selectedPlanId = ref<number | string | null>(null);
 const selectedPlan = ref<PurchasePlanDetail | null>(null);
 const isDetailLoading = ref(false);
 const detailError = ref("");
-const nextStatus = ref<PurchasePlanStatus | "">("");
 const isStatusSaving = ref(false);
 const pendingReviewStatus = ref<PurchasePlanStatus | null>(null);
 const isConfirmingItem = ref<number | string | null>(null);
@@ -1484,7 +1433,8 @@ const planRequestItems = computed<PlanRequestItem[]>(() => [
     .map((item) => ({
       id: `ticket-${item.ticketId}`,
       source: "ticket" as const,
-      sourceLabel: item.ticket.ticketNo,
+      sourceLabel: "티켓 요청",
+      sourceDetail: item.ticket.ticketNo,
       itemName: item.itemName,
       categoryName: item.categoryName,
       assetType: item.assetType!,
@@ -1511,35 +1461,8 @@ const selectedEstimatedAmount = computed(() =>
   planRequestItems.value.reduce((sum, item) => sum + item.estimatedAmount, 0),
 );
 
-const selectedStatusForDropdown = computed(() => {
-  if (nextStatus.value) return nextStatus.value;
-  return "";
-});
-
-const canSaveSelectedStatus = computed(() => {
-  if (!selectedPlan.value || !nextStatus.value || isStatusSaving.value)
-    return false;
-  return nextStatus.value !== displayPlanStatus(selectedPlan.value);
-});
-
-const statusActionOptions = computed<DropdownOption[]>(() => {
-  if (!selectedPlan.value) return [];
-  const currentStatus = displayPlanStatus(selectedPlan.value);
-  const allowedNextStatuses =
-    PURCHASE_PLAN_STATUS_TRANSITIONS[currentStatus] ?? [];
-  return STATUS_ALL_OPTIONS
-    .filter((opt) =>
-      allowedNextStatuses.includes(opt.value as PurchasePlanStatus),
-    )
-    .map((option) =>
-      currentStatus === "ORDERED" && option.value === "DELIVERED"
-        ? { ...option, label: "실제 결제금액 등록" }
-        : option,
-    );
-});
-
 const footerStatusActions = computed<FooterStatusAction[]>(() => {
-  if (!selectedPlan.value || !canChangeStatus.value) return [];
+  if (!selectedPlan.value || !canManagePurchasePlan.value) return [];
 
   const currentStatus = displayPlanStatus(selectedPlan.value);
 
@@ -1741,7 +1664,6 @@ watch(
       selectedPlanId.value = null;
       selectedPlan.value = null;
       detailError.value = "";
-      nextStatus.value = "";
       return;
     }
 
@@ -1877,7 +1799,6 @@ async function fetchPlanDetail(planId: number | string) {
   try {
     const response = await purchaseApi.getPlanDetail(planId);
     selectedPlan.value = response.data;
-    nextStatus.value = "";
   } catch (error) {
     detailError.value = getErrorMessage(
       error,
@@ -2168,10 +2089,6 @@ function handleEligibleTicketRowClick(request: EligibleTicket) {
   toggleTicketSelection(request.ticketId);
 }
 
-function handleStatusSelect(value: string | number) {
-  nextStatus.value = toStatusOption(value);
-}
-
 function handleDirectCategoryChange(value: string | number) {
   const categoryId = String(value);
   directItemForm.value.categoryId = categoryId;
@@ -2354,11 +2271,6 @@ async function handleFooterAction(action: FooterStatusAction) {
   }
 }
 
-function changeSelectedStatus() {
-  if (!nextStatus.value) return;
-  void reviewPlan(nextStatus.value);
-}
-
 async function changeStatus(status: PurchasePlanStatus) {
   if (!selectedPlanId.value) return false;
   isStatusSaving.value = true;
@@ -2367,7 +2279,6 @@ async function changeStatus(status: PurchasePlanStatus) {
     await purchaseApi.changePlanStatus(selectedPlanId.value, {
       status,
     });
-    nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
     notificationStore.success("구매 계획 상태가 변경되었습니다.");
@@ -2414,7 +2325,6 @@ async function submitActualAmount() {
     await purchaseApi.changePlanStatus(selectedPlanId.value, {
       status: "DELIVERED",
     });
-    nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
     isActualAmountDrawerOpen.value = false;
@@ -2496,7 +2406,7 @@ async function confirmDelivery(item: PurchasePlanItem) {
 
 function canConfirmDelivery(item: PurchasePlanItem) {
   if (
-    !canChangeStatus.value ||
+    !canManagePurchasePlan.value ||
     getPurchasePlanItemId(item) == null ||
     isPurchaseItemDeliverySettled(item)
   )
