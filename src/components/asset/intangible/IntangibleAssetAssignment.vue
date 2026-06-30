@@ -108,8 +108,10 @@
           <Input
             id="intangible-assignment-ended-at"
             v-model="endedAt"
-            type="datetime-local"
-            label="사용 종료 예정 일시"
+            type="date"
+            :min="minimumDate"
+            disable-past-month-navigation
+            label="사용 종료 예정일"
           />
         </div>
       </section>
@@ -186,7 +188,16 @@ import {
   type IntangibleAssetAssignmentResponse,
 } from '@/api/asset.api'
 import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import type { Department, IntangibleAsset, Member } from '@/types'
+
+const minimumDate = getCurrentDateInputValue()
+const notificationStore = useNotificationStore()
 
 type AssignmentMode = 'assign' | 'cancel'
 
@@ -682,8 +693,7 @@ const selectedAssetInfo = computed(() => ({
 }))
 
 const toServerDateTime = (value: string) => {
-  if (!value) return null
-  return value.length === 16 ? `${value}:00` : value
+  return toFutureLocalDateTimeValue(value)
 }
 
 const addSelectedMember = () => {
@@ -831,10 +841,12 @@ const submit = async () => {
     }
 
     emit('assigned')
+    notificationStore.success(mode.value === 'assign' ? '무형자산이 배정되었습니다.' : '무형자산 배정이 해지되었습니다.')
     resetForm()
   } catch (error) {
     console.error('무형자산 배정 처리 실패', error)
-    errorMessage.value = '무형자산 배정 처리 중 오류가 발생했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '무형자산 배정 처리를 완료하지 못했습니다.')
+    notificationStore.error('무형자산 배정 처리 실패', errorMessage.value)
   } finally {
     isSubmitting.value = false
   }

@@ -18,6 +18,15 @@ interface RefreshResponse {
   accessToken: string
 }
 
+const UNSAFE_SERVER_MESSAGE_PATTERN = /(sql|jdbc|hibernate|database|db\s|constraint|relation|table|column|stack|trace|exception|java\.|org\.|com\.|select\s|insert\s|update\s|delete\s+from|데이터베이스|테이블|컬럼)/i
+
+function safeServerMessage(message: unknown) {
+  if (typeof message !== 'string') return null
+  const normalizedMessage = message.trim()
+  if (!normalizedMessage || UNSAFE_SERVER_MESSAGE_PATTERN.test(normalizedMessage)) return null
+  return normalizedMessage
+}
+
 function isPublicAuthRequest(url?: string) {
   return url === '/auth/login' || url === '/auth/reissue'
 }
@@ -125,9 +134,8 @@ httpClient.interceptors.response.use(
     }
 
     const responseBody = error.response?.data
-    const message = responseBody?.message
-      ?? error.message
-      ?? '서버 요청 중 오류가 발생했습니다.'
+    const message = safeServerMessage(responseBody?.message)
+      ?? '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.'
 
     return Promise.reject(new ApiError(message, {
       status: error.response?.status ?? null,

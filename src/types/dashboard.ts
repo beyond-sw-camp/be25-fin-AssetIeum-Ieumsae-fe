@@ -49,6 +49,8 @@ export interface OwnedAssetDetail {
   dayCount?: number | null
   dayStatusLabel?: string | null
   overdueDays?: number | null
+  availableCount?: number | null
+  totalCount?: number | null
 }
 
 export interface ExpiringAssetDetail {

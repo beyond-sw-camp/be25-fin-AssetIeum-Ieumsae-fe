@@ -96,14 +96,16 @@ import InspectionFollowUpPanel, {
   type InspectionFollowUpPanelRow,
 } from '@/components/inspection/common/InspectionFollowUpPanel.vue'
 import { inspectionFollowUpApi } from '@/api'
-import { ApiError } from '@/api/client'
+import { useNotificationStore } from '@/stores'
 import type { DropdownOption } from '@/types'
+import { getApiErrorMessage } from '@/utils/apiError'
 import type {
   InspectionFollowUpSearchResponse,
   InspectionFollowUpStatus,
 } from '@/types/inspection'
 
 const followUps = ref<InspectionFollowUpSearchResponse[]>([])
+const notificationStore = useNotificationStore()
 const statusFilter = ref('')
 const keyword = ref('')
 const appliedKeyword = ref('')
@@ -174,9 +176,7 @@ async function loadFollowUps() {
     followUps.value = []
     totalElements.value = 0
     totalPages.value = 0
-    loadError.value = error instanceof ApiError
-      ? error.message
-      : '후속처리 목록을 불러오지 못했습니다.'
+    loadError.value = getApiErrorMessage(error, '후속처리 목록을 불러오지 못했습니다.')
   } finally {
     isLoading.value = false
   }
@@ -217,10 +217,10 @@ async function submitFollowUpStatus(
   try {
     await inspectionFollowUpApi.updateFollowUpStatus(row.followUpId, draft)
     await loadFollowUps()
+    notificationStore.success('후속처리 상태가 변경되었습니다.')
   } catch (error) {
-    loadError.value = error instanceof ApiError
-      ? error.message
-      : '후속처리 상태를 변경하지 못했습니다.'
+    loadError.value = getApiErrorMessage(error, '후속처리 상태를 변경하지 못했습니다.')
+    notificationStore.error('후속처리 상태 변경 실패', loadError.value)
   } finally {
     submittingFollowUpId.value = ''
   }

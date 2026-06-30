@@ -153,15 +153,27 @@
       </div>
     </template>
   </BaseDrawer>
+
+  <ConfirmationModal
+    :is-open="Boolean(mainCategoryToDelete)"
+    title="대분류 삭제"
+    :message="`'${mainCategoryToDelete}' 대분류와 하위 중분류 목록을 함께 삭제하시겠습니까?`"
+    confirm-text="삭제"
+    :loading="isSaving"
+    @cancel="mainCategoryToDelete = ''"
+    @confirm="confirmDeleteMainCategory"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Button from '@/components/common/Button.vue';
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import { Minus } from 'lucide-vue-next';
 import { tangibleItemApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
 
 interface CategoryGroup {
   categoryId?: string;
@@ -178,6 +190,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'changed']);
+const notificationStore = useNotificationStore();
 
 const localGroups = ref<CategoryGroup[]>([]);
 const initialGroups = ref<CategoryGroup[]>([]);
@@ -186,6 +199,7 @@ const selectedMainCategory = ref('');
 const selectedMiddleCategory = ref('');
 const newCategoryName = ref('');
 const isSaving = ref(false);
+const mainCategoryToDelete = ref('');
 
 const cloneGroups = (groups: CategoryGroup[]) => (
   groups.map((group) => ({
@@ -282,7 +296,7 @@ const handleMiddleCategoryChange = (value: string | number) => {
 
 const deleteCategory = async (categoryId: string) => {
   if (!categoryId) {
-    alert('카테고리 ID를 찾을 수 없어 삭제할 수 없습니다.');
+    notificationStore.warning('카테고리를 삭제할 수 없습니다.', '카테고리 ID를 찾을 수 없습니다.');
     return false;
   }
 
@@ -301,7 +315,7 @@ const addCategory = async () => {
   try {
     if (addMode.value === 'main') {
     if (localGroups.value.some((group) => group.mainCategory === trimmedName)) {
-      alert('이미 존재하는 대분류명입니다.');
+      notificationStore.warning('이미 존재하는 대분류명입니다.');
       return;
     }
     const categoryId = await createCategory(trimmedName, null);
@@ -318,17 +332,17 @@ const addCategory = async () => {
     selectedMainCategory.value = trimmedName;
   } else if (addMode.value === 'sub') {
     if (trimmedName.endsWith(' - 전체')) {
-      alert('" - 전체"로 끝나는 이름은 중분류로 사용할 수 없습니다.');
+      notificationStore.warning('" - 전체"로 끝나는 이름은 중분류로 사용할 수 없습니다.');
       return;
     }
 
     const group = localGroups.value.find((item) => item.mainCategory === selectedMainCategory.value);
     if (!group) {
-      alert('선택된 대분류를 찾을 수 없습니다.');
+      notificationStore.warning('선택된 대분류를 찾을 수 없습니다.');
       return;
     }
     if (group.subCategories.includes(trimmedName)) {
-      alert('해당 대분류 내에 이미 존재하는 중분류명입니다.');
+      notificationStore.warning('해당 대분류 내에 이미 존재하는 중분류명입니다.');
       return;
     }
     const categoryId = await createCategory(trimmedName, group.categoryId ?? null);
@@ -346,21 +360,21 @@ const addCategory = async () => {
     selectedMiddleCategory.value = trimmedName;
   } else {
     if (trimmedName.endsWith(' - 전체')) {
-      alert('" - 전체"로 끝나는 이름은 소분류로 사용할 수 없습니다.');
+      notificationStore.warning('" - 전체"로 끝나는 이름은 소분류로 사용할 수 없습니다.');
       return;
     }
 
     const group = selectedGroup.value;
     if (!group) {
-      alert('선택된 대분류를 찾을 수 없습니다.');
+      notificationStore.warning('선택된 대분류를 찾을 수 없습니다.');
       return;
     }
     if (!selectedMiddleCategory.value) {
-      alert('중분류를 선택해주세요.');
+      notificationStore.warning('중분류를 선택해주세요.');
       return;
     }
     if (group.subCategories.includes(trimmedName)) {
-      alert('해당 대분류 내에 이미 존재하는 카테고리명입니다.');
+      notificationStore.warning('해당 대분류 내에 이미 존재하는 카테고리명입니다.');
       return;
     }
     const parentId = group.subCategoryIds?.[selectedMiddleCategory.value] ?? '';
@@ -384,20 +398,23 @@ const addCategory = async () => {
   newCategoryName.value = '';
   initialGroups.value = cloneGroups(localGroups.value);
   emit('changed');
+  notificationStore.success('카테고리가 등록되었습니다.');
   } catch (error) {
     console.error(error);
-    alert('카테고리 등록 중 오류가 발생했습니다.');
+    notificationStore.error('카테고리 등록 실패', '다시 시도해주세요.');
   } finally {
     isSaving.value = false;
   }
 };
 
-const deleteMainCategory = async (mainCategory: string) => {
+const deleteMainCategory = (mainCategory: string) => {
   if (isSaving.value) return;
+  mainCategoryToDelete.value = mainCategory;
+};
 
-  if (!confirm(`"${mainCategory}" 대분류를 삭제하시겠습니까?\n하위 중분류 목록도 함께 삭제됩니다.`)) {
-    return;
-  }
+const confirmDeleteMainCategory = async () => {
+  const mainCategory = mainCategoryToDelete.value;
+  if (!mainCategory || isSaving.value) return;
 
   const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
   if (!group) return;
@@ -419,11 +436,13 @@ const deleteMainCategory = async (mainCategory: string) => {
   selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
   initialGroups.value = cloneGroups(localGroups.value);
   emit('changed');
+  notificationStore.success('카테고리가 삭제되었습니다.');
   } catch (error) {
     console.error(error);
-    alert('카테고리 삭제 중 오류가 발생했습니다.');
+    notificationStore.error('카테고리 삭제 실패', '다시 시도해주세요.');
   } finally {
     isSaving.value = false;
+    mainCategoryToDelete.value = '';
   }
 };
 
@@ -452,9 +471,10 @@ const deleteSubCategory = async (mainCategory: string, subCategory: string) => {
   selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
   initialGroups.value = cloneGroups(localGroups.value);
   emit('changed');
+  notificationStore.success('카테고리가 삭제되었습니다.');
   } catch (error) {
     console.error(error);
-    alert('카테고리 삭제 중 오류가 발생했습니다.');
+    notificationStore.error('카테고리 삭제 실패', '다시 시도해주세요.');
   } finally {
     isSaving.value = false;
   }
@@ -481,9 +501,10 @@ const deleteSmallCategory = async (mainCategory: string, middleCategory: string,
   }
   initialGroups.value = cloneGroups(localGroups.value);
   emit('changed');
+  notificationStore.success('카테고리가 삭제되었습니다.');
   } catch (error) {
     console.error(error);
-    alert('카테고리 삭제 중 오류가 발생했습니다.');
+    notificationStore.error('카테고리 삭제 실패', '다시 시도해주세요.');
   } finally {
     isSaving.value = false;
   }
@@ -501,6 +522,7 @@ watch(
 
     localGroups.value = [];
     initialGroups.value = [];
+    mainCategoryToDelete.value = '';
     resetAddControls();
   }
 );

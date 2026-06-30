@@ -236,6 +236,16 @@
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :is-open="Boolean(itemToDelete)"
+    title="무형자산 품목 삭제"
+    :message="`'${itemToDelete?.productName ?? ''}' 품목을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다.`"
+    confirm-text="삭제"
+    :loading="isDeletingItem"
+    @cancel="itemToDelete = null"
+    @confirm="confirmDeleteAsset"
+  />
 </template>
 
 <script setup lang="ts">
@@ -245,6 +255,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import { Edit, Plus, Upload, Search, Trash2 } from 'lucide-vue-next'
 import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
@@ -363,6 +374,8 @@ const isRegisterDrawerOpen = ref(false)
 const isEditDrawerOpen = ref(false)
 const isSavingItem = ref(false)
 const selectedItem = ref<IntangibleItem | null>(null)
+const itemToDelete = ref<IntangibleItem | null>(null)
+const isDeletingItem = ref(false)
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 
@@ -434,12 +447,12 @@ const handleCategoryUpdate = (updatedGroups: SoftwareTypeGroup[]) => {
 const handleRegisterAsset = async (newAsset: IntangibleAssetItemCreateRequest) => {
   try {
     await intangibleItemApi.create(newAsset)
-    alert('성공적으로 등록되었습니다.')
+    notificationStore.success('무형자산 품목이 등록되었습니다.')
     isRegisterDrawerOpen.value = false
     handleSearch()
   } catch (error) {
     console.error('무형자산 품목 등록 실패', error)
-    alert('자산 등록 중 오류가 발생했습니다.')
+    notificationStore.error('무형자산 품목 등록 실패', '다시 시도해주세요.')
   }
 }
 
@@ -643,12 +656,14 @@ const handleUpdateItem = async () => {
   const itemId = selectedItem.value ? itemIdOf(selectedItem.value) : ''
   if (!itemId) {
     console.error('무형자산 품목 수정에 필요한 품목 ID가 없습니다.', selectedItem.value)
+    notificationStore.warning('수정할 품목 정보를 찾을 수 없습니다.')
     return
   }
 
   const categoryId = itemEditForm.value.categoryId || categoryIdByName(itemEditForm.value.category)
   if (itemEditForm.value.category === '카테고리 선택' || !categoryId) {
     console.error('무형자산 품목 수정에 필요한 카테고리 ID가 없습니다.', itemEditForm.value)
+    notificationStore.warning('카테고리를 선택해주세요.')
     return
   }
 
@@ -658,6 +673,7 @@ const handleUpdateItem = async () => {
     itemEditForm.value.licenseType === '라이선스 유형 선택'
   ) {
     console.error('무형자산 품목 수정 필수값이 비어 있습니다.', itemEditForm.value)
+    notificationStore.warning('필수 항목을 입력해주세요.')
     return
   }
 
@@ -679,32 +695,43 @@ const handleUpdateItem = async () => {
 
     await intangibleItemApi.update(itemId, updatePayload)
     await loadServerData()
+    notificationStore.success('무형자산 품목이 수정되었습니다.')
     closeItemEdit()
   } catch (error) {
     console.error('무형자산 품목 수정 실패', error)
+    notificationStore.error('무형자산 품목 수정 실패', '다시 시도해주세요.')
   } finally {
     isSavingItem.value = false
   }
 }
 
-const handleDeleteAsset = async (row: IntangibleItem) => {
+const handleDeleteAsset = (row: IntangibleItem) => {
   const itemId = itemIdOf(row)
 
   if (!itemId) {
     console.error('무형자산 품목 삭제에 필요한 품목 ID가 없습니다.', row)
+    notificationStore.warning('삭제할 품목 정보를 찾을 수 없습니다.')
     return
   }
+  itemToDelete.value = row
+}
 
-  if (!confirm('선택한 품목을 삭제하시겠습니까?')) {
-    return
-  }
+const confirmDeleteAsset = async () => {
+  const row = itemToDelete.value
+  const itemId = row ? itemIdOf(row) : ''
+  if (!itemId || isDeletingItem.value) return
 
+  isDeletingItem.value = true
   try {
     await intangibleItemApi.delete(itemId)
+    notificationStore.success('무형자산 품목이 삭제되었습니다.')
     handleSearch()
   } catch (error) {
     console.error(error)
-    alert('자산 삭제 중 오류가 발생했습니다.')
+    notificationStore.error('무형자산 품목 삭제 실패', '다시 시도해주세요.')
+  } finally {
+    isDeletingItem.value = false
+    itemToDelete.value = null
   }
 }
 

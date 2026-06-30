@@ -39,8 +39,8 @@
             <Dropdown v-model="assetEditForm.usageType" :options="usageTypeOptions" disabled />
           </FormField>
           <Input id="edit-location" v-model="assetEditForm.location" label="위치" placeholder="위치 입력" required :disabled="!canUpdateAsset" />
-          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="datetime-local" label="사용 시작 일시" :required="requiresAssignmentInfo" :disabled="!canUpdateAsset" />
-          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="datetime-local" label="반납 예정 일시" :disabled="!canUpdateAsset" />
+          <Input id="edit-startedAt" v-model="assetEditForm.startedAt" type="date" label="사용 시작일" :min="minimumDate" disable-past-month-navigation :required="requiresAssignmentInfo" :disabled="!canUpdateAsset" />
+          <Input id="edit-returnDueDate" v-model="assetEditForm.returnDueDate" type="date" label="반납 예정일" :min="minimumDate" disable-past-month-navigation :disabled="!canUpdateAsset" />
           <Input id="edit-department" v-model="assetEditForm.departmentName" label="부서" disabled />
           <Input id="edit-member" v-model="assetEditForm.memberName" label="사용자" disabled />
         </div>
@@ -51,10 +51,10 @@
           구매 정보
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input id="edit-purchaseDate" v-model="assetEditForm.purchaseDate" type="datetime-local" label="구매 일시" disabled />
-          <Input id="edit-purchasePrice" v-model="assetEditForm.purchasePrice" label="구매 금액" placeholder="구매 금액 입력" disabled />
+          <Input id="edit-purchaseDate" v-model="assetEditForm.purchaseDate" type="date" label="구매일" disabled />
+          <CurrencyInput id="edit-purchasePrice" v-model="assetEditForm.purchasePrice" label="구매 금액" disabled />
           <Input id="edit-vendor" v-model="assetEditForm.vendor" label="구매처" placeholder="구매처 입력" disabled />
-          <Input id="edit-warrantyExpiredAt" v-model="assetEditForm.warrantyExpiredAt" type="datetime-local" label="보증 만료 일시" disabled />
+          <Input id="edit-warrantyExpiredAt" v-model="assetEditForm.warrantyExpiredAt" type="date" label="보증 만료일" disabled />
         </div>
       </section>
     </div>
@@ -88,9 +88,15 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import CurrencyInput from '@/components/common/CurrencyInput.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { tangibleAssetApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import {
+  toDateInputValue as getCurrentDateInputValue,
+  toFutureLocalDateTimeValue,
+} from '@/utils/date'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import QrcodeVue from 'qrcode.vue'
 import type {
@@ -146,6 +152,9 @@ interface MemberAliases extends Member {
 }
 
 const { canUpdateAsset } = usePermission()
+const notificationStore = useNotificationStore()
+
+const minimumDate = getCurrentDateInputValue()
 
 const props = defineProps<{
   isOpen: boolean
@@ -388,15 +397,13 @@ const usageTypeValue = (): TangibleAssetUsageType | null => {
   return null
 }
 
-const toDateTimeInputValue = (value: string | null | undefined) => {
+const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`
-  return value.slice(0, 16)
+  return value.slice(0, 10)
 }
 
 const nullableDateTime = (value: string) => {
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
+  return toFutureLocalDateTimeValue(value)
 }
 
 const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
@@ -417,17 +424,17 @@ const toAssetEditForm = (asset: TangibleAssetDetail): AssetEditForm => {
     assetUsageType: asset.assetUsageType ?? (displayMemberName ? '개인자산' : '공용자산'),
     usageType: usageTypeLabel(asset),
     location: asset.location ?? '',
-    startedAt: toDateTimeInputValue(asset.startedAt ?? asset.usedStartedAt),
-    returnDueDate: toDateTimeInputValue(asset.returnDueDate),
+    startedAt: toDateInputValue(asset.startedAt ?? asset.usedStartedAt),
+    returnDueDate: toDateInputValue(asset.returnDueDate),
     departmentId: assignedDepartment?.departmentId ?? asset.departmentId ?? null,
     departmentName: assignedDepartment?.name ?? asset.departmentName ?? '-',
     memberName: displayMemberName
       ? `${displayMemberName}${assignedMember ? `(${getMemberNo(assignedMember)})` : ''}`
       : '-',
-    purchaseDate: toDateTimeInputValue(asset.purchaseDate),
+    purchaseDate: toDateInputValue(asset.purchaseDate),
     purchasePrice: asset.purchasePrice ? String(asset.purchasePrice) : '',
     vendor: asset.vendor ?? asset.purchaseVendor ?? '',
-    warrantyExpiredAt: toDateTimeInputValue(asset.warrantyExpiredAt),
+    warrantyExpiredAt: toDateInputValue(asset.warrantyExpiredAt),
   }
 }
 
@@ -488,7 +495,7 @@ const handleUpdateAsset = async () => {
   }
 
   if (!assetEditForm.value.location.trim()) {
-    alert('위치를 입력해주세요.')
+    notificationStore.warning('위치를 입력해주세요.')
     return
   }
 
@@ -506,7 +513,7 @@ const handleUpdateAsset = async () => {
       : null
 
   if (nextStatus === 'IN_USE' && initialStatus !== nextStatus && !assetEditForm.value.startedAt.trim()) {
-    alert('사용 중 자산은 사용 시작일이 필요합니다.')
+    notificationStore.warning('사용 중 자산은 사용 시작일이 필요합니다.')
     return
   }
 
@@ -549,9 +556,11 @@ const handleUpdateAsset = async () => {
     }
 
     emit('saved')
+    notificationStore.success('유형자산 정보가 수정되었습니다.')
     emit('close')
   } catch (error) {
     console.error('유형자산 수정 실패', error)
+    notificationStore.error('유형자산 수정 실패', '다시 시도해주세요.')
   } finally {
     isSavingAsset.value = false
   }

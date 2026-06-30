@@ -153,8 +153,10 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
+import { useNotificationStore } from '@/stores'
 import type { DropdownOption, HrTemplateAssetType, IntangibleItem, TangibleAssetItem } from '@/types'
 import type { HrTemplateCreateRequest, HrTemplateId } from '@/types/hr'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 interface TemplateItemForm {
   rowId: string
@@ -184,6 +186,7 @@ const draftItem = ref<TemplateItemForm>(createItemRow())
 const items = ref<TemplateItemForm[]>([])
 const isSaving = ref(false)
 const errorMessage = ref('')
+const notificationStore = useNotificationStore()
 
 const emit = defineEmits<{
   close: []
@@ -279,13 +282,19 @@ const handleRegister = async () => {
 
   try {
     const response = await hrApi.createTemplate(payload)
+    notificationStore.success(props.templateId ? '입사 템플릿이 수정되었습니다.' : '입사 템플릿이 등록되었습니다.')
     emit('registered', response.data.updatedAt ?? new Date().toISOString())
     handleClose()
   } catch (error) {
     console.error('HR 템플릿 등록 실패', error)
-    errorMessage.value = props.templateId
-      ? '템플릿을 수정하지 못했습니다.'
-      : '템플릿을 등록하지 못했습니다.'
+    errorMessage.value = getApiErrorMessage(
+      error,
+      props.templateId ? '템플릿을 수정하지 못했습니다.' : '템플릿을 등록하지 못했습니다.',
+    )
+    notificationStore.error(
+      props.templateId ? '입사 템플릿 수정 실패' : '입사 템플릿 등록 실패',
+      errorMessage.value,
+    )
   } finally {
     isSaving.value = false
   }
