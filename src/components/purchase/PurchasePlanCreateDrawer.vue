@@ -33,7 +33,7 @@
           :rows="eligibleTickets"
           row-key="ticketId"
           empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
-          class="max-h-100 max-w-full align-center overflow-y-auto rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
+          class="max-h-100 max-w-full overflow-y-auto rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
           @row-click="emit('eligible-row-click', $event)"
         >
           <template #cell-select="{ row }">
@@ -42,7 +42,7 @@
               :aria-checked="selectedTicketIds.includes(row.ticketId)"
               :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
               :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
-              class="mx-auto flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-200"
+              class="flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-200"
               :class="[
                 selectedTicketIds.includes(row.ticketId)
                   ? 'border-primary bg-primary text-white shadow-sm'
