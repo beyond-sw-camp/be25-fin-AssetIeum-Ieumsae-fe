@@ -1625,6 +1625,19 @@ function detailErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '티켓 상세 정보를 불러오지 못했습니다.'
 }
 
+function ticketStatusChangeErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 400) {
+      return '현재 선택한 상태로는 변경할 수 없습니다. 티켓의 현재 상태와 처리 단계를 확인해주세요.'
+    }
+    if (error.status === 403) return '이 티켓의 상태를 변경할 권한이 없습니다.'
+    if (error.status === 404) return '상태를 변경할 티켓을 찾을 수 없습니다.'
+    if (error.status === 409) return '현재 티켓 상태에서는 선택한 상태로 변경할 수 없습니다.'
+  }
+
+  return '티켓 상태를 변경하지 못했습니다. 잠시 후 다시 시도해주세요.'
+}
+
 async function loadTicketDetail() {
   if (!props.ticketId) {
     ticket.value = null
@@ -1982,7 +1995,7 @@ async function handleChangeStatus() {
     await reloadAfterAction()
     notificationStore.success('티켓 상태가 변경되었습니다.')
   } catch (error) {
-    const message = error instanceof Error ? error.message : '티켓 상태 변경에 실패했습니다.'
+    const message = ticketStatusChangeErrorMessage(error)
     notificationStore.error('티켓 상태 변경 실패', message)
   } finally {
     isChangingStatus.value = false

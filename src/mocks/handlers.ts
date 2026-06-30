@@ -3430,7 +3430,7 @@ export const handlers = [
     }, '자산 할당에 성공했습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/processing-status`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const requester = getAuthenticatedMember(request)
@@ -3444,8 +3444,8 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    const body = await request.json() as { status?: string }
-    if (!body.status || !TICKET_STATUS_VALUES.has(body.status as TicketStatus)) {
+    const body = await request.json() as { ticketStatus?: string }
+    if (!body.ticketStatus || !TICKET_STATUS_VALUES.has(body.ticketStatus as TicketStatus)) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'INVALID_TICKET_STATUS',
@@ -3454,7 +3454,7 @@ export const handlers = [
       }, { status: 400 })
     }
 
-    const nextStatus = body.status as TicketStatus
+    const nextStatus = body.ticketStatus as TicketStatus
     if (nextStatus === 'CANCELLED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
@@ -3513,10 +3513,11 @@ export const handlers = [
 
     return HttpResponse.json(ok({
       ticketId,
-      previousStatus,
-      currentStatus: nextStatus,
-      updatedAt,
-    }, '티켓 상태 변경에 성공했습니다.'))
+      ticketNo: ticket.ticketNo,
+      ticketStatus: nextStatus,
+      completedAt: ticketDetailData.get(ticketId)?.completedAt ?? null,
+      cancelledAt: ticketCanceledAt.get(ticketId) ?? null,
+    }, '티켓 처리상태 변경에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/cancel`, ({ params, request }) => {
