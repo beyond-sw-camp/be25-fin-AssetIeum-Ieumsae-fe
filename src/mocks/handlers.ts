@@ -56,8 +56,8 @@ import type {
 
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-const MOCK_COMPANY_CODE = 'COMP001'
-const SYSTEM_COMPANY_CODE = 'SYSTEM'
+const MOCK_COMPANY_CODE = 'hanwha'
+const SYSTEM_COMPANY_CODE = 'assetieum'
 const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
@@ -177,7 +177,7 @@ function getDepartmentNamePath(departmentId: string): string {
 const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
     memberId: mockMemberId(0),
-    memberNo: 'SYSADMIN',
+    memberNo: 'superadmin',
     name: '시스템 관리자',
     email: 'system@asset-ieum.com',
     departmentId: PLATFORM_DEPARTMENT_ID,
@@ -188,7 +188,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(1),
-    memberNo: 'EMP0001',
+    memberNo: 'admin',
     name: '김관리',
     email: 'admin@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
@@ -199,7 +199,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(2),
-    memberNo: 'EMP0002',
+    memberNo: 'EMP0001',
     name: '박자산',
     email: 'asset@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
@@ -221,7 +221,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(4),
-    memberNo: 'EMP0004',
+    memberNo: 'EMP0002',
     name: '자산자산',
     email: 'leave@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
