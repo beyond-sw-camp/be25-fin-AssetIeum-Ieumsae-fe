@@ -8,7 +8,7 @@
         class="relative flex min-h-full flex-col bg-background text-text-main"
       >
         <div class="flex-1 pb-14">
-          <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
+          <div class="w-full px-3 pb-8 pt-2">
             <div class="mb-3 flex items-center gap-2">
               <button
                 type="button"
@@ -18,7 +18,7 @@
               >
                 <ArrowLeft :size="15" />
               </button>
-              <p class="page-subtitle">구매 계획 &gt; 상세내용</p>
+              <p class="page-subtitle">구매 계획 &gt; 상세 내용</p>
             </div>
 
             <div
@@ -548,297 +548,35 @@
       </Button>
     </div>
 
-    <BaseDrawer
+    <PurchasePlanCreateDrawer
       :is-open="isCreateDrawerOpen"
-      title="신규 구매 계획 등록"
-      panel-class="w-full max-w-5xl"
-      body-class="min-h-0 overflow-hidden! p-0"
-      hide-footer
+      :eligible-error="eligibleError"
+      :is-eligible-loading="isEligibleLoading"
+      :eligible-tickets="eligibleTickets"
+      :selected-ticket-ids="selectedTicketIds"
+      :direct-item-form="directItemForm"
+      :asset-type-options="ASSET_TYPE_OPTIONS"
+      :direct-category-options="directCategoryOptions"
+      :is-direct-category-disabled="isDirectCategoryDisabled"
+      :standard-purchase-item-options="standardPurchaseItemOptions"
+      :is-standard-purchase-item-disabled="isStandardPurchaseItemDisabled"
+      :formatted-direct-estimated-unit-price="formattedDirectEstimatedUnitPrice"
+      :direct-item-error="directItemError"
+      :plan-request-items="planRequestItems"
+      :selected-estimated-amount="selectedEstimatedAmount"
+      :is-creating-plan="isCreatingPlan"
       @close="closeCreateDrawer"
-    >
-      <div class="flex h-full flex-col">
-        <div
-          v-if="eligibleError"
-          class="mx-6 mt-4 flex items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3"
-        >
-          <p class="text-sm font-semibold text-danger">{{ eligibleError }}</p>
-          <Button variant="outline" size="sm" @click="fetchEligibleTickets">
-            <RefreshCw :size="15" />
-            다시 조회
-          </Button>
-        </div>
-
-        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-4">
-          <div
-            v-if="isEligibleLoading"
-            class="flex h-full min-h-80 items-center justify-center"
-          >
-            <Loader2 class="animate-spin text-primary" :size="28" />
-          </div>
-
-          <Table
-            v-else
-            :columns="eligibleTicketColumns"
-            :rows="eligibleTickets"
-            row-key="ticketId"
-            empty-text="구매 계획으로 등록할 결재 완료 요청이 없습니다."
-            class="max-h-100 overflow-y-auto max-w-full rounded-xl! [&_table]:table-fixed [&_td]:align-middle [&_th]:whitespace-nowrap"
-            @row-click="handleEligibleTicketRowClick"
-          >
-            <template #cell-select="{ row }">
-              <div
-                role="checkbox"
-                :aria-checked="selectedTicketIds.includes(row.ticketId)"
-                :aria-label="row.canCreate ? `${row.ticket.ticketNo} 선택` : `${row.ticket.ticketNo} 선택 불가: ${row.disabledReason}`"
-                :title="row.canCreate ? '구매 계획 대상 선택' : row.disabledReason"
-                class="flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-200"
-                :class="[
-                  selectedTicketIds.includes(row.ticketId)
-                    ? 'border-primary bg-primary text-white shadow-sm'
-                    : 'border-border bg-surface text-transparent',
-                  !row.canCreate && 'opacity-40 cursor-not-allowed border-border bg-surface-secondary text-transparent'
-                ]"
-              >
-                <Check :size="14" :stroke-width="3" />
-              </div>
-            </template>
-
-            <template #cell-ticketNo="{ row }">
-              <span class="block truncate font-bold text-text-main">{{
-                row.ticket.ticketNo
-              }}</span>
-            </template>
-
-            <template #cell-requesterName="{ row }">
-              <span class="block truncate">{{
-                row.ticket.requesterName || "-"
-              }}</span>
-            </template>
-
-            <template #cell-itemName="{ value }">
-              <span
-                class="block truncate font-semibold text-text-main"
-                :title="String(value || '-')"
-              >
-                {{ value || "-" }}
-              </span>
-            </template>
-
-            <template #cell-categoryName="{ value }">
-              <span class="block truncate" :title="String(value || '-')">{{
-                value || "-"
-              }}</span>
-            </template>
-
-            <template #cell-estimatedUnitPrice="{ value }">
-              <span class="whitespace-nowrap">{{
-                formatCurrency(Number(value || 0))
-              }}</span>
-            </template>
-          </Table>
-
-          <section
-            class="space-y-3 rounded-xl border border-border bg-surface p-4"
-          >
-            <div>
-              <h2 class="text-sm font-bold text-text-main">
-                표준 품목 추가
-              </h2>
-              <p class="mt-1 text-xs text-text-muted">
-                구매 계획에 필요한 표준 품목을 선택해 요청 품목에 추가합니다.
-              </p>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-              <div class="space-y-2 text-left">
-                <label class="block px-0.5 text-sm font-semibold text-text-main">자산 유형</label>
-                <Dropdown
-                  :model-value="directItemForm.assetType"
-                  :options="ASSET_TYPE_OPTIONS"
-                  :disabled="isCreatingPlan"
-                  @update:model-value="handleDirectAssetTypeChange"
-                />
-              </div>
-              <div class="space-y-2 text-left">
-                <label
-                  for="direct-plan-category"
-                  class="block px-0.5 text-sm font-semibold text-text-main"
-                >
-                  분류
-                </label>
-                <Dropdown
-                  id="direct-plan-category"
-                  :model-value="directItemForm.categoryId"
-                  :options="directCategoryOptions"
-                  :disabled="isDirectCategoryDisabled"
-                  root-option="분류 선택"
-                  category-select-mode="leaf-only"
-                  @update:model-value="handleDirectCategoryChange"
-                />
-              </div>
-              <div class="space-y-2 text-left xl:col-span-2">
-                <label
-                  for="direct-plan-standard-item"
-                  class="block px-0.5 text-sm font-semibold text-text-main"
-                >
-                  표준 품목
-                </label>
-                <Dropdown
-                  id="direct-plan-standard-item"
-                  :model-value="directItemForm.assetItemId"
-                  :options="standardPurchaseItemOptions"
-                  :disabled="isStandardPurchaseItemDisabled"
-                  @update:model-value="handleDirectStandardItemChange"
-                />
-              </div>
-              <Input
-                id="direct-plan-quantity"
-                v-model="directItemForm.quantity"
-                type="number"
-                :min="1"
-                label="수량"
-                required
-                :disabled="isCreatingPlan"
-              />
-              <div class="space-y-2 text-left">
-                <label
-                  for="direct-plan-unit-price"
-                  class="flex items-center gap-0.5 px-0.5 text-sm font-semibold text-text-main"
-                >
-                  예상 단가
-                  <span class="font-bold text-primary">*</span>
-                </label>
-                <div class="relative">
-                  <input
-                    id="direct-plan-unit-price"
-                    :value="formattedDirectEstimatedUnitPrice"
-                    inputmode="numeric"
-                    placeholder="0"
-                    :disabled="isCreatingPlan"
-                    class="h-9 w-full rounded-xl border border-border bg-surface py-2.5 pl-4 pr-9 text-right text-sm text-text-main outline-none transition-all duration-200 placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-secondary disabled:text-text-muted disabled:opacity-60"
-                    @input="handleDirectEstimatedUnitPriceInput"
-                  />
-                  <span
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted"
-                  >
-                    원
-                  </span>
-                </div>
-              </div>
-              <div class="flex items-end">
-                <Button
-                  class="w-full"
-                  variant="outline"
-                  :disabled="isCreatingPlan"
-                  @click="addDirectPlanItem"
-                >
-                  <Plus :size="16" />
-                  품목 추가
-                </Button>
-              </div>
-            </div>
-
-            <p v-if="directItemError" class="text-xs font-semibold text-danger">
-              {{ directItemError }}
-            </p>
-          </section>
-
-          <section class="space-y-3">
-            <div class="flex items-center justify-between gap-3">
-              <h2 class="text-sm font-bold text-text-main">
-                구매계획 요청 품목
-              </h2>
-              <span class="text-xs font-semibold text-text-muted">총 {{ planRequestItems.length }}건</span>
-            </div>
-
-            <div
-              v-if="planRequestItems.length === 0"
-              class="rounded-xl border border-dashed border-border bg-surface-secondary px-4 py-8 text-center text-sm text-text-muted"
-            >
-              승인 완료 티켓을 선택하거나 직접 품목을 추가해주세요.
-            </div>
-
-            <div v-else class="max-h-75 overflow-y-auto overflow-x-auto rounded-xl border border-border">
-              <div class="min-w-205">
-                <div
-                  class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] gap-3 bg-surface-secondary px-4 py-2 text-xs font-bold text-text-sub"
-                >
-                  <span>출처</span>
-                  <span>품목</span>
-                  <span>분류</span>
-                  <span class="text-center">수량</span>
-                  <span class="text-right">단가</span>
-                  <span class="text-right">금액</span>
-                  <span class="text-center">삭제</span>
-                </div>
-                <div
-                  v-for="item in planRequestItems"
-                  :key="item.id"
-                  class="grid grid-cols-[88px_minmax(0,1.4fr)_120px_72px_120px_120px_48px] items-center gap-3 border-t border-border px-4 py-3 text-sm"
-                >
-                  <span
-                    :class="[
-                      'inline-flex w-fit rounded-full px-2 py-1 text-xs font-bold',
-                      item.source === 'ticket'
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-success/10 text-success',
-                    ]"
-                  >
-                    {{ item.sourceLabel }}
-                  </span>
-                  <span
-                    class="truncate font-semibold text-text-main"
-                    :title="item.itemName"
-                  >{{ item.itemName }}</span>
-                  <span
-                    class="truncate text-text-sub"
-                    :title="item.categoryName || '-'"
-                  >{{ item.categoryName || "-" }}</span>
-                  <span class="text-center">{{ item.quantity }}</span>
-                  <span class="text-right">{{
-                    formatCurrency(item.estimatedUnitPrice)
-                  }}</span>
-                  <span class="text-right font-bold text-text-main">{{
-                    formatCurrency(item.estimatedAmount)
-                  }}</span>
-                  <button
-                    type="button"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-30"
-                    :disabled="!item.canRemove || isCreatingPlan"
-                    :aria-label="`${item.itemName} 삭제`"
-                    @click="removePlanRequestItem(item.id)"
-                  >
-                    <Trash2 :size="15" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div class="border-t border-border px-6 py-4">
-          <div
-            class="mb-4 flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3"
-          >
-            <span class="text-sm font-semibold text-text-sub">요청 품목 {{ planRequestItems.length }}건</span>
-            <span class="text-lg font-bold text-text-main">합계 {{ formatCurrency(selectedEstimatedAmount) }}</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <Button class="w-full" variant="outline" @click="closeCreateDrawer">
-              취소
-            </Button>
-            <Button
-              class="w-full"
-              :disabled="planRequestItems.length === 0 || isCreatingPlan"
-              :loading="isCreatingPlan"
-              @click="createPlan"
-            >
-              등록
-            </Button>
-          </div>
-        </div>
-      </div>
-    </BaseDrawer>
+      @reload="fetchEligibleTickets"
+      @eligible-row-click="handleEligibleTicketRowClick"
+      @update-direct-asset-type="handleDirectAssetTypeChange"
+      @update-direct-category="handleDirectCategoryChange"
+      @update-direct-standard-item="handleDirectStandardItemChange"
+      @update-direct-quantity="directItemForm.quantity = $event"
+      @update-direct-price="handleDirectEstimatedUnitPriceInput"
+      @add-direct-item="addDirectPlanItem"
+      @remove-request-item="removePlanRequestItem"
+      @submit="createPlan"
+    />
 
     <!-- 자산 등록 패널 -->
     <BaseDrawer
@@ -1053,10 +791,8 @@
 import {
   ArrowLeft,
   Box as BoxIcon,
-  Check,
   ClipboardCheck,
   FileWarning,
-  Loader2,
   PackageCheck,
   Plus,
   RefreshCw,
@@ -1087,6 +823,7 @@ import Input from "@/components/common/Input.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
+import PurchasePlanCreateDrawer from "@/components/purchase/PurchasePlanCreateDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useNotificationStore } from "@/stores";
@@ -1138,7 +875,7 @@ interface DirectPlanItem {
   externalUrl: string | null;
 }
 
-interface PlanRequestItem {
+interface PlanRequestItem extends Record<string, unknown> {
   id: string;
   source: "ticket" | "direct";
   sourceLabel: string;
@@ -1277,21 +1014,6 @@ const planItemColumns: Column<PurchasePlanItem>[] = [
   { key: "estimatedUnitPrice", label: "단가", width: "12%", align: "center" },
   { key: "totalAmount", label: "합계", width: "12%", align: "center" },
   { key: "delivery", label: "납품", width: "12%", align: "center" },
-];
-
-const eligibleTicketColumns: Column<EligibleTicket>[] = [
-  { key: "select", label: "선택", width: "7%", align: "center" },
-  { key: "ticketNo", label: "티켓 번호", width: "15%", align: "center" },
-  { key: "requesterName", label: "티켓 요청자", width: "13%", align: "center" },
-  { key: "itemName", label: "품목", width: "22%", align: "center" },
-  { key: "categoryName", label: "분류", width: "13%", align: "center" },
-  { key: "quantity", label: "수량", width: "8%", align: "center" },
-  {
-    key: "estimatedUnitPrice",
-    label: "예상 단가",
-    width: "22%",
-    align: "center",
-  },
 ];
 
 const EMPTY_STATISTICS: PurchasePlanStatistics = {

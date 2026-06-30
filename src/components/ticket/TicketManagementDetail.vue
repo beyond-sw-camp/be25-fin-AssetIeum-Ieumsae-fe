@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
-      <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
+      <div class="w-full px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center gap-2">
           <button
             type="button"
