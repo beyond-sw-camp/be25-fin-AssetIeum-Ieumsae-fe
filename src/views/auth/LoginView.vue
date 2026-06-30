@@ -16,6 +16,7 @@
         placeholder="회사 코드를 입력하세요"
         autocomplete="organization"
         required
+        :show-required-indicator="false"
         :disabled="auth.isLoading"
         :error="Boolean(errors.companyCode)"
         :error-message="errors.companyCode"
@@ -28,6 +29,7 @@
         placeholder="사번을 입력하세요"
         autocomplete="username"
         required
+        :show-required-indicator="false"
         :disabled="auth.isLoading"
         :error="Boolean(errors.memberNo)"
         :error-message="errors.memberNo"
@@ -41,6 +43,7 @@
         placeholder="비밀번호를 입력하세요"
         autocomplete="current-password"
         required
+        :show-required-indicator="false"
         :disabled="auth.isLoading"
         :error="Boolean(errors.password)"
         :error-message="errors.password"
