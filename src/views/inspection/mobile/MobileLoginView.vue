@@ -88,6 +88,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
 import { useAuthStore } from '@/stores'
+import { canUseMobileInspectionRole } from '@/utils/mobileInspection'
 
 interface LoginFormErrors {
   companyCode: string
@@ -116,10 +117,6 @@ const previousUserName = ref('')
 const lastRejectedRole = ref('')
 const isDebugAuth = computed(() => route.query.debugAuth === '1')
 const storedRole = computed(() => getStoredRole())
-
-function canUseMobileInspectionRole(role: string | null | undefined) {
-  return role === 'EMPLOYEE' || role === 'ASSET_TEAM' || role === 'ASSET_MANAGER' || role === 'ADMIN'
-}
 
 function getStoredRole() {
   try {
@@ -169,7 +166,7 @@ async function handleLogin() {
     }
 
     if (!canUseMobileInspectionRole(auth.currentRole)) {
-      errorMessage.value = '모바일 자산 검수는 사원 또는 구매자산팀 계정으로 이용할 수 있습니다.'
+      errorMessage.value = '사용자 권한 정보를 확인할 수 없습니다. 다시 로그인해주세요.'
       previousUserName.value = auth.user?.name ?? ''
       auth.clearAuth()
       return

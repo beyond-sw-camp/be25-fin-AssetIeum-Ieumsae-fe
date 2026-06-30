@@ -133,7 +133,7 @@
           {{ authIssue }}
         </p>
         <p class="mt-2 text-sm leading-relaxed text-text-sub">
-          사원 또는 구매자산팀 계정으로 로그인하면 배정된 자산 검수 목록을 확인할 수 있습니다.
+          로그인하면 배정된 자산 검수 목록을 확인할 수 있습니다.
         </p>
         <Button class="mt-6 w-full" size="lg" @click="goLogin">
           모바일 로그인으로 이동
@@ -240,8 +240,8 @@ import {
 import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
 import { useAuthStore, useNotificationStore } from '@/stores'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import { ROLE_LABEL } from '@/utils/labels'
+import { canUseMobileInspectionRole } from '@/utils/mobileInspection'
 
 type MobileAssetType = 'tangible' | 'intangible'
 
@@ -275,7 +275,7 @@ const canUseMobileInspection = computed(() => (
 const authIssue = computed(() => {
   if (!authStore.isAuthenticated) return '로그인이 필요합니다.'
   if (!canUseMobileInspectionRole(authStore.currentRole)) {
-    return '모바일 자산 검수는 사원 또는 구매자산팀 계정으로 이용할 수 있습니다.'
+    return '사용자 권한 정보를 확인할 수 없습니다. 다시 로그인해주세요.'
   }
   return ''
 })
@@ -287,10 +287,6 @@ const form = reactive({
 
 function isAssetTeamRole(role: string | null | undefined) {
   return role === 'ASSET_TEAM' || role === 'ASSET_MANAGER' || role === 'ADMIN'
-}
-
-function canUseMobileInspectionRole(role: string | null | undefined) {
-  return role === 'EMPLOYEE' || isAssetTeamRole(role)
 }
 
 const inspectionApi = computed(() => (
@@ -396,11 +392,7 @@ function toTargetRow(item: EmployeeInspectionTargetResponse): MobileInspectionTa
     assetId: textValue(item.assetId, item.tangibleAssetId, item.intangibleAssetId),
     tangibleAssetId: textValue(item.tangibleAssetId),
     intangibleAssetId: textValue(item.intangibleAssetId),
-    inspectionStatus: resolveInspectionStatus({
-      startDate: textValue(item.startDate),
-      endDate: textValue(item.endDate),
-      fallbackStatus: inspectionStatusValue(item.inspectionStatus),
-    }),
+    inspectionStatus: inspectionStatusValue(item.inspectionStatus),
     memberId: textValue(item.memberId),
     memberName: textValue(item.memberName) || '-',
     productName: textValue(item.productName, item.itemName) || '-',
@@ -455,26 +447,16 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
   if (!options.preserveMessage) message.value = ''
 
   try {
-    const currentMemberId = textValue(authStore.user?.memberId)
-    const ownTargetsResponse = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
-    const ownTargets = Array.isArray(ownTargetsResponse.data?.content)
-      ? ownTargetsResponse.data.content
-      : []
-    const inspectorTargets = isAssetTeamRole(authStore.currentRole)
-      ? await inspectionApi.value.getTargets({ page: 0, size: 100 })
-      : null
-    const managedTargets = Array.isArray(inspectorTargets?.data?.content)
-      ? inspectorTargets.data.content
-      : []
+    const isAssetTeam = isAssetTeamRole(authStore.currentRole)
+    const [ownTargets, managedTargets] = await Promise.all([
+      loadMyTargets(),
+      isAssetTeam ? loadManagedTargets() : Promise.resolve([]),
+    ])
     const uniqueTargets = new Map<string, MobileInspectionTarget>()
 
     ownTargets
       .map(toTargetRow)
-      .filter((target) => (
-        target.inspectionTargetId
-        && target.memberId
-        && target.memberId === currentMemberId
-      ))
+      .filter((target) => target.inspectionTargetId)
       .forEach((target) => uniqueTargets.set(target.inspectionTargetId, target))
 
     managedTargets
@@ -503,6 +485,62 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
     isLoading.value = false
     hasLoadedOnce.value = true
   }
+}
+
+async function loadMyTargets() {
+  const response = await inspectionApi.value.getMyTargets({ page: 0, size: 100 })
+  return Array.isArray(response.data?.content) ? response.data.content : []
+}
+
+async function loadManagedTargets() {
+  const inspectionResponse = await inspectionApi.value.getList({
+    status: 'IN_PROGRESS',
+    page: 0,
+    size: 100,
+  })
+  const activeInspections = inspectionResponse.data.content
+    .filter((inspection) => (
+      (!inspection.inspectorType || inspection.inspectorType === 'ASSET_TEAM')
+      && inspectionStatusValue(inspection.inspectionStatus ?? inspection.status) === 'IN_PROGRESS'
+    ))
+    .map((inspection) => ({
+      inspectionId: textValue(inspection.inspectionId),
+      inspectionStatus: inspectionStatusValue(inspection.inspectionStatus ?? inspection.status),
+    }))
+    .filter((inspection) => inspection.inspectionId)
+
+  if (activeInspections.length === 0) return []
+
+  const targetResults = await Promise.allSettled(
+    activeInspections.map(async ({ inspectionId, inspectionStatus }) => {
+      try {
+        const response = await inspectionApi.value.getTargets({
+          inspectionId,
+          page: 0,
+          size: 100,
+        })
+        return { response, inspectionStatus }
+      } catch (error) {
+        console.error('모바일 전수조사 대상 조회 실패', { inspectionId, error })
+        throw error
+      }
+    }),
+  )
+  const successfulResults = targetResults.filter((result) => result.status === 'fulfilled')
+
+  if (successfulResults.length === 0) {
+    const firstFailure = targetResults.find((result) => result.status === 'rejected')
+    if (firstFailure?.status === 'rejected') throw firstFailure.reason
+  }
+
+  return successfulResults.flatMap((result) => (
+    result.status === 'fulfilled' && Array.isArray(result.value.response.data?.content)
+      ? result.value.response.data.content.map((target) => ({
+          ...target,
+          inspectionStatus: target.inspectionStatus ?? result.value.inspectionStatus,
+        }))
+      : []
+  ))
 }
 
 async function handleSubmit() {

@@ -31,7 +31,7 @@
               조사 종료
             </Button>
             <span :class="statusBadgeClass(displayStatus)">
-              {{ statusLabel[displayStatus] }}
+              {{ displayStatusLabel }}
             </span>
           </div>
         </div>
@@ -62,7 +62,7 @@
           v-if="displayStatus === 'CLOSED'"
           class="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary"
         >
-          구매자산팀이 임의로 종료한 전수조사입니다.
+          {{ closedNoticeText }}
         </p>
       </div>
 
@@ -384,6 +384,24 @@ const displayStatus = computed<InspectionStatus>(() => resolveInspectionStatus({
   followUpCount: detail.value ? followUpRequiredCount.value : undefined,
 }))
 
+const isCompletedByResponses = computed(() => (
+  detail.value !== null
+  && resultRows.value.length > 0
+  && uninspectedRows.value.length === 0
+))
+
+const displayStatusLabel = computed(() => (
+  displayStatus.value === 'CLOSED' && isCompletedByResponses.value
+    ? '조사 완료'
+    : statusLabel[displayStatus.value]
+))
+
+const closedNoticeText = computed(() => (
+  isCompletedByResponses.value
+    ? '모든 대상 자산의 응답이 완료되어 종료된 전수조사입니다.'
+    : '종료 처리된 전수조사입니다.'
+))
+
 const completionRate = computed(() => {
   const totalCount = resultRows.value.length + uninspectedRows.value.length
   if (totalCount === 0) return 0
@@ -414,7 +432,7 @@ const overviewItems = computed(() => {
     { label: '조사 담당자', value: displayInspectorName.value },
     { label: '조사 대상', value: displayTargetName.value },
     { label: '조사 수행자', value: displayInspectorType.value },
-    { label: '조사 상태', value: statusLabel[displayStatus.value] },
+    { label: '조사 상태', value: displayStatusLabel.value },
     { label: '조사 시작일', value: formatDate(displayStartDate.value) },
     { label: '조사 종료일', value: formatDate(displayEndDate.value) },
   ]
