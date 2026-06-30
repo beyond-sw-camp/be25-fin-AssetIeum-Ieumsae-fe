@@ -1,6 +1,11 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source'
+import axios from 'axios'
 import { onUnmounted, ref } from 'vue'
 
+import type { ApiResponse } from '@/types'
+import { AUTH_EXPIRED_EVENT } from '@/utils/authSession'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const SSE_BASE_URL = import.meta.env.VITE_SSE_BASE_URL
   || import.meta.env.VITE_API_BASE_URL
   || '/api/v1'
@@ -21,6 +26,17 @@ class RetriableSseError extends Error {
   }
 }
 
+class NonRetriableSseError extends Error {
+  constructor(message = 'SSE connection stopped.') {
+    super(message)
+    this.name = 'NonRetriableSseError'
+  }
+}
+
+interface RefreshResponse {
+  accessToken: string
+}
+
 const isConnecting = ref(false)
 const isConnected = ref(false)
 const error = ref<unknown>(null)
@@ -29,6 +45,7 @@ const listeners = new Map<string, Set<SseHandler>>()
 let abortController: AbortController | null = null
 let activePath = ''
 let consumerCount = 0
+let refreshPromise: Promise<string> | null = null
 
 export function useEventSource() {
   consumerCount += 1
@@ -40,14 +57,29 @@ export function useEventSource() {
     activePath = path
     isConnecting.value = true
     abortController = new AbortController()
+    const headers = createHeaders()
 
     void fetchEventSource(`${SSE_BASE_URL}${path}`, {
       method: 'GET',
-      headers: createHeaders(),
+      headers,
       credentials: 'include',
       signal: abortController.signal,
       openWhenHidden: true,
       async onopen(response) {
+        if (response.status === 401) {
+          try {
+            await refreshSseAccessToken()
+            Object.assign(headers, createHeaders())
+          } catch (caughtError) {
+            const message = caughtError instanceof Error
+              ? caughtError.message
+              : 'SSE authentication failed.'
+            throw new NonRetriableSseError(message)
+          }
+
+          throw new RetriableSseError('SSE access token refreshed.')
+        }
+
         if (!response.ok) {
           throw new RetriableSseError(`SSE 연결 실패 (${response.status})`)
         }
@@ -73,8 +105,20 @@ export function useEventSource() {
         isConnecting.value = false
         isConnected.value = false
         error.value = caughtError
+
+        if (caughtError instanceof NonRetriableSseError) {
+          disconnect()
+          notifyAuthExpired()
+          throw caughtError
+        }
+
         return RETRY_DELAY_MS
       },
+    }).catch((caughtError: unknown) => {
+      if (caughtError instanceof NonRetriableSseError) return
+      if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
+
+      error.value = caughtError
     })
   }
 
@@ -89,6 +133,30 @@ export function useEventSource() {
     }
 
     return headers
+  }
+
+  async function refreshSseAccessToken() {
+    refreshPromise ??= axios.post<ApiResponse<RefreshResponse>>(
+      `${API_BASE_URL}/auth/reissue`,
+      null,
+      { withCredentials: true },
+    )
+      .then((response) => {
+        const token = response.data.data.accessToken
+        localStorage.setItem(ACCESS_TOKEN_KEY, token)
+        return token
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+
+    return refreshPromise
+  }
+
+  function notifyAuthExpired() {
+    if (typeof window === 'undefined') return
+
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
   }
 
   function dispatch(event: { type: string; data: string }) {

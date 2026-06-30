@@ -66,7 +66,7 @@
                   <div class="mt-2 flex flex-wrap items-center gap-2">
                     <span
                       :class="[
-                        'rounded-full px-3 py-1.5 text-xs font-bold',
+                        'inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold leading-5',
                         getStatusBadgeClass(displayPlanStatus(selectedPlan)),
                       ]"
                     >
@@ -505,7 +505,7 @@
               <template #cell-status="{ row }">
                 <span
                   :class="[
-                    'rounded-full px-2.5 py-1 text-xs font-bold',
+                    'inline-flex min-h-6 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold leading-5',
                     getStatusBadgeClass(displayListStatus(row)),
                   ]"
                 >
@@ -2563,7 +2563,7 @@ function getStatusBadgeClass(status: PurchasePlanStatus) {
   if (status === "DELIVERED")
     return "border border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900/60 dark:bg-teal-950/30 dark:text-teal-200";
   if (status === "COMPLETED")
-    return "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
+    return "border border-green-300 bg-green-100 text-green-800 dark:border-green-800/70 dark:bg-green-950/40 dark:text-green-200";
   return "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200";
 }
 

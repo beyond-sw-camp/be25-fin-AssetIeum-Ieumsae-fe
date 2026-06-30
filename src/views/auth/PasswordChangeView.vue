@@ -7,7 +7,7 @@
       </p>
     </div>
 
-    <section class="card mx-0 max-w-2xl p-6 sm:p-8">
+    <section class="card mx-0 p-6 sm:p-8">
       <form class="space-y-6" novalidate @submit.prevent="handlePasswordChange">
         <Input
           id="current-password"

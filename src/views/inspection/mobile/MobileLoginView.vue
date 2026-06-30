@@ -6,7 +6,7 @@
           자산이음
         </p>
         <p class="mt-4 text-sm leading-relaxed text-text-sub">
-          로그인 후 배정된 전수조사 자산을 확인하고 QR로 검수 결과를 등록하세요.
+          배정된 전수조사 자산을 확인하고 QR로 검수 결과를 등록하세요.
         </p>
       </div>
 

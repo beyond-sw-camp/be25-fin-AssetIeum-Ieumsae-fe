@@ -1,6 +1,8 @@
 <template>
   <div class="flex h-dvh w-full max-w-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <Header class="h-16 shrink-0" />
+    <ToastContainer />
+
     <div class="mt-16 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-full flex-none overflow-hidden">
       <Sidebar
         v-model:collapsed="collapsed"
@@ -21,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   BarChart3,
@@ -39,13 +41,17 @@ import {
   Workflow,
 } from 'lucide-vue-next'
 
+import { notificationApi } from '@/api'
+import ToastContainer from '@/components/common/ToastContainer.vue'
 import Header from '@/components/layout/Header.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'
+import { useEventSource } from '@/composables/useEventSource'
 
 const collapsed = ref(false)
 const route = useRoute()
 const permission = usePermission()
+const notificationSubscription = useEventSource()
 const {
   canManageCompany,
   canManageDepartment,
@@ -57,7 +63,6 @@ const {
   canViewInspection,
   canViewMyInspectionFollowUps,
   canViewLogs,
-  canCreateTicket,
   canManagePlatform,
 } = permission
 
@@ -69,6 +74,10 @@ const usesContainedPageScroll = computed(() => (
   route.path === '/tickets'
   || route.path.startsWith('/tickets/')
 ))
+
+onMounted(() => {
+  notificationSubscription.connect(notificationApi.getSubscribePath())
+})
 
 const navItems = computed(() => {
   if (canManagePlatform.value) {
@@ -106,7 +115,7 @@ const navItems = computed(() => {
       icon: Ticket,
       show: canViewMyTickets.value || canManageTickets.value,
       children: [
-        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canCreateTicket.value },
+        { name: 'my-requests', to: '/tickets', label: '나의 요청', show: canViewMyTickets.value },
         { name: 'ticket-management', to: '/tickets/manage', label: '티켓 관리', show: canManageTickets.value },
       ],
     },
