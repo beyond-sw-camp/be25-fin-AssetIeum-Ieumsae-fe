@@ -5,7 +5,7 @@
       <p class="page-subtitle">계정과 서비스 이용 설정을 관리합니다.</p>
     </div>
 
-    <section class="card mx-0 max-w-3xl p-6">
+    <section class="card mx-0 p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex min-w-0 items-start gap-3">
           <div
@@ -31,7 +31,7 @@
       </div>
     </section>
 
-    <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 max-w-3xl p-6">
+    <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 p-6">
       <div class="mb-5 flex min-w-0 items-start gap-3">
         <div
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
