@@ -6,7 +6,7 @@
         :for="props.id"
       >
         {{ props.label }}
-        <span v-if="props.required" class="text-primary font-bold">*</span>
+        <span v-if="props.required && props.showRequiredIndicator" class="text-primary font-bold">*</span>
       </label>
 
       <span v-if="props.maxlength" class="text-xs text-text-muted">
@@ -111,6 +111,8 @@
       :placeholder="props.placeholder"
       :autocomplete="props.autocomplete"
       :disabled="props.disabled"
+      :required="props.required"
+      :aria-required="props.required"
       :maxlength="props.maxlength"
       :min="props.min"
       :aria-invalid="props.error"
@@ -142,6 +144,7 @@ interface Props {
   type?: 'text' | 'password' | 'number' | 'tel' | 'date' | 'datetime-local' | 'email'
   label?: string
   required?: boolean
+  showRequiredIndicator?: boolean
   placeholder?: string
   autocomplete?: string
   disabled?: boolean
@@ -157,6 +160,7 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   label: '',
   required: false,
+  showRequiredIndicator: true,
   placeholder: '',
   autocomplete: 'off',
   disabled: false,
