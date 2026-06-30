@@ -5,16 +5,14 @@
       <p class="page-subtitle">계정과 서비스 이용 설정을 관리합니다.</p>
     </div>
 
-    <section class="card mx-0 max-w-3xl p-6">
+    <section class="card mx-0 p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex min-w-0 items-start gap-3">
           <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary "
-            aria-hidden="true" 
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            aria-hidden="true"
           >
-            <div class="p-3">
-              <KeyRound :size="20" />
-            </div>  
+            <KeyRound :size="20" />
           </div>
           <div>
             <h2 class="text-base font-semibold text-text-main">비밀번호</h2>
@@ -33,72 +31,7 @@
       </div>
     </section>
 
-    <section class="card mx-0 mt-4 max-w-3xl p-6">
-      <div class="mb-5 flex min-w-0 items-start gap-3">
-        <div
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-          aria-hidden="true"
-        >
-          <BellRing :size="20" />
-        </div>
-        <div>
-          <h2 class="text-base font-semibold text-text-main">알림 구독</h2>
-          <p class="mt-1 text-sm text-text-sub">
-            실시간 알림 수신 연결 상태를 관리합니다.
-          </p>
-        </div>
-      </div>
-
-      <div class="rounded-xl border border-border bg-surface-secondary px-4 py-3">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p class="text-sm font-bold text-text-main">현재 구독 상태</p>
-            <p class="mt-1 text-sm text-text-sub">{{ notificationSubscriptionSummary }}</p>
-          </div>
-          <span
-            class="w-fit rounded-full px-3 py-1 text-xs font-semibold"
-            :class="notificationSubscriptionStatusClass"
-          >
-            {{ notificationSubscriptionStatusLabel }}
-          </span>
-        </div>
-      </div>
-
-      <div
-        v-if="notificationSubscriptionError"
-        class="mt-4 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-semibold text-danger"
-      >
-        {{ notificationSubscriptionError }}
-      </div>
-
-      <div
-        v-if="latestNotification"
-        class="mt-4 rounded-xl border border-border bg-surface px-4 py-3"
-      >
-        <p class="text-xs font-semibold text-text-sub">최근 수신 알림</p>
-        <p class="mt-2 text-sm font-bold text-text-main">{{ latestNotification.title }}</p>
-        <p class="mt-1 text-sm text-text-sub">{{ latestNotification.content }}</p>
-      </div>
-
-      <div class="mt-5 flex justify-end gap-2">
-        <Button
-          v-if="isNotificationSubscribed"
-          variant="outline"
-          @click="disconnectNotificationSubscription"
-        >
-          구독 해제
-        </Button>
-        <Button
-          :variant="isNotificationSubscribed ? 'outline' : 'primary'"
-          :disabled="isNotificationConnecting"
-          @click="connectNotificationSubscription"
-        >
-          {{ notificationSubscriptionButtonLabel }}
-        </Button>
-      </div>
-    </section>
-
-    <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 max-w-3xl p-6">
+    <section v-if="canManagePurchasePolicy" class="card mx-0 mt-4 p-6">
       <div class="mb-5 flex min-w-0 items-start gap-3">
         <div
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
@@ -124,7 +57,7 @@
               </p>
             </div>
             <span class="w-fit rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-sub">
-              {{ isPolicyLoading ? '조회 중' : currentPolicy ? '적용 중' : '미조회' }}
+              {{ policyStatusLabel }}
             </span>
           </div>
         </div>
@@ -207,19 +140,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { BellRing, KeyRound, Settings2 } from 'lucide-vue-next'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { KeyRound, Settings2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-import { ApiError, notificationApi, purchaseApi } from '@/api'
+import { ApiError, purchaseApi } from '@/api'
 import Button from '@/components/common/Button.vue'
-import { useEventSource } from '@/composables/useEventSource'
 import { usePermission } from '@/composables/usePermission'
-import type {
-  PurchasePolicy,
-  PurchasePolicyMode,
-  ServerNotification,
-} from '@/types'
+import type { PurchasePolicy, PurchasePolicyMode } from '@/types'
 
 interface PurchasePolicyForm {
   purchaseMode: PurchasePolicyMode
@@ -230,12 +158,6 @@ interface PurchasePolicyForm {
 
 const router = useRouter()
 const { canManagePurchasePolicy } = usePermission()
-
-const notificationSubscription = useEventSource()
-const notificationSubscriptionError = ref('')
-const latestNotification = ref<ServerNotification | null>(null)
-let offNotificationEvent: (() => void) | null = null
-let offMessageEvent: (() => void) | null = null
 
 const purchaseModeOptions: Array<{
   label: string
@@ -279,72 +201,16 @@ const currentPolicySummary = computed(() => {
   return `${getPurchaseModeLabel(currentPolicy.value.purchaseMethod)} · 초과 허용률 ${currentPolicy.value.overPercentageLimit}%`
 })
 
-const isNotificationSubscribed = computed(() => notificationSubscription.isConnected.value)
-const isNotificationConnecting = computed(() => notificationSubscription.isConnecting.value)
-
-const notificationSubscriptionStatusLabel = computed(() => {
-  if (isNotificationSubscribed.value) return '구독 중'
-  if (isNotificationConnecting.value) return '연결 중'
-  return '연결 전'
+const policyStatusLabel = computed(() => {
+  if (isPolicyLoading.value) return '조회 중'
+  return currentPolicy.value ? '적용 중' : '미조회'
 })
-
-const notificationSubscriptionStatusClass = computed(() => {
-  if (isNotificationSubscribed.value) return 'bg-success/10 text-success'
-  if (isNotificationConnecting.value) return 'bg-primary/10 text-primary'
-  return 'bg-surface text-text-sub'
-})
-
-const notificationSubscriptionButtonLabel = computed(() => {
-  if (isNotificationConnecting.value) return '연결 중'
-  return isNotificationSubscribed.value ? '다시 연결' : '구독 연결'
-})
-
-const notificationSubscriptionSummary = computed(() => (
-  isNotificationSubscribed.value
-    ? '실시간 알림을 받을 수 있습니다.'
-    : isNotificationConnecting.value
-      ? '실시간 알림 구독을 연결하고 있습니다.'
-      : '실시간 알림 구독이 연결되어 있지 않습니다.'
-))
 
 onMounted(() => {
-  connectNotificationSubscription()
-
   if (canManagePurchasePolicy.value) {
     void loadPolicy()
   }
 })
-
-onUnmounted(() => {
-  offNotificationEvent?.()
-  offMessageEvent?.()
-})
-
-function connectNotificationSubscription() {
-  notificationSubscriptionError.value = ''
-  offNotificationEvent?.()
-  offMessageEvent?.()
-
-  try {
-    notificationSubscription.connect(notificationApi.getSubscribePath())
-    offNotificationEvent = notificationSubscription.on<ServerNotification>('notification', handleSubscribedNotification)
-    offMessageEvent = notificationSubscription.on<ServerNotification>('message', handleSubscribedNotification)
-  } catch (error) {
-    notificationSubscriptionError.value = getErrorMessage(error, '알림 구독 연결에 실패했습니다.')
-  }
-}
-
-function disconnectNotificationSubscription() {
-  offNotificationEvent?.()
-  offMessageEvent?.()
-  offNotificationEvent = null
-  offMessageEvent = null
-  notificationSubscription.disconnect()
-}
-
-function handleSubscribedNotification(event: { data: ServerNotification }) {
-  latestNotification.value = event.data
-}
 
 function setPurchaseMode(value: PurchasePolicyMode) {
   policyForm.purchaseMode = value

@@ -114,7 +114,8 @@ import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { ApiError, notificationApi } from '@/api'
 import { useEventSource } from '@/composables/useEventSource'
 import { useNotificationStore } from '@/stores'
-import type { NotificationType, ServerNotification } from '@/types'
+import type { NotificationType, ServerNotification, TicketType } from '@/types'
+import { TICKET_TYPE_LABEL } from '@/utils/labels'
 
 const MAX_BADGE_COUNT = 99
 
@@ -138,7 +139,7 @@ const displayUnreadCount = computed(() => (
 
 onMounted(() => {
   void loadUnreadCount()
-  connectRealtimeNotifications()
+  registerRealtimeNotificationHandlers()
   document.addEventListener('click', handleDocumentClick)
 })
 
@@ -232,14 +233,9 @@ async function markAllAsRead() {
   }
 }
 
-function connectRealtimeNotifications() {
-  try {
-    eventSource.connect(notificationApi.getSubscribePath())
-    offNotificationEvent = eventSource.on<ServerNotification>('notification', handleIncomingNotification)
-    offMessageEvent = eventSource.on<ServerNotification>('message', handleIncomingNotification)
-  } catch {
-    // SSE is optional for the popover; the list and unread-count APIs remain available.
-  }
+function registerRealtimeNotificationHandlers() {
+  offNotificationEvent = eventSource.on<ServerNotification>('notification', handleIncomingNotification)
+  offMessageEvent = eventSource.on<ServerNotification>('message', handleIncomingNotification)
 }
 
 function handleIncomingNotification(event: { data: unknown }) {
@@ -292,10 +288,17 @@ function resolveNotificationRoute(notification: ServerNotification): RouteLocati
   const notificationType = String(notification.notificationType).trim().toUpperCase()
 
   if (targetType === 'TICKET' || notificationType === 'TICKET_STATUS_CHANGED') {
-    return {
+    const ticketRoute: RouteLocationRaw = {
       name: 'TicketDetail',
       params: { ticketId: targetId },
     }
+    const ticketType = normalizeNotificationTicketType(notification.ticketType)
+
+    if (ticketType) {
+      ticketRoute.query = { ticketType }
+    }
+
+    return ticketRoute
   }
 
   if (targetType === 'PURCHASE' || targetType === 'PURCHASE_PLAN') {
@@ -311,6 +314,15 @@ function resolveNotificationRoute(notification: ServerNotification): RouteLocati
 function normalizeTargetId(value: ServerNotification['targetId']) {
   if (value === null || value === undefined) return ''
   return String(value).trim()
+}
+
+function normalizeNotificationTicketType(value: ServerNotification['ticketType']): TicketType | null {
+  if (typeof value !== 'string') return null
+
+  const ticketType = value.trim().toUpperCase()
+  return Object.prototype.hasOwnProperty.call(TICKET_TYPE_LABEL, ticketType)
+    ? ticketType as TicketType
+    : null
 }
 
 function getTypeLabel(type: NotificationType) {
