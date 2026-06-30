@@ -1,8 +1,6 @@
 <template>
   <div class="flex h-dvh w-full max-w-full flex-col overflow-hidden bg-background text-text-main transition-colors duration-300">
     <Header class="h-16 shrink-0" />
-    <ToastContainer />
-
     <div class="mt-16 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-full flex-none overflow-hidden">
       <Sidebar
         v-model:collapsed="collapsed"
@@ -41,7 +39,6 @@ import {
   Workflow,
 } from 'lucide-vue-next'
 
-import ToastContainer from '@/components/common/ToastContainer.vue'
 import Header from '@/components/layout/Header.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { usePermission } from '@/composables'

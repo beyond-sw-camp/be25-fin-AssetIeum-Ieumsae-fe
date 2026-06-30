@@ -66,8 +66,8 @@
             {{ formatDateTime(String(value ?? '')) }}
           </template>
           <template #cell-note="{ value }">
-            <span :class="Number(value) > 0 ? 'font-semibold text-danger' : 'text-text-sub'">
-              {{ noteText(Number(value)) }}
+            <span :class="noteClass(value)">
+              {{ noteText(value) }}
             </span>
           </template>
         </Table>
@@ -102,6 +102,7 @@ import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, tangibleAssetApi } from '@/api/asset.api'
 import { dashboardApi } from '@/api/dashboard.api'
 import { ApiError } from '@/api/client'
+import { useDashboardAvailableAssets } from '@/composables'
 import type {
   ExpiringAssetDetail,
   OwnedAssetDetail,
@@ -122,7 +123,7 @@ interface DetailRow extends Record<string, unknown> {
   department: string
   ownerDepartment: string
   date: string
-  note: number
+  note: number | string
 }
 
 const props = withDefaults(defineProps<{
@@ -157,7 +158,8 @@ const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> 
 ]
 
 const baseColumns: Column<DetailRow>[] = [
-  { key: 'name', label: '자산명', width: '18%', align: 'center', maxLines: 2 },
+  { key: 'kind', label: '자산 구분', width: '10%', align: 'center' },
+  { key: 'name', label: '자산명', width: '17%', align: 'center', maxLines: 2 },
   { key: 'code', label: '자산코드', width: '15%', align: 'center' },
   { key: 'category', label: '카테고리', width: '11%', align: 'center' },
   { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
@@ -166,6 +168,7 @@ const baseColumns: Column<DetailRow>[] = [
 ]
 
 const selectedOwnedStatus = ref<OwnedAssetDetailStatus>('UNASSIGNED')
+const { loadAvailableAssets } = useDashboardAvailableAssets()
 const selectedAssetType = ref<ExpiringAssetType>('ALL')
 const keyword = ref('')
 const rows = ref<DetailRow[]>([])
@@ -182,7 +185,11 @@ const modeOptions = computed(() => (
 ))
 const columns = computed<Column<DetailRow>[]>(() => {
   if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
-    return baseColumns.filter((column) => column.key !== 'ownerDepartment')
+    return baseColumns
+      .filter((column) => column.key !== 'ownerDepartment')
+      .map((column) => (
+        column.key === 'note' ? { ...column, label: '배정 가능/전체' } : column
+      ))
   }
 
   return baseColumns
@@ -238,6 +245,20 @@ async function loadDetails() {
 
   try {
     if (props.mode === 'owned') {
+      if (selectedOwnedStatus.value === 'UNASSIGNED') {
+        const availableAssets = await loadAvailableAssets({
+          departmentId: props.departmentId,
+          keyword: keyword.value.trim() || undefined,
+        })
+        totalElements.value = availableAssets.length
+        totalPages.value = Math.max(Math.ceil(availableAssets.length / PAGE_SIZE), 1)
+        const start = currentPage.value * PAGE_SIZE
+        rows.value = availableAssets
+          .slice(start, start + PAGE_SIZE)
+          .map((item) => toOwnedRow(item, selectedOwnedStatus.value))
+        return
+      }
+
       const response = await dashboardApi.getOwnedAssetDetails({
         status: selectedOwnedStatus.value,
         departmentId: props.departmentId,
@@ -315,15 +336,21 @@ function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): Det
 
   return {
     id: item.assetId,
-    kind: OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
+    kind: item.assetType === 'TANGIBLE'
+      ? '유형자산'
+      : item.assetType === 'INTANGIBLE'
+        ? '무형자산'
+        : OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
     name: item.assetName || '-',
     code: item.assetCode || '-',
-    category: textValue(item.categoryOrProvider, item.categoryName) || '-',
+    category: textValue(item.categoryName, item.categoryOrProvider) || '-',
     owner,
     department,
     ownerDepartment: ownerDepartmentText(owner, department),
     date: textValue(item.returnDueDate, item.dueDate, item.warrantyExpiredAt),
-    note: item.overdueDays ?? item.dayCount ?? 0,
+    note: status === 'UNASSIGNED'
+      ? `${item.availableCount ?? 1}/${item.totalCount ?? 1}`
+      : item.overdueDays ?? item.dayCount ?? 0,
   }
 }
 
@@ -458,14 +485,25 @@ function formatDateTime(value: string) {
   }).format(date)
 }
 
-function noteText(value: number) {
-  if (props.mode === 'owned') {
-    if (selectedOwnedStatus.value === 'OVERDUE') return value > 0 ? `${value}일 연체` : '연체'
-    if (selectedOwnedStatus.value === 'UNASSIGNED') return value > 0 ? `D-${value}` : '-'
-    return value > 0 ? `D-${value}` : '-'
+function noteText(value: unknown) {
+  if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
+    return typeof value === 'string' ? value : '-'
   }
-  if (value === 0) return 'D-Day'
-  return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
+
+  const numericValue = Number(value)
+  if (props.mode === 'owned') {
+    if (selectedOwnedStatus.value === 'OVERDUE') return numericValue > 0 ? `${numericValue}일 연체` : '연체'
+    return numericValue > 0 ? `D-${numericValue}` : '-'
+  }
+  if (numericValue === 0) return 'D-Day'
+  return numericValue > 0 ? `D-${numericValue}` : `D+${Math.abs(numericValue)}`
+}
+
+function noteClass(value: unknown) {
+  if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
+    return 'font-semibold text-text-main'
+  }
+  return Number(value) > 0 ? 'font-semibold text-danger' : 'text-text-sub'
 }
 
 function textValue(...values: unknown[]) {

@@ -1071,7 +1071,6 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
-  ApiError,
   departmentApi,
   fileApi,
   intangibleItemApi,
@@ -1090,6 +1089,7 @@ import Table, { type Column } from "@/components/common/Table.vue";
 import PurchaseAssetRegisterDrawer from "@/components/purchase/PurchaseAssetRegisterDrawer.vue";
 import TicketDetailCard from "@/components/ticket/TicketDetailCard.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useNotificationStore } from "@/stores";
 import type {
   AssetType,
   Department,
@@ -1109,6 +1109,7 @@ import type {
   TangibleAssetItem,
   TangibleCategoryGroup,
 } from "@/types";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 interface EligibleTicket {
   ticketId: string;
@@ -1305,6 +1306,7 @@ const EVIDENCE_LOCKED_STATUSES: ReadonlySet<PurchasePlanStatus> = new Set(["COMP
 const { hasRole } = usePermission();
 const route = useRoute();
 const router = useRouter();
+const notificationStore = useNotificationStore();
 const canChangeStatus = computed(() =>
   hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
 );
@@ -1920,8 +1922,10 @@ async function handlePlanEvidenceFileChange(event: Event) {
   try {
     await purchaseApi.uploadPlanItemEvidence(planId, itemId, file);
     await fetchPlanDetail(planId);
+    notificationStore.success("증빙 파일이 업로드되었습니다.");
   } catch (error) {
     planEvidenceError.value = getErrorMessage(error, "증빙 파일 업로드에 실패했습니다.");
+    notificationStore.error("증빙 파일 업로드 실패", planEvidenceError.value);
   } finally {
     uploadingPlanEvidenceItemId.value = null;
     planEvidenceTargetItem.value = null;
@@ -1964,8 +1968,10 @@ async function confirmDeletePlanEvidenceFile() {
   try {
     await purchaseApi.deletePlanItemEvidenceFile(file.fileId);
     await fetchPlanDetail(planId);
+    notificationStore.success("증빙 파일이 삭제되었습니다.");
   } catch (error) {
     planEvidenceError.value = getErrorMessage(error, "증빙 파일 삭제에 실패했습니다.");
+    notificationStore.error("증빙 파일 삭제 실패", planEvidenceError.value);
   } finally {
     deletingPlanEvidenceFileId.value = null;
     isPlanEvidenceDeleteModalOpen.value = false;
@@ -2305,6 +2311,7 @@ async function createPlan() {
 
   try {
     const response = await purchaseApi.createPlan({ items });
+    notificationStore.success("구매 계획이 등록되었습니다.");
     closeCreateDrawer();
     await refreshList();
     void router.push({
@@ -2319,6 +2326,7 @@ async function createPlan() {
       error,
       "구매 계획 등록에 실패했습니다.",
     );
+    notificationStore.error("구매 계획 등록 실패", eligibleError.value);
   } finally {
     isCreatingPlan.value = false;
   }
@@ -2362,9 +2370,11 @@ async function changeStatus(status: PurchasePlanStatus) {
     nextStatus.value = "";
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
+    notificationStore.success("구매 계획 상태가 변경되었습니다.");
     return true;
   } catch (error) {
     detailError.value = getErrorMessage(error, "상태 변경에 실패했습니다.");
+    notificationStore.error("구매 계획 상태 변경 실패", detailError.value);
     return false;
   } finally {
     isStatusSaving.value = false;
@@ -2408,11 +2418,13 @@ async function submitActualAmount() {
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
     isActualAmountDrawerOpen.value = false;
+    notificationStore.success("실제 결제금액이 저장되었습니다.");
   } catch (error) {
     detailError.value = getErrorMessage(
       error,
       "실제 결제금액 등록에 실패했습니다.",
     );
+    notificationStore.error("실제 결제금액 저장 실패", detailError.value);
   } finally {
     pendingReviewStatus.value = null;
     isStatusSaving.value = false;
@@ -2473,8 +2485,10 @@ async function confirmDelivery(item: PurchasePlanItem) {
     await purchaseApi.confirmDelivery(selectedPlanId.value, itemId);
     await fetchPlanDetail(selectedPlanId.value);
     await refreshList();
+    notificationStore.success("납품 확인이 완료되었습니다.");
   } catch (error) {
     detailError.value = getErrorMessage(error, "납품 확인에 실패했습니다.");
+    notificationStore.error("납품 확인 실패", detailError.value);
   } finally {
     isConfirmingItem.value = null;
   }
@@ -2941,9 +2955,7 @@ function formatFileSize(value: number | null | undefined) {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiError) return error.message || fallback;
-  if (error instanceof Error) return error.message || fallback;
-  return fallback;
+  return getApiErrorMessage(error, fallback);
 }
 
 function getQueryString(value: unknown) {
@@ -2971,6 +2983,7 @@ async function handlePurchaseAssetRegistered() {
     await fetchPlanDetail(planId);
   }
   await refreshList();
+  notificationStore.success("구매 자산이 등록되었습니다.");
 }
 
 function openPlanItemRegisterDrawer(item: PurchasePlanItem) {
@@ -3066,11 +3079,13 @@ async function submitPlanItemRegister() {
     await fetchPlanDetail(planId);
     markRegisteredPlanItemsInSelectedPlan(nextRegisteredIds);
     await refreshList();
+    notificationStore.success("구매계획 품목이 등록되었습니다.");
   } catch (error) {
     planItemRegisterError.value = getErrorMessage(
       error,
       "구매계획 품목 등록에 실패했습니다.",
     );
+    notificationStore.error("구매계획 품목 등록 실패", planItemRegisterError.value);
   } finally {
     isPlanItemRegistering.value = false;
   }

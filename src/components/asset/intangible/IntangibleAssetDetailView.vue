@@ -109,6 +109,8 @@ import { INTANGIBLE_STATUS_LABEL } from '@/utils/labels'
 import type { BillingCycle, IntangibleAsset } from '@/types'
 import type { IntangibleAssetAssignmentResponse } from '@/api/asset.api'
 import { usePermission } from '@/composables'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 const minimumDate = getCurrentDateInputValue()
 
@@ -151,6 +153,7 @@ type IntangibleAssetDetailAliases = IntangibleAsset & {
 }
 
 const { canUpdateAsset } = usePermission()
+const notificationStore = useNotificationStore()
 
 const props = withDefaults(defineProps<{
   isOpen?: boolean
@@ -523,13 +526,13 @@ const handleUpdateAsset = async () => {
     console.log('무형자산 수정 요청 payload', payload)
     await intangibleAssetApi.update(assetId, payload)
 
+    notificationStore.success('무형자산 정보가 수정되었습니다.')
     emit('saved')
     emit('close')
   } catch (error) {
     console.error('무형자산 수정 실패', error)
-    saveErrorMessage.value = error instanceof Error
-      ? error.message
-      : '무형자산 수정 중 오류가 발생했습니다.'
+    saveErrorMessage.value = getApiErrorMessage(error, '무형자산을 수정하지 못했습니다.')
+    notificationStore.error('무형자산 수정 실패', saveErrorMessage.value)
   } finally {
     isSavingAsset.value = false
   }

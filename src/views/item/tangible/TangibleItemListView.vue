@@ -221,6 +221,16 @@
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :is-open="Boolean(itemToDelete)"
+    title="유형자산 품목 삭제"
+    :message="`'${itemToDelete?.assetName ?? ''}' 품목을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다.`"
+    confirm-text="삭제"
+    :loading="isDeletingItem"
+    @cancel="itemToDelete = null"
+    @confirm="confirmDeleteAsset"
+  />
 </template>
 
 <script setup lang="ts">
@@ -230,6 +240,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Dropdown from '@/components/common/Dropdown.vue';
 import Table, { type Column } from '@/components/common/Table.vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue';
 import { Edit, Plus, Upload, Search, Trash2 } from 'lucide-vue-next';
 import { tangibleAssetApi, tangibleItemApi } from '@/api/asset.api'
 import { usePermission } from '@/composables/usePermission'
@@ -329,6 +340,8 @@ const isRegisterDrawerOpen = ref(false);
 const isEditDrawerOpen = ref(false);
 const isSavingItem = ref(false);
 const selectedItem = ref<Asset | null>(null);
+const itemToDelete = ref<Asset | null>(null)
+const isDeletingItem = ref(false)
 const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 const csvUploadInputRef = ref<HTMLInputElement | null>(null)
 const isUploadingCsv = ref(false)
@@ -557,16 +570,19 @@ const resetItemEditForm = () => {
   itemEditForm.value = { ...initialItemEditForm.value }
 }
 
-const handleDeleteAsset = async (row: Asset) => {
+const handleDeleteAsset = (row: Asset) => {
   if (!row.assetItemId) {
     notificationStore.warning('삭제할 품목 정보를 찾을 수 없습니다.')
     return
   }
+  itemToDelete.value = row
+}
 
-  if (!confirm('선택한 품목을 삭제하시겠습니까?')) {
-    return
-  }
+const confirmDeleteAsset = async () => {
+  const row = itemToDelete.value
+  if (!row?.assetItemId || isDeletingItem.value) return
 
+  isDeletingItem.value = true
   try {
     await tangibleItemApi.delete(row.assetItemId)
     notificationStore.success('유형자산 품목이 삭제되었습니다.')
@@ -574,6 +590,9 @@ const handleDeleteAsset = async (row: Asset) => {
   } catch (error) {
     console.error(error)
     notificationStore.error('유형자산 품목 삭제 실패', '다시 시도해주세요.')
+  } finally {
+    isDeletingItem.value = false
+    itemToDelete.value = null
   }
 };
 

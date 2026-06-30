@@ -26,7 +26,7 @@
               variant="outline"
               :loading="isClosing"
               :disabled="isLoading || displayStatus === 'CLOSED'"
-              @click="closeInspection"
+              @click="isCloseConfirmOpen = true"
             >
               조사 종료
             </Button>
@@ -175,6 +175,16 @@
       </div>
     </div>
   </BaseDrawer>
+
+  <ConfirmationModal
+    :is-open="isCloseConfirmOpen"
+    title="전수조사 종료"
+    message="이 전수조사를 조건 없이 종료 처리하시겠습니까? 종료 후에는 다시 진행할 수 없습니다."
+    confirm-text="종료 처리"
+    :loading="isClosing"
+    @cancel="isCloseConfirmOpen = false"
+    @confirm="closeInspection"
+  />
 </template>
 
 <script setup lang="ts">
@@ -182,6 +192,7 @@ import { computed, ref, watch } from 'vue'
 
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { intangibleAssetApi, memberApi, tangibleAssetApi } from '@/api'
@@ -191,6 +202,8 @@ import {
   tangibleInspectionApi,
 } from '@/api/inspection.api'
 import { usePermission } from '@/composables'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import type { DropdownOption } from '@/types'
 import type { Member } from '@/types/member'
@@ -263,6 +276,7 @@ const statusLabel: Record<InspectionStatus, string> = {
 }
 
 const { canManageInspection, canCloseInspection } = usePermission()
+const notificationStore = useNotificationStore()
 
 const allTabs = [
   { label: '개요', value: 'overview' },
@@ -301,6 +315,7 @@ const members = ref<Member[]>([])
 const assetMemberNames = ref<Map<string, string[]>>(new Map())
 const isLoading = ref(false)
 const isClosing = ref(false)
+const isCloseConfirmOpen = ref(false)
 const errorMessage = ref('')
 const inspectionApi = computed(() => (
   props.assetType === 'intangible'
@@ -636,9 +651,6 @@ async function loadEmployeeDetailData() {
 async function closeInspection() {
   if (!props.inspection?.inspectionId || isClosing.value) return
 
-  const shouldClose = window.confirm('이 전수조사를 조건 없이 종료 처리할까요?')
-  if (!shouldClose) return
-
   isClosing.value = true
   errorMessage.value = ''
 
@@ -654,8 +666,11 @@ async function closeInspection() {
       }
     }
     emit('refresh')
-  } catch {
-    errorMessage.value = '전수조사를 종료 처리하지 못했습니다.'
+    isCloseConfirmOpen.value = false
+    notificationStore.success('전수조사가 종료 처리되었습니다.')
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, '전수조사를 종료 처리하지 못했습니다.')
+    notificationStore.error('전수조사 종료 실패', errorMessage.value)
   } finally {
     isClosing.value = false
   }

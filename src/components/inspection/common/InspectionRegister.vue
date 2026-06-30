@@ -130,6 +130,8 @@ import { intangibleItemApi, tangibleItemApi } from '@/api/asset.api'
 import { departmentApi } from '@/api/department.api'
 import { intangibleInspectionApi, tangibleInspectionApi } from '@/api/inspection.api'
 import { memberApi } from '@/api/member.api'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { toDateInputValue as getCurrentDateInputValue } from '@/utils/date'
 import type { Department, DropdownOption, Member } from '@/types'
 import type {
@@ -167,6 +169,7 @@ const props = defineProps<{
 }>()
 
 const minimumDate = getCurrentDateInputValue()
+const notificationStore = useNotificationStore()
 
 const emit = defineEmits<{
   close: []
@@ -740,10 +743,12 @@ async function handleRegisterInspection() {
     })
 
     emit('registered')
+    notificationStore.success('전수조사 계획이 등록되었습니다.')
     resetRegisterForm()
     emit('close')
-  } catch {
-    registerError.value = '전수조사 계획 등록에 실패했습니다. 입력한 정보를 확인해주세요.'
+  } catch (error) {
+    registerError.value = getApiErrorMessage(error, '전수조사 계획 등록에 실패했습니다.')
+    notificationStore.error('전수조사 계획 등록 실패', registerError.value)
   } finally {
     isRegisterSubmitting.value = false
   }

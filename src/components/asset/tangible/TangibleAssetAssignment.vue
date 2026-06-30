@@ -200,9 +200,12 @@ import {
   toFutureLocalDateTimeValue,
 } from '@/utils/date'
 import { TANGIBLE_STATUS_LABEL } from '@/utils/labels'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import type { Department, Member, TangibleAsset } from '@/types'
 
 const minimumDate = getCurrentDateInputValue()
+const notificationStore = useNotificationStore()
 
 type AssignmentMode = 'assign' | 'reassign' | 'bulk'
 
@@ -723,10 +726,18 @@ const submit = async () => {
     }
 
     emit('assigned')
+    notificationStore.success(
+      mode.value === 'assign'
+        ? '유형자산이 배정되었습니다.'
+        : mode.value === 'bulk'
+          ? '유형자산이 일괄 재배정되었습니다.'
+          : '유형자산이 재배정되었습니다.',
+    )
     resetForm()
   } catch (error) {
     console.error('유형자산 배정 처리 실패', error)
-    errorMessage.value = '유형자산 배정 처리 중 오류가 발생했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '유형자산 배정 처리를 완료하지 못했습니다.')
+    notificationStore.error('유형자산 배정 처리 실패', errorMessage.value)
   } finally {
     isSubmitting.value = false
   }
@@ -740,11 +751,13 @@ const returnSelectedAsset = async () => {
 
   try {
     await tangibleAssetApi.returnAsset(getAssetId(selectedAsset.value))
+    notificationStore.success('유형자산 배정이 해지되었습니다.')
     emit('assigned')
     resetForm()
   } catch (error) {
     console.error('유형자산 반납 처리 실패', error)
-    errorMessage.value = '유형자산 배정 해지 처리 중 오류가 발생했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '유형자산 배정 해지를 완료하지 못했습니다.')
+    notificationStore.error('유형자산 배정 해지 실패', errorMessage.value)
   } finally {
     isSubmitting.value = false
   }

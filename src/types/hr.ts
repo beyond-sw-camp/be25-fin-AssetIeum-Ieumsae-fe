@@ -141,4 +141,5 @@ export interface HrEventSearchRequest {
   departmentId?: string
   hrEventStatus?: HrEventStatus
   hrEventType?: HrEventType
+  sort?: string
 }

@@ -236,6 +236,16 @@
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :is-open="Boolean(itemToDelete)"
+    title="무형자산 품목 삭제"
+    :message="`'${itemToDelete?.productName ?? ''}' 품목을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다.`"
+    confirm-text="삭제"
+    :loading="isDeletingItem"
+    @cancel="itemToDelete = null"
+    @confirm="confirmDeleteAsset"
+  />
 </template>
 
 <script setup lang="ts">
@@ -245,6 +255,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import { Edit, Plus, Upload, Search, Trash2 } from 'lucide-vue-next'
 import { ApiError } from '@/api'
 import { intangibleAssetApi, intangibleItemApi } from '@/api/asset.api'
@@ -363,6 +374,8 @@ const isRegisterDrawerOpen = ref(false)
 const isEditDrawerOpen = ref(false)
 const isSavingItem = ref(false)
 const selectedItem = ref<IntangibleItem | null>(null)
+const itemToDelete = ref<IntangibleItem | null>(null)
+const isDeletingItem = ref(false)
 const itemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 const initialItemEditForm = ref<ItemEditForm>(createEmptyItemEditForm())
 
@@ -692,7 +705,7 @@ const handleUpdateItem = async () => {
   }
 }
 
-const handleDeleteAsset = async (row: IntangibleItem) => {
+const handleDeleteAsset = (row: IntangibleItem) => {
   const itemId = itemIdOf(row)
 
   if (!itemId) {
@@ -700,11 +713,15 @@ const handleDeleteAsset = async (row: IntangibleItem) => {
     notificationStore.warning('삭제할 품목 정보를 찾을 수 없습니다.')
     return
   }
+  itemToDelete.value = row
+}
 
-  if (!confirm('선택한 품목을 삭제하시겠습니까?')) {
-    return
-  }
+const confirmDeleteAsset = async () => {
+  const row = itemToDelete.value
+  const itemId = row ? itemIdOf(row) : ''
+  if (!itemId || isDeletingItem.value) return
 
+  isDeletingItem.value = true
   try {
     await intangibleItemApi.delete(itemId)
     notificationStore.success('무형자산 품목이 삭제되었습니다.')
@@ -712,6 +729,9 @@ const handleDeleteAsset = async (row: IntangibleItem) => {
   } catch (error) {
     console.error(error)
     notificationStore.error('무형자산 품목 삭제 실패', '다시 시도해주세요.')
+  } finally {
+    isDeletingItem.value = false
+    itemToDelete.value = null
   }
 }
 

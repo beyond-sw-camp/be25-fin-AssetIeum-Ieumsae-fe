@@ -144,12 +144,23 @@
       </div>
     </div>
   </BaseDrawer>
+
+  <ConfirmationModal
+    :is-open="Boolean(mainCategoryToDelete)"
+    title="대분류 삭제"
+    :message="`'${mainCategoryToDelete}' 대분류와 하위 중분류 목록을 함께 삭제하시겠습니까?`"
+    confirm-text="삭제"
+    :loading="isSaving"
+    @cancel="mainCategoryToDelete = ''"
+    @confirm="confirmDeleteMainCategory"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import BaseDrawer from '@/components/common/BaseDrawer.vue';
 import Button from '@/components/common/Button.vue';
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue';
 import Dropdown from '@/components/common/Dropdown.vue';
 import { Minus } from 'lucide-vue-next';
 import { intangibleItemApi } from '@/api/asset.api';
@@ -178,6 +189,7 @@ const selectedMainCategory = ref('');
 const selectedMiddleCategory = ref('');
 const newCategoryName = ref('');
 const isSaving = ref(false);
+const mainCategoryToDelete = ref('');
 
 const cloneGroups = (groups: CategoryGroup[]) => (
   groups.map((group) => ({
@@ -381,12 +393,14 @@ const addCategory = async () => {
   }
 };
 
-const deleteMainCategory = async (mainCategory: string) => {
+const deleteMainCategory = (mainCategory: string) => {
   if (isSaving.value) return;
+  mainCategoryToDelete.value = mainCategory;
+};
 
-  if (!confirm(`"${mainCategory}" 대분류를 삭제하시겠습니까?\n하위 중분류 목록도 함께 삭제됩니다.`)) {
-    return;
-  }
+const confirmDeleteMainCategory = async () => {
+  const mainCategory = mainCategoryToDelete.value;
+  if (!mainCategory || isSaving.value) return;
 
   const group = localGroups.value.find((item) => item.mainCategory === mainCategory);
   if (!group) return;
@@ -413,6 +427,7 @@ const deleteMainCategory = async (mainCategory: string) => {
     notificationStore.error('카테고리 삭제 실패', '다시 시도해주세요.');
   } finally {
     isSaving.value = false;
+    mainCategoryToDelete.value = '';
   }
 };
 
@@ -491,7 +506,10 @@ watch(
       selectedMiddleCategory.value = middleCategoryOptions.value[0] ?? '';
       newCategoryName.value = '';
       addMode.value = 'main';
+      return;
     }
+
+    mainCategoryToDelete.value = '';
   }
 );
 

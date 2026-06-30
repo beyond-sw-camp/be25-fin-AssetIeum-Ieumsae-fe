@@ -211,15 +211,17 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { BellRing, KeyRound, Settings2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-import { ApiError, notificationApi, purchaseApi } from '@/api'
+import { notificationApi, purchaseApi } from '@/api'
 import Button from '@/components/common/Button.vue'
 import { useEventSource } from '@/composables/useEventSource'
 import { usePermission } from '@/composables/usePermission'
+import { useNotificationStore } from '@/stores'
 import type {
   PurchasePolicy,
   PurchasePolicyMode,
   ServerNotification,
 } from '@/types'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 interface PurchasePolicyForm {
   purchaseMode: PurchasePolicyMode
@@ -229,6 +231,7 @@ interface PurchasePolicyForm {
 }
 
 const router = useRouter()
+const notificationStore = useNotificationStore()
 const { canManagePurchasePolicy } = usePermission()
 
 const notificationSubscription = useEventSource()
@@ -365,8 +368,10 @@ async function savePolicy() {
     currentPolicy.value = response.data
     applyPolicyToForm(response.data)
     policySavedMessage.value = '구매 운영 정책이 저장되었습니다.'
+    notificationStore.success(policySavedMessage.value)
   } catch (error) {
     policyError.value = getErrorMessage(error, '구매 운영 정책 저장에 실패했습니다.')
+    notificationStore.error('구매 운영 정책 저장 실패', policyError.value)
   } finally {
     isPolicySaving.value = false
   }
@@ -396,9 +401,7 @@ function applyPolicyToForm(policy: PurchasePolicy) {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiError) return error.message || fallback
-  if (error instanceof Error) return error.message || fallback
-  return fallback
+  return getApiErrorMessage(error, fallback)
 }
 
 function getPurchaseModeLabel(value: PurchasePolicyMode) {

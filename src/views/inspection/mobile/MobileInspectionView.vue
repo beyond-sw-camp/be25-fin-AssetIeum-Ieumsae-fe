@@ -1,6 +1,30 @@
 <template>
   <div
-    v-if="renderError"
+    v-if="isInitialLoading"
+    class="mx-auto flex h-dvh min-h-dvh w-full max-w-md flex-col bg-background text-text-main md:border-x md:border-border"
+  >
+    <header class="shrink-0 border-b border-border bg-surface px-5 py-5">
+      <p class="text-lg font-bold text-primary">자산이음</p>
+      <p class="mt-1 text-sm font-semibold text-text-sub">모바일 전수조사</p>
+    </header>
+    <main class="flex flex-1 flex-col justify-center px-5 py-8">
+      <div class="flex flex-col items-center text-center">
+        <LoaderCircle :size="32" class="animate-spin text-primary" />
+        <p class="mt-4 text-base font-bold text-text-main">검수 대상을 불러오고 있습니다</p>
+        <p class="mt-2 text-sm text-text-sub">잠시만 기다려주세요.</p>
+      </div>
+      <div class="mt-8 space-y-3" aria-hidden="true">
+        <div v-for="index in 3" :key="index" class="rounded-lg border border-border bg-surface p-4">
+          <div class="h-4 w-2/3 animate-pulse rounded bg-surface-secondary" />
+          <div class="mt-3 h-3 w-1/2 animate-pulse rounded bg-surface-secondary" />
+          <div class="mt-5 h-8 animate-pulse rounded bg-surface-secondary" />
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div
+    v-else-if="renderError"
     class="mx-auto flex h-screen min-h-screen w-full max-w-md flex-col justify-center bg-background px-5 text-text-main md:border-x md:border-border"
   >
     <div class="rounded-xl border border-danger/20 bg-danger/5 px-5 py-6 text-center">
@@ -8,7 +32,7 @@
         모바일 화면을 불러오지 못했습니다.
       </p>
       <p class="mt-2 text-sm leading-relaxed text-text-sub">
-        {{ renderError }}
+        잠시 후 다시 시도해주세요. 문제가 계속되면 관리자에게 문의해주세요.
       </p>
       <Button class="mt-6 w-full" size="lg" @click="goLogin">
         로그인 화면으로 이동
@@ -49,17 +73,6 @@
       <p class="w-full mt-2 text-sm leading-relaxed text-text-sub">
         {{ inspectionGuideText }}
       </p>
-
-      <div
-        v-if="isDebugAuth"
-        class="mt-4 rounded-lg border border-warning/30 bg-warning/5 px-3 py-3 text-xs text-text-sub"
-      >
-        <p class="font-bold text-text-main">Auth Debug</p>
-        <p class="mt-1">isAuthenticated: {{ authStore.isAuthenticated }}</p>
-        <p>currentRole: {{ authStore.currentRole || '-' }}</p>
-        <p>user.role: {{ authStore.user?.role || '-' }}</p>
-        <p>storedRole: {{ storedRole || '-' }}</p>
-      </div>
 
       <div
         v-if="user"
@@ -212,7 +225,7 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ScanLine } from 'lucide-vue-next'
+import { LoaderCircle, ScanLine } from 'lucide-vue-next'
 
 import Button from '@/components/common/Button.vue'
 import InspectionQrScanner from '@/components/inspection/mobile/InspectionQrScanner.vue'
@@ -224,9 +237,9 @@ import {
   intangibleInspectionApi,
   tangibleInspectionApi,
 } from '@/api/inspection.api'
-import { ApiError } from '@/api/client'
 import type { EmployeeInspectionTargetResponse, InspectionStatus } from '@/types/inspection'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { resolveInspectionStatus } from '@/utils/inspectionStatus'
 import { ROLE_LABEL } from '@/utils/labels'
 
@@ -235,6 +248,7 @@ type MobileAssetType = 'tangible' | 'intangible'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 const assetType = ref<MobileAssetType>(route.query.assetType === 'intangible' ? 'intangible' : 'tangible')
 const targets = ref<MobileInspectionTarget[]>([])
@@ -250,10 +264,11 @@ const totalElements = ref(0)
 const keyword = ref('')
 const respondedFilter = ref('')
 const isScannerOpen = ref(false)
+const hasLoadedOnce = ref(false)
 const user = computed(() => authStore.user)
 const roleLabel = computed(() => user.value ? ROLE_LABEL[user.value.role] : '')
 const isDebugAuth = computed(() => route.query.debugAuth === '1')
-const storedRole = computed(() => getStoredRole())
+const isInitialLoading = computed(() => isLoading.value && !hasLoadedOnce.value)
 const canUseMobileInspection = computed(() => (
   authStore.isAuthenticated && canUseMobileInspectionRole(authStore.currentRole)
 ))
@@ -269,18 +284,6 @@ const form = reactive({
   responseContent: '',
   followUpRequests: false,
 })
-
-function getStoredRole() {
-  try {
-    const authUser = localStorage.getItem('authUser')
-    if (!authUser) return ''
-
-    const parsedUser = JSON.parse(authUser) as { role?: unknown }
-    return typeof parsedUser.role === 'string' ? parsedUser.role : ''
-  } catch {
-    return ''
-  }
-}
 
 function isAssetTeamRole(role: string | null | undefined) {
   return role === 'ASSET_TEAM' || role === 'ASSET_MANAGER' || role === 'ADMIN'
@@ -320,9 +323,8 @@ const responseAvailabilityText = computed(() => {
 })
 
 onErrorCaptured((error) => {
-  renderError.value = error instanceof Error
-    ? error.message
-    : '알 수 없는 화면 오류가 발생했습니다.'
+  console.error('모바일 전수조사 렌더링 오류:', error)
+  renderError.value = '모바일 화면을 불러오지 못했습니다.'
 
   return false
 })
@@ -433,9 +435,8 @@ async function loadRegisteredResponse(targetId: string) {
   } catch (error) {
     if (selectedTarget.value?.inspectionTargetId !== targetId) return
     isSuccess.value = false
-    message.value = error instanceof ApiError
-      ? `등록된 응답을 불러오지 못했습니다. ${error.message}`
-      : '등록된 응답을 불러오지 못했습니다.'
+    message.value = getApiErrorMessage(error, '등록된 응답을 불러오지 못했습니다.')
+    notificationStore.error('응답 조회 실패', message.value)
   } finally {
     if (selectedTarget.value?.inspectionTargetId === targetId) {
       isLoadingResponse.value = false
@@ -496,11 +497,11 @@ async function loadTargets(options: { selectedTargetId?: string; preserveMessage
       totalElements.value = 0
       selectedTarget.value = null
     }
-    loadError.value = error instanceof ApiError
-      ? error.message
-      : '검수 대상 자산을 불러오지 못했습니다.'
+    loadError.value = getApiErrorMessage(error, '검수 대상 자산을 불러오지 못했습니다.')
+    notificationStore.error('검수 대상 조회 실패', loadError.value)
   } finally {
     isLoading.value = false
+    hasLoadedOnce.value = true
   }
 }
 
@@ -508,6 +509,7 @@ async function handleSubmit() {
   if (isResponseDisabled.value || !selectedTarget.value || !form.responseContent.trim()) {
     isSuccess.value = false
     message.value = '응답할 자산과 확인 내용을 입력해주세요.'
+    notificationStore.warning(message.value)
     return
   }
 
@@ -528,6 +530,7 @@ async function handleSubmit() {
     ))
     isSuccess.value = true
     message.value = '검수 응답이 등록되었습니다.'
+    notificationStore.success(message.value)
     form.responseContent = ''
     form.followUpRequests = false
     await Promise.allSettled([
@@ -536,9 +539,8 @@ async function handleSubmit() {
     ])
   } catch (error) {
     isSuccess.value = false
-    message.value = error instanceof ApiError
-      ? `검수 응답 등록에 실패했습니다. ${error.message}`
-      : '검수 응답 등록에 실패했습니다. 입력한 정보를 확인해주세요.'
+    message.value = getApiErrorMessage(error, '검수 응답 등록에 실패했습니다.')
+    notificationStore.error('검수 응답 등록 실패', message.value)
   } finally {
     isSubmitting.value = false
   }
@@ -562,6 +564,7 @@ function handleDetectedCode(rawValue: string) {
     isScannerOpen.value = false
     isSuccess.value = false
     message.value = '배정된 검수 대상에서 해당 자산을 찾지 못했습니다.'
+    notificationStore.warning(message.value)
     return
   }
 

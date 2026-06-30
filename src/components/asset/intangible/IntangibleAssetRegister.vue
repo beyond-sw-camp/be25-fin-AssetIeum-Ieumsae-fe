@@ -194,6 +194,8 @@ import DepartmentTreeSelect from '@/components/common/DepartmentTreeSelect.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import { intangibleAssetApi } from '@/api/asset.api'
+import { useNotificationStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import {
   toDateInputValue as getCurrentDateInputValue,
   toFutureLocalDateTimeValue,
@@ -214,6 +216,8 @@ interface AssetItemOption {
   name: string
   licenseType: LicenseType
 }
+
+const notificationStore = useNotificationStore()
 
 interface RegisterForm {
   assetItemName: string
@@ -634,6 +638,7 @@ const handleSave = async () => {
       ...response.data,
       assignedMemberCount: members.length,
     } as IntangibleAsset)
+    notificationStore.success('무형자산이 등록되었습니다.')
     emit('close')
   } catch (error) {
     const failure = typeof error === 'object' && error !== null
@@ -647,6 +652,10 @@ const handleSave = async () => {
       details: failure.details,
       error,
     })
+    notificationStore.error(
+      '무형자산 등록 실패',
+      getApiErrorMessage(error, '무형자산을 등록하지 못했습니다.'),
+    )
   } finally {
     isSaving.value = false
   }

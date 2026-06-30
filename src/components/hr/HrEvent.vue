@@ -191,6 +191,18 @@
       @refresh="loadSelectedEventTargets"
       @complete="handleSelectedEventComplete"
     />
+
+    <ConfirmationModal
+      :is-open="Boolean(pendingEventAction)"
+      :title="pendingEventAction?.type === 'complete' ? 'HR 이벤트 완료' : 'HR 이벤트 삭제'"
+      :message="pendingEventAction?.type === 'complete'
+        ? '이 HR 이벤트와 모든 처리 대상을 완료하시겠습니까?'
+        : '대기 중인 HR 이벤트를 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다.'"
+      :confirm-text="pendingEventAction?.type === 'complete' ? '완료 처리' : '삭제'"
+      :loading="isActing"
+      @cancel="pendingEventAction = null"
+      @confirm="confirmEventAction"
+    />
   </div>
 </template>
 
@@ -208,15 +220,16 @@ import { hrApi } from '@/api/hr.api'
 import { memberApi } from '@/api/member.api'
 import { departmentApi } from '@/api/department.api'
 import { intangibleAssetApi } from '@/api/asset.api'
-import { ApiError } from '@/api/client'
 import { ticketApi } from '@/api/ticket.api'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useNotificationStore } from '@/stores'
 import type { Department, DropdownOption, Member, PageResponse, TicketListItem } from '@/types'
+import { getApiErrorMessage } from '@/utils/apiError'
 import type {
   HrEventId,
   HrEventAssetType,
@@ -245,6 +258,11 @@ interface HrEventRow extends Record<string, unknown> {
   templateName: string
   status: HrEventStatus
   statusLabel: string
+}
+
+interface PendingEventAction {
+  type: 'complete' | 'delete'
+  row: HrEventRow
 }
 
 interface MemberAliasSource {
@@ -289,9 +307,7 @@ const STATUS_LABEL: Record<HrEventStatus, string> = {
 }
 
 function apiErrorMessage(error: unknown, fallbackMessage: string) {
-  if (error instanceof ApiError && error.message) return error.message
-  if (error instanceof Error && error.message) return error.message
-  return fallbackMessage
+  return getApiErrorMessage(error, fallbackMessage)
 }
 
 const eventColumns = computed<Column<HrEventRow>[]>(() => [
@@ -312,12 +328,14 @@ const eventColumns = computed<Column<HrEventRow>[]>(() => [
 ])
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const isRegisterDrawerOpen = ref(false)
 const isDetailDrawerOpen = ref(false)
 const isLoading = ref(false)
 const isLoadingMembers = ref(false)
 const isCreating = ref(false)
 const actingEventId = ref<HrEventId | null>(null)
+const pendingEventAction = ref<PendingEventAction | null>(null)
 const errorMessage = ref('')
 const formErrorMessage = ref('')
 const detailErrorMessage = ref('')
@@ -325,7 +343,7 @@ const events = ref<HrEventResponse[]>([])
 const selectedEvent = ref<HrEventRow | null>(null)
 const selectedEventTargets = ref<HrEventAssetTargetResponse[]>([])
 const isLoadingTargets = ref(false)
-const eventDateSortOrder = ref<EventDateSortOrder>('ASC')
+const eventDateSortOrder = ref<EventDateSortOrder>('DESC')
 const members = ref<Member[]>([])
 const departments = ref<Department[]>([])
 const template = ref<HrTemplateResponse | null>(null)
@@ -429,13 +447,14 @@ async function loadEvents() {
       size: pagination.size,
       hrEventType: filters.eventType || undefined,
       hrEventStatus: filters.status || undefined,
+      sort: `eventDate,${eventDateSortOrder.value.toLowerCase()}`,
     })
     applyPage(response.data)
     void loadEventSummary()
   } catch (error) {
     console.error('HR 이벤트 목록 조회 실패', error)
     events.value = []
-    errorMessage.value = 'HR 이벤트 목록을 불러오지 못했습니다.'
+    errorMessage.value = apiErrorMessage(error, 'HR 이벤트 목록을 불러오지 못했습니다.')
   } finally {
     isLoading.value = false
   }
@@ -665,49 +684,59 @@ async function handleCreateEvent(payload: HrEventRegisterSubmitPayload) {
       targetDepartmentId: payload.targetDepartmentId,
       assetTargets: payload.assetTargets,
     })
+    notificationStore.success('HR 이벤트가 등록되었습니다.')
     handleCloseDrawer()
     await loadEvents()
   } catch (error) {
     console.error('HR 이벤트 등록 실패', error)
     formErrorMessage.value = apiErrorMessage(error, 'HR 이벤트를 등록하지 못했습니다.')
+    notificationStore.error('HR 이벤트 등록 실패', formErrorMessage.value)
   } finally {
     isCreating.value = false
   }
 }
 
-async function handleCompleteEvent(row: HrEventRow) {
+function handleCompleteEvent(row: HrEventRow) {
   if (row.status !== 'IN_PROGRESS' || isActing.value) return
-  if (!window.confirm('이 HR 이벤트와 모든 처리 대상을 완료할까요?')) return
-
-  actingEventId.value = row.hrEventId
-  errorMessage.value = ''
-
-  try {
-    await hrApi.completeEvent(row.hrEventId)
-    await loadEvents()
-  } catch (error) {
-    console.error('HR 이벤트 완료 처리 실패', error)
-    errorMessage.value = apiErrorMessage(error, '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.')
-  } finally {
-    actingEventId.value = null
-  }
+  pendingEventAction.value = { type: 'complete', row }
 }
 
-async function handleDeleteEvent(row: HrEventRow) {
+function handleDeleteEvent(row: HrEventRow) {
   if (row.status !== 'PENDING' || isActing.value) return
-  if (!window.confirm('대기 중인 HR 이벤트를 삭제할까요?')) return
+  pendingEventAction.value = { type: 'delete', row }
+}
 
-  actingEventId.value = row.hrEventId
+async function confirmEventAction() {
+  const action = pendingEventAction.value
+  if (!action || isActing.value) return
+
+  actingEventId.value = action.row.hrEventId
   errorMessage.value = ''
 
   try {
-    await hrApi.deleteEvent(row.hrEventId)
+    if (action.type === 'complete') {
+      await hrApi.completeEvent(action.row.hrEventId)
+      notificationStore.success('HR 이벤트가 완료 처리되었습니다.')
+    } else {
+      await hrApi.deleteEvent(action.row.hrEventId)
+      notificationStore.success('HR 이벤트가 삭제되었습니다.')
+    }
     await loadEvents()
   } catch (error) {
-    console.error('HR 이벤트 삭제 실패', error)
-    errorMessage.value = apiErrorMessage(error, '대기 중인 HR 이벤트만 삭제할 수 있습니다.')
+    console.error(`HR 이벤트 ${action.type === 'complete' ? '완료 처리' : '삭제'} 실패`, error)
+    errorMessage.value = apiErrorMessage(
+      error,
+      action.type === 'complete'
+        ? '실행 중인 HR 이벤트만 완료 처리할 수 있습니다.'
+        : '대기 중인 HR 이벤트만 삭제할 수 있습니다.',
+    )
+    notificationStore.error(
+      action.type === 'complete' ? 'HR 이벤트 완료 실패' : 'HR 이벤트 삭제 실패',
+      errorMessage.value,
+    )
   } finally {
     actingEventId.value = null
+    pendingEventAction.value = null
   }
 }
 

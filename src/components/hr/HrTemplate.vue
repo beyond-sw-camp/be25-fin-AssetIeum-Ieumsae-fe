@@ -13,7 +13,7 @@
           variant="outline"
           :disabled="isLoading || isDeleting"
           :loading="isDeleting"
-          @click="handleDeleteTemplate"
+          @click="isDeleteModalOpen = true"
         >
           템플릿 삭제
         </Button>
@@ -101,6 +101,16 @@
     @close="isRegisterDrawerOpen = false"
     @registered="handleTemplateRegistered"
   />
+
+  <ConfirmationModal
+    :is-open="isDeleteModalOpen"
+    title="입사 템플릿 삭제"
+    message="입사 템플릿 구성을 삭제하시겠습니까? 삭제 후에는 되돌릴 수 없습니다."
+    confirm-text="삭제"
+    :loading="isDeleting"
+    @cancel="isDeleteModalOpen = false"
+    @confirm="handleDeleteTemplate"
+  />
 </template>
 
 <script setup lang="ts">
@@ -110,10 +120,13 @@ import { RefreshCcw } from 'lucide-vue-next'
 import { intangibleItemApi, tangibleItemApi } from '@/api/asset.api'
 import { hrApi } from '@/api/hr.api'
 import Button from '@/components/common/Button.vue'
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
 import { usePermission } from '@/composables'
+import { useNotificationStore } from '@/stores'
 import type { IntangibleItem, TangibleAssetItem } from '@/types'
 import type { HrTemplateAssetType, HrTemplateId, HrTemplateItemResponse, HrTemplateResponse } from '@/types/hr'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 import HrTemplateRegister from './HrTemplateRegister.vue'
 
@@ -126,7 +139,9 @@ const isRegisterDrawerOpen = ref(false)
 const template = ref<HrTemplateResponse | null>(null)
 const isLoading = ref(false)
 const isDeleting = ref(false)
+const isDeleteModalOpen = ref(false)
 const errorMessage = ref('')
+const notificationStore = useNotificationStore()
 const { canRegisterHrTemplate } = usePermission()
 const assetTypes: HrTemplateAssetType[] = ['TANGIBLE', 'INTANGIBLE']
 const tangibleAssetItems = ref<TangibleAssetItem[]>([])
@@ -203,7 +218,7 @@ const loadTemplate = async (preferredUpdatedAt?: string) => {
   } catch (error) {
     console.error('HR 템플릿 조회 실패', error)
     template.value = null
-    errorMessage.value = '입사 템플릿을 불러오지 못했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '입사 템플릿을 불러오지 못했습니다.')
   } finally {
     isLoading.value = false
   }
@@ -224,7 +239,7 @@ const loadAssetItems = async () => {
     intangibleAssetItems.value = intangibleResponse.data.content
   } catch (error) {
     console.error('HR 템플릿 품목 목록 조회 실패', error)
-    errorMessage.value = '템플릿 등록에 필요한 자산 품목을 불러오지 못했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '템플릿 등록에 필요한 자산 품목을 불러오지 못했습니다.')
   }
 }
 
@@ -239,16 +254,18 @@ const hasTemplateItems = (value: HrTemplateResponse | null): value is HrTemplate
 // TODO: API 명세/백엔드 확인 필요 - 현재 서버 삭제는 soft delete 후 재등록 중복 제약과 충돌해 구성 비우기로 처리한다.
 const handleDeleteTemplate = async () => {
   if (!template.value || isDeleting.value) return
-  if (!window.confirm('입사 템플릿 구성을 삭제할까요?')) return
 
   isDeleting.value = true
 
   try {
     await hrApi.deleteTemplate()
     template.value = null
+    isDeleteModalOpen.value = false
+    notificationStore.success('입사 템플릿이 삭제되었습니다.')
   } catch (error) {
     console.error('HR 템플릿 삭제 실패', error)
-    errorMessage.value = '입사 템플릿 구성을 삭제하지 못했습니다.'
+    errorMessage.value = getApiErrorMessage(error, '입사 템플릿 구성을 삭제하지 못했습니다.')
+    notificationStore.error('입사 템플릿 삭제 실패', errorMessage.value)
   } finally {
     isDeleting.value = false
   }

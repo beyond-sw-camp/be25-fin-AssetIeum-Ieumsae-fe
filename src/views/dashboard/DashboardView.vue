@@ -100,6 +100,7 @@ import HoldingAssetCard from '@/components/dashboard/HoldingAssetCard.vue'
 import ProgressTicketCard, { type DashboardSegment } from '@/components/dashboard/ProgressTicketCard.vue'
 import { budgetApi } from '@/api/budget.api'
 import { dashboardApi } from '@/api/dashboard.api'
+import { useDashboardAvailableAssets } from '@/composables'
 import { useAuthStore } from '@/stores'
 import type {
   AssetDemand,
@@ -160,6 +161,7 @@ type AssetDrawerMode = 'owned' | 'expiring'
 type AssetDrawerType = 'ALL' | 'TANGIBLE' | 'INTANGIBLE'
 
 const auth = useAuthStore()
+const { loadAvailableAssets } = useDashboardAvailableAssets()
 const ticketProgress = ref<TicketProgressSummary>({ ...EMPTY_TICKET_PROGRESS })
 const ownedAssets = ref<OwnedAssetSummary>({ ...EMPTY_OWNED_ASSETS })
 const expiringSummary = ref<ExpiringAssetSummary>({ ...EMPTY_EXPIRING_ASSETS })
@@ -498,15 +500,25 @@ async function loadDashboardData() {
   try {
     const departmentId = auth.user?.departmentId
     const scope = isDepartmentManager.value && departmentId ? { departmentId } : undefined
-    const [ticketResponse, ownedResponse, expiringResponse, demandResponse] = await Promise.all([
+    const unassignedCountRequest = isAssetOperator.value
+      ? loadAvailableAssets().then((assets) => assets.length).catch((error) => {
+          console.error('대시보드 미배정 자산 수 조회 실패', error)
+          return null
+        })
+      : Promise.resolve(null)
+    const [ticketResponse, ownedResponse, expiringResponse, demandResponse, unassignedCount] = await Promise.all([
       dashboardApi.getTicketProgress(scope),
       dashboardApi.getOwnedAssets(scope),
       dashboardApi.getExpiringAssets(scope),
       dashboardApi.getAssetDemands({ page: 0, size: 100 }),
+      unassignedCountRequest,
     ])
 
     ticketProgress.value = ticketResponse.data
-    ownedAssets.value = ownedResponse.data
+    ownedAssets.value = {
+      ...ownedResponse.data,
+      unassigned: unassignedCount ?? ownedResponse.data.unassigned,
+    }
     expiringSummary.value = expiringResponse.data
     assetDemands.value = demandResponse.data.content
     if (isDepartmentManager.value && departmentId) {
