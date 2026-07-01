@@ -96,6 +96,8 @@
                 v-model="tangibleForm.usedStartedAt"
                 type="date"
                 label="사용 시작일"
+                :min="minimumDate"
+                disable-past-month-navigation
                 :disabled="isSubmitting"
               />
               <Input
@@ -103,6 +105,8 @@
                 v-model="tangibleForm.returnDueDate"
                 type="date"
                 label="반납 예정일"
+                :min="minimumDate"
+                disable-past-month-navigation
                 :disabled="isSubmitting || isPermanentTangibleUsage"
               />
             </template>
@@ -334,6 +338,7 @@ import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
+import { toDateInputValue as getCurrentDateInputValue } from '@/utils/date'
 import SectionTitle from '@/components/purchase/PurchaseAssetRegisterSectionTitle.vue'
 import type {
   AssetType,
@@ -384,6 +389,8 @@ interface Props {
   departments: Department[]
   members: Member[]
 }
+
+const minimumDate = getCurrentDateInputValue()
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
