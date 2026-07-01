@@ -161,7 +161,7 @@ const testerDemoAccountGroups: DemoAccountGroup[] = [
     label: '테스터 2',
     accounts: [
       { label: '구매자산팀2', companyCode: 'hanwha', memberNo: 'EMP0012' },
-      { label: '부서책임자2', companyCode: 'hanwha', memberNo: 'EMP0014' },
+      { label: '부서책임자2', companyCode: 'hanwha', memberNo: 'EMP0013' },
       { label: '사원2', companyCode: 'hanwha', memberNo: 'EMP0015' },
     ],
   },
