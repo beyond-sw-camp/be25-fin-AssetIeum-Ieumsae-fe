@@ -225,6 +225,7 @@ export interface StandardAssetRequestCreate {
   assetItemId: string
   assignmentTargetMemberIds: string[]
   quantity: number
+  estimatedUnitPrice?: number
   requestReason: string
 }
 

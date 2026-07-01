@@ -2374,6 +2374,11 @@ function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidat
     ?? detailRecord.purchasePrice
     ?? detailRecord.unitPrice
     ?? 0) ?? 0
+  const requestedQuantity = detail.quantity ?? 1
+  const availableCount = optionalNumber(detailRecord.availableCount ?? detailRecord.availableAssetCount)
+  const shortageQuantity = ticket.ticketType === 'ASSET_REQUEST' && availableCount !== null && availableCount !== undefined
+    ? Math.max(requestedQuantity - availableCount, 0)
+    : requestedQuantity
 
   return {
     ticketId: ticket.ticketId,
@@ -2384,7 +2389,7 @@ function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidat
     requesterName: ticket.requesterName,
     itemName: detail.requestedItemName ?? detail.requestedItemDetail ?? detail.productName ?? ticket.requestedItemName ?? '',
     categoryName: detail.categoryName ?? '',
-    quantity: detail.quantity ?? 1,
+    quantity: shortageQuantity,
     estimatedUnitPrice,
     assetItemId: detail.assetItemId ?? null,
     isStandard: detail.isStandard ?? null,
@@ -4194,7 +4199,7 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/asset-requests`, async ({ request }) => {
     const body = await request.json() as StandardAssetRequestCreate
     return HttpResponse.json(ok(
       createMockTicket(

@@ -708,7 +708,7 @@ const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
-const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
+const ASSET_ASSIGNABLE_TYPES = new Set(['RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
   'RENTAL_EXTENSION',
   'MAINTENANCE_REQUEST',
@@ -911,9 +911,7 @@ const canAssignAsset = computed(() => {
     )
   )
 
-  return ticket.value.ticketType === 'ASSET_REQUEST'
-    ? fallback
-    : ticketActionAllowed('canAssignAsset', fallback)
+  return ticketActionAllowed('canAssignAsset', fallback)
 })
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
