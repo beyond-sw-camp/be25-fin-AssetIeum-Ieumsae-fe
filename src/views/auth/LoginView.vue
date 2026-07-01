@@ -144,7 +144,7 @@ interface DemoAccountGroup {
 
 const commonDemoAccounts: DemoAccount[] = [
   { label: '시스템 관리자', companyCode: 'assetieum', memberNo: 'superadmin' },
-  { label: '최고 관리자', companyCode: 'hanwha', memberNo: 'admin1' },
+  { label: '최고 관리자', companyCode: 'hanwha', memberNo: 'admin' },
   { label: '구매자산팀장', companyCode: 'hanwha', memberNo: 'EMP0001' },
 ]
 

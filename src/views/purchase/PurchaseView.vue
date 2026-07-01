@@ -2152,24 +2152,36 @@ function canConfirmDelivery(item: PurchasePlanItem) {
 
 function canRegisterAssetFromItem(item: PurchasePlanItem) {
   if (!selectedPlan.value) return false;
-  const registerableStatuses: PurchasePlanStatus[] = ["ORDERED", "DELIVERED"];
   return (
     isPurchasePlanItemReceived(item) &&
-    registerableStatuses.includes(displayPlanStatus(selectedPlan.value))
+    displayPlanStatus(selectedPlan.value) === "DELIVERED"
   );
 }
 
 function isPurchaseItemDeliverySettled(item: PurchasePlanItem) {
   if (item.receivedAt) return true;
   const itemStatus = getPurchasePlanItemStatus(item);
-  if (itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED" || itemStatus === "ASSET_REGISTERED") return true;
+  if (
+    itemStatus === "RECEIVED" ||
+    itemStatus === "DELIVERED" ||
+    itemStatus === "DELIVERY_CONFIRMED" ||
+    itemStatus === "ITEM_REGISTERED" ||
+    itemStatus === "ASSET_REGISTERED"
+  ) return true;
   if (!selectedPlan.value) return false;
   return displayPlanStatus(selectedPlan.value) === "COMPLETED";
 }
 
 function isPurchasePlanItemReceived(item: PurchasePlanItem) {
   const itemStatus = getPurchasePlanItemStatus(item);
-  if (itemStatus) return itemStatus === "RECEIVED" || itemStatus === "ITEM_REGISTERED";
+  if (itemStatus) {
+    return [
+      "RECEIVED",
+      "DELIVERED",
+      "DELIVERY_CONFIRMED",
+      "ITEM_REGISTERED",
+    ].includes(itemStatus);
+  }
   return Boolean(item.receivedAt);
 }
 

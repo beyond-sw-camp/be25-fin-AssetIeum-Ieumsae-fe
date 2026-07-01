@@ -60,6 +60,7 @@ export interface TicketDetail {
   assigneeName: string | null
   actions?: TicketActions | null
   histories?: TicketHistory[] | null
+  assignmentTargets?: TicketAssignmentTarget[] | null
   requestReason: string | null
   // TODO: API 명세/백엔드 확인 필요 - 티켓 상세 응답은 현재 공통 정보만 정의되어 있다.
   // 아래 필드는 생성/처리 API와 DB에 존재하지만 상세 응답 포함 여부가 확정되지 않았다.
@@ -131,6 +132,19 @@ export interface TicketDetail {
   canceledAt: string | null
   requestedAt: string
   updatedAt: string
+}
+
+export interface TicketAssignmentTarget {
+  targetId?: string | null
+  memberId?: string | null
+  memberNo?: string | null
+  memberName?: string | null
+  departmentId?: string | null
+  departmentName?: string | null
+  status?: 'ASSIGNED' | 'PENDING' | string | null
+  assignedAssetType?: AssetType | null
+  assignedAssetId?: string | null
+  assignedAt?: string | null
 }
 
 export interface TicketActions {
@@ -225,6 +239,7 @@ export interface StandardAssetRequestCreate {
   assetItemId: string
   assignmentTargetMemberIds: string[]
   quantity: number
+  estimatedUnitPrice?: number
   requestReason: string
 }
 

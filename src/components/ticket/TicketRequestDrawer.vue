@@ -113,7 +113,7 @@
               v-model="assetSearchForm.keyword"
               type="search"
               class="h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-4 text-sm text-text-main outline-none placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
-              placeholder="모델명, 제조사 검색"
+              :placeholder="assetSearchPlaceholder"
               @input="invalidateAssetSearch"
               @keydown.enter.prevent="handleAssetSearch"
             />
@@ -430,7 +430,7 @@
             v-model="assetSearchKeyword"
             type="search"
             class="h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-4 text-sm text-text-main outline-none placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
-            placeholder="품목명, 모델명, 제조사 검색"
+            :placeholder="assetSearchPlaceholder"
           />
         </div>
 
@@ -450,15 +450,15 @@
           v-model="form.requestedItemName"
           label="요청 품목 상세"
           required
-          placeholder="예: MacBook Pro 14 M4 Pro / 24GB / 1TB"
+          :placeholder="requestedItemDetailPlaceholder"
           :disabled="isSubmitting"
         />
         <Input
           id="ticket-manufacturer"
           v-model="form.vendor"
-          label="제조사"
+          :label="vendorFieldLabel"
           required
-          placeholder="예: Apple"
+          :placeholder="vendorPlaceholder"
           :disabled="isSubmitting"
         />
         <div v-if="form.assetType === 'INTANGIBLE'" class="space-y-2">
@@ -534,6 +534,15 @@
           label="수량"
           required
           placeholder="1"
+          :disabled="isSubmitting"
+        />
+        <CurrencyInput
+          v-if="requiresStandardEstimatedUnitPrice"
+          id="ticket-standard-estimated-unit-price"
+          v-model="form.expectedPrice"
+          label="예상 단가"
+          required
+          placeholder="0"
           :disabled="isSubmitting"
         />
       </div>
@@ -627,8 +636,10 @@
 
       <p
         v-if="errorMessage"
+        ref="errorMessageRef"
         class="rounded-xl bg-danger/5 px-4 py-3 text-sm text-danger"
         role="alert"
+        tabindex="-1"
       >
         {{ errorMessage }}
       </p>
@@ -668,7 +679,7 @@
 
 <script setup lang="ts">
 import { ChevronLeft, PackageCheck, PackagePlus, Search } from 'lucide-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 
 import {
   intangibleAssetApi,
@@ -678,6 +689,7 @@ import {
   tangibleItemApi,
   ticketCreateApi,
 } from '@/api'
+import { ApiError } from '@/api/client'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import CurrencyInput from '@/components/common/CurrencyInput.vue'
@@ -820,6 +832,10 @@ const isSubmitting = ref(false)
 const isAssetsLoading = ref(false)
 const isAssigneeLoading = ref(false)
 const errorMessage = ref('')
+const errorMessageRef = ref<HTMLElement | null>(null)
+const requiresStandardEstimatedUnitPrice = ref(false)
+const STANDARD_ESTIMATED_UNIT_PRICE_REQUIRED_MESSAGE =
+  '선택한 품목의 재고가 부족합니다. 구매계획에 사용할 예상 단가를 입력한 뒤 다시 요청해주세요.'
 const assetErrorMessage = ref('')
 const assigneeErrorMessage = ref('')
 const assetSearchKeyword = ref('')
@@ -960,6 +976,30 @@ const showsPurchaseQuantityAndPrice = computed(() => (
 const showsPurchaseSeatCount = computed(() => (
   showsPurchaseQuantityAndPrice.value
   && form.assetType === 'INTANGIBLE'
+))
+
+const currentSearchAssetType = computed<AssetType>(() => (
+  isAssetSelectionStep.value ? selectionAssetType.value : form.assetType
+))
+
+const assetSearchPlaceholder = computed(() => (
+  currentSearchAssetType.value === 'INTANGIBLE'
+    ? '품목명, 제공사 검색'
+    : '품목명, 모델명, 제조사 검색'
+))
+
+const requestedItemDetailPlaceholder = computed(() => (
+  form.assetType === 'INTANGIBLE'
+    ? '예: Slack Enterprise Grid / Business+ / 연간 구독'
+    : '예: MacBook Pro 14 M4 Pro / 24GB / 1TB'
+))
+
+const vendorFieldLabel = computed(() => (
+  form.assetType === 'INTANGIBLE' ? '제공사' : '제조사'
+))
+
+const vendorPlaceholder = computed(() => (
+  form.assetType === 'INTANGIBLE' ? '예: Slack Technologies' : '예: Apple'
 ))
 
 const assetSelectionLabel = computed(() => {
@@ -1194,7 +1234,10 @@ const isFormValid = computed(() => {
   if (showsPurchaseCategorySelect.value && !form.category) return false
 
   if (selectedKind.value === 'STANDARD_ASSET_REQUEST') {
-    return positiveNumber(form.quantity)
+    return Boolean(
+      positiveNumber(form.quantity)
+      && (!requiresStandardEstimatedUnitPrice.value || positiveNumber(form.expectedPrice)),
+    )
   }
   if (selectedKind.value === 'NON_STANDARD_ASSET_REQUEST') {
     return Boolean(
@@ -1984,6 +2027,7 @@ function resetForm() {
   selectionAssetType.value = 'TANGIBLE'
   confirmedSelectedAsset.value = null
   errorMessage.value = ''
+  requiresStandardEstimatedUnitPrice.value = false
   assetErrorMessage.value = ''
   assetSearchKeyword.value = ''
   hasSearchedAssets.value = false
@@ -2022,6 +2066,7 @@ function resetSelection() {
 
 function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
+  requiresStandardEstimatedUnitPrice.value = false
   form.assetType = 'TANGIBLE'
   form.assetServiceType = 'REPAIR'
   form.directPurchaseItemType = 'STANDARD'
@@ -2079,6 +2124,11 @@ function confirmAssetSelection() {
   const selectedAsset = selectionItemOptions.value.find((item) => item.id === pendingSelectedAssetId.value)
   if (!selectedAsset) return
 
+  if (selectedKind.value === 'STANDARD_ASSET_REQUEST' && form.selectedAssetId !== pendingSelectedAssetId.value) {
+    requiresStandardEstimatedUnitPrice.value = false
+    form.expectedPrice = ''
+  }
+
   form.assetType = selectionAssetType.value
   form.selectedAssetId = pendingSelectedAssetId.value
   confirmedSelectedAsset.value = selectedAsset
@@ -2089,6 +2139,8 @@ function confirmAssetSelection() {
 function handleSelectionAssetTypeChange(assetType: AssetType) {
   selectionAssetType.value = assetType
   pendingSelectedAssetId.value = ''
+  requiresStandardEstimatedUnitPrice.value = false
+  form.expectedPrice = ''
   assetSearchForm.category = ''
   invalidateAssetSearch()
   if (isAssetSelectionStep.value && showsAssetSearch.value) {
@@ -2171,6 +2223,8 @@ function handleAssetTypeChange(assetType: AssetType) {
 function handleAssetUsageTypeChange() {
   assetSearchForm.assetUsageType = form.assetUsageType
   form.selectedAssetId = ''
+  requiresStandardEstimatedUnitPrice.value = false
+  form.expectedPrice = ''
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
 }
@@ -2208,6 +2262,16 @@ function purchaseSeatCountPayload() {
   return showsPurchaseSeatCount.value ? Number(form.seatCount) : null
 }
 
+function shouldRequestStandardEstimatedUnitPrice(error: unknown) {
+  if (!(error instanceof ApiError)) return false
+
+  return error.status === 400
+    && (
+      error.errorCode === 'COMMON_001'
+      || error.message.includes('비표준 유형자산 요청은 재고가 충분한 품목만 요청할 수 있습니다.')
+    )
+}
+
 async function handleSubmit() {
   if (isSubmitting.value || !isFormValid.value || !selectedKind.value) return
   if (authStore.currentRole === 'ADMIN' || authStore.currentRole === 'SUPER_ADMIN') {
@@ -2230,6 +2294,9 @@ async function handleSubmit() {
           assetItemId: form.selectedAssetId,
           assignmentTargetMemberIds: form.assetAssigneeIds,
           quantity: Number(form.quantity),
+          ...(requiresStandardEstimatedUnitPrice.value
+            ? { estimatedUnitPrice: Number(form.expectedPrice) }
+            : {}),
           requestReason,
         })
         break
@@ -2331,6 +2398,11 @@ async function handleSubmit() {
 
     if (response) emit('created', response.data)
   } catch (error) {
+    if (selectedKind.value === 'STANDARD_ASSET_REQUEST' && shouldRequestStandardEstimatedUnitPrice(error)) {
+      requiresStandardEstimatedUnitPrice.value = true
+      errorMessage.value = STANDARD_ESTIMATED_UNIT_PRICE_REQUIRED_MESSAGE
+      return
+    }
     errorMessage.value = error instanceof Error
       ? error.message
       : '요청을 등록하지 못했습니다. 입력 내용을 확인해주세요.'
@@ -2343,6 +2415,14 @@ watch(() => props.isOpen, async (isOpen) => {
   if (!isOpen) return
   resetForm()
   await loadSelectableAssets()
+})
+
+watch(errorMessage, async (message) => {
+  if (!message) return
+
+  await nextTick()
+  errorMessageRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  errorMessageRef.value?.focus({ preventScroll: true })
 })
 
 watch(requestedAssetQuantity, () => {

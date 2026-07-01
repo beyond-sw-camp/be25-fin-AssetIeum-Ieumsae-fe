@@ -193,7 +193,7 @@
             <template #cell-uniqueCode="{ row }">
               <input
                 v-model="row.uniqueCode"
-                :placeholder="isTangible ? 'SN-001' : 'LIC-001'"
+                :placeholder="isTangible ? '예: SN-001' : '예: LIC-001'"
                 :disabled="isSubmitting || row.status === 'success'"
                 class="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-text-muted"
                 @input="markRowEdited(row)"
