@@ -518,7 +518,9 @@ const requestDepartmentId = computed(() => (
   resolveTicketRequestDepartmentId(props.item) ?? requester.value?.departmentId ?? ''
 ))
 const requestDepartmentName = computed(() => (
-  resolveTicketRequestDepartmentName(props.item) ?? requester.value?.departmentName ?? '-'
+  resolveTicketRequestDepartmentName(props.item)
+  ?? (requester.value ? resolveMemberDepartmentName(requester.value) : null)
+  ?? '-'
 ))
 const assignableMembers = computed(() => {
   if (!toNullableStringId(requestDepartmentId.value)) return []
@@ -1056,7 +1058,10 @@ function resolveMemberDepartmentName(member: Member) {
   const name =
     member.departmentName
     ?? rawMember.department_name
+    ?? member.departmentNamePath
+    ?? rawMember.department_name_path
     ?? department?.departmentName
+    ?? department?.departmentNamePath
     ?? department?.name
   return typeof name === 'string' && name.trim() ? name.trim() : null
 }
