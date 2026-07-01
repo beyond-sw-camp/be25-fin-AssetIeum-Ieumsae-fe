@@ -56,8 +56,8 @@ import type {
 
 const API_PREFIX = '*/api/v1'
 const MOCK_COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-const MOCK_COMPANY_CODE = 'COMP001'
-const SYSTEM_COMPANY_CODE = 'SYSTEM'
+const MOCK_COMPANY_CODE = 'hanwha'
+const SYSTEM_COMPANY_CODE = 'assetieum'
 const ROOT_DEPARTMENT_ID = '11111111-1111-1111-1111-111111111111'
 const ASSET_TEAM_DEPARTMENT_ID = '22222222-2222-2222-2222-222222222222'
 const PLATFORM_DEPARTMENT_ID = '33333333-3333-3333-3333-333333333333'
@@ -114,6 +114,16 @@ function optionalNumber(value: unknown): number | null {
   return null
 }
 
+const PURCHASE_PLAN_STATUS_VALUES: ReadonlySet<PurchasePlanStatus> = new Set([
+  'REQUESTED',
+  'APPROVED',
+  'REJECTED',
+  'ORDERED',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+])
+
 let departments: Department[] = [
   {
     departmentId: ROOT_DEPARTMENT_ID,
@@ -167,7 +177,7 @@ function getDepartmentNamePath(departmentId: string): string {
 const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   {
     memberId: mockMemberId(0),
-    memberNo: 'SYSADMIN',
+    memberNo: 'superadmin',
     name: '시스템 관리자',
     email: 'system@asset-ieum.com',
     departmentId: PLATFORM_DEPARTMENT_ID,
@@ -178,7 +188,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(1),
-    memberNo: 'EMP0001',
+    memberNo: 'admin',
     name: '김관리',
     email: 'admin@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
@@ -189,7 +199,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(2),
-    memberNo: 'EMP0002',
+    memberNo: 'EMP0001',
     name: '박자산',
     email: 'asset@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
@@ -211,7 +221,7 @@ const memberSeeds: Array<Omit<Member, 'departmentNamePath'>> = [
   },
   {
     memberId: mockMemberId(4),
-    memberNo: 'EMP0004',
+    memberNo: 'EMP0002',
     name: '자산자산',
     email: 'leave@ieumtech.com',
     departmentId: ASSET_TEAM_DEPARTMENT_ID,
@@ -2364,6 +2374,11 @@ function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidat
     ?? detailRecord.purchasePrice
     ?? detailRecord.unitPrice
     ?? 0) ?? 0
+  const requestedQuantity = detail.quantity ?? 1
+  const availableCount = optionalNumber(detailRecord.availableCount ?? detailRecord.availableAssetCount)
+  const shortageQuantity = ticket.ticketType === 'ASSET_REQUEST' && availableCount !== null && availableCount !== undefined
+    ? Math.max(requestedQuantity - availableCount, 0)
+    : requestedQuantity
 
   return {
     ticketId: ticket.ticketId,
@@ -2374,7 +2389,7 @@ function toPurchasePlanCandidateTicket(ticket: MockTicket): PurchasePlanCandidat
     requesterName: ticket.requesterName,
     itemName: detail.requestedItemName ?? detail.requestedItemDetail ?? detail.productName ?? ticket.requestedItemName ?? '',
     categoryName: detail.categoryName ?? '',
-    quantity: detail.quantity ?? 1,
+    quantity: shortageQuantity,
     estimatedUnitPrice,
     assetItemId: detail.assetItemId ?? null,
     isStandard: detail.isStandard ?? null,
@@ -2694,7 +2709,7 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    if (!body.status) {
+    if (!body.status || !PURCHASE_PLAN_STATUS_VALUES.has(body.status)) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'PURCHASE_PLAN_STATUS_REQUIRED',
@@ -3430,7 +3445,7 @@ export const handlers = [
     }, '자산 할당에 성공했습니다.'))
   }),
 
-  http.patch(`${API_PREFIX}/tickets/:ticketId/status`, async ({ params, request }) => {
+  http.patch(`${API_PREFIX}/tickets/:ticketId/processing-status`, async ({ params, request }) => {
     const ticketId = String(params.ticketId)
     const ticket = tickets.find((item) => item.ticketId === ticketId)
     const requester = getAuthenticatedMember(request)
@@ -3444,8 +3459,8 @@ export const handlers = [
       }, { status: 404 })
     }
 
-    const body = await request.json() as { status?: string }
-    if (!body.status || !TICKET_STATUS_VALUES.has(body.status as TicketStatus)) {
+    const body = await request.json() as { ticketStatus?: string }
+    if (!body.ticketStatus || !TICKET_STATUS_VALUES.has(body.ticketStatus as TicketStatus)) {
       return HttpResponse.json({
         status: 400,
         errorCode: 'INVALID_TICKET_STATUS',
@@ -3454,7 +3469,7 @@ export const handlers = [
       }, { status: 400 })
     }
 
-    const nextStatus = body.status as TicketStatus
+    const nextStatus = body.ticketStatus as TicketStatus
     if (nextStatus === 'CANCELLED') {
       if (!requester || requester.memberId !== ticket.requesterId) {
         return HttpResponse.json({
@@ -3513,10 +3528,11 @@ export const handlers = [
 
     return HttpResponse.json(ok({
       ticketId,
-      previousStatus,
-      currentStatus: nextStatus,
-      updatedAt,
-    }, '티켓 상태 변경에 성공했습니다.'))
+      ticketNo: ticket.ticketNo,
+      ticketStatus: nextStatus,
+      completedAt: ticketDetailData.get(ticketId)?.completedAt ?? null,
+      cancelledAt: ticketCanceledAt.get(ticketId) ?? null,
+    }, '티켓 처리상태 변경에 성공했습니다.'))
   }),
 
   http.patch(`${API_PREFIX}/tickets/:ticketId/cancel`, ({ params, request }) => {
@@ -4183,7 +4199,7 @@ export const handlers = [
     ))
   }),
 
-  http.post(`${API_PREFIX}/tickets/asset-requests/standard`, async ({ request }) => {
+  http.post(`${API_PREFIX}/tickets/asset-requests`, async ({ request }) => {
     const body = await request.json() as StandardAssetRequestCreate
     return HttpResponse.json(ok(
       createMockTicket(

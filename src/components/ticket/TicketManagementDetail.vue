@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex h-full min-h-0 flex-col bg-background text-text-main">
     <div class="min-h-0 flex-1 overflow-y-auto pb-14">
-      <div class="mx-auto w-full max-w-375 px-3 pb-8 pt-2">
+      <div class="w-full px-3 pb-8 pt-2">
         <div class="mb-3 flex items-center gap-2">
           <button
             type="button"
@@ -49,36 +49,6 @@
                   {{ ticket.requestReason || '요청 사유가 등록되지 않았습니다.' }}
                 </h1>
               </div>
-            </div>
-            <div v-if="canShowStatusChange" class="w-full shrink-0 lg:w-60">
-              <div class="mb-1.5 flex items-center justify-between gap-2">
-                <label
-                  for="ticket-status-selector"
-                  class="text-xs font-semibold text-text-muted"
-                >
-                  상태 변경
-                </label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="shrink-0"
-                  :loading="isChangingStatus"
-                  :disabled="!canChangeStatus"
-                  @click="handleChangeStatus"
-                >
-                  <Save :size="14" />
-                  상태 저장
-                </Button>
-              </div>
-              <Dropdown
-                id="ticket-status-selector"
-                :model-value="selectedTicketStatus"
-                :options="ticketStatusOptions"
-                :disabled="isActionSubmitting"
-                menu-align="right"
-                aria-label="티켓 상태"
-                @update:model-value="handleTicketStatusSelect"
-              />
             </div>
           </header>
 
@@ -651,7 +621,6 @@ import {
   PackageCheck,
   RefreshCw,
   ReceiptText,
-  Save,
   ShieldCheck,
   TicketCheck,
   XCircle,
@@ -663,7 +632,6 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import CurrencyInput from '@/components/common/CurrencyInput.vue'
-import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import DirectPurchaseItemRegistrationDrawer from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
 import type { DirectPurchaseItemPayload } from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
@@ -677,7 +645,6 @@ import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
   DirectPurchaseAssetAssignRequest,
-  DropdownOption,
   IntangibleItem,
   TangibleAssetItem,
   TicketActualAmountResponse,
@@ -741,12 +708,7 @@ const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
-const MANUAL_STATUS_CHANGE_OPTIONS: TicketStatus[] = [
-  'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
-]
-const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
+const ASSET_ASSIGNABLE_TYPES = new Set(['RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
   'RENTAL_EXTENSION',
   'MAINTENANCE_REQUEST',
@@ -769,13 +731,11 @@ const notificationStore = useNotificationStore()
 
 const ticket = ref<TicketDetail | null>(null)
 const comments = ref<TicketComment[]>([])
-const selectedTicketStatus = ref<TicketStatus>('REQUESTED')
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
 const isApproving = ref(false)
 const isRejecting = ref(false)
-const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
 const isAssigningMe = ref(false)
 const isConfirmingDirectPurchasePayment = ref(false)
@@ -820,18 +780,6 @@ const purchaseRequestAssignable = ref(false)
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
-
-const ticketStatusOptions = computed<DropdownOption[]>(() => (
-  [
-    ...(ticket.value && !MANUAL_STATUS_CHANGE_OPTIONS.includes(ticket.value.status)
-      ? [ticket.value.status]
-      : []),
-    ...MANUAL_STATUS_CHANGE_OPTIONS,
-  ].map((value) => ({
-    value,
-    label: getTicketStatusLabel(value),
-  }))
-))
 
 const isDepartmentManagerRole = computed(() => authStore.currentRole === 'DEPARTMENT_MANAGER')
 const isAssetTeamRole = computed(() => (
@@ -963,9 +911,7 @@ const canAssignAsset = computed(() => {
     )
   )
 
-  return ticket.value.ticketType === 'ASSET_REQUEST'
-    ? fallback
-    : ticketActionAllowed('canAssignAsset', fallback)
+  return ticketActionAllowed('canAssignAsset', fallback)
 })
 const canConfirmDirectPurchasePayment = computed(() => (
   Boolean(
@@ -1042,22 +988,6 @@ const canCompleteReturn = computed(() => (
     && !TERMINAL_STATUSES.has(ticket.value.status),
   ))
 ))
-const canShowStatusChange = computed(() => (
-  ticketActionAllowed('canChangeProcessingStatus', Boolean(
-    ticket.value
-    && isAssetTeamRole.value
-    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
-  ))
-))
-const canChangeStatus = computed(() => (
-  Boolean(
-    ticket.value
-    && canShowStatusChange.value
-    && MANUAL_STATUS_CHANGE_OPTIONS.includes(selectedTicketStatus.value)
-    && selectedTicketStatus.value !== ticket.value.status
-    && !isActionSubmitting.value,
-  )
-))
 const shouldShowManagementCard = computed(() => (
   !canManageCurrentTicket.value
   || Boolean(unsupportedActionMessage.value)
@@ -1082,7 +1012,6 @@ const shouldShowActionBottomBar = computed(() => (
 const isActionSubmitting = computed(() => (
   isApproving.value
   || isRejecting.value
-  || isChangingStatus.value
   || isAssigningAsset.value
   || isAssigningMe.value
   || isCollectingAsset.value
@@ -1642,7 +1571,6 @@ async function loadTicketDetail() {
       status: normalizeTicketStatus(response.data.status),
     }
     ticket.value = detail
-    selectedTicketStatus.value = detail.status
     await Promise.all([
       resolvePurchaseRequestAssignability(detail),
       resolveDirectPurchasePaymentResult(detail),
@@ -1775,6 +1703,56 @@ async function resolvePurchaseRequestAssignability(detail: TicketDetail) {
 function requestedQuantity(detail: TicketDetail) {
   const quantity = Number(detail.quantity)
   return Number.isInteger(quantity) && quantity > 0 ? quantity : 1
+}
+
+function countAssignmentTargets(detail: TicketDetail) {
+  const targets = Array.isArray(detail.assignmentTargets) ? detail.assignmentTargets : []
+
+  return {
+    assignedCount: targets.filter((target) => String(target.status ?? '').toUpperCase() === 'ASSIGNED').length,
+    pendingCount: targets.filter((target) => String(target.status ?? '').toUpperCase() === 'PENDING').length,
+  }
+}
+
+function createAssignmentComment(assignedCount: number, pendingCount: number) {
+  if (assignedCount > 0 && pendingCount > 0) {
+    return `자산팀 승인이 완료되었습니다. 보유 재고 ${assignedCount}개가 우선 배정되었으며, 남은 ${pendingCount}개는 구매계획을 통해 진행할 예정입니다.`
+  }
+
+  if (assignedCount > 0 && pendingCount === 0) {
+    return `자산팀 승인이 완료되었습니다. 보유 재고 ${assignedCount}개가 모두 배정되어 자산 요청 처리가 완료되었습니다.`
+  }
+
+  if (assignedCount === 0 && pendingCount > 0) {
+    return `자산팀 승인이 완료되었습니다. 현재 배정 가능한 재고가 없어 요청 수량 ${pendingCount}개는 구매계획을 통해 진행할 예정입니다.`
+  }
+
+  return '자산팀 승인이 완료되었습니다.'
+}
+
+function showAssignmentResultToast(assignedCount: number, pendingCount: number) {
+  if (assignedCount > 0 && pendingCount > 0) {
+    notificationStore.success(
+      `보유 재고 ${assignedCount}개가 먼저 배정되었습니다. 남은 ${pendingCount}개는 구매계획으로 진행해주세요.`,
+    )
+    return
+  }
+
+  if (assignedCount > 0 && pendingCount === 0) {
+    notificationStore.success(
+      `보유 재고 ${assignedCount}개가 배정되어 자산 요청이 완료되었습니다.`,
+    )
+    return
+  }
+
+  if (assignedCount === 0 && pendingCount > 0) {
+    notificationStore.success(
+      `가용 재고가 없어 ${pendingCount}개는 구매계획으로 진행해주세요.`,
+    )
+    return
+  }
+
+  notificationStore.success('자산팀 승인이 완료되었습니다.')
 }
 
 function isNonStandardItem(value: TangibleAssetItem['isStandard'] | IntangibleItem['isStandard']) {
@@ -1910,10 +1888,23 @@ async function handleApprove(approver: ApproverType) {
   isApproving.value = true
 
   try {
-    await ticketApi.approve(ticket.value.ticketId, {
+    const currentTicket = ticket.value
+    await ticketApi.approve(currentTicket.ticketId, {
       approver,
       approverMemberId: authStore.user?.memberId ?? '',
     })
+
+    if (approver === 'ASSET_TEAM' && currentTicket.ticketType === 'ASSET_REQUEST') {
+      try {
+        await handleAssetRequestApprovalResult(currentTicket.ticketId)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '자산팀 승인 결과를 갱신하지 못했습니다.'
+        notificationStore.error('자산팀 승인 결과 갱신 실패', message)
+        await Promise.allSettled([reloadAfterAction(), loadComments()])
+      }
+      return
+    }
+
     await reloadAfterAction()
     notificationStore.success('티켓이 승인되었습니다.')
   } catch (error) {
@@ -1922,6 +1913,24 @@ async function handleApprove(approver: ApproverType) {
   } finally {
     isApproving.value = false
   }
+}
+
+async function handleAssetRequestApprovalResult(ticketId: string) {
+  const response = await ticketApi.getDetail(ticketId, 'ASSET_REQUEST')
+  const detail = response.data
+  const { assignedCount, pendingCount } = countAssignmentTargets(detail)
+  const comment = createAssignmentComment(assignedCount, pendingCount)
+
+  try {
+    await ticketApi.addComment(ticketId, comment)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '승인 결과 댓글 등록에 실패했습니다.'
+    notificationStore.error('승인 결과 댓글 등록 실패', message)
+  }
+
+  showAssignmentResultToast(assignedCount, pendingCount)
+  await reloadAfterAction()
+  await loadComments()
 }
 
 function openRejectDrawer(target: ApproverType) {
@@ -1959,33 +1968,6 @@ async function handleReject(reason: string) {
     notificationStore.error('티켓 반려 실패', message)
   } finally {
     isRejecting.value = false
-  }
-}
-
-function handleTicketStatusSelect(value: string | number) {
-  const status = String(value) as TicketStatus
-  if (!MANUAL_STATUS_CHANGE_OPTIONS.includes(status)) return
-  selectedTicketStatus.value = status
-}
-
-async function handleChangeStatus() {
-  if (!ticket.value || !canChangeStatus.value) return
-
-  isChangingStatus.value = true
-
-  try {
-    if (selectedTicketStatus.value === 'CANCELLED') {
-      await ticketApi.cancel(ticket.value.ticketId)
-    } else {
-      await ticketApi.changeStatus(ticket.value.ticketId, selectedTicketStatus.value)
-    }
-    await reloadAfterAction()
-    notificationStore.success('티켓 상태가 변경되었습니다.')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '티켓 상태 변경에 실패했습니다.'
-    notificationStore.error('티켓 상태 변경 실패', message)
-  } finally {
-    isChangingStatus.value = false
   }
 }
 
@@ -2439,7 +2421,6 @@ function resetTicketActionState() {
   maintenanceCompleteSubmitErrorMessage.value = ''
   isApproving.value = false
   isRejecting.value = false
-  isChangingStatus.value = false
   isAssigningAsset.value = false
   isAssigningMe.value = false
   isConfirmingDirectPurchasePayment.value = false

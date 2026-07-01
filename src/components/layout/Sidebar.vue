@@ -2,8 +2,8 @@
   <div class="relative h-full min-h-0">
     <aside
       :class="[
-        'flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
-        collapsed ? 'w-20' : 'w-64',
+        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-surface transition-all duration-300',
+        collapsed ? 'w-20' : 'w-65',
       ]"
     >
       <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
@@ -19,9 +19,9 @@
               ]"
               @click="handleParentClick(item)"
             >
-              <div class="flex items-center" :class="collapsed ? '' : 'gap-3'">
-                <component :is="item.icon" :size="18" />
-                <span v-if="!collapsed">{{ item.label }}</span>
+              <div class="flex min-w-0 items-center" :class="collapsed ? '' : 'gap-3'">
+                <component :is="item.icon" :size="18" class="shrink-0" />
+                <span v-if="!collapsed" class="whitespace-nowrap">{{ item.label }}</span>
               </div>
               <ChevronDown
                 v-if="!collapsed"
@@ -39,7 +39,7 @@
                 :key="child.name"
                 :to="child.to"
                 :class="[
-                  'flex items-center rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary',
+                  'flex items-center whitespace-nowrap rounded-xl px-4 py-2 text-sm text-text-sub transition-all hover:bg-primary/5 hover:text-primary',
                   isChildActive(child.to, item.children) && 'bg-primary/10! font-semibold text-primary!',
                 ]"
               >
@@ -57,38 +57,40 @@
             ]"
             exact-active-class="bg-primary/10! text-primary! font-semibold"
           >
-            <component :is="item.icon" :size="18" />
-            <span v-if="!collapsed">{{ item.label }}</span>
+            <component :is="item.icon" :size="18" class="shrink-0" />
+            <span v-if="!collapsed" class="whitespace-nowrap">{{ item.label }}</span>
           </RouterLink>
         </template>
       </nav>
 
       <div class="shrink-0 space-y-3 border-t border-border bg-surface p-2 shadow-0">
-        <div class="flex justify-between">
-          <div>
+        <div class="flex min-w-0 items-center gap-1">
+          <div class="min-w-0 flex-1">
             <RouterLink
               v-if="user"
               to="/profile"
               :class="[
-                'group flex items-center rounded-xl bg-surface-secondary/50 px-3 py-2 transition-colors hover:bg-primary/5',
+                'group flex min-w-0 items-center rounded-xl bg-surface-secondary/50 px-3 py-2 transition-colors hover:bg-primary/5',
                 collapsed ? 'justify-center' : 'gap-3',
               ]"
             >
-              <div v-if="!collapsed" class="min-w-0 flex-1 leading-tight">
-                <div class="flex items-center gap-2">
-                  <User :size="14" />
+              <div v-if="!collapsed" class="min-w-0 gap-3 leading-tight">
+                <div class="flex min-w-0 items-center gap-2">
+                  <User :size="14" class="shrink-0" />
                   <span class="truncate text-sm font-semibold text-text-main">{{ user.name }}</span>
-                  <span class="shrink-0 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-sub">
+                </div>  
+                <div class="flex min-w-0 items-center gap-2">
+                  <p class="truncate text-xs text-text-sub">{{ user.departmentName }}</p>
+                  <span class="max-w-18 shrink truncate whitespace-nowrap rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-sub items-center">
                     {{ roleLabel }}
                   </span>
                 </div>
-                <p class="truncate text-xs text-text-sub">{{ user.departmentName }}</p>
               </div>
             </RouterLink>
           </div>
 
           <button
-            class="w-hug flex h-11 items-center gap-1 rounded-xl px-3 text-xs font-medium text-text-sub transition-colors duration-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+            class="flex h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2 text-xs font-medium text-text-sub transition-colors duration-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
             :class="collapsed ? 'justify-center' : ''"
             @click="handleLogout"
           >
@@ -100,6 +102,7 @@
     </aside>
 
     <button
+      v-if="!collapseLocked"
       class="absolute -right-4 top-[86%] z-50 flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-text-main shadow-md transition-colors"
       @click="collapsed = !collapsed"
     >
@@ -148,6 +151,7 @@ const roleLabel = computed(() => user.value ? ROLE_LABEL[user.value.role] : '')
 
 const props = defineProps<{
   navItems: NavItem[]
+  collapseLocked?: boolean
 }>()
 
 function updateOpenMenus() {

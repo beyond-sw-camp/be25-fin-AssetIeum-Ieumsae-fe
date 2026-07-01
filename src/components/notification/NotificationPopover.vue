@@ -113,7 +113,7 @@ import { useRouter, type RouteLocationRaw } from 'vue-router'
 
 import { ApiError, notificationApi } from '@/api'
 import { useEventSource } from '@/composables/useEventSource'
-import { useNotificationStore } from '@/stores'
+import { useAuthStore, useNotificationStore } from '@/stores'
 import type { NotificationType, ServerNotification, TicketType } from '@/types'
 import { TICKET_TYPE_LABEL } from '@/utils/labels'
 
@@ -129,6 +129,7 @@ const popoverRoot = ref<HTMLElement | null>(null)
 
 const router = useRouter()
 const eventSource = useEventSource()
+const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
 let offNotificationEvent: (() => void) | null = null
 let offMessageEvent: (() => void) | null = null
@@ -288,15 +289,25 @@ function resolveNotificationRoute(notification: ServerNotification): RouteLocati
   const notificationType = String(notification.notificationType).trim().toUpperCase()
 
   if (targetType === 'TICKET' || notificationType === 'TICKET_STATUS_CHANGED') {
+    const ticketType = normalizeNotificationTicketType(notification.ticketType)
+    const query = ticketType ? { ticketType } : undefined
+
+    if (shouldRouteTicketNotificationToManagement()) {
+      return {
+        name: 'TicketManagement',
+        query: {
+          ticketId: targetId,
+          ...(ticketType ? { ticketType } : {}),
+        },
+      }
+    }
+
     const ticketRoute: RouteLocationRaw = {
       name: 'TicketDetail',
       params: { ticketId: targetId },
     }
-    const ticketType = normalizeNotificationTicketType(notification.ticketType)
 
-    if (ticketType) {
-      ticketRoute.query = { ticketType }
-    }
+    if (query) ticketRoute.query = query
 
     return ticketRoute
   }
@@ -309,6 +320,15 @@ function resolveNotificationRoute(notification: ServerNotification): RouteLocati
   }
 
   return null
+}
+
+function shouldRouteTicketNotificationToManagement() {
+  return (
+    authStore.currentRole === 'ADMIN'
+    || authStore.currentRole === 'DEPARTMENT_MANAGER'
+    || authStore.currentRole === 'ASSET_TEAM'
+    || authStore.currentRole === 'ASSET_MANAGER'
+  )
 }
 
 function normalizeTargetId(value: ServerNotification['targetId']) {
