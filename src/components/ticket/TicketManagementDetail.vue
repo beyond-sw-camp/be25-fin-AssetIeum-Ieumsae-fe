@@ -50,36 +50,6 @@
                 </h1>
               </div>
             </div>
-            <div v-if="canShowStatusChange" class="w-full shrink-0 lg:w-60">
-              <div class="mb-1.5 flex items-center justify-between gap-2">
-                <label
-                  for="ticket-status-selector"
-                  class="text-xs font-semibold text-text-muted"
-                >
-                  상태 변경
-                </label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="shrink-0"
-                  :loading="isChangingStatus"
-                  :disabled="!canChangeStatus"
-                  @click="handleChangeStatus"
-                >
-                  <Save :size="14" />
-                  상태 저장
-                </Button>
-              </div>
-              <Dropdown
-                id="ticket-status-selector"
-                :model-value="selectedTicketStatus"
-                :options="ticketStatusOptions"
-                :disabled="isActionSubmitting"
-                menu-align="right"
-                aria-label="티켓 상태"
-                @update:model-value="handleTicketStatusSelect"
-              />
-            </div>
           </header>
 
           <div class="space-y-4">
@@ -651,7 +621,6 @@ import {
   PackageCheck,
   RefreshCw,
   ReceiptText,
-  Save,
   ShieldCheck,
   TicketCheck,
   XCircle,
@@ -663,7 +632,6 @@ import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import Button from '@/components/common/Button.vue'
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue'
 import CurrencyInput from '@/components/common/CurrencyInput.vue'
-import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
 import DirectPurchaseItemRegistrationDrawer from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
 import type { DirectPurchaseItemPayload } from '@/components/ticket/DirectPurchaseItemRegistrationDrawer.vue'
@@ -677,7 +645,6 @@ import { useAuthStore, useNotificationStore } from '@/stores'
 import type {
   AssetType,
   DirectPurchaseAssetAssignRequest,
-  DropdownOption,
   IntangibleItem,
   TangibleAssetItem,
   TicketActualAmountResponse,
@@ -741,11 +708,6 @@ const TERMINAL_STATUSES: ReadonlySet<TicketStatus> = new Set([
   'DEPARTMENT_REJECTED',
   'ASSET_REJECTED',
 ])
-const MANUAL_STATUS_CHANGE_OPTIONS: TicketStatus[] = [
-  'IN_PROGRESS',
-  'COMPLETED',
-  'CANCELLED',
-]
 const ASSET_ASSIGNABLE_TYPES = new Set(['ASSET_REQUEST', 'RENTAL', 'PURCHASE_REQUEST'])
 const UNIMPLEMENTED_WORKFLOW_TYPES = new Set([
   'RENTAL_EXTENSION',
@@ -769,13 +731,11 @@ const notificationStore = useNotificationStore()
 
 const ticket = ref<TicketDetail | null>(null)
 const comments = ref<TicketComment[]>([])
-const selectedTicketStatus = ref<TicketStatus>('REQUESTED')
 const isLoading = ref(false)
 const isCommentsLoading = ref(false)
 const isCommentSubmitting = ref(false)
 const isApproving = ref(false)
 const isRejecting = ref(false)
-const isChangingStatus = ref(false)
 const isAssigningAsset = ref(false)
 const isAssigningMe = ref(false)
 const isConfirmingDirectPurchasePayment = ref(false)
@@ -820,18 +780,6 @@ const purchaseRequestAssignable = ref(false)
 const commentSubmitVersion = ref(0)
 const commentActionVersion = ref(0)
 let commentActionRequestVersion = 0
-
-const ticketStatusOptions = computed<DropdownOption[]>(() => (
-  [
-    ...(ticket.value && !MANUAL_STATUS_CHANGE_OPTIONS.includes(ticket.value.status)
-      ? [ticket.value.status]
-      : []),
-    ...MANUAL_STATUS_CHANGE_OPTIONS,
-  ].map((value) => ({
-    value,
-    label: getTicketStatusLabel(value),
-  }))
-))
 
 const isDepartmentManagerRole = computed(() => authStore.currentRole === 'DEPARTMENT_MANAGER')
 const isAssetTeamRole = computed(() => (
@@ -1042,22 +990,6 @@ const canCompleteReturn = computed(() => (
     && !TERMINAL_STATUSES.has(ticket.value.status),
   ))
 ))
-const canShowStatusChange = computed(() => (
-  ticketActionAllowed('canChangeProcessingStatus', Boolean(
-    ticket.value
-    && isAssetTeamRole.value
-    && ['ASSET_APPROVED', 'IN_PROGRESS'].includes(ticket.value.status),
-  ))
-))
-const canChangeStatus = computed(() => (
-  Boolean(
-    ticket.value
-    && canShowStatusChange.value
-    && MANUAL_STATUS_CHANGE_OPTIONS.includes(selectedTicketStatus.value)
-    && selectedTicketStatus.value !== ticket.value.status
-    && !isActionSubmitting.value,
-  )
-))
 const shouldShowManagementCard = computed(() => (
   !canManageCurrentTicket.value
   || Boolean(unsupportedActionMessage.value)
@@ -1082,7 +1014,6 @@ const shouldShowActionBottomBar = computed(() => (
 const isActionSubmitting = computed(() => (
   isApproving.value
   || isRejecting.value
-  || isChangingStatus.value
   || isAssigningAsset.value
   || isAssigningMe.value
   || isCollectingAsset.value
@@ -1642,7 +1573,6 @@ async function loadTicketDetail() {
       status: normalizeTicketStatus(response.data.status),
     }
     ticket.value = detail
-    selectedTicketStatus.value = detail.status
     await Promise.all([
       resolvePurchaseRequestAssignability(detail),
       resolveDirectPurchasePaymentResult(detail),
@@ -1959,33 +1889,6 @@ async function handleReject(reason: string) {
     notificationStore.error('티켓 반려 실패', message)
   } finally {
     isRejecting.value = false
-  }
-}
-
-function handleTicketStatusSelect(value: string | number) {
-  const status = String(value) as TicketStatus
-  if (!MANUAL_STATUS_CHANGE_OPTIONS.includes(status)) return
-  selectedTicketStatus.value = status
-}
-
-async function handleChangeStatus() {
-  if (!ticket.value || !canChangeStatus.value) return
-
-  isChangingStatus.value = true
-
-  try {
-    if (selectedTicketStatus.value === 'CANCELLED') {
-      await ticketApi.cancel(ticket.value.ticketId)
-    } else {
-      await ticketApi.changeStatus(ticket.value.ticketId, selectedTicketStatus.value)
-    }
-    await reloadAfterAction()
-    notificationStore.success('티켓 상태가 변경되었습니다.')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '티켓 상태 변경에 실패했습니다.'
-    notificationStore.error('티켓 상태 변경 실패', message)
-  } finally {
-    isChangingStatus.value = false
   }
 }
 
@@ -2439,7 +2342,6 @@ function resetTicketActionState() {
   maintenanceCompleteSubmitErrorMessage.value = ''
   isApproving.value = false
   isRejecting.value = false
-  isChangingStatus.value = false
   isAssigningAsset.value = false
   isAssigningMe.value = false
   isConfirmingDirectPurchasePayment.value = false
