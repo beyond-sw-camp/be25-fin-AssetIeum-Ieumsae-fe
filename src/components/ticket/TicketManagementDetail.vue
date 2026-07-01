@@ -1705,6 +1705,56 @@ function requestedQuantity(detail: TicketDetail) {
   return Number.isInteger(quantity) && quantity > 0 ? quantity : 1
 }
 
+function countAssignmentTargets(detail: TicketDetail) {
+  const targets = Array.isArray(detail.assignmentTargets) ? detail.assignmentTargets : []
+
+  return {
+    assignedCount: targets.filter((target) => String(target.status ?? '').toUpperCase() === 'ASSIGNED').length,
+    pendingCount: targets.filter((target) => String(target.status ?? '').toUpperCase() === 'PENDING').length,
+  }
+}
+
+function createAssignmentComment(assignedCount: number, pendingCount: number) {
+  if (assignedCount > 0 && pendingCount > 0) {
+    return `자산팀 승인이 완료되었습니다. 보유 재고 ${assignedCount}개가 우선 배정되었으며, 남은 ${pendingCount}개는 구매계획을 통해 진행할 예정입니다.`
+  }
+
+  if (assignedCount > 0 && pendingCount === 0) {
+    return `자산팀 승인이 완료되었습니다. 보유 재고 ${assignedCount}개가 모두 배정되어 자산 요청 처리가 완료되었습니다.`
+  }
+
+  if (assignedCount === 0 && pendingCount > 0) {
+    return `자산팀 승인이 완료되었습니다. 현재 배정 가능한 재고가 없어 요청 수량 ${pendingCount}개는 구매계획을 통해 진행할 예정입니다.`
+  }
+
+  return '자산팀 승인이 완료되었습니다.'
+}
+
+function showAssignmentResultToast(assignedCount: number, pendingCount: number) {
+  if (assignedCount > 0 && pendingCount > 0) {
+    notificationStore.success(
+      `보유 재고 ${assignedCount}개가 먼저 배정되었습니다. 남은 ${pendingCount}개는 구매계획으로 진행해주세요.`,
+    )
+    return
+  }
+
+  if (assignedCount > 0 && pendingCount === 0) {
+    notificationStore.success(
+      `보유 재고 ${assignedCount}개가 배정되어 자산 요청이 완료되었습니다.`,
+    )
+    return
+  }
+
+  if (assignedCount === 0 && pendingCount > 0) {
+    notificationStore.success(
+      `가용 재고가 없어 ${pendingCount}개는 구매계획으로 진행해주세요.`,
+    )
+    return
+  }
+
+  notificationStore.success('자산팀 승인이 완료되었습니다.')
+}
+
 function isNonStandardItem(value: TangibleAssetItem['isStandard'] | IntangibleItem['isStandard']) {
   return value === false
 }
@@ -1838,10 +1888,23 @@ async function handleApprove(approver: ApproverType) {
   isApproving.value = true
 
   try {
-    await ticketApi.approve(ticket.value.ticketId, {
+    const currentTicket = ticket.value
+    await ticketApi.approve(currentTicket.ticketId, {
       approver,
       approverMemberId: authStore.user?.memberId ?? '',
     })
+
+    if (approver === 'ASSET_TEAM' && currentTicket.ticketType === 'ASSET_REQUEST') {
+      try {
+        await handleAssetRequestApprovalResult(currentTicket.ticketId)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '자산팀 승인 결과를 갱신하지 못했습니다.'
+        notificationStore.error('자산팀 승인 결과 갱신 실패', message)
+        await Promise.allSettled([reloadAfterAction(), loadComments()])
+      }
+      return
+    }
+
     await reloadAfterAction()
     notificationStore.success('티켓이 승인되었습니다.')
   } catch (error) {
@@ -1850,6 +1913,24 @@ async function handleApprove(approver: ApproverType) {
   } finally {
     isApproving.value = false
   }
+}
+
+async function handleAssetRequestApprovalResult(ticketId: string) {
+  const response = await ticketApi.getDetail(ticketId, 'ASSET_REQUEST')
+  const detail = response.data
+  const { assignedCount, pendingCount } = countAssignmentTargets(detail)
+  const comment = createAssignmentComment(assignedCount, pendingCount)
+
+  try {
+    await ticketApi.addComment(ticketId, comment)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '승인 결과 댓글 등록에 실패했습니다.'
+    notificationStore.error('승인 결과 댓글 등록 실패', message)
+  }
+
+  showAssignmentResultToast(assignedCount, pendingCount)
+  await reloadAfterAction()
+  await loadComments()
 }
 
 function openRejectDrawer(target: ApproverType) {
