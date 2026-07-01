@@ -194,7 +194,7 @@
                           {{ getStatusLabel(displayPlanStatus(selectedPlan)) }}
                         </span>
                         <Button
-                          v-if="canManagePurchasePlan"
+                          v-if="canProgressPurchasePlan"
                           variant="outline"
                           size="sm"
                           class="whitespace-nowrap text-xs"
@@ -1257,8 +1257,11 @@ const { hasRole } = usePermission();
 const route = useRoute();
 const router = useRouter();
 const notificationStore = useNotificationStore();
-const canManagePurchasePlan = computed(() =>
-  hasRole("ADMIN", "SUPER_ADMIN", "ASSET_MANAGER"),
+const canReviewPurchasePlan = computed(() =>
+  hasRole("ASSET_MANAGER"),
+);
+const canProgressPurchasePlan = computed(() =>
+  hasRole("ASSET_TEAM", "ASSET_MANAGER"),
 );
 const canCreatePurchasePlan = computed(() =>
   hasRole("ASSET_TEAM", "ASSET_MANAGER"),
@@ -1462,11 +1465,13 @@ const selectedEstimatedAmount = computed(() =>
 );
 
 const footerStatusActions = computed<FooterStatusAction[]>(() => {
-  if (!selectedPlan.value || !canManagePurchasePlan.value) return [];
+  if (!selectedPlan.value) return [];
 
   const currentStatus = displayPlanStatus(selectedPlan.value);
 
   if (currentStatus === "REQUESTED") {
+    if (!canReviewPurchasePlan.value) return [];
+
     return [
       {
         key: "status-rejected",
@@ -1481,6 +1486,8 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   }
 
   if (currentStatus === "APPROVED") {
+    if (!canProgressPurchasePlan.value) return [];
+
     return [
       {
         key: "status-ordered",
@@ -1495,6 +1502,8 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   }
 
   if (currentStatus === "ORDERED") {
+    if (!canProgressPurchasePlan.value) return [];
+
     return [
       {
         key: "register-actual-amount",
@@ -1509,6 +1518,8 @@ const footerStatusActions = computed<FooterStatusAction[]>(() => {
   }
 
   if (currentStatus === "DELIVERED") {
+    if (!canProgressPurchasePlan.value) return [];
+
     const hasRegisterableItem = selectedPlanItems.value.some(
       canRegisterAssetFromItem,
     );
@@ -2250,6 +2261,8 @@ async function createPlan() {
 }
 
 async function reviewPlan(status: PurchasePlanStatus) {
+  if (!canChangePurchasePlanStatus(status)) return;
+
   if (status === "DELIVERED") {
     openActualAmountDrawer();
     return;
@@ -2262,6 +2275,7 @@ async function reviewPlan(status: PurchasePlanStatus) {
 
 async function handleFooterAction(action: FooterStatusAction) {
   if (action.action === "register-asset") {
+    if (!canProgressPurchasePlan.value) return;
     openFirstAssetRegisterDrawer();
     return;
   }
@@ -2273,6 +2287,8 @@ async function handleFooterAction(action: FooterStatusAction) {
 
 async function changeStatus(status: PurchasePlanStatus) {
   if (!selectedPlanId.value) return false;
+  if (!canChangePurchasePlanStatus(status)) return false;
+
   isStatusSaving.value = true;
 
   try {
@@ -2293,6 +2309,8 @@ async function changeStatus(status: PurchasePlanStatus) {
 }
 
 function openActualAmountDrawer() {
+  if (!canProgressPurchasePlan.value) return;
+
   actualAmountInput.value = formatAmountInput(
     selectedPlan.value?.actualAmount ?? selectedPlan.value?.estimatedAmount,
   );
@@ -2307,6 +2325,8 @@ function closeActualAmountDrawer() {
 }
 
 async function submitActualAmount() {
+  if (!canProgressPurchasePlan.value) return;
+
   const actualAmount = parseAmountInput(actualAmountInput.value);
   if (!Number.isFinite(actualAmount) || actualAmount <= 0) {
     actualAmountError.value = "실제 결제금액을 입력해주세요.";
@@ -2406,7 +2426,7 @@ async function confirmDelivery(item: PurchasePlanItem) {
 
 function canConfirmDelivery(item: PurchasePlanItem) {
   if (
-    !canManagePurchasePlan.value ||
+    !canProgressPurchasePlan.value ||
     getPurchasePlanItemId(item) == null ||
     isPurchaseItemDeliverySettled(item)
   )
@@ -3002,6 +3022,8 @@ async function submitPlanItemRegister() {
 }
 
 function openAssetRegisterDrawer(item: PurchasePlanItem) {
+  if (!canProgressPurchasePlan.value) return;
+
   if (shouldRegisterPlanItemBeforeAsset(item)) {
     openPlanItemRegisterDrawer(item);
     return;
@@ -3010,6 +3032,18 @@ function openAssetRegisterDrawer(item: PurchasePlanItem) {
   assetRegisterTargetItem.value = item;
   isAssetRegisterDrawerOpen.value = true;
   void fetchAssetRegisterReferenceData();
+}
+
+function canChangePurchasePlanStatus(status: PurchasePlanStatus) {
+  if (status === "APPROVED" || status === "REJECTED") {
+    return canReviewPurchasePlan.value;
+  }
+
+  if (status === "ORDERED" || status === "DELIVERED" || status === "COMPLETED") {
+    return canProgressPurchasePlan.value;
+  }
+
+  return false;
 }
 
 function openFirstAssetRegisterDrawer() {
