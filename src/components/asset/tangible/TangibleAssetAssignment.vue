@@ -184,7 +184,7 @@
 
 <script setup lang="ts">
 
-import { computed, defineComponent, h, ref } from 'vue'
+import { computed, defineComponent, h, ref, watch } from 'vue'
 import Button from '@/components/common/Button.vue'
 import Dropdown from '@/components/common/Dropdown.vue'
 import Input from '@/components/common/Input.vue'
@@ -403,12 +403,7 @@ const assignableAssets = computed(() => props.assets.filter((asset) => {
 }))
 
 const assignedAssets = computed(() => props.assets.filter((asset) => {
-  const status = getAssetStatus(asset)
-  const hasMemberId = !!asset.assignedMemberId
-  const memberName = getAssetMemberName(asset)
-  const hasValidMemberName = memberName && memberName !== '미배정'
-
-  return status !== 'DISPOSED' && (hasMemberId || hasValidMemberName)
+  return getAssetStatus(asset) === 'IN_USE'
 }))
 
 const visibleAssets = computed(() => (mode.value === 'assign' ? assignableAssets.value : assignedAssets.value))
@@ -664,7 +659,7 @@ const loadAssignments = async () => {
 
   isLoadingAssignments.value = true
   try {
-    const response = await tangibleAssetApi.getAssignments(assetId)
+    const response = await tangibleAssetApi.getAssignments(assetId, { assignmentStatus: 'ACTIVE' })
     assignments.value = response.data
   } catch (error) {
     console.error('유형자산 배정 이력 조회 실패', error)
@@ -673,6 +668,11 @@ const loadAssignments = async () => {
     isLoadingAssignments.value = false
   }
 }
+
+watch(assetLabel, () => {
+  newMemberId.value = ''
+  void loadAssignments()
+})
 
 const resetForm = () => {
   if (isSubmitting.value) return

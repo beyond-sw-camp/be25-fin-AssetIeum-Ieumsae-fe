@@ -49,7 +49,7 @@
           @close="isAssignmentDrawerOpen = false"
         >
           <TangibleAssetAssignment
-            :assets="serverAssetList"
+            :assets="assignmentAssetList"
             :departments="departments"
             :members="members"
             @close="isAssignmentDrawerOpen = false"
@@ -174,6 +174,7 @@ import type {
   Department,
   Member,
   TangibleAsset,
+  TangibleAssetListFilter,
   TangibleAssetItem,
   TangibleCategoryGroup,
 } from '@/types'
@@ -339,7 +340,10 @@ const openRegisterDrawer = () => {
 }
 
 const openAssignmentDrawer = async () => {
-  await loadReferenceData()
+  await Promise.all([
+    loadReferenceData(),
+    loadAssignmentAssets(),
+  ])
   isAssignmentDrawerOpen.value = true
 }
 
@@ -386,6 +390,7 @@ const handleAssetAssigned = () => {
 }
 
 const serverAssetList = ref<TangibleAssetRow[]>([]);
+const assignmentAssetList = ref<TangibleAssetRow[]>([])
 const totalElements = ref(0);
 const totalPages = ref(0);
 const isLoading = ref(false);
@@ -843,6 +848,66 @@ const loadServerData = async () => {
     isLoading.value = false;
   }
 };
+
+const loadAssignmentAssets = async () => {
+  const scopeParams: Pick<TangibleAssetListFilter, 'currentUserId' | 'departmentId'> = {}
+
+  if (role.value === 'EMPLOYEE' && currentMemberId.value) {
+    scopeParams.currentUserId = currentMemberId.value
+  }
+
+  if (role.value === 'DEPARTMENT_MANAGER' && currentDepartmentId.value) {
+    scopeParams.departmentId = currentDepartmentId.value
+  }
+
+  try {
+    const [availableAssets, inUseAssets] = await Promise.all([
+      loadAllAssignmentAssetsByStatus('AVAILABLE', scopeParams),
+      loadAllAssignmentAssetsByStatus('IN_USE', scopeParams),
+    ])
+
+    const assetsById = new Map<string, TangibleAssetRow>()
+    for (const asset of [...availableAssets, ...inUseAssets]) {
+      const row = toAssetRow(asset)
+      const key = getAssetId(row) || row.assetCode
+      assetsById.set(key, row)
+    }
+
+    assignmentAssetList.value = [...assetsById.values()]
+  } catch (error) {
+    console.error('유형자산 배정 후보 조회 실패', error)
+    assignmentAssetList.value = []
+    notificationStore.error(
+      '유형자산 배정 후보 조회 실패',
+      error instanceof Error ? error.message : '배정 가능한 자산을 불러오지 못했습니다.',
+    )
+  }
+}
+
+const loadAllAssignmentAssetsByStatus = async (
+  status: 'AVAILABLE' | 'IN_USE',
+  scopeParams: Pick<TangibleAssetListFilter, 'currentUserId' | 'departmentId'>,
+) => {
+  const assets: TangibleAsset[] = []
+  const pageSize = 100
+  let page = 0
+  let isLastPage = false
+
+  while (!isLastPage) {
+    const response = await tangibleAssetApi.getList({
+      ...scopeParams,
+      page,
+      size: pageSize,
+      status,
+    })
+
+    assets.push(...response.data.content)
+    isLastPage = response.data.last || page + 1 >= response.data.totalPages
+    page += 1
+  }
+
+  return assets
+}
 
 const itemRangeText = computed(() => {
   if (totalElements.value === 0) return '0-0';
