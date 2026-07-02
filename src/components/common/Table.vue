@@ -87,7 +87,7 @@
       v-if="tooltip.isVisible"
       ref="tooltipElement"
       role="tooltip"
-      class="pointer-events-none fixed z-[100] max-w-80 break-words rounded-md bg-gray px-2 py-1 text-xs font-medium leading-5 text-main shadow-lg"
+      class="pointer-events-none fixed z-[11000] max-w-80 break-words rounded-md bg-gray px-2 py-1 text-xs font-medium leading-5 text-main shadow-lg"
       :style="{
         left: `${tooltip.left}px`,
         top: `${tooltip.top}px`,
@@ -196,11 +196,7 @@ async function handleCellMouseEnter(event: MouseEvent, col: Column<T>) {
   if (col.tooltip === false || !shouldTruncate(col)) return
 
   const element = event.currentTarget as HTMLElement
-  const isOverflowing = (
-    element.scrollWidth > element.clientWidth + 1
-    || element.scrollHeight > element.clientHeight + 1
-  )
-  if (!isOverflowing) return
+  if (!isCellOverflowing(element)) return
 
   const text = element.innerText.replace(/\s+/g, ' ').trim()
   if (!text) return
@@ -216,6 +212,22 @@ async function handleCellMouseEnter(event: MouseEvent, col: Column<T>) {
   positionTooltip(element, tooltipElement.value)
 }
 
+function isCellOverflowing(element: HTMLElement) {
+  if (
+    element.scrollWidth > element.clientWidth + 1
+    || element.scrollHeight > element.clientHeight + 1
+  ) {
+    return true
+  }
+
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  const contentRect = range.getBoundingClientRect()
+
+  return contentRect.width > element.clientWidth + 1
+    || contentRect.height > element.clientHeight + 1
+}
+
 function positionTooltip(target: HTMLElement, tooltipNode: HTMLElement) {
   const targetRect = target.getBoundingClientRect()
   const tooltipRect = tooltipNode.getBoundingClientRect()
@@ -225,9 +237,9 @@ function positionTooltip(target: HTMLElement, tooltipNode: HTMLElement) {
   const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding)
 
   tooltip.left = Math.min(Math.max(centeredLeft, viewportPadding), maxLeft)
-  tooltip.top = targetRect.bottom + gap + tooltipRect.height <= window.innerHeight
-    ? targetRect.bottom + gap
-    : Math.max(viewportPadding, targetRect.top - tooltipRect.height - gap)
+  tooltip.top = targetRect.top - tooltipRect.height - gap >= viewportPadding
+    ? targetRect.top - tooltipRect.height - gap
+    : Math.min(window.innerHeight - tooltipRect.height - viewportPadding, targetRect.bottom + gap)
   tooltip.isPositioned = true
 }
 
