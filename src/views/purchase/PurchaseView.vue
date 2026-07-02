@@ -463,7 +463,7 @@
 
               <template #cell-createdAt="{ value }">
                 <span class="text-text-sub">{{
-                  formatDate(String(value))
+                  formatDateTime(String(value))
                 }}</span>
               </template>
 
@@ -927,12 +927,13 @@ const STATUS_LABEL: Record<PurchasePlanStatus, string> = {
 };
 
 const columns: Column<PurchasePlanListItem>[] = [
-  { key: "planNo", label: "구매 계획 번호", width: "20%", align: "center" },
-  { key: "itemName", label: "요청 품목", width: "28%", align: "center" },
-  { key: "requesterName", label: "신청 팀원", width: "14%", align: "center" },
-  { key: "itemCount", label: "품목 수", width: "10%", align: "center" },
-  { key: "estimatedAmount", label: "예상 금액", width: "16%", align: "center" },
-  { key: "status", label: "상태", width: "12%", align: "center" },
+  { key: "planNo", label: "구매 계획 번호", width: "17%", align: "center" },
+  { key: "itemName", label: "요청 품목", width: "24%", align: "center" },
+  { key: "requesterName", label: "신청 팀원", width: "12%", align: "center" },
+  { key: "createdAt", label: "생성 일시", width: "17%", align: "center" },
+  { key: "itemCount", label: "품목 수", width: "8%", align: "center" },
+  { key: "estimatedAmount", label: "예상 금액", width: "12%", align: "center" },
+  { key: "status", label: "상태", width: "10%", align: "center" },
 ];
 
 const planItemColumns: Column<PurchasePlanItem>[] = [
