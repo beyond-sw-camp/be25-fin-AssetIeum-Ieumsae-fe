@@ -68,7 +68,11 @@ const emit = defineEmits<{
 
 const formatCurrency = (value: number) => `₩ ${value.toLocaleString('ko-KR')}`
 
-const heldAmount = computed(() => Math.max(props.summary.heldAmount ?? props.summary.holdAmount ?? 0, 0))
+const heldAmount = computed(() => {
+  const summary = props.summary as unknown as Record<string, unknown>
+  const value = summary.heldAmount ?? summary.holdAmount
+  return Math.max(typeof value === 'number' ? value : 0, 0)
+})
 const usedAmount = computed(() => Math.max(props.summary.usedAmount ?? 0, 0))
 const totalAmount = computed(() => Math.max(props.summary.totalAmount ?? 0, 0))
 const availableAmount = computed(() => (

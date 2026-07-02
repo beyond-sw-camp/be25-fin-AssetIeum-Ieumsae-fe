@@ -27,6 +27,7 @@ interface PageParams extends Record<string, unknown> {
 }
 
 interface AssetDetailParams extends PageParams {
+  assetType?: 'TANGIBLE' | 'INTANGIBLE'
   departmentId?: string
   keyword?: string
 }
@@ -44,7 +45,7 @@ export const dashboardApi = {
   getExpiringAssets: (params?: DashboardScopeParams) =>
     api.get<ExpiringAssetSummary>('/dashboard/expiring-assets', params),
 
-  getExpiringAssetDetails: (params: AssetDetailParams & { assetType: 'TANGIBLE' | 'INTANGIBLE' }) =>
+  getExpiringAssetDetails: (params: AssetDetailParams & { assetType?: 'TANGIBLE' | 'INTANGIBLE' }) =>
     api.get<PageResponse<ExpiringAssetDetail>>('/dashboard/expiring-assets/details', params),
 
   getAssetDemands: (params?: PageParams) =>
