@@ -48,12 +48,18 @@
           v-for="option in simpleOptions"
           :key="String(option.value)"
           :class="[
-            'px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
+            'flex items-center gap-3 px-4 py-2 text-sm hover:bg-surface-secondary cursor-pointer',
             modelValue === option.value ? 'text-primary font-semibold' : 'text-text-main'
           ]"
           @click="selectOption(option.value)"
         >
-          {{ option.label }}
+          <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+          <span
+            v-if="option.description"
+            class="shrink-0 text-xs font-medium text-text-muted"
+          >
+            {{ option.description }}
+          </span>
         </li>
 
         <li
