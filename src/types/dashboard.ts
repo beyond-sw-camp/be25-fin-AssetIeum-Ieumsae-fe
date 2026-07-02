@@ -43,6 +43,8 @@ export interface OwnedAssetDetail {
   dueDate?: string | null
   dayCount?: number | null
   overdueDays?: number | null
+  availableCount?: number | null
+  totalCount?: number | null
 }
 
 export interface ExpiringAssetDetail {
@@ -54,8 +56,16 @@ export interface ExpiringAssetDetail {
   dayStatusLabel: string
   departmentId?: string | null
   departmentName?: string | null
+  assignedDepartmentName?: string | null
+  currentDepartmentName?: string | null
+  ownerDepartmentName?: string | null
   userId?: string | null
   userName?: string | null
+  assignedMemberName?: string | null
+  assignedUserName?: string | null
+  currentUserName?: string | null
+  memberName?: string | null
+  renterName?: string | null
   expiredAt: string
   expirationDate: string
   remainingPeriodDays: number
@@ -119,6 +129,8 @@ export interface DepartmentBudgetDetail {
   totalAmount: number
   usedAmount: number
   remainingAmount: number
+  heldAmount?: number | null
+  holdAmount?: number | null
   usageRate: number
   categoryUsages: BudgetCategoryUsage[]
 }
