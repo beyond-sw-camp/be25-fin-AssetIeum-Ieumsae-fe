@@ -14,7 +14,7 @@
       </div>
 
       <form
-        class="flex flex-col justify-center h-full space-y-4"
+        class="flex h-full flex-col justify-center space-y-4"
         novalidate
         @submit.prevent="handleLogin"
       >
@@ -76,6 +76,7 @@
         </Button>
       </form>
     </main>
+
     <template #below-card>
       <section class="mt-3 rounded-2xl bg-surface px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
         <div class="mb-2 flex items-center justify-between gap-3">
@@ -83,17 +84,42 @@
           <p class="text-[11px] font-medium text-text-sub">비밀번호 자동 입력</p>
         </div>
 
-        <div class="grid grid-cols-3 gap-1.5">
-          <button
-            v-for="account in demoAccounts"
-            :key="account.memberNo"
-            type="button"
-            :disabled="auth.isLoading"
-            class="min-w-0 rounded-lg border border-border bg-surface-secondary px-1.5 py-1.5 text-center text-[11px] font-semibold leading-4 text-text-main transition hover:border-primary hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-            @click="handleDemoLogin(account)"
+        <div class="grid gap-2 sm:grid-cols-3">
+          <div class="rounded-lg border border-border bg-surface-secondary/60 p-2">
+            <p class="mb-1.5 text-[11px] font-bold text-text-sub">공용 계정</p>
+            <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-1">
+              <button
+                v-for="account in commonDemoAccounts"
+                :key="account.memberNo"
+                type="button"
+                :disabled="auth.isLoading"
+                class="min-h-10 min-w-0 rounded-lg border border-border bg-surface px-2 py-2 text-center text-xs font-semibold leading-4 text-text-main transition hover:border-primary hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                @click="handleDemoLogin(account)"
+              >
+                <span class="block whitespace-normal break-keep">{{ account.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-for="group in testerDemoAccountGroups"
+            :key="group.label"
+            class="rounded-lg border border-border bg-surface-secondary/60 p-2"
           >
-            <span class="block truncate">{{ account.label }}</span>
-          </button>
+            <p class="mb-1.5 text-[11px] font-bold text-text-sub">{{ group.label }}</p>
+            <div class="grid grid-cols-3 gap-1.5 sm:grid-cols-1">
+              <button
+                v-for="account in group.accounts"
+                :key="account.memberNo"
+                type="button"
+                :disabled="auth.isLoading"
+                class="min-h-10 min-w-0 rounded-lg border border-border bg-surface px-2 py-2 text-center text-xs font-semibold leading-4 text-text-main transition hover:border-primary hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                @click="handleDemoLogin(account)"
+              >
+                <span class="block whitespace-normal break-keep">{{ account.label }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     </template>
@@ -118,18 +144,38 @@ interface LoginFormErrors {
 
 interface DemoAccount {
   label: string
+  companyCode: string
   memberNo: string
 }
 
-const DEMO_COMPANY_CODE = 'hanwha'
-const DEMO_PASSWORD = 'password123!'
-const demoAccounts: DemoAccount[] = [
-  { label: '시스템 관리자', memberNo: 'S0001' },
-  { label: '최고 관리자', memberNo: 'A0001' },
-  { label: '부서 책임자', memberNo: 'D1001' },
-  { label: '구매자산팀장', memberNo: 'P1001' },
-  { label: '구매자산팀', memberNo: 'P1002' },
-  { label: '사원', memberNo: 'D2001' },
+interface DemoAccountGroup {
+  label: string
+  accounts: DemoAccount[]
+}
+
+const commonDemoAccounts: DemoAccount[] = [
+  { label: '시스템 관리자', companyCode: 'assetieum', memberNo: 'superadmin' },
+  { label: '최고 관리자', companyCode: 'hanwha', memberNo: 'admin' },
+  { label: '구매자산팀', companyCode: 'hanwha', memberNo: 'EMP0001' },
+]
+
+const testerDemoAccountGroups: DemoAccountGroup[] = [
+  {
+    label: '테스터 1',
+    accounts: [
+      { label: '구매자산팀1', companyCode: 'hanwha', memberNo: 'EMP0002' },
+      { label: '부서책임자1', companyCode: 'hanwha', memberNo: 'EMP0003' },
+      { label: '사원1', companyCode: 'hanwha', memberNo: 'EMP0005' },
+    ],
+  },
+  {
+    label: '테스터 2',
+    accounts: [
+      { label: '구매자산팀2', companyCode: 'hanwha', memberNo: 'EMP0014' },
+      { label: '부서책임자2', companyCode: 'hanwha', memberNo: 'EMP0015' },
+      { label: '사원2', companyCode: 'hanwha', memberNo: 'EMP0016' },
+    ],
+  },
 ]
 
 const auth = useAuthStore()
@@ -232,9 +278,9 @@ onMounted(() => {
 })
 
 async function handleDemoLogin(account: DemoAccount) {
-  form.companyCode = account.memberNo === 'S0001' ? 'ASSETIEUM' : DEMO_COMPANY_CODE
+  form.companyCode = account.companyCode
   form.memberNo = account.memberNo
-  form.password = DEMO_PASSWORD
+  form.password = account.memberNo
 
   await handleLogin()
 }
