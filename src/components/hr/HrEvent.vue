@@ -460,46 +460,25 @@ async function loadEvents() {
       ...firstResponse.data.content,
       ...remainingResponses.flatMap((response) => response.data.content),
     ].sort(compareEventsByDate)
+    pendingSummaryCount.value = allEvents.filter((event) => (
+      (event.hrEventStatus ?? event.status) === 'PENDING'
+    )).length
+    completedThisMonthSummaryCount.value = allEvents.filter((event) => (
+      (event.hrEventStatus ?? event.status) === 'COMPLETED'
+      && isCurrentMonth(resolveEventDate(formatDate(event.eventDate)))
+    )).length
     const totalPages = Math.max(Math.ceil(allEvents.length / pagination.size), 1)
     pagination.page = Math.min(pagination.page, totalPages - 1)
     pagination.totalElements = allEvents.length
     pagination.totalPages = totalPages
     const start = pagination.page * pagination.size
     events.value = allEvents.slice(start, start + pagination.size)
-    void loadEventSummary()
   } catch (error) {
     console.error('HR 이벤트 목록 조회 실패', error)
     events.value = []
     errorMessage.value = apiErrorMessage(error, 'HR 이벤트 목록을 불러오지 못했습니다.')
   } finally {
     isLoading.value = false
-  }
-}
-
-async function refreshSelectedEventFromList() {
-  const event = selectedEvent.value
-  if (!event) return
-
-  await loadEvents()
-  const refreshedEvent = eventRows.value.find((row) => row.hrEventId === event.hrEventId)
-  if (refreshedEvent) selectedEvent.value = refreshedEvent
-}
-
-async function loadEventSummary() {
-  try {
-    const [pendingResponse, completedResponse] = await Promise.all([
-      hrApi.getEvents({ page: 0, size: 1, hrEventStatus: 'PENDING' }),
-      hrApi.getEvents({ page: 0, size: 100, hrEventStatus: 'COMPLETED' }),
-    ])
-
-    pendingSummaryCount.value = pendingResponse.data.totalElements
-    completedThisMonthSummaryCount.value = completedResponse.data.content.filter((event) => (
-      isCurrentMonth(resolveEventDate(formatDate(event.eventDate)))
-    )).length
-  } catch (error) {
-    console.error('HR 이벤트 요약 조회 실패', error)
-    pendingSummaryCount.value = 0
-    completedThisMonthSummaryCount.value = 0
   }
 }
 
@@ -645,6 +624,11 @@ function filterMembersByDepartment(items: Member[]) {
 function openRegisterDrawer() {
   formErrorMessage.value = ''
   isRegisterDrawerOpen.value = true
+  void Promise.all([
+    members.value.length === 0 ? loadMembers() : Promise.resolve(),
+    departments.value.length === 0 ? loadDepartments() : Promise.resolve(),
+    template.value === null ? loadTemplate() : Promise.resolve(),
+  ])
 }
 
 function handleFilterSearch() {
@@ -770,7 +754,9 @@ async function loadSelectedEventTargets() {
   detailErrorMessage.value = ''
 
   try {
-    await refreshSelectedEventFromList()
+    if (selectedEvent.value.eventType === 'ONBOARDING' && template.value === null) {
+      await loadTemplate()
+    }
     const response = await hrApi.getEventTargets(selectedEvent.value.hrEventId)
     const targets = response.data.length > 0
       ? await enrichEventTargetsWithTickets(response.data)
@@ -1070,11 +1056,8 @@ function isCurrentMonth(date: Date | null) {
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
 }
 
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener('focus', handleWindowFocus)
-  await loadTemplate()
-  void loadDepartments()
-  void loadMembers()
   void loadEvents()
 })
 
