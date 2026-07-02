@@ -20,6 +20,7 @@ export interface PageResponse<T> {
 export interface DropdownOption {
   label: string
   value: string | number
+  description?: string
 }
 
 // =====================================================
