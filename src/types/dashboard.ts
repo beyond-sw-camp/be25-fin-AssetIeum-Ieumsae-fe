@@ -33,21 +33,15 @@ export interface OwnedAssetDetail {
   assetId: string
   assetName: string
   categoryName?: string | null
-  categoryOrProvider?: string | null
   assetCode?: string | null
-  warrantyExpiredAt?: string | null
+  seatCount?: number | null
+  availableSeatCount?: number | null
   departmentId?: string | null
   departmentName?: string | null
   renterId?: string | null
   renterName?: string | null
-  userId?: string | null
-  userName?: string | null
-  currentUserInfo?: string | null
-  usedStartedAt?: string | null
-  returnDueDate?: string | null
   dueDate?: string | null
   dayCount?: number | null
-  dayStatusLabel?: string | null
   overdueDays?: number | null
   availableCount?: number | null
   totalCount?: number | null
@@ -58,6 +52,8 @@ export interface ExpiringAssetDetail {
   assetId: string
   assetName: string
   remainingDays: number
+  dayCount: number
+  dayStatusLabel: string
   departmentId?: string | null
   departmentName?: string | null
   assignedDepartmentName?: string | null
@@ -71,7 +67,12 @@ export interface ExpiringAssetDetail {
   memberName?: string | null
   renterName?: string | null
   expiredAt: string
+  expirationDate: string
+  remainingPeriodDays: number
+  remainingPeriodStatus: string
+  dueDate: string
   assetCode: string
+  categoryOrProvider: string
   manufacturer?: string | null
   issuer?: string | null
 }
@@ -90,9 +91,6 @@ export interface AssetDemand {
 export interface CommonBudgetSummary {
   totalAmount: number
   remainingAmount: number
-  usedAmount?: number | null
-  heldAmount?: number | null
-  holdAmount?: number | null
   remainingRate: number
 }
 
@@ -101,9 +99,6 @@ export interface DepartmentBudgetOverview {
   departmentName: string
   totalAmount: number
   usedAmount: number
-  remainingAmount?: number | null
-  heldAmount?: number | null
-  holdAmount?: number | null
   usageRate: number
 }
 
@@ -173,7 +168,17 @@ export interface HrLifecycleEvent {
   departmentName: string
   eventDate: string | number[]
   dDay?: number
-  dday?: number
+  status: string
+}
+
+export interface LifecycleEvent {
+  eventType: string
+  assetType: string
+  assetId: string
+  assetCode: string
+  asseetName: string
+  dueAt: string
+  dDay: number
   status: string
 }
 

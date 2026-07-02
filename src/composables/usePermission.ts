@@ -26,6 +26,10 @@ export function usePermission() {
     canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
   )
 
+  const canViewOperationReports = computed(() =>
+    canAccessAllPages.value || hasRole('ASSET_TEAM', 'ASSET_MANAGER')
+  )
+
   // 예산 관리 (최고관리자)
   const canManageBudget = computed(() => canAccessAllPages.value)
 
@@ -150,6 +154,7 @@ export function usePermission() {
     canCloseInspection,
     canViewMyInspectionFollowUps,
     canViewLogs,
+    canViewOperationReports,
     canRespondInspection,
   }
 }

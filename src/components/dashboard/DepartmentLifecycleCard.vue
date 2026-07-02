@@ -225,12 +225,11 @@ const departmentItems = computed(() => {
 })
 
 const statusItems = computed(() => {
-  const onboarding = categoryFilteredEvents.value.filter((event) => event.eventType === '입사')
-  const offboarding = categoryFilteredEvents.value.filter((event) => event.eventType === '퇴사')
   return [
-    createStatusItem('지급 완료', onboarding, ['지급완료', '지급 완료'], 'bg-success'),
-    createStatusItem('회수 중', offboarding, ['회수중', '회수 중'], 'bg-primary'),
-    createStatusItem('반품', offboarding, ['반납', '반품'], 'bg-warning'),
+    createStatisticsItem('대기', props.statistics.pendingCount, props.statistics.pendingPercentage, 'bg-warning'),
+    createStatisticsItem('진행 중', props.statistics.inProgressCount, props.statistics.inProgressPercentage, 'bg-primary'),
+    createStatisticsItem('완료', props.statistics.completedCount, props.statistics.completedPercentage, 'bg-success'),
+    createStatisticsItem('취소', props.statistics.cancelledCount, props.statistics.cancelledPercentage, 'bg-danger'),
   ]
 })
 
@@ -238,15 +237,19 @@ watch(visibleEvents, () => {
   if (eventPage.value >= eventTotalPages.value) eventPage.value = eventTotalPages.value - 1
 })
 
-function createStatusItem(
+function createStatisticsItem(
   label: string,
-  source: HrLifecycleEvent[],
-  statuses: string[],
+  count: number,
+  percentage: number,
   colorClass: string,
 ) {
-  const count = source.filter((event) => statuses.includes(event.status.replaceAll(' ', '')) || statuses.includes(event.status)).length
-  const total = source.length
-  return { label, count, total, percentage: total ? Math.round((count / total) * 100) : 0, colorClass }
+  return {
+    label,
+    count,
+    total: props.statistics.totalCount,
+    percentage: Math.min(Math.max(Number(percentage) || 0, 0), 100),
+    colorClass,
+  }
 }
 
 function selectCategory(type: CategoryType) {
@@ -284,14 +287,14 @@ function formatDate(value: HrLifecycleEvent['eventDate']) {
 }
 
 function dDayText(event: HrLifecycleEvent) {
-  const value = calculateDday(event.eventDate) ?? event.dDay ?? event.dday
+  const value = calculateDday(event.eventDate) ?? event.dDay
   if (value === null || value === undefined) return '-'
   if (value === 0) return 'D-Day'
   return value > 0 ? `D-${value}` : `D+${Math.abs(value)}`
 }
 
 function dDayTextClass(event: HrLifecycleEvent) {
-  const value = calculateDday(event.eventDate) ?? event.dDay ?? event.dday
+  const value = calculateDday(event.eventDate) ?? event.dDay
   if (typeof value !== 'number') return 'text-text-sub'
   if (value < 0 && !isFinalStatus(event.status)) return 'text-danger'
   if (value < 0) return 'text-warning'
@@ -300,7 +303,7 @@ function dDayTextClass(event: HrLifecycleEvent) {
 }
 
 function isCompletedPastEvent(event: HrLifecycleEvent) {
-  const dDay = calculateDday(event.eventDate) ?? event.dDay ?? event.dday
+  const dDay = calculateDday(event.eventDate) ?? event.dDay
   return typeof dDay === 'number' && dDay < 0 && isFinalStatus(event.status)
 }
 

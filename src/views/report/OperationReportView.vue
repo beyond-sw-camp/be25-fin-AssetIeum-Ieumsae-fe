@@ -221,7 +221,7 @@ const DEFAULT_TOP_USER_LIMIT = 5
 const DEFAULT_PAGE_SIZE = 10
 
 const permission = usePermission()
-const canViewOperationReports = computed(() => permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'))
+const { canViewOperationReports } = permission
 
 const filters = reactive({
   startDate: '',

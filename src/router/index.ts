@@ -246,7 +246,7 @@ const router = createRouter({
           component: () => import('@/views/report/OperationReportView.vue'),
           meta: {
             title: '운영 리포트',
-            roles: ['ASSET_TEAM', 'ASSET_MANAGER'],
+            roles: ['ADMIN', 'ASSET_TEAM', 'ASSET_MANAGER'],
           },
         },
         {

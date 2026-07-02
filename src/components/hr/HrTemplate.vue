@@ -245,6 +245,9 @@ const loadAssetItems = async () => {
 
 const openRegisterDrawer = () => {
   isRegisterDrawerOpen.value = true
+  if (tangibleAssetItems.value.length === 0 && intangibleAssetItems.value.length === 0) {
+    void loadAssetItems()
+  }
 }
 
 const hasTemplateItems = (value: HrTemplateResponse | null): value is HrTemplateResponse => (
@@ -273,6 +276,5 @@ const handleDeleteTemplate = async () => {
 
 onMounted(() => {
   void loadTemplate()
-  void loadAssetItems()
 })
 </script>

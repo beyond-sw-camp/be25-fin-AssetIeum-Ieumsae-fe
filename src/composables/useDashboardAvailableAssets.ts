@@ -143,13 +143,11 @@ function toTangibleDetail(
     assetName: asset.productName ?? asset.assetItemName ?? asset.assetCode,
     assetCode: asset.assetCode,
     categoryName: item?.categoryName ?? item?.category ?? null,
-    categoryOrProvider: item?.manufacturer ?? asset.purchaseVendor ?? asset.vendor ?? null,
     departmentId: asset.departmentId,
     departmentName: asset.departmentName,
-    returnDueDate: asset.returnDueDate,
-    warrantyExpiredAt: asset.warrantyExpiredAt,
-    availableCount: 1,
-    totalCount: 1,
+    dueDate: asset.returnDueDate ?? asset.warrantyExpiredAt,
+    availableSeatCount: 1,
+    seatCount: 1,
   }
 }
 
@@ -165,12 +163,11 @@ function toIntangibleDetail(
     assetName: asset.assetItemName || asset.productName || asset.assetCode,
     assetCode: asset.assetCode,
     categoryName: item?.category ?? asset.categoryName ?? asset.category ?? null,
-    categoryOrProvider: item?.provider ?? item?.vendor ?? asset.vendor ?? asset.provider ?? null,
     departmentId: asset.departmentId,
     departmentName: asset.departmentName,
     dueDate: asset.expiredAt,
-    availableCount,
-    totalCount,
+    availableSeatCount: availableCount,
+    seatCount: totalCount,
   }
 }
 

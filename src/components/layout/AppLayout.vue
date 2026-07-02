@@ -63,12 +63,9 @@ const {
   canViewInspection,
   canViewMyInspectionFollowUps,
   canViewLogs,
+  canViewOperationReports,
   canManagePlatform,
 } = permission
-
-const canViewOperationReports = computed(() =>
-  permission.hasRole('ASSET_TEAM', 'ASSET_MANAGER'),
-)
 
 const usesContainedPageScroll = computed(() => (
   route.path === '/tickets'
