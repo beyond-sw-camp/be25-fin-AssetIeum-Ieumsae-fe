@@ -453,6 +453,70 @@
           :placeholder="requestedItemDetailPlaceholder"
           :disabled="isSubmitting"
         />
+        <section class="rounded-xl border border-border bg-surface-secondary/50 p-3">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-text-main">기존 품목 조회</p>
+              <p class="mt-1 text-xs font-semibold leading-5 text-text-muted">
+                같은 품목이 이미 있으면 구매 요청 대신 자산 요청으로 작성할 수 있습니다.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="md"
+              class="shrink-0"
+              :loading="isPurchaseItemLookupLoading"
+              :disabled="!canLookupPurchaseItem || isSubmitting"
+              @click="handlePurchaseItemLookup"
+            >
+              <Search :size="14" />
+              품목 조회
+            </Button>
+          </div>
+
+          <p v-if="purchaseItemLookupError" class="mt-3 text-xs font-semibold text-danger">
+            {{ purchaseItemLookupError }}
+          </p>
+
+          <div v-if="hasSearchedPurchaseItems && !purchaseItemLookupError" class="mt-3 space-y-2">
+            <p
+              v-if="purchaseItemLookupResults.length === 0"
+              class="rounded-lg border border-dashed border-border bg-surface px-3 py-2 text-xs font-semibold text-text-muted"
+            >
+              동일하거나 유사한 품목을 찾지 못했습니다. 새 구매 요청으로 계속 작성해 주세요.
+            </p>
+
+            <div
+              v-for="item in purchaseItemLookupResults"
+              :key="`${item.assetType}-${item.id}`"
+              class="flex flex-col gap-3 rounded-lg border border-border bg-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="truncate text-sm font-bold text-text-main">{{ item.name }}</p>
+                  <span
+                    v-if="isSamePurchaseLookupName(item)"
+                    class="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-bold text-warning"
+                  >
+                    동일 품목명
+                  </span>
+                </div>
+                <p class="mt-1 text-xs font-semibold text-text-muted">
+                  {{ item.assetType === 'INTANGIBLE' ? '무형자산' : '유형자산' }}
+                  <span v-if="item.description"> · {{ item.description }}</span>
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                class="shrink-0"
+                @click="goToAssetRequestFromLookup(item)"
+              >
+                자산 요청으로 작성
+              </Button>
+            </div>
+          </div>
+        </section>
         <Input
           id="ticket-manufacturer"
           v-model="form.vendor"
@@ -680,6 +744,7 @@
 <script setup lang="ts">
 import { ChevronLeft, PackageCheck, PackagePlus, Search } from 'lucide-vue-next'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   intangibleAssetApi,
@@ -788,6 +853,8 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const assetTypeOptions = [
   { label: '유형 자산', value: 'TANGIBLE' as const },
   { label: '무형 자산', value: 'INTANGIBLE' as const },
@@ -840,6 +907,10 @@ const assetErrorMessage = ref('')
 const assigneeErrorMessage = ref('')
 const assetSearchKeyword = ref('')
 const hasSearchedAssets = ref(false)
+const isPurchaseItemLookupLoading = ref(false)
+const hasSearchedPurchaseItems = ref(false)
+const purchaseItemLookupError = ref('')
+const purchaseItemLookupResults = ref<SelectableAsset[]>([])
 const tangibleCategoryGroups = ref<TangibleCategoryGroup[]>([])
 const intangibleCategoryGroups = ref<IntangibleCategoryGroup[]>([])
 const itemOptions = ref<SelectableAsset[]>([])
@@ -932,6 +1003,12 @@ const requiresAssetAssignee = computed(() => (
 const showsPurchaseDetailInputs = computed(() => (
   selectedKind.value === 'NON_STANDARD_ASSET_REQUEST'
   || isNonStandardDirectPurchase.value
+))
+
+const canLookupPurchaseItem = computed(() => Boolean(
+  showsPurchaseDetailInputs.value
+  && form.assetType
+  && form.requestedItemName.trim(),
 ))
 
 const usesSelectableAsset = computed(() => (
@@ -1432,6 +1509,99 @@ function standardItemValue(value: unknown) {
 
 function isStandardItem(value: boolean | null | undefined) {
   return standardItemValue(value)
+}
+
+function normalizeLookupName(value: string | null | undefined) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isSamePurchaseLookupName(item: SelectableAsset) {
+  return Boolean(
+    normalizeLookupName(item.name)
+    && normalizeLookupName(item.name) === normalizeLookupName(form.requestedItemName),
+  )
+}
+
+function resetPurchaseItemLookup() {
+  hasSearchedPurchaseItems.value = false
+  purchaseItemLookupError.value = ''
+  purchaseItemLookupResults.value = []
+}
+
+function sortPurchaseItemLookupResults(items: SelectableAsset[]) {
+  return [...items].sort((a, b) => Number(isSamePurchaseLookupName(b)) - Number(isSamePurchaseLookupName(a)))
+}
+
+async function handlePurchaseItemLookup() {
+  if (!canLookupPurchaseItem.value) return
+
+  isPurchaseItemLookupLoading.value = true
+  purchaseItemLookupError.value = ''
+  purchaseItemLookupResults.value = []
+
+  try {
+    if (form.assetType === 'INTANGIBLE') {
+      const response = await intangibleItemApi.getList({
+        page: 0,
+        size: 5,
+        keyword: form.requestedItemName.trim(),
+      })
+      purchaseItemLookupResults.value = sortPurchaseItemLookupResults(
+        response.data.content.map(toIntangibleItemOption).filter((item) => item.id),
+      )
+    } else {
+      const response = await tangibleItemApi.getList({
+        page: 0,
+        size: 5,
+        keyword: form.requestedItemName.trim(),
+      })
+      purchaseItemLookupResults.value = sortPurchaseItemLookupResults(
+        response.data.content.map(toTangibleItemOption).filter((item) => item.id),
+      )
+    }
+  } catch (error) {
+    purchaseItemLookupError.value = error instanceof Error
+      ? error.message
+      : '품목 조회에 실패했습니다.'
+  } finally {
+    hasSearchedPurchaseItems.value = true
+    isPurchaseItemLookupLoading.value = false
+  }
+}
+
+async function goToAssetRequestFromLookup(item: SelectableAsset) {
+  await router.replace({
+    name: 'TicketList',
+    query: {
+      ...route.query,
+      create: '1',
+      requestKind: 'STANDARD_ASSET_REQUEST',
+      assetType: item.assetType,
+      assetItemId: item.id,
+      itemKeyword: item.name,
+    },
+  })
+
+  selectedKind.value = 'STANDARD_ASSET_REQUEST'
+  isAssetSelectionStep.value = false
+  form.assetType = item.assetType
+  selectionAssetType.value = item.assetType
+  form.assetUsageType = 'DEPARTMENT'
+  assetSearchForm.assetUsageType = 'DEPARTMENT'
+  form.selectedAssetId = item.id
+  form.category = ''
+  form.requestedItemName = ''
+  form.vendor = ''
+  form.licenseType = ''
+  form.externalUrl = ''
+  form.quantity = '1'
+  confirmedSelectedAsset.value = item
+  itemOptions.value = [item, ...itemOptions.value.filter((option) => option.id !== item.id)]
+  pendingSelectedAssetId.value = item.id
+  requiresStandardEstimatedUnitPrice.value = false
+  errorMessage.value = ''
+  resetPurchaseItemLookup()
+  syncAssetAssigneeIds()
 }
 
 function categoryIdByLabel(label: string) {
@@ -2032,6 +2202,7 @@ function resetForm() {
   assetSearchKeyword.value = ''
   hasSearchedAssets.value = false
   itemOptions.value = []
+  resetPurchaseItemLookup()
   Object.assign(assetSearchForm, {
     assetUsageType: 'DEPARTMENT',
     category: '',
@@ -2064,6 +2235,16 @@ function resetSelection() {
   resetForm()
 }
 
+function queryString(value: unknown) {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : ''
+  return typeof value === 'string' ? value : ''
+}
+
+function queryRequestKind(): TicketRequestKind | '' {
+  const value = queryString(route.query.requestKind)
+  return Object.hasOwn(requestTitleMap, value) ? value as TicketRequestKind : ''
+}
+
 function handleKindSelect(kind: TicketRequestKind) {
   selectedKind.value = kind
   requiresStandardEstimatedUnitPrice.value = false
@@ -2089,6 +2270,36 @@ function handleKindSelect(kind: TicketRequestKind) {
   if (requiresAssetAssignee.value && departmentMembers.value.length === 0) {
     void loadDepartmentMembers()
   }
+}
+
+async function applyInitialRequestKindFromRoute() {
+  const initialKind = queryRequestKind()
+  if (!initialKind) return
+
+  handleKindSelect(initialKind)
+
+  const initialAssetType = queryString(route.query.assetType)
+  if (initialAssetType === 'TANGIBLE' || initialAssetType === 'INTANGIBLE') {
+    form.assetType = initialAssetType
+    selectionAssetType.value = initialAssetType
+  }
+
+  const itemKeyword = queryString(route.query.itemKeyword)
+  const assetItemId = queryString(route.query.assetItemId)
+  if (initialKind !== 'STANDARD_ASSET_REQUEST' || (!itemKeyword && !assetItemId)) return
+
+  assetSearchForm.keyword = itemKeyword
+  await handleAssetSearch()
+
+  const selectedItem = itemOptions.value.find((item) => (
+    (assetItemId && item.id === assetItemId)
+    || (itemKeyword && normalizeLookupName(item.name) === normalizeLookupName(itemKeyword))
+  ))
+
+  if (!selectedItem) return
+  form.selectedAssetId = selectedItem.id
+  confirmedSelectedAsset.value = selectedItem
+  pendingSelectedAssetId.value = selectedItem.id
 }
 
 function openAssetSelection() {
@@ -2193,6 +2404,7 @@ function handleDirectPurchaseItemTypeChange(value: 'STANDARD' | 'NON_STANDARD') 
   form.seatCount = '1'
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
+  resetPurchaseItemLookup()
   invalidateAssetSearch()
 }
 
@@ -2213,6 +2425,7 @@ function handleAssetTypeChange(assetType: AssetType) {
   form.seatCount = '1'
   confirmedSelectedAsset.value = null
   pendingSelectedAssetId.value = ''
+  resetPurchaseItemLookup()
   invalidateAssetSearch()
 
   if (selectedKind.value === 'RETURN' || selectedKind.value === 'PURCHASE_RETURN') {
@@ -2415,6 +2628,11 @@ watch(() => props.isOpen, async (isOpen) => {
   if (!isOpen) return
   resetForm()
   await loadSelectableAssets()
+  await applyInitialRequestKindFromRoute()
+})
+
+watch(() => [form.requestedItemName, form.assetType], () => {
+  resetPurchaseItemLookup()
 })
 
 watch(errorMessage, async (message) => {

@@ -277,14 +277,29 @@ async function handleTicketTypeChange(value: string | number) {
 
 function openRequestDrawer() {
   isRequestDrawerOpen.value = true
-  router.replace({ query: { ...route.query, create: '1' } })
+  router.replace({ query: { ...requestDrawerBaseQuery(), create: '1' } })
+}
+
+function requestDrawerBaseQuery() {
+  const {
+    create: _create,
+    requestKind: _requestKind,
+    assetType: _assetType,
+    assetItemId: _assetItemId,
+    itemKeyword: _itemKeyword,
+    ...query
+  } = route.query
+  void _create
+  void _requestKind
+  void _assetType
+  void _assetItemId
+  void _itemKeyword
+  return query
 }
 
 function closeRequestDrawer() {
   isRequestDrawerOpen.value = false
-  const { create: _create, ...query } = route.query
-  void _create
-  router.replace({ query })
+  router.replace({ query: requestDrawerBaseQuery() })
 }
 
 async function handleTicketCreated(ticket: TicketCreateResponse) {

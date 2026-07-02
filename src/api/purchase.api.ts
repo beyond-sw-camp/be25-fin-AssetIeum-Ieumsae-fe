@@ -106,6 +106,8 @@ type PurchasePlanItemResponse = PurchasePlanItem & {
 type PurchasePlanListItemResponse = PurchasePlanListItem & {
   itemName?: string | null
   itemSummary?: string | null
+  created_at?: string | null
+  updated_at?: string | null
   items?: PurchasePlanItemResponse[]
 }
 
@@ -456,6 +458,8 @@ function normalizeListItem(item: PurchasePlanListItemResponse): PurchasePlanList
     itemName,
     itemSummary: itemName,
     itemCount,
+    createdAt: item.createdAt ?? item.created_at ?? '',
+    updatedAt: item.updatedAt ?? item.updated_at ?? '',
     estimatedAmount: Number(item.estimatedAmount ?? 0),
     purchaseRequestStatus,
     status: purchaseRequestStatus,
