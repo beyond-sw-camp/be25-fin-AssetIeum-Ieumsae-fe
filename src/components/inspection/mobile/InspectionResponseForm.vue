@@ -31,7 +31,7 @@
         @change="emit('update:followUpRequests', ($event.target as HTMLInputElement).checked)"
       >
       <span class="min-w-0">
-        {{ target?.isResponded ? '후속 처리 요청' : '확인 필요' }}
+        {{ target?.isResponded ? '후속 처리 요청' : '후속 처리 요청' }}
         <span class="block text-xs font-normal text-text-sub">
           {{ target?.isResponded
             ? '응답 등록 시 요청한 후속 처리 여부입니다.'
