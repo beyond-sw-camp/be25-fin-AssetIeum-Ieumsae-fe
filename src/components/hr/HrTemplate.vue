@@ -231,8 +231,8 @@ const handleTemplateRegistered = (updatedAt?: string) => {
 const loadAssetItems = async () => {
   try {
     const [tangibleResponse, intangibleResponse] = await Promise.all([
-      tangibleItemApi.getList({ page: 0, size: 100 }),
-      intangibleItemApi.getList({ page: 0, size: 100 }),
+      tangibleItemApi.getList({ page: 0, size: 100, isStandard: true }),
+      intangibleItemApi.getList({ page: 0, size: 100, isStandard: true }),
     ])
 
     tangibleAssetItems.value = tangibleResponse.data.content

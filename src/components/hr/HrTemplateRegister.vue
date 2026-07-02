@@ -164,6 +164,7 @@ interface TemplateItemForm {
   assetItemId: string | number
   productName: string
   quantity: string
+  availableCount?: number
 }
 
 const props = defineProps<{
@@ -180,6 +181,7 @@ const createItemRow = (): TemplateItemForm => ({
   assetItemId: '',
   productName: '',
   quantity: '1',
+  availableCount: undefined,
 })
 
 const draftItem = ref<TemplateItemForm>(createItemRow())
@@ -216,17 +218,21 @@ const getAssetItemOptions = (assetType: HrTemplateAssetType): DropdownOption[] =
   switch (assetType) {
     case 'TANGIBLE':
       return props.tangibleAssetItems
+        .filter((item) => isStandardAssetItem(item.isStandard))
         .map((item) => ({
           label: item.productName ?? item.name,
           value: item.assetItemId ?? item.itemId ?? '',
+          description: formatAvailableCount(getAssetItemAvailableCount(item)),
         }))
         .filter((option) => Boolean(option.label && option.value))
 
     case 'INTANGIBLE':
       return props.intangibleAssetItems
+        .filter((item) => isStandardAssetItem(item.isStandard))
         .map((item) => ({
           label: item.productName,
           value: item.assetItemId ?? item.itemId ?? item.id ?? '',
+          description: formatAvailableCount(getAssetItemAvailableCount(item)),
         }))
         .filter((option) => Boolean(option.label && option.value))
 
@@ -234,6 +240,36 @@ const getAssetItemOptions = (assetType: HrTemplateAssetType): DropdownOption[] =
       return []
   }
 }
+
+function isStandardAssetItem(value: boolean | null | undefined) {
+  return value !== false
+}
+
+const draftQuantityError = computed(() => {
+  const availableCount = selectedDraftAvailableCount.value
+  const quantityValue = Number(draftItem.value.quantity)
+
+  if (
+    typeof availableCount !== 'number'
+    || !Number.isFinite(availableCount)
+    || !draftItem.value.assetItemId
+    || !Number.isInteger(quantityValue)
+    || quantityValue <= 0
+  ) {
+    return ''
+  }
+
+  const existingQuantity = getExistingItemQuantity(draftItem.value)
+  const requestedQuantity = existingQuantity + quantityValue
+  if (requestedQuantity <= availableCount) return ''
+
+  return `요청 수량은 사용 가능 수량 ${availableCount}개를 초과할 수 없습니다.`
+})
+
+const selectedDraftAvailableCount = computed(() => (
+  draftItem.value.availableCount
+    ?? getAssetItemAvailableCount(findAssetItem(draftItem.value.assetType, draftItem.value.assetItemId))
+))
 
 const isRegisterReady = computed(() => (
   items.value.length > 0
@@ -244,7 +280,8 @@ const isRegisterReady = computed(() => (
       item.assetType
       && item.assetItemId
       && Number.isInteger(quantityValue)
-      && quantityValue > 0,
+      && quantityValue > 0
+      && isItemQuantityAvailable(item),
     )
   })
 ))
@@ -256,7 +293,7 @@ const canAddDraftItem = computed(() => {
     draftItem.value.assetType
     && draftItem.value.assetItemId
     && Number.isInteger(quantityValue)
-    && quantityValue > 0,
+    && quantityValue > 0
   )
 })
 
@@ -311,22 +348,34 @@ function updateDraftAssetType(value: string | number) {
   draftItem.value.assetType = nextAssetType
   draftItem.value.assetItemId = ''
   draftItem.value.productName = ''
+  draftItem.value.availableCount = undefined
 }
 
 function updateDraftAssetItem(value: string | number) {
   const selectedOption = getAssetItemOptions(draftItem.value.assetType)
     .find((option) => String(option.value) === String(value))
+  const selectedItem = findAssetItem(draftItem.value.assetType, value)
 
   draftItem.value.assetItemId = value
   draftItem.value.productName = selectedOption?.label ?? ''
+  draftItem.value.availableCount = getAssetItemAvailableCount(selectedItem)
+  errorMessage.value = ''
 }
 
 function updateDraftQuantity(value: string) {
   draftItem.value.quantity = value
+  errorMessage.value = ''
 }
 
 function addDraftItem() {
-  if (!canAddDraftItem.value) return
+  if (draftQuantityError.value) {
+    notificationStore.warning('수량 부족', draftQuantityError.value)
+    return
+  }
+
+  if (!canAddDraftItem.value) {
+    return
+  }
 
   const existingItem = items.value.find((item) => (
     item.assetType === draftItem.value.assetType
@@ -346,9 +395,94 @@ function addDraftItem() {
     ...createItemRow(),
     assetType: draftItem.value.assetType,
   }
+  errorMessage.value = ''
 }
 
 function toApiId(value: string | number) {
   return String(value)
+}
+
+function findAssetItem(assetType: HrTemplateAssetType, assetItemId: string | number) {
+  if (!assetItemId) return undefined
+
+  const items = assetType === 'TANGIBLE'
+    ? props.tangibleAssetItems
+    : props.intangibleAssetItems
+
+  return items.find((item) => String(getAssetItemId(item)) === String(assetItemId))
+}
+
+function getAssetItemId(item: TangibleAssetItem | IntangibleItem) {
+  return item.assetItemId ?? item.itemId ?? ('id' in item ? item.id : undefined) ?? ''
+}
+
+function getExistingItemQuantity(item: TemplateItemForm) {
+  const existingItem = items.value.find((currentItem) => (
+    currentItem.assetType === item.assetType
+    && String(currentItem.assetItemId) === String(item.assetItemId)
+  ))
+
+  const quantityValue = Number(existingItem?.quantity)
+  return Number.isInteger(quantityValue) && quantityValue > 0 ? quantityValue : 0
+}
+
+function isItemQuantityAvailable(item: TemplateItemForm) {
+  const availableCount = item.availableCount
+    ?? getAssetItemAvailableCount(findAssetItem(item.assetType, item.assetItemId))
+  const quantityValue = Number(item.quantity)
+
+  if (typeof availableCount !== 'number' || !Number.isFinite(availableCount)) return true
+  return Number.isInteger(quantityValue) && quantityValue > 0 && quantityValue <= availableCount
+}
+
+function getAssetItemAvailableCount(item: TangibleAssetItem | IntangibleItem | undefined) {
+  if (!item) return undefined
+
+  const source = item as unknown as Record<string, unknown>
+  return numberValue(
+    source.availableCount
+      ?? source.availableAssetCount
+      ?? source.availableSeatCount
+      ?? source.remainingSeatCount
+      ?? source.remainingSeats
+      ?? source.availableSeats
+      ?? source.assignableSeatCount
+      ?? source.remainingAssignableCount
+      ?? source.remainingAssignableSeatCount
+      ?? source.availableUserCount
+      ?? source.remainingUserCount
+      ?? source.availableMemberCount
+      ?? source.remainingMemberCount
+      ?? source.availableAssignmentCount
+      ?? source.remainingAssignmentCount
+      ?? source.available_seat_count
+      ?? source.remaining_seat_count
+      ?? source.available_user_count
+      ?? source.remaining_user_count
+      ?? source.available_member_count
+      ?? source.remaining_member_count
+      ?? source.available_assignment_count
+      ?? source.remaining_assignment_count
+      ?? source.intangibleAssetCount
+      ?? source.totalAssetCount
+      ?? source.assetTotalCount
+      ?? source.assetCount
+      ?? source.stockCount
+      ?? source.count,
+  )
+}
+
+function formatAvailableCount(count: number | undefined) {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return undefined
+  return `남은 수량 ${count}개`
+}
+
+function numberValue(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
 }
 </script>
