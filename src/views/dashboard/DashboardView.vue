@@ -100,7 +100,6 @@ import HoldingAssetCard from '@/components/dashboard/HoldingAssetCard.vue'
 import ProgressTicketCard, { type DashboardSegment } from '@/components/dashboard/ProgressTicketCard.vue'
 import { budgetApi } from '@/api/budget.api'
 import { dashboardApi } from '@/api/dashboard.api'
-import { useDashboardAvailableAssets } from '@/composables'
 import { useAuthStore } from '@/stores'
 import type {
   AssetDemand,
@@ -140,7 +139,6 @@ const EMPTY_DEPARTMENT_BUDGET: DepartmentBudgetDetail = {
   totalAmount: 0,
   usedAmount: 0,
   remainingAmount: 0,
-  heldAmount: 0,
   usageRate: 0,
   categoryUsages: [],
 }
@@ -161,7 +159,6 @@ type AssetDrawerMode = 'owned' | 'expiring'
 type AssetDrawerType = 'ALL' | 'TANGIBLE' | 'INTANGIBLE'
 
 const auth = useAuthStore()
-const { loadAvailableAssets } = useDashboardAvailableAssets()
 const ticketProgress = ref<TicketProgressSummary>({ ...EMPTY_TICKET_PROGRESS })
 const ownedAssets = ref<OwnedAssetSummary>({ ...EMPTY_OWNED_ASSETS })
 const expiringSummary = ref<ExpiringAssetSummary>({ ...EMPTY_EXPIRING_ASSETS })
@@ -215,8 +212,8 @@ const holdingAssetSegments = computed(() => toSegments([
   ...(isAssetOperator.value
     ? [{ label: '미배정', count: ownedAssets.value.unassigned, barClass: 'bg-text-main' }]
     : []),
-  { label: '대여 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
-  { label: '대여 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
+  { label: '배정 예정', count: ownedAssets.value.rentalScheduled, barClass: 'bg-warning' },
+  { label: '보유 중', count: ownedAssets.value.rented, barClass: 'bg-success' },
   { label: '연체', count: ownedAssets.value.overdue, barClass: 'bg-danger' },
 ]))
 
@@ -231,7 +228,6 @@ const demandColumns = [
 ]
 
 const demandRows = computed<DemandRow[]>(() => assetDemands.value
-  .filter((item) => item.expectedDemand > 0)
   .map((item) => ({
     id: item.itemId,
     kind: item.assetType === 'TANGIBLE' ? '유형' : '무형',
@@ -306,24 +302,24 @@ const commonBudgetLimit = computed(() => (
 ))
 
 const commonBudgetUsed = computed(() => {
+  const commonBudget = budgetOverview.value?.commonBudget
   return Math.max(
     commonBudgetItem.value?.usedAmount
-    ?? budgetOverview.value?.commonBudget?.usedAmount
-    ?? 0,
+    ?? (commonBudget ? commonBudget.totalAmount - commonBudget.remainingAmount : 0),
     0,
   )
 })
 
-const commonBudgetCommitted = computed(() => {
-  const commonBudget = commonBudgetItem.value ?? budgetOverview.value?.commonBudget
-  if (!commonBudget) return 0
-  return Math.max(commonBudgetUsed.value + budgetHeldAmount(commonBudget), 0)
-})
+
 
 const commonBudgetHeld = computed(() => {
   const commonBudget = commonBudgetItem.value ?? budgetOverview.value?.commonBudget
   return commonBudget ? budgetHeldAmount(commonBudget) : 0
 })
+
+const commonBudgetCommitted = computed(() => (
+  Math.max(commonBudgetUsed.value + commonBudgetHeld.value, 0)
+))
 
 const commonBudgetUsagePercent = computed(() => {
   if (commonBudgetLimit.value <= 0) return 0
@@ -338,8 +334,11 @@ function budgetUsedAmount(budget: DepartmentBudgetOverview) {
   return Math.max(budget.usedAmount ?? 0, 0)
 }
 
-function budgetHeldAmount(budget: { heldAmount?: number | null; holdAmount?: number | null }) {
-  return Math.max(budget.heldAmount ?? budget.holdAmount ?? 0, 0)
+function budgetHeldAmount(budget: unknown) {
+  if (!budget || typeof budget !== 'object') return 0
+  const record = budget as Record<string, unknown>
+  const value = record.heldAmount ?? record.holdAmount
+  return Math.max(typeof value === 'number' ? value : 0, 0)
 }
 
 function budgetUsagePercent(usedAmount: number, totalAmount: number) {
@@ -397,7 +396,10 @@ const totalBudgetUsed = computed(() => {
 
 const totalBudgetHeld = computed(() => {
   if (budgetItems.value.length > 0) {
-    return budgetItems.value.reduce((sum, budget) => sum + Math.max(budget.heldAmount ?? 0, 0), 0)
+    return budgetItems.value.reduce(
+      (sum, budget) => sum + Math.max(budget.heldAmount ?? 0, 0),
+      0,
+    )
   }
 
   const overview = budgetOverview.value
@@ -407,7 +409,6 @@ const totalBudgetHeld = computed(() => {
     (sum, budget) => sum + budgetHeldAmount(budget),
     0,
   )
-
   return commonBudgetHeld.value + departmentBudgetHeld
 })
 
@@ -449,13 +450,14 @@ function openAssetDrawer(mode: 'holding' | 'expiring' | 'expiring-tangible' | 'e
       : 'ALL'
 }
 
-function toDepartmentBudgetDetail(budget: DepartmentBudgetOverview | DepartmentBudgetDetail): DepartmentBudgetDetail {
+function toDepartmentBudgetDetail(
+  budget: DepartmentBudgetOverview | DepartmentBudgetDetail,
+): DepartmentBudgetDetail {
   const heldAmount = budgetHeldAmount(budget)
   const remainingAmount = Math.max(budget.totalAmount - budget.usedAmount - heldAmount, 0)
 
   return {
     ...budget,
-    heldAmount,
     remainingAmount,
     categoryUsages: 'categoryUsages' in budget ? budget.categoryUsages : [],
   }
@@ -472,8 +474,6 @@ function mergeDepartmentBudgetDetail(
     departmentName: detail.departmentName || overview.departmentName,
     totalAmount: overview.totalAmount,
     usedAmount: overview.usedAmount,
-    heldAmount: budgetHeldAmount(overview),
-    holdAmount: overview.holdAmount,
     usageRate: overview.usageRate,
   })
 }
@@ -500,27 +500,20 @@ async function loadDashboardData() {
   try {
     const departmentId = auth.user?.departmentId
     const scope = isDepartmentManager.value && departmentId ? { departmentId } : undefined
-    const unassignedCountRequest = isAssetOperator.value
-      ? loadAvailableAssets().then((assets) => assets.length).catch((error) => {
-          console.error('대시보드 미배정 자산 수 조회 실패', error)
-          return null
-        })
+    const demandRequest = isDepartmentManager.value || isAssetOperator.value
+      ? dashboardApi.getAssetDemands({ page: 0, size: 100 })
       : Promise.resolve(null)
-    const [ticketResponse, ownedResponse, expiringResponse, demandResponse, unassignedCount] = await Promise.all([
+    const [ticketResponse, ownedResponse, expiringResponse, demandResponse] = await Promise.all([
       dashboardApi.getTicketProgress(scope),
       dashboardApi.getOwnedAssets(scope),
       dashboardApi.getExpiringAssets(scope),
-      dashboardApi.getAssetDemands({ page: 0, size: 100 }),
-      unassignedCountRequest,
+      demandRequest,
     ])
 
     ticketProgress.value = ticketResponse.data
-    ownedAssets.value = {
-      ...ownedResponse.data,
-      unassigned: unassignedCount ?? ownedResponse.data.unassigned,
-    }
+    ownedAssets.value = ownedResponse.data
     expiringSummary.value = expiringResponse.data
-    assetDemands.value = demandResponse.data.content
+    assetDemands.value = demandResponse?.data.content ?? []
     if (isDepartmentManager.value && departmentId) {
       const [budgetResponse, budgetOverviewResponse, eventsResponse, statisticsResponse] = await Promise.all([
         dashboardApi.getDepartmentBudgetDetails(departmentId),
@@ -550,12 +543,11 @@ async function loadDashboardData() {
           }
       return
     }
-    const [budgetResponse, budgetListResponse] = await Promise.all([
-      dashboardApi.getBudgets({ page: 0, size: 1000 }),
-      budgetApi.getList({ page: 0, size: 1000 }),
-    ])
-    budgetOverview.value = budgetResponse.data
+    const budgetListResponse = await budgetApi.getList({ page: 0, size: 1000 })
     budgetItems.value = budgetListResponse.data.content
+    budgetOverview.value = budgetItems.value.length === 0
+      ? (await dashboardApi.getBudgets({ page: 0, size: 1000 })).data
+      : null
 
     if (isAssetOperator.value) {
       const [eventsResponse, statisticsResponse] = await Promise.all([

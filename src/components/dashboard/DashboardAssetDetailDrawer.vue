@@ -10,16 +10,52 @@
     <div class="flex h-full min-h-0 flex-col">
       <div class="flex shrink-0 flex-col gap-3 border-b border-border px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-wrap gap-2">
-          <Button
-            v-for="option in modeOptions"
-            :key="option.value"
-            :variant="selectedOption === option.value ? 'primary' : 'outline'"
-            size="md"
-            class="text-sm!"
-            @click="selectOption(option.value)"
+          <div
+            v-if="mode === 'owned'"
+            class="flex flex-wrap gap-2"
+            aria-label="자산 구분"
           >
-            {{ option.label }}
-          </Button>
+            <Button
+              v-for="option in OWNED_ASSET_TYPE_OPTIONS"
+              :key="option.value"
+              :variant="selectedAssetType === option.value ? 'primary' : 'outline'"
+              size="md"
+              class="text-sm!"
+              @click="selectAssetType(option.value)"
+            >
+              {{ option.label }}
+            </Button>
+          </div>
+
+          <div
+            v-if="mode === 'owned'"
+            class="ml-1 flex flex-wrap gap-2 border-l border-border pl-3"
+            aria-label="보유 상태"
+          >
+            <Button
+              v-for="option in modeOptions"
+              :key="option.value"
+              :variant="selectedOption === option.value ? 'secondary' : 'outline'"
+              size="md"
+              class="text-sm!"
+              @click="selectOption(option.value)"
+            >
+              {{ option.label }}
+            </Button>
+          </div>
+
+          <div v-else class="flex flex-wrap gap-2" aria-label="자산 구분">
+            <Button
+              v-for="option in modeOptions"
+              :key="option.value"
+              :variant="selectedOption === option.value ? 'primary' : 'outline'"
+              size="md"
+              class="text-sm!"
+              @click="selectOption(option.value)"
+            >
+              {{ option.label }}
+            </Button>
+          </div>
         </div>
 
         <div class="flex gap-2">
@@ -99,10 +135,8 @@ import Button from '@/components/common/Button.vue'
 import Input from '@/components/common/Input.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Table, { type Column } from '@/components/common/Table.vue'
-import { intangibleAssetApi, tangibleAssetApi } from '@/api/asset.api'
 import { dashboardApi } from '@/api/dashboard.api'
 import { ApiError } from '@/api/client'
-import { useDashboardAvailableAssets } from '@/composables'
 import type {
   ExpiringAssetDetail,
   OwnedAssetDetail,
@@ -146,9 +180,14 @@ const emit = defineEmits<{
 
 const OWNED_STATUS_OPTIONS: Array<{ label: string; value: OwnedAssetDetailStatus }> = [
   { label: '미배정', value: 'UNASSIGNED' },
-  { label: '대여 예정', value: 'RENTAL_SCHEDULED' },
-  { label: '대여 중', value: 'RENTED' },
+  { label: '배정 예정', value: 'RENTAL_SCHEDULED' },
+  { label: '보유 중', value: 'RENTED' },
   { label: '연체', value: 'OVERDUE' },
+]
+
+const OWNED_ASSET_TYPE_OPTIONS: Array<{ label: string; value: Exclude<ExpiringAssetType, 'ALL'> }> = [
+  { label: '유형자산', value: 'TANGIBLE' },
+  { label: '무형자산', value: 'INTANGIBLE' },
 ]
 
 const EXPIRING_TYPE_OPTIONS: Array<{ label: string; value: ExpiringAssetType }> = [
@@ -162,13 +201,12 @@ const baseColumns: Column<DetailRow>[] = [
   { key: 'name', label: '자산명', width: '17%', align: 'center', maxLines: 2 },
   { key: 'code', label: '자산코드', width: '15%', align: 'center' },
   { key: 'category', label: '카테고리', width: '11%', align: 'center' },
-  { key: 'ownerDepartment', label: '사용자(부서)', width: '18%', align: 'center' },
-  { key: 'date', label: '만료/반납 예정일', width: '13%', align: 'center' },
-  { key: 'note', label: '잔여/연체', width: '15%', align: 'center' },
+  { key: 'ownerDepartment', label: '사용자(부서)', width: '12%', align: 'center' },
+  { key: 'date', label: '만료/반납 예정일', width: '8%', align: 'center' },
+  { key: 'note', label: '잔여/연체', width: '8%', align: 'center' },
 ]
 
 const selectedOwnedStatus = ref<OwnedAssetDetailStatus>('UNASSIGNED')
-const { loadAvailableAssets } = useDashboardAvailableAssets()
 const selectedAssetType = ref<ExpiringAssetType>('ALL')
 const keyword = ref('')
 const rows = ref<DetailRow[]>([])
@@ -177,6 +215,7 @@ const currentPage = ref(0)
 const totalPages = ref(1)
 const isLoading = ref(false)
 const errorMessage = ref('')
+let detailRequestSequence = 0
 
 const modeOptions = computed(() => (
   props.mode === 'owned'
@@ -186,7 +225,7 @@ const modeOptions = computed(() => (
 const columns = computed<Column<DetailRow>[]>(() => {
   if (props.mode === 'owned' && selectedOwnedStatus.value === 'UNASSIGNED') {
     return baseColumns
-      .filter((column) => column.key !== 'ownerDepartment')
+      .filter((column) => column.key !== 'ownerDepartment' && column.key !== 'date')
       .map((column) => (
         column.key === 'note' ? { ...column, label: '배정 가능/전체' } : column
       ))
@@ -207,9 +246,14 @@ const rangeText = computed(() => {
 watch(
   () => [props.isOpen, props.mode, props.initialOwnedStatus, props.initialAssetType],
   ([isOpen]) => {
-    if (!isOpen) return
+    if (!isOpen) {
+      detailRequestSequence += 1
+      return
+    }
     selectedOwnedStatus.value = props.initialOwnedStatus
-    selectedAssetType.value = props.initialAssetType
+    selectedAssetType.value = props.mode === 'owned' && props.initialAssetType === 'ALL'
+      ? 'TANGIBLE'
+      : props.initialAssetType
     keyword.value = ''
     currentPage.value = 0
     void loadDetails()
@@ -218,10 +262,21 @@ watch(
 
 function selectOption(value: string) {
   if (props.mode === 'owned') {
-    selectedOwnedStatus.value = value as OwnedAssetDetailStatus
+    const nextStatus = value as OwnedAssetDetailStatus
+    if (selectedOwnedStatus.value === nextStatus) return
+    selectedOwnedStatus.value = nextStatus
   } else {
-    selectedAssetType.value = value as ExpiringAssetType
+    const nextType = value as ExpiringAssetType
+    if (selectedAssetType.value === nextType) return
+    selectedAssetType.value = nextType
   }
+  currentPage.value = 0
+  void loadDetails()
+}
+
+function selectAssetType(value: ExpiringAssetType) {
+  if (selectedAssetType.value === value) return
+  selectedAssetType.value = value
   currentPage.value = 0
   void loadDetails()
 }
@@ -240,63 +295,56 @@ function handleSearch() {
 async function loadDetails() {
   if (!props.isOpen) return
 
+  const requestSequence = ++detailRequestSequence
+  const mode = props.mode
+  const ownedStatus = selectedOwnedStatus.value
+  const assetType = selectedAssetType.value
+  const departmentId = props.departmentId
+  const searchKeyword = keyword.value.trim() || undefined
+  const page = currentPage.value
+
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    if (props.mode === 'owned') {
-      if (selectedOwnedStatus.value === 'UNASSIGNED') {
-        const availableAssets = await loadAvailableAssets({
-          departmentId: props.departmentId,
-          keyword: keyword.value.trim() || undefined,
-        })
-        totalElements.value = availableAssets.length
-        totalPages.value = Math.max(Math.ceil(availableAssets.length / PAGE_SIZE), 1)
-        const start = currentPage.value * PAGE_SIZE
-        rows.value = availableAssets
-          .slice(start, start + PAGE_SIZE)
-          .map((item) => toOwnedRow(item, selectedOwnedStatus.value))
-        return
-      }
-
+    if (mode === 'owned') {
       const response = await dashboardApi.getOwnedAssetDetails({
-        status: selectedOwnedStatus.value,
-        departmentId: props.departmentId,
-        keyword: keyword.value.trim() || undefined,
-        page: currentPage.value,
+        status: ownedStatus,
+        assetType: assetType === 'INTANGIBLE' ? 'INTANGIBLE' : 'TANGIBLE',
+        departmentId,
+        keyword: searchKeyword,
+        page,
         size: PAGE_SIZE,
       })
-      rows.value = response.data.content.map((item) => toOwnedRow(item, selectedOwnedStatus.value))
-      totalElements.value = response.data.totalElements
-      totalPages.value = Math.max(response.data.totalPages, 1)
+      if (requestSequence !== detailRequestSequence) return
+
+      const requestedAssetType = assetType === 'INTANGIBLE' ? 'INTANGIBLE' : 'TANGIBLE'
+      const filteredContent = response.data.content.filter((item) => item.assetType === requestedAssetType)
+      const hasMismatchedType = filteredContent.length !== response.data.content.length
+
+      rows.value = filteredContent.map((item) => toOwnedRow(item, ownedStatus))
+      totalElements.value = hasMismatchedType ? filteredContent.length : response.data.totalElements
+      totalPages.value = hasMismatchedType
+        ? Math.max(Math.ceil(filteredContent.length / PAGE_SIZE), 1)
+        : Math.max(response.data.totalPages, 1)
       return
     }
 
-    const assetTypes = selectedAssetType.value === 'ALL'
-      ? ['TANGIBLE', 'INTANGIBLE'] as const
-      : [selectedAssetType.value]
-    if (assetTypes.length === 1) {
-      const response = await dashboardApi.getExpiringAssetDetails({
-        assetType: assetTypes[0],
-        departmentId: props.departmentId,
-        keyword: keyword.value.trim() || undefined,
-        page: currentPage.value,
-        size: PAGE_SIZE,
-      })
-      rows.value = await Promise.all(response.data.content.map(toExpiringRow))
-      totalElements.value = response.data.totalElements
-      totalPages.value = Math.max(response.data.totalPages, 1)
-      return
-    }
+    const response = await dashboardApi.getExpiringAssetDetails({
+      assetType: assetType === 'ALL' ? undefined : assetType,
+      departmentId,
+      keyword: searchKeyword,
+      page,
+      size: PAGE_SIZE,
+    })
+    if (requestSequence !== detailRequestSequence) return
 
-    const detailGroups = await Promise.all(assetTypes.map(loadAllExpiringDetails))
-    const allRows = (await Promise.all(detailGroups.flat().map(toExpiringRow)))
-      .sort((a, b) => a.date.localeCompare(b.date))
-    totalElements.value = allRows.length
-    totalPages.value = Math.max(Math.ceil(allRows.length / PAGE_SIZE), 1)
-    const start = currentPage.value * PAGE_SIZE
-    rows.value = allRows.slice(start, start + PAGE_SIZE)
+    rows.value = response.data.content.map(toExpiringRow)
+    totalElements.value = response.data.totalElements
+    totalPages.value = Math.max(response.data.totalPages, 1)
   } catch (error) {
+    if (requestSequence !== detailRequestSequence) return
+
     rows.value = []
     totalElements.value = 0
     totalPages.value = 1
@@ -304,30 +352,10 @@ async function loadDetails() {
       ? '현재 계정에는 자산 상세 조회 권한이 없습니다.'
       : '자산 상세 정보를 불러오지 못했습니다.'
   } finally {
-    isLoading.value = false
+    if (requestSequence === detailRequestSequence) {
+      isLoading.value = false
+    }
   }
-}
-
-async function loadAllExpiringDetails(assetType: 'TANGIBLE' | 'INTANGIBLE') {
-  const params = {
-    assetType,
-    departmentId: props.departmentId,
-    keyword: keyword.value.trim() || undefined,
-    size: 100,
-  }
-  const firstResponse = await dashboardApi.getExpiringAssetDetails({ ...params, page: 0 })
-  const remainingPages = Array.from(
-    { length: Math.max(firstResponse.data.totalPages - 1, 0) },
-    (_, index) => index + 1,
-  )
-  const remainingResponses = await Promise.all(
-    remainingPages.map((page) => dashboardApi.getExpiringAssetDetails({ ...params, page })),
-  )
-
-  return [
-    ...firstResponse.data.content,
-    ...remainingResponses.flatMap((response) => response.data.content),
-  ]
 }
 
 function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): DetailRow {
@@ -343,128 +371,41 @@ function toOwnedRow(item: OwnedAssetDetail, status: OwnedAssetDetailStatus): Det
         : OWNED_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
     name: item.assetName || '-',
     code: item.assetCode || '-',
-    category: textValue(item.categoryName, item.categoryOrProvider) || '-',
+    category: textValue(item.categoryName) || '-',
     owner,
     department,
     ownerDepartment: ownerDepartmentText(owner, department),
-    date: textValue(item.returnDueDate, item.dueDate, item.warrantyExpiredAt),
+    date: textValue(item.dueDate),
     note: status === 'UNASSIGNED'
-      ? `${item.availableCount ?? 1}/${item.totalCount ?? 1}`
+      ? `${item.availableSeatCount ?? 1}/${item.seatCount ?? 1}`
       : item.overdueDays ?? item.dayCount ?? 0,
   }
 }
 
 function ownedAssetOwnerText(item: OwnedAssetDetail, status: OwnedAssetDetailStatus) {
-  const owner = textValue(item.renterName, item.userName, item.currentUserInfo)
+  const owner = textValue(item.renterName)
   if (owner) return owner
   if (status === 'UNASSIGNED') return '미배정'
-  if (status === 'RENTAL_SCHEDULED') return '대여 예정'
+  if (status === 'RENTAL_SCHEDULED') return '배정 예정'
   return '사용자 없음'
 }
 
-async function toExpiringRow(item: ExpiringAssetDetail): Promise<DetailRow> {
-  const itemRecord = item as ExpiringAssetDetail & Record<string, unknown>
-  const assignment = await loadActiveAssignmentInfo(item)
-  const memberRecord = recordValue(
-    itemRecord.assignedMember
-    ?? itemRecord.member
-    ?? itemRecord.user
-    ?? itemRecord.currentUser
-    ?? itemRecord.renter,
-  )
-  const departmentRecord = recordValue(
-    itemRecord.department
-    ?? itemRecord.assignedDepartment
-    ?? itemRecord.currentDepartment
-    ?? itemRecord.ownerDepartment
-    ?? memberRecord?.department,
-  )
-  const owner = textValue(
-    item.userName,
-    assignment.owner,
-    item.assignedMemberName,
-    item.assignedUserName,
-    item.currentUserName,
-    item.memberName,
-    item.renterName,
-    itemRecord.assigneeName,
-    itemRecord.ownerName,
-    memberRecord?.name,
-    memberRecord?.memberName,
-    memberRecord?.userName,
-    memberRecord?.employeeName,
-  ) || '-'
-  const department = textValue(
-    item.departmentName,
-    assignment.department,
-    item.assignedDepartmentName,
-    item.currentDepartmentName,
-    item.ownerDepartmentName,
-    itemRecord.deptName,
-    itemRecord.teamName,
-    departmentRecord?.departmentName,
-    departmentRecord?.name,
-    departmentRecord?.deptName,
-    departmentRecord?.teamName,
-    memberRecord?.departmentName,
-    memberRecord?.deptName,
-    memberRecord?.teamName,
-  ) || '-'
+function toExpiringRow(item: ExpiringAssetDetail): DetailRow {
+  const owner = textValue(item.userName) || '-'
+  const department = textValue(item.departmentName) || '-'
 
   return {
     id: item.assetId,
     kind: item.assetType === 'TANGIBLE' ? '유형자산' : '무형자산',
     name: item.assetName || '-',
     code: item.assetCode || '-',
-    category: item.manufacturer ?? item.issuer ?? '-',
+    category: item.categoryOrProvider ?? item.manufacturer ?? item.issuer ?? '-',
     owner,
     department,
     ownerDepartment: ownerDepartmentText(owner, department),
     date: item.expiredAt,
     note: item.remainingDays,
   }
-}
-
-async function loadActiveAssignmentInfo(item: ExpiringAssetDetail) {
-  if ((item.userName && item.departmentName) || !item.assetId) {
-    return { owner: '', department: '' }
-  }
-
-  try {
-    const response = item.assetType === 'TANGIBLE'
-      ? await tangibleAssetApi.getAssignments(item.assetId, { assignmentStatus: 'ACTIVE' })
-      : await intangibleAssetApi.getAssignments(item.assetId, { assignmentStatus: 'ACTIVE' })
-    const activeAssignment = response.data.find(isActiveAssignment) ?? response.data[0]
-    const record = activeAssignment as Record<string, unknown> | undefined
-
-    return {
-      owner: textValue(
-        activeAssignment?.memberName,
-        record?.userName,
-        record?.assignedMemberName,
-        record?.assigneeName,
-      ),
-      department: textValue(
-        activeAssignment?.departmentName,
-        record?.assignedDepartmentName,
-        record?.departmentName,
-        recordValue(record?.department)?.name,
-        recordValue(record?.member)?.departmentName,
-        recordValue(recordValue(record?.member)?.department)?.name,
-      ),
-    }
-  } catch (error) {
-    console.warn('만료 예정 자산 배정 정보 조회 실패', {
-      assetType: item.assetType,
-      assetId: item.assetId,
-      error,
-    })
-    return { owner: '', department: '' }
-  }
-}
-
-function isActiveAssignment(assignment: { assignmentStatus?: string }) {
-  return assignment.assignmentStatus === 'ACTIVE' || assignment.assignmentStatus === 'ASSIGNED'
 }
 
 function ownerDepartmentText(owner: string, department: string) {
@@ -515,9 +456,4 @@ function textValue(...values: unknown[]) {
     ?.toString() ?? ''
 }
 
-function recordValue(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null
-}
 </script>
